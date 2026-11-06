@@ -63,11 +63,47 @@ export function mergeRefreshedPage<T extends { id: string }>(
   // Une liste finie, du plus ancien au plus récent : ce qui est arrivé depuis
   // vient APRÈS la queue, et l'ancienne suite (aucune) le rendait
   // inatteignable — la liste se disait terminée (D-01, 1.9.0). La suite de la
-  // page repasse par la queue (`appendPage` n'en redouble rien, `loadMore`
-  // enchaîne les pages sans neuf) puis atteint les nouveaux. Du plus récent
-  // au plus ancien, les nouveaux sont dans la page : la liste reste finie.
+  // page repasse par la queue (`appendPage` n'en redouble rien) puis atteint
+  // les nouveaux. À la première page sans neuf, `loadMore` demande si la vue a
+  // quoi que ce soit au-delà du dernier article (`nothingBeyondTail`) : rien,
+  // la liste se redit finie sans relire la queue ; sinon il traverse les pages
+  // de doublons, borné par `duplicatePageLimit` (RO-03). Du plus récent au plus
+  // ancien, les nouveaux sont dans la page : la liste reste finie.
   const continuation = shownContinuation ?? (order === 'oldest' ? pageContinuation : null);
   return { articles: [...page, ...tail], continuation };
+}
+
+/**
+ * Une liste « plus anciens d'abord » n'a-t-elle RIEN au-delà de son dernier
+ * article ? `newestId` est l'identifiant le plus récent de la vue côté serveur
+ * (`newestItemId`), `null` si elle est vide. Ce qui suit la queue dans cet
+ * ordre est plus récent que tout ce qui est chargé : si le plus récent de la
+ * vue n'est pas plus récent que la liste, la suite ne rapporterait que des
+ * doublons (RO-03). Dans le doute (identifiant illisible, liste vide), `false` :
+ * la suite est parcourue plutôt que des articles perdus.
+ */
+export function nothingBeyondTail(rows: readonly { id: string }[], newestId: string | null): boolean {
+  if (rows.length === 0) return false;
+  let max: bigint | null = null;
+  for (const a of rows) {
+    const usec = entryIdUsec(a.id);
+    if (usec === null) return false;
+    const n = BigInt(usec);
+    if (max === null || n > max) max = n;
+  }
+  if (newestId === null) return true;
+  const newest = entryIdUsec(newestId);
+  return newest !== null && max !== null && BigInt(newest) <= max;
+}
+
+/**
+ * Combien de pages de doublons `loadMore` traverse d'affilée au plus. La suite
+ * d'une relecture repasse par une queue déjà chargée : elle ne peut pas compter
+ * plus de pages que la liste n'en contient (plus une, pour une page à cheval).
+ * Au-delà, la suite ne mène nulle part : la liste se redit finie (RO-03).
+ */
+export function duplicatePageLimit(loaded: number, pageSize: number): number {
+  return Math.ceil(loaded / pageSize) + 1;
 }
 
 /**

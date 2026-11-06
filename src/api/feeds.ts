@@ -260,6 +260,21 @@ export async function fetchStreamPage(
 }
 
 /**
+ * L'identifiant (décimal) de l'article le plus récemment inséré dans un flux,
+ * ou `null` s'il est vide. Une seule référence, sans contenu : de quoi savoir
+ * si une liste « plus anciens d'abord » a quelque chose au-delà de son dernier
+ * article sans relire toute sa queue (RO-03, `loadMore`). `stream/items/ids`
+ * rend les identifiants du plus récent au plus ancien.
+ */
+export async function newestItemId(streamId: string, excludeTag: string | null): Promise<string | null> {
+  const params: Record<string, string | number> = { output: 'json', n: 1, s: streamId };
+  if (excludeTag) params.xt = excludeTag;
+  const { data } = await client.get<{ itemRefs?: { id: string }[] }>(`${BASE}/stream/items/ids`, { params });
+  expectJson(data);
+  return data.itemRefs?.[0]?.id ?? null;
+}
+
+/**
  * Les identifiants d'un flux pour l'affichage aléatoire, du plus récent au plus
  * ancien, jusqu'au seuil (`randomCutoffUsec`) ou au plafond. Pas de `ot`, pour la
  * même raison qu'`itemIdsNewerThanEntry` ci-dessous.

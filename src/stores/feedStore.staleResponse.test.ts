@@ -30,6 +30,7 @@ vi.mock('../api/feeds', () => ({
   fetchStreamPage: vi.fn(), subscribeFeed: vi.fn(), editFeed: vi.fn(), unsubscribeFeed: vi.fn(),
   getTagList: vi.fn(async () => []), getStreamItemCount: vi.fn(), setArticleLabel: vi.fn(async () => {}),
   renameTag: vi.fn(), deleteTag: vi.fn(), clearWriteToken: vi.fn(), itemIdsNewerThanEntry: vi.fn(async () => []),
+  newestItemId: vi.fn(async () => null),
 }));
 vi.mock('../api/backend', () => ({ startActualize: vi.fn(), getActualizeStatus: vi.fn() }));
 vi.mock('../i18n', () => ({ default: { t: (k: string) => k } }));
@@ -389,13 +390,11 @@ describe('loadMore en vol pendant une relecture qui remplace tout', () => {
 });
 
 describe('relecture d’une liste finie, du plus ancien au plus récent (D-01)', () => {
-  it('les articles arrivés depuis restent atteignables : la suite traverse la queue déjà là', async () => {
-    const env = await load();
-    const { api, useFeedStore } = env;
-    const { useUiStore } = await import('./uiStore');
-    useUiStore.setState({ articleOrder: 'oldest' } as never);
-    // Un FreshRSS en miniature : pages de deux, suite = rang du prochain article.
-    const stream = [1, 2, 3, 4];
+  /**
+   * Un FreshRSS en miniature : pages de deux, suite = rang du prochain article,
+   * et `newestItemId` qui rend l'article le plus récent du flux.
+   */
+  function miniFreshRss({ api }: Env, stream: number[]) {
     const served: (string | null)[] = [];
     vi.mocked(api.getStreamContents).mockImplementation((async (_id: string, _n: number, cont: string | null, _x: unknown, opts?: { cacheOnly?: boolean }) => {
       if (opts?.cacheOnly) return null;
@@ -404,20 +403,35 @@ describe('relecture d’une liste finie, du plus ancien au plus récent (D-01)',
       const next = from + 2 < stream.length ? `at-${from + 2}` : null;
       return { items: stream.slice(from, from + 2).map((n) => item(n)), continuation: next };
     }) as never);
-    useFeedStore.getState().selectView(feed1, 'all');
+    vi.mocked(api.newestItemId).mockImplementation(async () => (stream.length ? String(Math.max(...stream)) : null));
+    return served;
+  }
+  /** La vue chargée jusqu'au bout, puis relue au retour d'onglet. */
+  async function finishedThenReread(env: Env, stream: number[], filter: 'all' | 'unread', arrived: number[]) {
+    const { useFeedStore } = env;
+    const { useUiStore } = await import('./uiStore');
+    useUiStore.setState({ articleOrder: 'oldest' } as never);
+    const served = miniFreshRss(env, stream);
+    useFeedStore.getState().selectView(feed1, filter);
     await settled();
-    await useFeedStore.getState().loadMore();
-    expect(useFeedStore.getState().articles.map((a) => a.id)).toEqual([1, 2, 3, 4].map(hex));
-    expect(useFeedStore.getState().continuation, 'liste finie').toBeNull();
-    // Retour d'onglet : un cinquième article est arrivé, la première page relue porte une suite.
-    stream.push(5);
+    while (useFeedStore.getState().continuation) await useFeedStore.getState().loadMore();
+    expect(useFeedStore.getState().articles.map((a) => a.id), 'liste finie').toEqual(stream.map(hex));
+    stream.push(...arrived);
     await useFeedStore.getState().silentRefresh();
+    served.length = 0;
+    return served;
+  }
+
+  it('les articles arrivés depuis restent atteignables : la suite traverse la queue déjà là', async () => {
+    const env = await load();
+    const { useFeedStore } = env;
+    // Retour d'onglet : un cinquième article est arrivé, la première page relue porte une suite.
+    const served = await finishedThenReread(env, [1, 2, 3, 4], 'all', [5]);
     let s = useFeedStore.getState();
     expect(s.articles.map((a) => a.id), 'la position reste (#30)').toEqual([1, 2, 3, 4].map(hex));
     expect(s.continuation, 'la liste ne se dit plus finie').toBe('at-2');
     // La suite repasse d'abord par la queue déjà chargée : une page sans rien de
     // neuf ne doit pas laisser la liste en bas sans rien charger.
-    served.length = 0;
     await useFeedStore.getState().loadMore();
     await settled();
     s = useFeedStore.getState();
@@ -427,7 +441,65 @@ describe('relecture d’une liste finie, du plus ancien au plus récent (D-01)',
     expect(served, 'une page par suite, sans rejouer la même').toEqual(['at-2', 'at-4']);
   });
 
-  it('une suite qui tourne en rond sur des articles déjà là s’arrête d’elle-même', async () => {
+  // RO-03 (1) : rien n'est arrivé, et chaque retour d'onglet suivi d'une
+  // arrivée en bas relisait toute la queue, page après page.
+  it('rien n’est arrivé : une seule page, puis la liste se redit finie, sans relire la queue', async () => {
+    const env = await load();
+    const { useFeedStore } = env;
+    const served = await finishedThenReread(env, [1, 2, 3, 4, 5, 6], 'all', []);
+    expect(useFeedStore.getState().continuation).toBe('at-2');
+    await useFeedStore.getState().loadMore();
+    await settled();
+    const s = useFeedStore.getState();
+    expect(served, 'la queue n’est pas relue').toEqual(['at-2']);
+    expect(s.continuation, 'la liste se redit finie').toBeNull();
+    expect(s.articles.map((a) => a.id)).toEqual([1, 2, 3, 4, 5, 6].map(hex));
+    expect(s.loadingMore).toBe(false);
+  });
+
+  // RO-03 (1) : un ✓ (retrait sous « Non lus » → rattrapage) ne demande
+  // qu'UNE page, même quand elle ne rapporte que des articles déjà là
+  // (`src/lib/listTopUp.ts` : un geste ⇒ au plus une page).
+  it('un ✓ qui rattrape la liste ne demande qu’une page, même sans rien de neuf', async () => {
+    const env = await load();
+    const { useFeedStore } = env;
+    const { publishListCanScroll, resetListCanScroll } = await import('../lib/listOverflow');
+    const served = await finishedThenReread(env, [1, 2, 3, 4, 5, 6], 'unread', [7]);
+    expect(useFeedStore.getState().continuation).toBe('at-2');
+    publishListCanScroll(false);
+    try {
+      const first = useFeedStore.getState().articles[0];
+      await useFeedStore.getState().toggleRead(first);
+      await settled();
+    } finally { resetListCanScroll(); }
+    const s = useFeedStore.getState();
+    expect(served, 'un geste, une page').toEqual(['at-2']);
+    expect(s.continuation, 'la suite reste pour le défilement').toBe('at-4');
+    expect(s.loadingMore).toBe(false);
+  });
+
+  // RO-03 (2) : arrêté au plafond sur une suite non nulle, sans que la liste
+  // ait grandi, l'enchaînement laissait une liste qui promettait la suite et
+  // qu'aucun `scroll` ne pouvait plus demander.
+  it('une suite qui avance sans fin sur des articles déjà là s’arrête à la taille de la liste, et la liste se dit finie', async () => {
+    const env = await load();
+    const { api, useFeedStore } = env;
+    vi.mocked(api.getStreamContents).mockResolvedValue({ items: [item(2), item(1)], continuation: 'c0' } as never);
+    useFeedStore.getState().selectView(feed1, 'all');
+    await settled();
+    let calls = 0;
+    vi.mocked(api.getStreamContents).mockImplementation((async () => {
+      calls++;
+      return { items: [item(2), item(1)], continuation: `c${calls}` };
+    }) as never);
+    await useFeedStore.getState().loadMore();
+    // Deux articles en liste : aucune queue n'y demande plus de deux pages de doublons.
+    expect(calls).toBeLessThanOrEqual(3);
+    expect(useFeedStore.getState().loadingMore).toBe(false);
+    expect(useFeedStore.getState().continuation, 'plus de promesse qu’aucun geste ne peut tenir').toBeNull();
+  });
+
+  it('une suite qui tourne en rond sur des articles déjà là s’arrête d’elle-même, et la liste se dit finie', async () => {
     const env = await load();
     const { api, useFeedStore } = env;
     vi.mocked(api.getStreamContents).mockResolvedValue({ items: [item(2), item(1)], continuation: 'a' } as never);
@@ -439,8 +511,9 @@ describe('relecture d’une liste finie, du plus ancien au plus récent (D-01)',
       return { items: [item(2), item(1)], continuation: cont === 'a' ? 'b' : 'a' };
     }) as never);
     await useFeedStore.getState().loadMore();
-    expect(calls).toBeLessThanOrEqual(41);
+    expect(calls).toBeLessThanOrEqual(3);
     expect(useFeedStore.getState().loadingMore).toBe(false);
+    expect(useFeedStore.getState().continuation, 'plus de promesse qu’aucun geste ne peut tenir').toBeNull();
   });
 });
 

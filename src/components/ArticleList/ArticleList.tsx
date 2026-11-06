@@ -1487,7 +1487,7 @@ export default function ArticleList() {
             }}
             awaitingPage={bodyState === 'empty-more'}
             loadMoreBusy={loadMoreBusy}
-            onLoadMore={loadMore}
+            onLoadMore={() => { void loadMore(); }}
             random={randomView}
           />
         ) : gridLayout && !gridDateSeparators ? (

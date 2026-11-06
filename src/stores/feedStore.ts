@@ -19,7 +19,7 @@ import {
   setArticleLabel,
   renameTag,
   deleteTag,
-  itemIdsNewerThanEntry, getStreamIdsSince, getItemsByIds,
+  itemIdsNewerThanEntry, getStreamIdsSince, getItemsByIds, newestItemId,
 } from '../api/feeds';
 import { entryIdUsec, exclusiveOlderThanEntryId, isOlderEntry } from '../lib/entryId';
 import { articleHaystack, parseQuery, matchesTerms } from '../lib/searchMatch';
@@ -69,7 +69,7 @@ import { startActualize, getActualizeStatus, type ActualizeJob } from '../api/ba
 import { fromFreshrssTitle, fromFreshrssName } from '../lib/freshrssText';
 import { canRandomView, drawIds, inDrawOrder, randomCutoffUsec, randomViewKey, RANDOM_MAX_IDS } from '../lib/randomDraw';
 import { createLocalWrites, applyField, type WriteField } from '../lib/localWrites';
-import { mergeRefreshedPage, appendPage, keepOpenRow } from '../lib/refreshMerge';
+import { mergeRefreshedPage, appendPage, keepOpenRow, nothingBeyondTail, duplicatePageLimit } from '../lib/refreshMerge';
 import {
   viewListKey, viewListKeys, parseViewKey, preparedListKey, READ_LATER_LABEL, fallbackSources, offlineViewList, markStreamRead, PREPARED_MAX,
   type ViewAddress, type ViewList, type StoredView, type OfflineView, type OfflineSources,
@@ -537,15 +537,23 @@ function persistCurrentView(get: () => FeedState): void {
 let listGeneration = 0;
 /** Numéro de la dernière demande de page de suite (`loadMore`, R3T3-2). */
 let loadMoreTicket = 0;
+
 /**
- * Pages de suite enchaînées d'affilée sans rien apporter de neuf (D-01). Une
- * relecture d'une liste finie, du plus ancien au plus récent, rend la suite de
- * sa première page : elle repasse par la queue déjà chargée avant d'atteindre
- * les articles arrivés depuis. Le plafond protège d'un serveur dont la suite
- * tournerait en rond.
+ * La vue « plus anciens d'abord » a-t-elle quelque chose au-delà de son
+ * dernier article ? Une référence d'identifiant, sans contenu (RO-03). Dans le
+ * doute (échec, identifiant illisible), `true` : la suite est parcourue.
+ * Les favoris d'un flux sont filtrés côté client : la question porte alors sur
+ * tout le flux, ce qui ne peut que répondre « oui » à tort, jamais « non ».
  */
-let duplicatePageHops = 0;
-const MAX_DUPLICATE_PAGE_HOPS = 40;
+async function viewHasBeyond(filter: Filter, feed: Subscription | null, rows: readonly Article[]): Promise<boolean> {
+  try {
+    const streamId = resolveSearchStreamId(feed, filter, useFeedStore.getState().subscriptions);
+    const newest = await newestItemId(streamId, filter === 'unread' ? 'user/-/state/com.google/read' : null);
+    return !nothingBeyondTail(rows, newest);
+  } catch {
+    return true;
+  }
+}
 
 // Les écritures locales récentes : une réponse partie avant l'une d'elles est
 // recalée à son arrivée (`src/lib/localWrites.ts`). Le rang de départ se prend
@@ -967,7 +975,12 @@ export interface FeedState {
   restoreSubscriptionsSnapshot: () => Promise<void>;
   loadSpecialCounts: () => Promise<void>;
   loadArticles: () => Promise<void>;
-  loadMore: () => Promise<void>;
+  /**
+   * La page suivante. `once` : jamais plus d'UNE page, même si elle ne
+   * rapporte que des articles déjà là — le rattrapage d'un ✓ (`listTopUp.ts` :
+   * un geste ⇒ au plus une page).
+   */
+  loadMore: (opts?: { once?: boolean }) => Promise<void>;
   /** Un tirage au hasard dans la vue affichée. Jamais enregistré ni rangé. */
   randomView: boolean;
   /** Numéro du tirage affiché : un nouveau tirage remonte la liste. */
@@ -2248,7 +2261,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     if (want !== get().randomView) showRandomView(want);
   },
 
-  loadMore: async () => {
+  loadMore: async (opts) => {
     // Une recherche est déjà entièrement en mémoire : paginer, c'est montrer
     // la tranche suivante. Plus aucun appel réseau — c'est ce chemin qui
     // appendait autrefois le flux nu sous une boîte de recherche remplie.
@@ -2267,7 +2280,6 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     // la recherche — les trois choses qui changent la liste à l'écran.
     const view = viewIdentity(get());
     const generation = listGeneration;
-    const since = localWrites.mark();
     // `loadingMore` n'est rendu que par la DERNIÈRE demande (R3T3-2, troisième
     // round 1.9.0) : après une bascule de serveur (`resetAndReload` le remet à
     // faux), la nouvelle vue lance sa propre suite, et le règlement tardif de
@@ -2275,61 +2287,96 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     // pas : là, l'ancienne demande est la dernière, et c'est elle qui rend la main.
     const ticket = ++loadMoreTicket;
     const release = () => { if (ticket === loadMoreTicket) set({ loadingMore: false }); };
-    const stale = () => viewIdentity(get()) !== view || generation !== listGeneration || get().randomView || get().continuation !== continuation;
+    // La suite de la page en vol : celle d'entrée, puis celle de chaque page
+    // de doublons traversée (plus bas).
+    let asked: string | null = continuation;
+    const stale = () => viewIdentity(get()) !== view || generation !== listGeneration || get().randomView || get().continuation !== asked;
     set({ loadingMore: true });
+    const key = viewKey(selectedFeed, filter);
+    const order = viewOrder(selectedFeed);
+    // Bornes de la traversée d'une queue déjà chargée (RO-03) : jamais plus de
+    // pages de doublons que la liste n'en contient, jamais deux fois la même suite.
+    const hopLimit = duplicatePageLimit(get().articles.length, PAGE_SIZE);
+    const seen = new Set<string | null>([asked]);
+    let hops = 0;
+    let probed = false;
+    // La liste se redit finie : arrêtée sur une suite que plus aucun geste ne
+    // demanderait (le lecteur est en bas, la liste n'a pas grandi), elle
+    // promettait une suite et restait figée.
+    const finish = () => set((state) => {
+      memSet(key, { articles: state.articles, continuation: null });
+      listPut(key, state.articles, null).catch(() => {});
+      return { continuation: null, loadingMore: false };
+    });
 
     try {
-      const result = await fetchArticleStream(filter, selectedFeed, PAGE_SIZE, continuation);
-      // La vue a changé pendant l'aller-retour : cette page n'appartient plus
-      // à rien de ce qui est affiché. On la jette entièrement — pas d'ajout,
-      // pas d'écriture de cache, pas de `continuation` — et on rend la main.
-      // Ni sur un tirage, qu'on y soit entré par le bouton, une visite ou la fin
-      // d'une recherche : ajoutée, la page rangerait le mélange sous la clé de la vue.
-      // Ni quand la suite a changé pendant le vol : une relecture (retour
-      // d'onglet) a remplacé toute la liste par une nouvelle première page avec
-      // sa propre suite. Cette page-ci prolongeait l'ancienne : ajoutée sous la
-      // nouvelle, elle laissait un trou où des non-lus devenaient inatteignables,
-      // et ce trou partait au cache. Une queue recousue garde sa suite : la
-      // page reste valable.
-      if (stale()) { release(); return; }
-      if (!result) { set({ loadingMore: false }); return; }
+      for (;;) {
+        const since = localWrites.mark();
+        const result = await fetchArticleStream(filter, selectedFeed, PAGE_SIZE, asked);
+        // La vue a changé pendant l'aller-retour : cette page n'appartient plus
+        // à rien de ce qui est affiché. On la jette entièrement — pas d'ajout,
+        // pas d'écriture de cache, pas de `continuation` — et on rend la main.
+        // Ni sur un tirage, qu'on y soit entré par le bouton, une visite ou la fin
+        // d'une recherche : ajoutée, la page rangerait le mélange sous la clé de la vue.
+        // Ni quand la suite a changé pendant le vol : une relecture (retour
+        // d'onglet) a remplacé toute la liste par une nouvelle première page avec
+        // sa propre suite. Cette page-ci prolongeait l'ancienne : ajoutée sous la
+        // nouvelle, elle laissait un trou où des non-lus devenaient inatteignables,
+        // et ce trou partait au cache. Une queue recousue garde sa suite : la
+        // page reste valable.
+        if (stale()) { release(); return; }
+        if (!result) { set({ loadingMore: false }); return; }
 
-      const page = reconcile(result.items.map(normalizeArticle), filter, since);
-      let added = 0;
-      set((state) => {
+        const page = reconcile(result.items.map(normalizeArticle), filter, since);
+        const next = result.continuation;
         // Sans doublon : la relecture a pu rendre en tête des articles que
         // cette page apporte aussi (L-01).
-        const articles = appendPage(state.articles, page);
-        added = articles.length - state.articles.length;
-        const key = viewKey(selectedFeed, filter);
-        memSet(key, { articles, continuation: result.continuation });
-        listPut(key, articles, result.continuation).catch(() => {}); // persist extended list
-        return { articles, continuation: result.continuation, loadingMore: false };
-      });
-      // Même vue qu'à l'ouverture : ces articles s'ajoutent au travail en
-      // cours au lieu de l'annuler (voir `src/lib/warmSchedule.ts`).
-      warmExtracts(get().articles, viewIdentity(get())); // background: extract newly loaded pages for offline
+        const articles = appendPage(get().articles, page);
+        // Une page entière d'articles déjà là, avec une suite : la liste n'a pas
+        // grandi, donc aucun `scroll` ne redemandera la suivante, et le lecteur
+        // resterait en bas devant rien (D-01 : la suite d'une relecture repasse
+        // par la queue déjà chargée). Une page vide (favoris filtrés côté client)
+        // n'en est pas une : elle garde son message, plus bas. `loadingMore`
+        // reste levé le temps de décider, pour qu'aucun défilement ne relance la
+        // même suite en parallèle.
+        const duplicate = page.length > 0 && articles.length === get().articles.length && next !== null;
+        memSet(key, { articles, continuation: next });
+        listPut(key, articles, next).catch(() => {}); // persist extended list
+        set({ articles, continuation: next, loadingMore: duplicate });
+        asked = next;
+        // Même vue qu'à l'ouverture : ces articles s'ajoutent au travail en
+        // cours au lieu de l'annuler (voir `src/lib/warmSchedule.ts`).
+        if (!duplicate) warmExtracts(get().articles, viewIdentity(get())); // background: extract newly loaded pages for offline
 
-      // Une page entière d'articles déjà là, avec une suite qui avance : la
-      // liste n'a pas grandi, donc aucun `scroll` ne redemandera la suivante,
-      // et le lecteur resterait en bas devant rien (D-01 : la suite d'une
-      // relecture repasse par la queue déjà chargée). La suivante est demandée
-      // tout de suite. Une page vide (favoris filtrés côté client) n'en est pas
-      // une : elle garde son message, plus bas.
-      if (page.length > 0 && added === 0 && result.continuation && result.continuation !== continuation
-        && duplicatePageHops < MAX_DUPLICATE_PAGE_HOPS) {
-        duplicatePageHops++;
-        try { await get().loadMore(); } finally { duplicatePageHops--; }
+        if (duplicate) {
+          // Du plus ancien au plus récent, ce qui suit la queue est plus RÉCENT
+          // que son dernier article : une référence d'identifiant dit s'il y a
+          // quoi que ce soit au-delà. Rien : la liste se redit finie, sans
+          // relire toute la queue page par page à chaque retour d'onglet (RO-03).
+          if (order === 'oldest' && !probed) {
+            probed = true;
+            const beyond = await viewHasBeyond(filter, selectedFeed, get().articles);
+            if (stale()) { release(); return; }
+            if (!beyond) { finish(); return; }
+          }
+          // Le rattrapage d'un ✓ s'arrête à sa page (`listTopUp.ts`) : la suite
+          // reste, le prochain défilement la reprendra.
+          if (opts?.once) { release(); return; }
+          if (hops >= hopLimit || seen.has(asked)) { finish(); return; }
+          hops++;
+          seen.add(asked);
+          continue;
+        }
+
+        // Le clic a-t-il changé quoi que ce soit à l'écran ? Les favoris d'un
+        // flux sont filtrés CÔTÉ CLIENT (voir `fetchArticleStream` ci-dessus) :
+        // une page peut légitimement ne rendre AUCUNE ligne. Sans un mot pour
+        // le dire, des clics répétés repeignent le même écran vide et le
+        // bouton a l'air cassé.
+        if (shouldReportInvisibleProgress({ itemsAdded: result.items.length, hasMore: next != null })) {
+          await pushI18nToast('toast.loadMoreEmpty');
+        }
         return;
-      }
-
-      // Le clic a-t-il changé quoi que ce soit à l'écran ? Les favoris d'un
-      // flux sont filtrés CÔTÉ CLIENT (voir `fetchArticleStream` ci-dessus) :
-      // une page peut légitimement ne rendre AUCUNE ligne. Sans un mot pour
-      // le dire, des clics répétés repeignent le même écran vide et le
-      // bouton a l'air cassé.
-      if (shouldReportInvisibleProgress({ itemsAdded: result.items.length, hasMore: result.continuation != null })) {
-        await pushI18nToast('toast.loadMoreEmpty');
       }
     } catch {
       // Même garde que la réussite (R3T3-2) : l'échec d'une page d'une vue
@@ -2492,8 +2539,10 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     }
     // Hors du `try` : une page de rattrapage en échec ne doit jamais être
     // confondue avec un marquage refusé, et ne déclenche RIEN d'autre.
-    // `loadMore` avale ses propres erreurs — un échec s'arrête ici.
-    if (topUp) await get().loadMore();
+    // `loadMore` avale ses propres erreurs — un échec s'arrête ici. `once` :
+    // une page de doublons (suite d'une relecture qui repasse par la queue)
+    // n'en enchaîne pas d'autres sous ce geste (RO-03).
+    if (topUp) await get().loadMore({ once: true });
   },
 
   toggleStar: async (article) => {

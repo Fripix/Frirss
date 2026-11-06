@@ -1663,7 +1663,10 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
     trop courte et repaginait jusqu'à vider le flux — un seul appui sur le ★
     d'un gros flux suffisait. La décision est donc prise **au moment du
     retrait**, une fois : un geste ⇒ au plus une page. Un rattrapage en échec
-    s'arrête, il ne se replanifie pas.
+    s'arrête, il ne se replanifie pas. `toggleRead` appelle
+    `loadMore({ once: true })` : une page de doublons (suite d'une relecture
+    qui repasse par la queue, D-01) n'en enchaîne pas d'autres sous ce geste
+    (RO-03, 1.9.0).
   - **Ne jamais annoncer « tout est lu » à tort, ni enfermer dans un
     squelette.** L'état vide « Non lus » est un message de réussite ; tant que
     `continuation` promet une page suivante, il serait faux. La première
@@ -6333,12 +6336,24 @@ lui-même.** La chaîne tient en trois temps, et le cache n'en fait pas partie.
    garder l'ancienne suite (aucune) laissait la liste se dire terminée, les
    nouveaux inatteignables (D-01, 1.9.0). La queue reçoit alors la suite de la
    page, qui repasse par les articles déjà chargés avant d'atteindre les
-   nouveaux ; une page qui n'apporte rien de neuf alors que sa suite avance est
-   suivie aussitôt de la suivante (`loadMore`, au plus 40 d'affilée), sinon la
-   liste, qui n'a pas grandi, restait en bas sans rien demander. Coût assumé :
-   arrivé en bas, une page par 50 articles de queue, même sans nouveauté. Du
-   plus récent au plus ancien, les nouveaux sont dans la page : la liste reste
-   finie. Le compteur de nouveautés (`newInView`) retombe à zéro dans les deux
+   nouveaux. Arrivé en bas, la première page qui n'apporte que des articles
+   déjà là déclenche une seule question au serveur : l'identifiant le plus
+   récent de la vue (`newestItemId`, une référence sans contenu, sur le flux
+   et l'exclusion des lus de la vue). S'il n'est pas plus récent que la liste
+   (`nothingBeyondTail`), rien n'est arrivé : la liste se redit finie, sans
+   relire la queue. Sinon `loadMore` traverse les pages de doublons d'affilée
+   — la liste n'a pas grandi, aucun `scroll` ne demanderait la suivante —,
+   jamais plus que la liste n'en contient (`duplicatePageLimit`) ni deux fois
+   la même suite ; à cette borne, la liste se dit finie plutôt que de garder
+   une suite qu'aucun geste ne demanderait plus. Le rattrapage d'un ✓
+   (`loadMore({ once: true })`) s'arrête à sa page, même de doublons : la
+   suite reste pour le défilement (RO-03, 1.9.0 ; la première version
+   enchaînait jusqu'à 40 pages sous un ✓ et relisait toute la queue à chaque
+   retour d'onglet). Coût restant : quand quelque chose est arrivé, une page
+   par 50 articles de queue. Favoris d'un flux (filtrés côté client) : la
+   question porte sur tout le flux et peut répondre « arrivé » à tort,
+   jamais l'inverse. Du plus récent au plus ancien, les nouveaux sont dans la
+   page : la liste reste finie. Le compteur de nouveautés (`newInView`) retombe à zéro dans les deux
    sens. **Une page suivante en vol pendant une relecture
    qui remplace tout est jetée** : `loadMore` compare la suite d'avant sa
    requête à celle de l'arrivée. Elle prolongeait l'ancienne liste ; ajoutée

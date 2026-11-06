@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { mergeRefreshedPage, appendPage, keepOpenRow } from './refreshMerge';
+import { mergeRefreshedPage, appendPage, keepOpenRow, nothingBeyondTail, duplicatePageLimit } from './refreshMerge';
 
 /** Identifiant greader : l'id d'entrée FreshRSS en hexadécimal sur seize caractères. */
 const gid = (n: number) => `tag:google.com,2005:reader/item/${n.toString(16).padStart(16, '0')}`;
@@ -81,6 +81,27 @@ describe('mergeRefreshedPage — une liste finie relue alors que la vue a grandi
     const merged = mergeRefreshedPage(shownNew, null, pageNew, 'after-1025', 'newest');
     expect(ids(merged.articles)).toEqual(ids(rows(span(1074, 1000))));
     expect(merged.continuation).toBeNull();
+  });
+});
+
+describe('traversée d’une queue déjà chargée (RO-03)', () => {
+  it('rien au-delà quand l’article le plus récent de la vue est déjà dans la liste, ou la vue vide', () => {
+    expect(nothingBeyondTail(rows(span(1000, 1069)), '1069')).toBe(true);
+    expect(nothingBeyondTail(rows(span(1000, 1069)), '1050')).toBe(true);
+    expect(nothingBeyondTail(rows(span(1000, 1069)), null)).toBe(true);
+  });
+
+  it('quelque chose au-delà quand la vue a plus récent, ou dans le doute', () => {
+    expect(nothingBeyondTail(rows(span(1000, 1069)), '1070')).toBe(false);
+    expect(nothingBeyondTail(rows(span(1000, 1069)), 'illisible')).toBe(false);
+    expect(nothingBeyondTail([...rows([1000]), { id: 'sans-forme' }], '900')).toBe(false);
+    expect(nothingBeyondTail([], '900')).toBe(false);
+  });
+
+  it('jamais plus de pages de doublons que la liste n’en contient', () => {
+    expect(duplicatePageLimit(2, 50)).toBe(2);
+    expect(duplicatePageLimit(50, 50)).toBe(2);
+    expect(duplicatePageLimit(1200, 50)).toBe(25);
   });
 });
 
