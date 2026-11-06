@@ -5915,6 +5915,13 @@ images consultés restent lisibles sans réseau.
   la demande** (`stoppedOnCancel`) : « Annuler » touché pendant le dernier
   article laisse la préparation aller au bout, et elle se dit finie, retrait
   final compris.
+  **Le focus suit le bouton qui remplace l'autre** (second round, M-07) :
+  « Préparer », désactivé dès le clic, et « Annuler », démonté à la fin,
+  renvoyaient le focus sur la page. « Préparer » le donne à « Annuler » ;
+  « Arrêt… » est le même bouton, inerte par `aria-disabled` (un `disabled`
+  lâcherait le focus) ; à la fin de la préparation, annulée ou non, un focus
+  resté sur « Annuler » revient à « Préparer » (relevé au démontage du
+  bouton, par sa référence). Un focus posé ailleurs n'est pas déplacé.
   La durée restante (`src/lib/offlinePrepEta.ts`) extrapole le rythme
   OBSERVÉ de la phase des articles (`offlinePrep.startedAt`) sur ce qui reste,
   arrondie à la minute supérieure, en heures au-delà d'une heure (« 2 h » pour

@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useUiStore } from '../../stores/uiStore';
 import { useFeedStore } from '../../stores/feedStore';
@@ -28,6 +28,34 @@ export default function OfflineTab({ active = true }: { active?: boolean }) {
   const [cancelling, setCancelling] = useState(false);
   const running = !!offlinePrep?.running;
   useEffect(() => { if (!running) setCancelling(false); }, [running]);
+  // Le focus suit le bouton qui le remplace (M-07). « Préparer » est désactivé
+  // dès le clic, « Annuler » démonté à la fin : sous le focus, l'un comme
+  // l'autre le renvoyaient sur la page. « Préparer » le passe à « Annuler » ;
+  // « Annuler » le garde pendant l'arrêt (`aria-disabled`, pas `disabled`,
+  // qui le lâcherait), puis le rend à « Préparer » qui revient — de même
+  // quand la préparation finit seule, focus sur « Annuler ».
+  const prepareRef = useRef<HTMLButtonElement>(null);
+  const cancelRef = useRef<HTMLButtonElement | null>(null);
+  const focusCancel = useRef(false);
+  const focusPrepare = useRef(false);
+  // Appelé à `null` au démontage, nœud encore dans la page : c'est là qu'on
+  // sait s'il avait le focus, qui retombe ensuite sur `<body>`.
+  const cancelRefCb = useCallback((node: HTMLButtonElement | null) => {
+    const prev = cancelRef.current;
+    if (!node && prev && document.activeElement === prev) focusPrepare.current = true;
+    cancelRef.current = node;
+  }, []);
+  useEffect(() => {
+    if (running) {
+      if (focusCancel.current) cancelRef.current?.focus();
+      focusCancel.current = false;
+      return;
+    }
+    if (!focusPrepare.current) return;
+    focusPrepare.current = false;
+    const active = document.activeElement;
+    if (!active || active === document.body || !active.isConnected) prepareRef.current?.focus();
+  }, [running]);
   // Durée restante, au rythme observé : recalculée à chaque avancement
   // publié (tous les cinq articles), muette tant que la mesure est jeune.
   const remaining = running && offlinePrep?.phase === 'articles'
@@ -90,7 +118,11 @@ export default function OfflineTab({ active = true }: { active?: boolean }) {
         </p>
         <div className="flex flex-wrap items-center gap-2">
           <button
-            onClick={() => prepareOffline({ userInitiated: true })}
+            ref={prepareRef}
+            onClick={() => {
+              focusCancel.current = document.activeElement === prepareRef.current;
+              prepareOffline({ userInitiated: true });
+            }}
             disabled={offlinePrep?.running || !online}
             className="px-4 py-2 text-xs font-medium rounded-lg transition-colors disabled:opacity-50"
             style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
@@ -103,9 +135,14 @@ export default function OfflineTab({ active = true }: { active?: boolean }) {
               l'arrêter. L'article en cours va au bout, d'où « Arrêt… ». */}
           {offlinePrep?.running && (
             <button
-              onClick={() => { setCancelling(true); cancelOfflinePrep(); }}
-              disabled={cancelling}
-              className="px-4 py-2 text-xs rounded-lg transition-colors disabled:opacity-50"
+              ref={cancelRefCb}
+              onClick={() => {
+                if (cancelling) return;
+                setCancelling(true);
+                cancelOfflinePrep();
+              }}
+              aria-disabled={cancelling || undefined}
+              className="px-4 py-2 text-xs rounded-lg transition-colors aria-disabled:opacity-50"
               style={{ border: '1px solid var(--panel-border)', color: 'var(--list-title)' }}
             >
               {cancelling ? t('preferences.offline.cancelling') : t('preferences.offline.cancel')}

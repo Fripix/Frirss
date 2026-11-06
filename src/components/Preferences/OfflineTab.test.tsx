@@ -123,6 +123,52 @@ describe('Préférences › Hors ligne', () => {
       expect(screen.queryByText(/preferences\.offline\.eta/)).toBeNull();
     });
 
+    // M-07 (second round) : « Annuler », désactivé puis démonté sous le focus,
+    // le renvoyait sur la page ; « Préparer », désactivé dès le clic, aussi.
+    describe('focus (M-07)', () => {
+      const running = { running: true, phase: 'articles', done: 0, total: 10, startedAt: Date.now() };
+
+      it('« Préparer » donne le focus à « Annuler »', async () => {
+        const prepareOffline = vi.fn(() => { useFeedStore.setState({ offlinePrep: running } as never); });
+        useFeedStore.setState({ prepareOffline, cancelOfflinePrep: vi.fn() } as never);
+        await act(async () => { render(<OfflineTab />); });
+        const prepare = screen.getByRole('button', { name: 'preferences.offline.button' });
+        prepare.focus();
+        await act(async () => { fireEvent.click(prepare); });
+        expect(document.activeElement).toBe(screen.getByRole('button', { name: 'preferences.offline.cancel' }));
+      });
+
+      it('« Annuler » garde le focus pendant l’arrêt, puis le rend à « Préparer » qui revient', async () => {
+        useFeedStore.setState({ cancelOfflinePrep: vi.fn(), offlinePrep: running } as never);
+        await act(async () => { render(<OfflineTab />); });
+        const cancel = screen.getByRole('button', { name: 'preferences.offline.cancel' });
+        cancel.focus();
+        await act(async () => { fireEvent.click(cancel); });
+        // « Arrêt… » : toujours le même bouton, toujours focalisé, et inerte.
+        expect(document.activeElement).toBe(screen.getByRole('button', { name: 'preferences.offline.cancelling' }));
+        expect(document.activeElement?.getAttribute('aria-disabled')).toBe('true');
+        await act(async () => { useFeedStore.setState({ offlinePrep: { running: false, phase: 'done', done: 3, total: 10, cancelled: true } } as never); });
+        expect(document.activeElement).toBe(screen.getByRole('button', { name: 'preferences.offline.button' }));
+      });
+
+      it('une préparation qui finit seule, focus sur « Annuler » : le focus revient à « Préparer »', async () => {
+        useFeedStore.setState({ cancelOfflinePrep: vi.fn(), offlinePrep: running } as never);
+        await act(async () => { render(<OfflineTab />); });
+        screen.getByRole('button', { name: 'preferences.offline.cancel' }).focus();
+        await act(async () => { useFeedStore.setState({ offlinePrep: { running: false, phase: 'done', done: 10, total: 10 } } as never); });
+        expect(document.activeElement).toBe(screen.getByRole('button', { name: 'preferences.offline.button' }));
+      });
+
+      it('le focus posé ailleurs n’est pas déplacé à la fin', async () => {
+        useFeedStore.setState({ cancelOfflinePrep: vi.fn(), offlinePrep: running } as never);
+        await act(async () => { render(<OfflineTab />); });
+        const elsewhere = screen.getByRole('button', { name: 'preferences.offline.imagesClear' });
+        elsewhere.focus();
+        await act(async () => { useFeedStore.setState({ offlinePrep: { running: false, phase: 'done', done: 10, total: 10 } } as never); });
+        expect(document.activeElement).toBe(elsewhere);
+      });
+    });
+
     it('une préparation annulée le dit, et ne se dit pas « prête »', async () => {
       useFeedStore.setState({ offlinePrep: { running: false, phase: 'done', done: 120, total: 6068, cancelled: true } } as never);
       await act(async () => { render(<OfflineTab />); });
