@@ -8,6 +8,7 @@ import { splitLangLine } from './lang.js';
 import { htmlToText, countWords } from './text.js';
 import { runWithFallback, SUMMARY_DEADLINE_MS } from './attempt.js';
 import { shareInflight, inflightKey } from './inflight.js';
+import { plausibleLang } from './script.js';
 
 export { SUMMARY_DEADLINE_MS };
 export const MIN_WORDS = 40;
@@ -56,12 +57,16 @@ export async function summarize(req: SummaryRequest, deps: { call?: typeof callP
     });
     const { cand, fellBackFrom } = out;
     const named = { providerId: cand.provider.id, providerName: cand.provider.name, fellBackFrom };
+    // La langue annoncée décide de « Déjà en X » (sans appel, côté client) et
+    // du sens d'écriture du panneau : une langue que l'écriture du résumé
+    // dément (« lang: fr » sur du persan) devient inconnue (M-16). Relue aussi
+    // depuis le cache, qui garde ce que le modèle a dit.
     if (out.fromCache) {
       const cached = out.result as AiCacheValue;
-      return { text: cached.text, lang: cached.lang, ...named, model: cand.provider.model, fromCache: true };
+      return { text: cached.text, lang: plausibleLang(cached.lang, cached.text), ...named, model: cand.provider.model, fromCache: true };
     }
     const r = out.result as { text: string; lang: string | null; model: string };
-    return { text: r.text, lang: r.lang, ...named, model: r.model, fromCache: false };
+    return { text: r.text, lang: plausibleLang(r.lang, r.text), ...named, model: r.model, fromCache: false };
   };
 
   // Une demande identique à une génération en cours s'y rattache (`inflight.ts`) :

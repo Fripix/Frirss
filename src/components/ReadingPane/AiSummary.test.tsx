@@ -339,6 +339,34 @@ describe('AiSummary — corps', () => {
   });
 });
 
+describe('AiSummary — sens d’écriture et texte brut du résumé (M-15)', () => {
+  const FA = 'iPhone : این مقاله دربارهٔ آینده است.';
+  const paragraphs = () => [...document.querySelectorAll('section p')] as HTMLElement[];
+
+  it('un résumé persan porte lang="fa" et dir="rtl" sur chaque paragraphe, même s’il commence par un mot latin', () => {
+    render(<AiSummary {...doneProps} result={{ ...result, text: `${FA}\n\nدوم.`, lang: 'fa' }} />);
+    expect(paragraphs()).toHaveLength(2);
+    for (const p of paragraphs()) expect([p.getAttribute('lang'), p.getAttribute('dir')]).toEqual(['fa', 'rtl']);
+  });
+  it('un résumé français porte lang="fr" et dir="ltr"', () => {
+    render(<AiSummary {...doneProps} />);
+    for (const p of paragraphs()) expect([p.getAttribute('lang'), p.getAttribute('dir')]).toEqual(['fr', 'ltr']);
+  });
+  it('langue inconnue : pas de lang, dir="auto"', () => {
+    render(<AiSummary {...doneProps} result={{ ...result, lang: null }} />);
+    for (const p of paragraphs()) expect([p.hasAttribute('lang'), p.getAttribute('dir')]).toEqual([false, 'auto']);
+  });
+  it('une traduction affichée porte la langue de la traduction, pas celle du résumé', () => {
+    const translation: AiSummaryProps['translation'] = { status: 'done', text: 'هذا ملخص.', lang: 'ar', providerId: 1, providerName: 'Claude', error: null };
+    render(<AiSummary {...doneProps} translation={translation} />);
+    for (const p of paragraphs()) expect([p.getAttribute('lang'), p.getAttribute('dir')]).toEqual(['ar', 'rtl']);
+  });
+  it('le markdown simple d’un modèle désobéissant est rendu en texte brut', () => {
+    render(<AiSummary {...doneProps} result={{ ...result, text: '## Points clés\n\nLe **budget** monte.\n- un\n- deux' }} />);
+    expect(paragraphs().map((p) => p.textContent)).toEqual(['Points clés', 'Le budget monte.\n• un\n• deux']);
+  });
+});
+
 describe('AiSummary — « Résumer avec… »', () => {
   it('desktop: the menu is a role=menu portal under body, with menuitem children', () => {
     const { getByRole, getAllByRole, container } = render(<AiSummary {...doneProps} />);

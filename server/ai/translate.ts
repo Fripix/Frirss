@@ -3,11 +3,12 @@ import { callProvider, type AiCall } from './providers.js';
 import { AiError } from './errors.js';
 import type { Availability, ResolutionInput } from './resolve.js';
 import { aiCacheKey, type AiCacheValue } from './store.js';
-import { translateSystem, translateUserMessage, parseTranslation } from './prompts.js';
+import { translateSystem, translateUserMessage, translateNotSameHint, parseTranslation } from './prompts.js';
 import { runWithFallback, MIN_CALL_MS } from './attempt.js';
 import { shareInflight, inflightKey } from './inflight.js';
 import { sameLanguage, type AiLanguage } from './languages.js';
 import { segmentWordCount, isEcho } from './text.js';
+import { textFitsLanguage } from './script.js';
 
 /** Un lot d'environ 1 200 mots rend ~2 000 jetons ; Anthropic exige un plafond, on lui laisse de la marge. */
 const ANTHROPIC_MAX_TOKENS = 8192;
@@ -97,6 +98,8 @@ export async function translate(req: TranslateRequest, deps: { call?: typeof cal
   const contentHash = createHash('sha1').update(JSON.stringify([req.scope, req.segments])).digest('hex').slice(0, 16);
   const system = translateSystem(req.targetLang);
   const user = translateUserMessage(req.segments);
+  // Le lot peut-il être déjà dans la langue cible ? Jugé sur son écriture, une fois.
+  const sameFits = textFitsLanguage(req.segments.join('\n'), req.targetLang);
 
   const generate = async (): Promise<TranslateResponse> => {
     const out = await runWithFallback<Translated>({
@@ -104,23 +107,37 @@ export async function translate(req: TranslateRequest, deps: { call?: typeof cal
       cacheKeyFor: (cand) => aiCacheKey({ articleId: req.articleId, op: 'translate', providerId: cand.provider.id, model: cand.provider.model, lang: req.targetLang, contentHash }),
       call: async (cand, timeoutMs) => {
         const opts: AiCall = { system, user, timeoutMs, ...(cand.provider.type === 'anthropic' ? { maxTokens: ANTHROPIC_MAX_TOKENS } : {}) };
-        // Inexploitable : format cassé, ou écho (segments recopiés alors que la
-        // langue source annoncée, connue, n'est pas la cible). Une langue
-        // inconnue ne permet rien de conclure ; égale à la cible, c'est `same`.
-        const unusable = (p: ReturnType<typeof parseTranslation>) => p.segments
-          ? p.lang !== null && !sameLanguage(p.lang, req.targetLang) && isEcho(req.segments, p.segments)
-          : !p.same;
+        type Parsed = ReturnType<typeof parseTranslation>;
+        // « Déjà dans la cible » : `same`, ou une langue source annoncée égale
+        // à la cible. Refusé quand l'écriture du lot ne peut pas être celle de
+        // la cible (M-16 : un résumé persan « déjà en français », en cache).
+        const claimsSame = (p: Parsed) => p.same || sameLanguage(p.lang, req.targetLang);
+        const refusedSame = (p: Parsed) => !sameFits && claimsSame(p);
+        // Inexploitable : format cassé, écho (segments recopiés alors que la
+        // langue source annoncée, connue, n'est pas la cible), ou « déjà dans
+        // la cible » refusé sans traduction à servir. Une langue inconnue ne
+        // permet rien de conclure ; égale à la cible (et vraisemblable), c'est `same`.
+        const unusable = (p: Parsed) => p.segments
+          ? (refusedSame(p) || (p.lang !== null && !sameLanguage(p.lang, req.targetLang))) && isEcho(req.segments, p.segments)
+          : !p.same || refusedSame(p);
         let result = await call(cand.provider, cand.key, opts);
         let parsed = parseTranslation(result.text, count);
         if (unusable(parsed)) {
           const remaining = deadline - now();
           if (remaining < MIN_CALL_MS) throw malformed();
-          result = await call(cand.provider, cand.key, { ...opts, timeoutMs: remaining });
+          // Le même prompt rendrait le même « déjà dans la cible » : le rejeu le contredit.
+          const replay = refusedSame(parsed) ? { ...opts, user: user + translateNotSameHint(req.targetLang) } : opts;
+          result = await call(cand.provider, cand.key, { ...replay, timeoutMs: remaining });
           parsed = parseTranslation(result.text, count);
           if (unusable(parsed)) throw malformed();
         }
+        // Ici, un « déjà dans la cible » refusé a forcément des segments : une
+        // vraie traduction, servie comme telle, langue source inconnue (celle
+        // annoncée est fausse).
+        if (refusedSame(parsed)) return { lang: sameLanguage(parsed.lang, req.targetLang) ? null : parsed.lang, same: false, segments: parsed.segments ?? [], model: result.model };
         // Un petit modèle peut annoncer « lang: fr » puis traduire du français
-        // en français malgré la consigne : la langue annoncée fait foi.
+        // en français malgré la consigne : la langue annoncée fait foi, dès
+        // lors que l'écriture du lot le permet.
         if (sameLanguage(parsed.lang, req.targetLang)) return { lang: parsed.lang, same: true, segments: [], model: result.model };
         return { lang: parsed.lang, same: parsed.same, segments: parsed.segments ?? [], model: result.model };
       },

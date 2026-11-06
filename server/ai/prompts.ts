@@ -46,6 +46,16 @@ export const translateSystem = (targetLang: string): string => [
 ].join('\n');
 
 /**
+ * Appended to the user message of the one replay that follows a refused
+ * "already in the target" (`translate.ts`, M-16): the same prompt again would
+ * most likely get the same answer. Outside the segments, so it cannot be read
+ * as one; no `PROMPT_VERSION` bump, the answer is still a translation of the
+ * same segments.
+ */
+export const translateNotSameHint = (targetLang: string): string =>
+  `\n\nThe segments above are not in "${targetLang}": translate every segment, do not answer same.`;
+
+/**
  * Segment delimiter. **Never `<s>` / `</s>`**, nor any other string a tokenizer
  * treats as special: `</s>` is the end-of-sequence string of the Llama/Qwen
  * family, and a model that writes it stops there (measured on qwen2.5:7b: one

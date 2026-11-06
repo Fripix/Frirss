@@ -29,6 +29,16 @@ describe('summarize', () => {
     expect(call.mock.calls[0][2].user.startsWith('<article>')).toBe(true);
     expect(call.mock.calls[0][2].user.endsWith('Summarise the article above.')).toBe(true);
   });
+  it('ne garde pas une langue annoncée que l’écriture du résumé dément (M-16), en direct comme depuis le cache', async () => {
+    const fa = 'این مقاله دربارهٔ آینده‌ی هوش مصنوعی در ایران است و چند نکتهٔ مهم را بررسی می‌کند.';
+    const call = vi.fn().mockResolvedValue({ text: `lang: fr\n\n${fa}`, model: 'm', inputTokens: 1, outputTokens: 1, durationMs: 1 });
+    const r = await summarize({ ...base, articleId: 'fa-lang', available: [A(1, 'A')] }, { call });
+    expect(r).toMatchObject({ text: fa, lang: null, fromCache: false });
+    const again = await summarize({ ...base, articleId: 'fa-lang', available: [A(1, 'A')] }, { call });
+    expect(again).toMatchObject({ text: fa, lang: null, fromCache: true });
+    const honest = vi.fn().mockResolvedValue({ text: `lang: fa\n\n${fa}`, model: 'm', inputTokens: 1, outputTokens: 1, durationMs: 1 });
+    expect(await summarize({ ...base, articleId: 'fa-lang-ok', available: [A(1, 'A')] }, { call: honest })).toMatchObject({ lang: 'fa' });
+  });
   it('puts the requested ratio in the system prompt, 20 % by default', async () => {
     const call = vi.fn().mockResolvedValue({ text: 'lang: fr\n\nR.', model: 'm', inputTokens: 1, outputTokens: 1, durationMs: 1 });
     await summarize({ ...base, articleId: 'r-def', available: [A(1, 'A')] }, { call });

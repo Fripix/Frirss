@@ -113,9 +113,10 @@ describe('translate', () => {
     expect(await translate({ ...base, articleId: 'tr-ch', available: [A(1, 'A')] }, { call: regional }))
       .toMatchObject({ same: true, segments: [], lang: 'fr-CH' });
     const traditional = vi.fn().mockResolvedValue(answer('lang: zh-TW\n<seg n="0">你好</seg>'));
-    expect(await translate({ ...base, articleId: 'tr-tw', targetLang: 'zh-Hant', available: [A(1, 'A')] }, { call: traditional }))
+    // Source chinoise : un texte latin ne peut pas être « déjà en chinois » (M-16).
+    expect(await translate({ ...base, articleId: 'tr-tw', segments: ['你好'], targetLang: 'zh-Hant', available: [A(1, 'A')] }, { call: traditional }))
       .toMatchObject({ same: true, segments: [] });
-    expect(await translate({ ...base, articleId: 'tr-tw', targetLang: 'zh-Hans', available: [A(1, 'A')] }, { call: traditional }))
+    expect(await translate({ ...base, articleId: 'tr-tw', segments: ['你好'], targetLang: 'zh-Hans', available: [A(1, 'A')] }, { call: traditional }))
       .toMatchObject({ same: false, segments: ['你好'] });
   });
   it('returns the segments when the source language differs from the target or is unknown', async () => {
@@ -207,6 +208,56 @@ describe('echo: a translation identical to its source is malformed', () => {
     const r = await translate({ ...base, articleId: 'echo-ok', segments: src, available: [A(1, 'A')] }, { call });
     expect(r).toMatchObject({ same: false, segments: ['Le rapide renard brun saute', 'Un chien paresseux dort au soleil'], fromCache: false });
     expect(call).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('translate — « déjà dans la langue cible » vraisemblable (M-16)', () => {
+  const FA = 'این مقاله دربارهٔ آینده‌ی هوش مصنوعی در ایران است و چند نکتهٔ مهم را بررسی می‌کند.';
+  const req = (articleId: string) => ({ ...base, articleId, scope: 'summary' as const, segments: [FA], fallback: false, available: [A(1, 'Ollama')] });
+  const cacheCount = () => (db.prepare('SELECT COUNT(*) AS n FROM ai_cache').get() as { n: number }).n;
+
+  it('un texte persan annoncé « lang: fr » + same n’est pas « déjà en français » : rejoué, puis refusé, rien en cache', async () => {
+    const call = vi.fn().mockResolvedValue(answer('lang: fr\nsame'));
+    await expect(translate(req('fa-same'), { call })).rejects.toMatchObject({ kind: 'technical', message: 'segments' });
+    expect(call).toHaveBeenCalledTimes(2);
+    expect(cacheCount()).toBe(0);
+    expect(usageToday(44)).toBe(0);
+  });
+  it('un same annoncé avec la bonne langue source (fa) est refusé de même', async () => {
+    const call = vi.fn().mockResolvedValue(answer('lang: fa\nsame'));
+    await expect(translate(req('fa-same-fa'), { call })).rejects.toMatchObject({ kind: 'technical', message: 'segments' });
+    expect(cacheCount()).toBe(0);
+  });
+  it('le rejeu dit au modèle que la source n’est pas dans la cible, et sa traduction est servie et mise en cache', async () => {
+    const call = vi.fn()
+      .mockResolvedValueOnce(answer('lang: fr\nsame'))
+      .mockResolvedValueOnce(answer('lang: fa\n<seg n="0">Cet article porte sur l’avenir de l’IA en Iran.</seg>'));
+    const r = await translate(req('fa-replay'), { call });
+    expect(r).toMatchObject({ same: false, segments: ['Cet article porte sur l’avenir de l’IA en Iran.'], lang: 'fa', fromCache: false });
+    expect(call.mock.calls[0][2].user).not.toMatch(/not in "fr"/);
+    expect(call.mock.calls[1][2].user).toMatch(/not in "fr"/);
+    expect(cacheCount()).toBe(1);
+    const cached = db.prepare('SELECT text FROM ai_cache').get() as { text: string };
+    expect(cached.text).toContain('"same":false');
+  });
+  it('une traduction annoncée « lang: fr » sur un texte persan est servie comme traduction, langue source inconnue', async () => {
+    const call = vi.fn().mockResolvedValue(answer('lang: fr\n<seg n="0">Cet article porte sur l’avenir de l’IA en Iran.</seg>'));
+    const r = await translate(req('fa-translated'), { call });
+    expect(r).toMatchObject({ same: false, segments: ['Cet article porte sur l’avenir de l’IA en Iran.'], lang: null });
+    expect(call).toHaveBeenCalledTimes(1);
+  });
+  it('un écho du persan annoncé « lang: fr » est une réponse inexploitable, pas un « déjà en français »', async () => {
+    const call = vi.fn().mockResolvedValue(answer(`lang: fr\n<seg n="0">${FA}</seg>`));
+    await expect(translate(req('fa-echo'), { call })).rejects.toMatchObject({ kind: 'technical', message: 'segments' });
+    expect(call).toHaveBeenCalledTimes(2);
+    expect(cacheCount()).toBe(0);
+  });
+  it('un texte vraiment français reste « déjà en français », mis en cache', async () => {
+    const call = vi.fn().mockResolvedValue(answer('lang: fr\nsame'));
+    const r = await translate({ ...req('fr-same'), segments: ['Cet article parle de l’avenir de l’intelligence artificielle.'] }, { call });
+    expect(r).toMatchObject({ same: true, segments: [] });
+    expect(call).toHaveBeenCalledTimes(1);
+    expect(cacheCount()).toBe(1);
   });
 });
 

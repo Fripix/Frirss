@@ -9,6 +9,8 @@ import { useUiStore } from '../../stores/uiStore';
 import { expandOnFirstSummary } from './aiPanelExpand';
 import { AI_LANGUAGES, languageName, type AiLanguage } from '../../lib/aiLanguages';
 import { nextProvider } from '../../lib/aiRetry';
+import { languageDir } from '../../lib/textDirection';
+import { stripSummaryMarkdown } from '../../lib/summaryMarkdown';
 import type { AiProviderView, AiSummaryResult } from '../../api/backend';
 
 const ALL_LANGUAGES = [...AI_LANGUAGES];
@@ -126,6 +128,8 @@ export default function AiSummary({ status, result, error, errorProviderId, prov
   const translated = translation.status !== 'idle' && translation.text !== null && translation.lang !== null
     ? { ...translation, text: translation.text, lang: translation.lang }
     : null;
+  // Langue du texte affiché : celle de la traduction, sinon celle annoncée pour le résumé.
+  const bodyLang = translated ? translated.lang : done?.lang ?? null;
   const translating = translation.status === 'loading';
   const translateFailed = translation.status === 'error' && !!translation.error;
   // « Traduire » reste là même quand le résumé est déjà dans la langue cible :
@@ -361,8 +365,13 @@ export default function AiSummary({ status, result, error, errorProviderId, prov
           <>
             {done ? (
               <section aria-label={t('ai.summaryTitle')} className="pl-1">
-                {(translated ? translated.text : done.text).split(/\n{2,}/).map((p, i) => (
-                  <p key={i} className="text-[14px] leading-[1.6] mb-2.5 last:mb-0 whitespace-pre-line" style={{ color: 'var(--reading-text)' }}>{p}</p>
+                {/* Langue et sens sur chaque paragraphe, pas sur la section : son
+                    nom accessible est dans la langue de l'interface. Un résumé
+                    persan qui commence par « iPhone » partait de gauche à droite
+                    sous `dir="auto"` seul (M-15). Le markdown simple qu'un
+                    modèle rend malgré la consigne est nettoyé à l'affichage. */}
+                {stripSummaryMarkdown(translated ? translated.text : done.text).split(/\n{2,}/).map((p, i) => (
+                  <p key={i} lang={bodyLang ?? undefined} dir={languageDir(bodyLang)} className="text-[14px] leading-[1.6] mb-2.5 last:mb-0 whitespace-pre-line" style={{ color: 'var(--reading-text)' }}>{p}</p>
                 ))}
               </section>
             ) : loading ? (

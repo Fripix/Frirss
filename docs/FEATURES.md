@@ -3144,14 +3144,16 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   résolution, pures), `attempt.ts` (boucle commune cache → échéance → plafond
   → appel → repli, `runWithFallback`), `inflight.ts` (générations en cours
   partagées), `summarize.ts` et `translate.ts` (orchestration),
-  `languages.ts` (langues cibles) ; routes
+  `languages.ts` (langues cibles), `script.ts` (écriture d'un texte contre la
+  langue annoncée par le modèle) ; routes
   `server/routes/ai.ts` (utilisateur) et `server/routes/adminAi.ts` (admin).
   Client `src/stores/aiStore.ts`, `src/components/ReadingPane/AiSummary.tsx`,
   traduction de l'article `ReadingPane/useArticleTranslation.ts` (état, lots)
   et `src/lib/articleSegments.ts` (découpage), menu de traduction
   `ReadingPane/TranslateMenu.tsx`, langues `src/lib/aiLanguages.ts`, étages de
   fournisseur `src/lib/aiRouting.ts`, « Réessayer avec… » `src/lib/aiRetry.ts`,
-  automatismes `src/lib/aiAuto.ts` ;
+  automatismes `src/lib/aiAuto.ts`, sens d'écriture du résumé
+  `src/lib/textDirection.ts`, nettoyage du markdown `src/lib/summaryMarkdown.ts` ;
   réglages IA (repli du panneau, longueur, langue et fournisseur de
   traduction, choix par flux et catégorie) dans `src/stores/uiStore.ts`,
   couleurs `ai-bg` / `ai-border` dans `src/stores/themeStore.ts`,
@@ -3416,7 +3418,7 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   sienne (un appel raté n'est pas payé). ⚠️ L'ancien contrôle lisait le compteur
   avant l'appel et l'incrémentait après : N requêtes simultanées passaient
   toutes, et le plafond se dépassait de N−1.
-- **Consigne du résumé** (`prompts.ts`, version 3 ; celle de la traduction
+- **Consigne du résumé** (`prompts.ts`, `PROMPT_VERSION` 4 ; celle de la traduction
   est décrite sous « Traduction — serveur ») : l'article part entre les balises
   `<article>` / `</article>` (`summaryUserMessage`) et la consigne dit qu'il
   n'est **pas adressé au modèle** — sans cela, un article à la première
@@ -3427,7 +3429,12 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   l'article ; plus long seulement si le contenu l'exige ; jamais moins de trois
   phrases ; aucune limite de mots ». La version 3 (ratio) a remplacé la
   version 2 (« proportionner la longueur »), qui laissait le modèle seul juge et
-  donnait des résumés de longueur imprévisible.
+  donnait des résumés de longueur imprévisible ; la version 4 n'a changé que la
+  consigne de la traduction (délimiteur `<seg>`, voir « Traduction — serveur »),
+  mais la version est commune : toutes les clés de cache, résumés compris, ont
+  changé avec elle. Un modèle désobéit parfois au « texte brut » (Ollama, sur
+  un très long article : titres `#`, `**gras**`, puces markdown) : le panneau
+  nettoie ce markdown simple à l'affichage (voir « Corps » du panneau).
 - **Cache** : clé = article + opération + fournisseur + **modèle** (changer de
   modèle ne resert pas le résumé de l'ancien) + langue cible (`-` pour un
   résumé, la cible pour une traduction) + **longueur visée** (segment
@@ -3531,7 +3538,14 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   `lang: <code>` en première ligne, retirée et conservée (`lang.ts`) : c'est
   elle qui dit si le résumé est déjà dans la langue cible, auquel cas
   « Traduire » répond « Déjà en {langue} » sans rien envoyer (voir « Traduire
-  le résumé »).
+  le résumé »), et c'est elle qui donne au panneau la langue et le sens
+  d'écriture du texte. **Elle n'est pas crue sur parole** (1.9.0, M-16) :
+  `summarize.ts` la remplace par `null` (inconnue) quand l'écriture du résumé
+  ne peut pas être celle de la langue annoncée (`plausibleLang` de
+  `script.ts`, voir la garde sous « Traduction — serveur ») — un résumé persan
+  annoncé `lang: fr` aurait sinon répondu « Déjà en français » sans appel, et
+  se serait affiché de gauche à droite. Le cache garde ce que le modèle a dit :
+  la garde joue aussi à la relecture.
 - **Entrée** (`POST /api/ai/summary`) : `articleId` ≤ 512 caractères, `title`
   tronqué à 500, `html` ≤ 200 Ko, `regenerate` absent ou booléen, sinon 400
   `invalid_body` ; `ratio` entier de
@@ -3663,6 +3677,24 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   quand même** : les petits modèles (Ollama) ignorent la consigne et
   traduisaient du français en français. L'appel est alors fait et payé une
   fois (sortie comprise), puis le `same` est mis en cache comme un vrai.
+  **Garde de vraisemblance** (1.9.0, M-16) : ces deux « déjà dans la cible »
+  ne sont acceptés que si **l'écriture du lot** est compatible avec la langue
+  cible (`textFitsLanguage` de `script.ts`) : au moins la moitié des lettres
+  visibles (balises, attributs et entités retirés) dans une écriture de la
+  cible, d'après `Intl.Locale#maximize()` (`fr` → latin, `uk` → cyrillique,
+  `ja` → kanji et kana, `ko` → hangul et hanja ; une sous-étiquette d'écriture
+  l'emporte ; `sr`, `bs`, `uz`, `az`, `kk`, `ku`, `pa`, `tk` acceptent leurs
+  deux écritures). Sans lettre, ou langue sans écriture connue, rien ne se
+  conclut : accepté. Raison : sur un résumé persan, Ollama répondait
+  `lang: fr` et « Traduire » affichait « Déjà en français. », mis en cache
+  30 jours. Refusé : un `same` est une **réponse inexploitable** (rejeu une
+  fois, le message utilisateur complété de `translateNotSameHint` — « les
+  segments ne sont pas en {cible}, traduis-les » —, sinon `segments` sans
+  repli, **rien en cache**) ; des segments annoncés « déjà dans la cible »
+  sont servis **comme une traduction**, langue source `null` (celle annoncée
+  est fausse), sauf s'ils recopient la source (écho : inexploitable). Limite
+  assumée : la garde juge l'écriture, pas la langue — un texte espagnol
+  annoncé français, ou du japonais tout en kanji annoncé chinois, passe.
   Cache : une entrée par lot, clé `op: translate` +
   fournisseur + modèle + **langue cible** + article + sha1 (16 hex) du scope et
   des segments du lot ; la valeur (`AiCacheValue`) porte le lot en JSON dans
@@ -4280,8 +4312,25 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     (`flex-wrap`), au lieu d'écraser le statut. Sur tablette et smartphone,
     en-tête et action font 44 px.
   - **Corps** (déplié, et seulement avec un résumé, une demande ou une
-    erreur) : les paragraphes du résumé (corps 15 px, retours à la ligne
+    erreur) : les paragraphes du résumé (corps 14 px, retours à la ligne
     simples gardés par `whitespace-pre-line` pour les listes à puces),
+    chacun avec le `lang` de la langue du texte affiché (celle de la
+    traduction, sinon celle du résumé) et le `dir` qui en découle
+    (`languageDir` de `src/lib/textDirection.ts` : `rtl` pour l'arabe, le
+    persan, l'hébreu, l'ourdou…, ou selon la sous-étiquette d'écriture ; `ltr`
+    pour une autre langue connue ; `dir="auto"` sans `lang` quand elle est
+    inconnue). Sur les paragraphes, pas sur la `section` : son nom accessible
+    est dans la langue de l'interface. Raison (1.9.0, M-15) : les résumés
+    arabes ou persans s'affichaient de gauche à droite, et `dir="auto"` seul
+    ne suffit pas — il suit le premier caractère fort, et un résumé persan qui
+    commence par « iPhone » partait de gauche à droite. Le texte passe d'abord
+    par `stripSummaryMarkdown` (`src/lib/summaryMarkdown.ts`), qui retire le
+    markdown simple qu'un modèle rend malgré la consigne : marques de titre
+    `#` en début de ligne, `**gras**` (par paires), puces `-` / `*` en début
+    de ligne rendues « • » ; un tiret de phrase, `#hashtag`, `5 * 3` ou
+    `-12 °C` ne bougent pas (chaque marque exige le début de ligne et
+    l'espace). Le texte envoyé à la traduction reste celui du modèle ; la
+    traduction est nettoyée de même à l'affichage. Le corps est
     **sans mesure bornée** (l'ancien `max-w-[68ch]` est parti) ; pendant une
     première demande, trois barres d'attente (pulsation coupée par
     `prefers-reduced-motion`) ; sinon l'erreur. Replié, le corps reste monté,
@@ -4334,7 +4383,9 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     paraît ni ne disparaît plus selon la langue du texte). Dans ce cas
     (`sameLanguage(result.lang, cible)`), `handleTranslateSummary` ne lance
     rien : un toast « Déjà en {langue}. », **sans appel** ni unité du plafond.
-    Est court-circuité tout appel **sans langue choisie** et sans traduction
+    `result.lang` est déjà passé par la garde de vraisemblance du serveur
+    (voir « Langue ») : une langue que l'écriture du résumé dément arrive
+    `null`, et « Traduire » part. Est court-circuité tout appel **sans langue choisie** et sans traduction
     affichée, donc aussi « Traduire avec X », qui n'envoie qu'un fournisseur :
     sur un résumé déjà dans la langue cible, il dit « Déjà en {langue} » sans
     appel. « Traduire en… » (une langue explicite) et « Retraduire » partent
@@ -8182,7 +8233,9 @@ qu'un terme n'est pas déjà pris avant de le réutiliser.
   à un lecteur polonais dès le premier écran. Les lecteurs d'écran choisissent
   voix et prononciation sur cet attribut. Pas de `dir` : les dix langues
   d'interface vont de gauche à droite, le chinois simplifié compris ; le sens d'écriture ne concerne que le
-  **contenu** des articles, porté bloc par bloc par `dir="auto"`.
+  **contenu** des articles, porté bloc par bloc par `dir="auto"`, et le texte
+  du panneau « Résumé IA », dont la langue est connue : `lang` et `dir`
+  explicites sur chaque paragraphe (voir « Corps » du panneau).
 - ⚠️ **Ce que la parité NE voit pas.** Le script du `CLAUDE.md` compare les
   clés du français aux neuf autres : il ne peut rien dire d'une chaîne qui
   n'est jamais passée par i18next. Trois lui avaient échappé, trouvées le
