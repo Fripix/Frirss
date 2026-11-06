@@ -5839,6 +5839,19 @@ Vignette cliquable (façade) au lieu d'un `<iframe>` chargé d'emblée.
   retraitait le lien « Ouvrir sur YouTube » que la première venait de poser
   dans sa façade : une vidéo intégrée en iframe s'affichait en **deux lecteurs
   imbriqués**.
+- **Ce qui devient une façade** (1.9.0, A4-06) : toute iframe YouTube, et un
+  lien vers YouTube **seul dans son bloc** (paragraphe, `div`, élément de
+  liste, ou entre deux `<br>`) dont le texte est vide, une image ou l'adresse
+  elle-même — l'hôte du lien décide (`isYouTubeHost`), pas une adresse
+  YouTube cachée dans une redirection. **Tout autre lien reste un lien, avec
+  ses mots.** Jusqu'en 1.8.0, chaque lien vers YouTube devenait une façade :
+  « — Nilay Patel, The Vergecast » se lisait « — Ouvrir sur YouTube, The
+  Vergecast », en article complet comme en contenu RSS, et deux liens voisins
+  vers la même vidéo donnaient deux façades identiques. **Une vidéo, une
+  façade** : une seconde iframe de la même vidéo disparaît, un second lien
+  reste un lien. Les ids rendus (`videoIds`) ne comptent que les façades : un
+  simple lien vers la vidéo d'un article de flux YouTube n'empêche pas la
+  façade de tête.
 - **Article d'un flux YouTube : une seule vignette** (`dropVideoThumbnails`,
   appelé par `buildArticleBody` avec l'adresse de l'article, 1.9.0). FreshRSS
   met la vignette de la vidéo dans le contenu (`img.enclosure-thumbnail`,

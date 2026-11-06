@@ -38,6 +38,21 @@ export function extractYouTubeId(url: string): YouTubeRef | null {
   return start === undefined ? { id } : { id, start };
 }
 
+/**
+ * L'adresse mène-t-elle chez YouTube ? Décidé sur l'HÔTE : `extractYouTubeId`
+ * trouve une adresse YouTube n'importe où dans la chaîne (souple pour les
+ * iframes d'un corps), et une redirection `…?to=https://www.youtube.com/…`
+ * passait pour une vidéo (D-02). Accepte une adresse sans schéma (`//youtu.be/…`).
+ * Une adresse illisible n'est pas YouTube.
+ */
+export function isYouTubeHost(url: string): boolean {
+  let host: string;
+  try { host = new URL(url.startsWith('//') ? `https:${url}` : url).hostname.toLowerCase(); } catch { return false; }
+  return host === 'youtu.be'
+    || host === 'youtube.com' || host.endsWith('.youtube.com')
+    || host === 'youtube-nocookie.com' || host.endsWith('.youtube-nocookie.com');
+}
+
 /** Fallback thumbnail, used when the article provides none. */
 export function youtubeThumbnail(id: string): string {
   return `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
@@ -85,7 +100,7 @@ export function facadeMarkup(ref: YouTubeRef, thumbnail: string, labels: FacadeL
 }
 
 const IFRAME_RE = /<iframe\b[^>]*\bsrc=["']([^"']+)["'][^>]*>\s*<\/iframe>|<iframe\b[^>]*\bsrc=["']([^"']+)["'][^>]*\/?>/gi;
-const LINK_RE = /<a\b[^>]*\bhref=["']([^"']+)["'][^>]*>.*?<\/a>/gi;
+const LINK_RE = /<a\b[^>]*\bhref=["']([^"']+)["'][^>]*>(.*?)<\/a>/gi;
 const VIDEO_RE = new RegExp(`${IFRAME_RE.source}|${LINK_RE.source}`, 'gi');
 
 // Tout <iframe>, avec ou sans `src`, fermé ou auto-fermant. Contrairement aux
@@ -131,26 +146,60 @@ export function dropVideoThumbnails(html: string, id: string): string {
   return html.replace(THUMB_IMG_RE, (whole, found: string) => (found === id ? '' : whole));
 }
 
+// Bornes d'un bloc : ce qui peut précéder et suivre un lien seul sur sa ligne.
+// Lues sur le voisinage du lien seulement (`NEAR`), espaces retirés : jamais
+// tout le document à chaque lien.
+const BLOCK_BEFORE_RE = /(?:<(?:p|div|li|figure|blockquote|center|h[1-6])\b[^>]*>|<br\s*\/?>)$/i;
+const BLOCK_AFTER_RE = /^(?:<\/(?:p|div|li|figure|blockquote|center|h[1-6])>|<br\s*\/?>)/i;
+const NEAR = 400;
+
 /**
- * Turn YouTube iframes and links in article HTML into facades, in place.
- * Must run BEFORE sanitizeHtml — afterwards the iframes no longer exist.
- * Returns the ids found so the caller can avoid showing the same video twice.
+ * Un lien vers YouTube tient-il lieu de vidéo ? Seulement s'il est SEUL dans
+ * son bloc et qu'il ne dit rien d'autre que la vidéo : texte vide, image, ou
+ * l'adresse elle-même. Un lien dans une phrase (« — Nilay Patel, The
+ * Vergecast », « when they first built PyTorch in 2016 ») est du texte : le
+ * remplacer par une façade effaçait ses mots, et deux liens voisins vers la
+ * même vidéo donnaient deux façades identiques (A4-06, 1.9.0).
+ */
+function linkStandsForVideo(href: string, inner: string, doc: string, start: number, end: number): boolean {
+  if (!isYouTubeHost(href)) return false;
+  const before = doc.slice(Math.max(0, start - NEAR), start).trimEnd();
+  const after = doc.slice(end, end + NEAR).trimStart();
+  const opens = (start <= NEAR && before === '') || BLOCK_BEFORE_RE.test(before);
+  const closes = (end + NEAR >= doc.length && after === '') || BLOCK_AFTER_RE.test(after);
+  if (!opens || !closes) return false;
+  const text = inner.replace(/<[^>]*>/g, '').replace(/&nbsp;/gi, ' ').trim();
+  if (!text) return true; // vide, ou une image seule
+  return /^\S+$/.test(text) && isYouTubeHost(text.replace(/&amp;/gi, '&').replace(/^(?!https?:|\/\/)/i, 'https://'));
+}
+
+/**
+ * Turn YouTube iframes in article HTML into facades, in place — and the links
+ * that stand alone for a video (`linkStandsForVideo`); every other link stays
+ * a link, with its words. Must run BEFORE sanitizeHtml — afterwards the
+ * iframes no longer exist. One facade per video: a later iframe of the same
+ * video is dropped, a later link stays a link. Returns the ids turned into
+ * facades, so the caller can avoid showing the same video twice.
  */
 export function injectVideoFacades(html: string, labels: FacadeLabels): { html: string; ids: string[] } {
   if (!html) return { html: '', ids: [] };
   const ids: string[] = [];
 
-  const toFacade = (whole: string, url: string): string => {
-    const ref = extractYouTubeId(url);
-    if (!ref) return whole;
-    if (!ids.includes(ref.id)) ids.push(ref.id);
-    return facadeMarkup(ref, youtubeThumbnail(ref.id), labels);
-  };
-
   // UNE passe, dans l'ordre du document. Deux passes successives (iframes,
   // puis liens) faisaient retraiter par la seconde le lien « Ouvrir sur
   // YouTube » que la première venait de poser dans sa façade : deux lecteurs
   // imbriqués pour une seule vidéo (L-07).
-  const out = html.replace(VIDEO_RE, (whole, a, b, href) => toFacade(whole, a || b || href || ''));
+  const out = html.replace(VIDEO_RE, (whole: string, a?: string, b?: string, href?: string, inner?: string, offset?: number, str?: string) => {
+    const iframe = !href;
+    const ref = extractYouTubeId(iframe ? a || b || '' : href);
+    if (!ref) return whole;
+    if (!iframe) {
+      const at = offset ?? 0;
+      if (!linkStandsForVideo(href, inner ?? '', str ?? html, at, at + whole.length)) return whole;
+    }
+    if (ids.includes(ref.id)) return iframe ? '' : whole;
+    ids.push(ref.id);
+    return facadeMarkup(ref, youtubeThumbnail(ref.id), labels);
+  });
   return { html: out, ids };
 }

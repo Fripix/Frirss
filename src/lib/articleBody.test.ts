@@ -274,7 +274,7 @@ describe('vignette de façade vidéo', () => {
     // Le réchauffage mesure l'image d'en-tête d'un article de flux YouTube :
     // c'est EXACTEMENT l'URL que la façade réutilise (`youtubeThumbnail`).
     rememberImageSize(THUMB, 480, 360);
-    const out = build(`<p><a href="https://www.youtube.com/watch?v=${ID}">v</a></p>`, null, true);
+    const out = build(`<p>avant</p><iframe src="https://www.youtube.com/embed/${ID}"></iframe>`, null, true);
     expect(out.html).toContain('yt-facade__thumb');
     // 480×360 est du 4:3, la boîte de la façade est en 16:9 : la déclaration
     // ne décrirait rien de vrai. Elle n'a pas d'effet visible — la CSS fixe

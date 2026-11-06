@@ -98,7 +98,7 @@ describe('injectVideoFacades', () => {
   });
 
   it('replaces a standalone YouTube link', () => {
-    const { html, ids } = injectVideoFacades('<p><a href="https://youtu.be/dQw4w9WgXcQ">Voir</a></p>', L);
+    const { html, ids } = injectVideoFacades('<p><a href="https://youtu.be/dQw4w9WgXcQ">https://youtu.be/dQw4w9WgXcQ</a></p>', L);
     expect(ids).toEqual(['dQw4w9WgXcQ']);
     expect(html).toContain('data-yt-id="dQw4w9WgXcQ"');
   });
@@ -152,11 +152,59 @@ describe('injectVideoFacades', () => {
 
   it('still turns a link next to an iframe facade into its own facade', () => {
     const { html, ids } = injectVideoFacades(
-      '<iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ"></iframe><p><a href="https://youtu.be/abcdefghijk">x</a></p>',
+      '<iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ"></iframe><p><a href="https://youtu.be/abcdefghijk">https://youtu.be/abcdefghijk</a></p>',
       L,
     );
     expect(ids).toEqual(['dQw4w9WgXcQ', 'abcdefghijk']);
     expect(html.match(/class="yt-facade"/g)).toHaveLength(2);
+  });
+
+  describe('un lien dans le texte reste un lien (A4-06)', () => {
+    it('un nom lié au milieu d’une phrase garde son texte (Simon Willison)', () => {
+      const src = '<p>— <a href="https://www.youtube.com/watch?v=dQw4w9WgXcQ">Nilay Patel</a>, The Vergecast</p>';
+      expect(injectVideoFacades(src, L)).toEqual({ html: src, ids: [] });
+    });
+
+    it('un bout de phrase lié garde son texte (The Register)', () => {
+      const src = '<p>when they <a href="https://www.youtube.com/watch?v=rgP_LBtaUEc">first built PyTorch</a> in 2016</p>';
+      expect(injectVideoFacades(src, L)).toEqual({ html: src, ids: [] });
+    });
+
+    it('deux liens voisins vers la même vidéo ne donnent aucune façade', () => {
+      const src = '<p><a href="https://youtu.be/dQw4w9WgXcQ">la conférence</a> et <a href="https://youtu.be/dQw4w9WgXcQ?t=90">ce passage</a>.</p>';
+      expect(injectVideoFacades(src, L)).toEqual({ html: src, ids: [] });
+    });
+
+    it('un lien seul dans son paragraphe, mais avec des mots, les garde', () => {
+      const src = '<p><a href="https://youtu.be/dQw4w9WgXcQ">Voir l’entretien complet</a></p>';
+      expect(injectVideoFacades(src, L)).toEqual({ html: src, ids: [] });
+    });
+
+    it('un lien seul dont le texte est l’adresse, ou une image, devient une façade', () => {
+      for (const inner of ['https://www.youtube.com/watch?v=dQw4w9WgXcQ', '', '<img src="https://example.com/v.jpg" alt="">']) {
+        const { html, ids } = injectVideoFacades(`<p>avant</p><p> <a href="https://www.youtube.com/watch?v=dQw4w9WgXcQ">${inner}</a> </p>`, L);
+        expect(ids, inner).toEqual(['dQw4w9WgXcQ']);
+        expect(html.match(/class="yt-facade"/g), inner).toHaveLength(1);
+      }
+    });
+
+    it('une même vidéo ne donne qu’une façade, iframe ou lien seul', () => {
+      const { html, ids } = injectVideoFacades(
+        '<iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ"></iframe>'
+          + '<iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ"></iframe>'
+          + '<p><a href="https://youtu.be/dQw4w9WgXcQ">https://youtu.be/dQw4w9WgXcQ</a></p>',
+        L,
+      );
+      expect(ids).toEqual(['dQw4w9WgXcQ']);
+      expect(html.match(/class="yt-facade"/g)).toHaveLength(1);
+      expect(html).not.toContain('<iframe');
+    });
+
+    it('un lien seul qui ne mène pas à YouTube (redirection) reste un lien', () => {
+      const href = 'https://example.com/redirect?to=https://www.youtube.com/watch?v=dQw4w9WgXcQ';
+      const src = `<p><a href="${href}">${href}</a></p>`;
+      expect(injectVideoFacades(src, L)).toEqual({ html: src, ids: [] });
+    });
   });
 
   it('uses the labels it is given, never a hard-coded language', () => {

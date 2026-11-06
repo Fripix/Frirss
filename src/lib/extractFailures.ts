@@ -13,7 +13,7 @@
 // réussir. En mémoire seulement : un rechargement redonne sa chance à tout, et
 // le bouton « Article complet » réessaie toujours (`retry`).
 
-import { extractYouTubeId } from './youtube';
+import { extractYouTubeId, isYouTubeHost } from './youtube';
 
 /** Au-delà, la plus ancienne sort : la mémoire d'une longue session reste bornée. */
 export const EXTRACT_FAILURES_MAX = 500;
@@ -63,20 +63,15 @@ export function isPageRefusal(status: number, from: 'site' | 'proxy'): boolean {
 /**
  * Une page qu'il est inutile d'envoyer à l'extraction : une vidéo YouTube n'a
  * pas d'article, et son contenu de flux (la vidéo, sa description) est déjà
- * ce qu'il y a à lire. La décision tient à l'HÔTE : `extractYouTubeId` cherche
- * une adresse YouTube n'importe où dans la chaîne (souple pour les liens d'un
- * corps), et une page de redirection ou un chemin contenant `youtu.be/…`
- * passait pour une vidéo, refusée avant tout réseau, même au réessai (D-02).
- * Une adresse illisible reste extractible, comme toute adresse non YouTube.
+ * ce qu'il y a à lire. La décision tient à l'HÔTE (`isYouTubeHost`) :
+ * `extractYouTubeId` cherche une adresse YouTube n'importe où dans la chaîne,
+ * et une page de redirection ou un chemin contenant `youtu.be/…` passait pour
+ * une vidéo, refusée avant tout réseau, même au réessai (D-02). Une adresse
+ * illisible reste extractible, comme toute adresse non YouTube.
  */
 export function isExtractableUrl(url: string | null | undefined): boolean {
   if (!url) return false;
-  let host: string;
-  try { host = new URL(url).hostname.toLowerCase(); } catch { return true; }
-  const youtube = host === 'youtu.be'
-    || host === 'youtube.com' || host.endsWith('.youtube.com')
-    || host === 'youtube-nocookie.com' || host.endsWith('.youtube-nocookie.com');
-  return !(youtube && extractYouTubeId(url));
+  return !(isYouTubeHost(url) && extractYouTubeId(url));
 }
 
 /** L'extraction automatique a-t-elle une chance ici ? Ni YouTube, ni échec retenu. */
