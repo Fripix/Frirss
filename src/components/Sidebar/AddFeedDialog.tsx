@@ -4,6 +4,9 @@ import { useBackLayer } from '../../hooks/useAndroidBack';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useFeedStore } from '../../stores/feedStore';
+import { nameOwners } from '../../lib/labelNames';
+import { newCategoryChoice, subscribedFeed } from '../../lib/addFeedCheck';
+import NameRefusal from '../NameRefusal';
 
 interface AddFeedDialogProps {
   onClose: () => void;
@@ -11,7 +14,7 @@ interface AddFeedDialogProps {
 
 export default function AddFeedDialog({ onClose }: AddFeedDialogProps) {
   const { t } = useTranslation();
-  const { subscriptions, addFeed } = useFeedStore();
+  const { subscriptions, addFeed, labels, categoryIds, folderIds } = useFeedStore();
   const [feedUrl, setFeedUrl] = useState('');
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState('');
@@ -53,19 +56,24 @@ export default function AddFeedDialog({ onClose }: AddFeedDialogProps) {
     return Object.entries(map).map(([id, label]) => ({ id, label }));
   }, [subscriptions]);
 
+  // Mêmes règles que Préférences pour une nouvelle catégorie (R3T1-3) ; un
+  // flux déjà abonné est reconnu sur place plutôt que par l'erreur générique.
+  // « Nouvelle catégorie » sans nom grise « Ajouter », comme Préférences : le
+  // flux partait en silence sans catégorie.
+  const owners = useMemo(() => nameOwners({ labels, categoryIds, folderIds }), [labels, categoryIds, folderIds]);
+  const choice = category === '__new__' ? newCategoryChoice(newCategory, owners) : null;
+  const already = subscribedFeed(feedUrl, subscriptions);
+  const canAdd = !!feedUrl.trim() && !already && (!choice || !!choice.id);
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!feedUrl.trim()) return;
+    if (!canAdd) return;
 
     setLoading(true);
     setError('');
 
-    const catId = category === '__new__' && newCategory.trim()
-      ? `user/-/label/${newCategory.trim()}`
-      : category;
-    const catLabel = category === '__new__' && newCategory.trim()
-      ? newCategory.trim()
-      : categories.find((c) => c.id === category)?.label || '';
+    const catId = choice?.id ?? category;
+    const catLabel = choice ? choice.label : categories.find((c) => c.id === category)?.label || '';
 
     const ok = await addFeed(feedUrl.trim(), title.trim(), catId, catLabel);
 
@@ -108,6 +116,8 @@ export default function AddFeedDialog({ onClose }: AddFeedDialogProps) {
               placeholder={t('addFeed.urlPlaceholder')}
               required
               autoFocus
+              aria-invalid={already ? true : undefined}
+              aria-describedby={`${fieldId}-url-issue`}
               className="w-full text-sm px-3 py-2 rounded-lg border outline-none transition-colors"
               style={{
                 borderColor: 'var(--panel-border)',
@@ -117,6 +127,15 @@ export default function AddFeedDialog({ onClose }: AddFeedDialogProps) {
               onFocus={(e) => e.target.style.borderColor = 'var(--accent)'}
               onBlur={(e) => e.target.style.borderColor = 'var(--panel-border)'}
             />
+            {/* Toujours présente (région annoncée) ; vide, elle ne prend aucune place. */}
+            <p
+              id={`${fieldId}-url-issue`}
+              aria-live="polite"
+              className={`text-xs leading-snug ${already ? 'mt-1' : ''}`}
+              style={{ color: 'var(--danger)' }}
+            >
+              {already ? t('addFeed.alreadySubscribed', { name: already.title }) : ''}
+            </p>
           </div>
 
           {/* Title (optional) */}
@@ -172,6 +191,8 @@ export default function AddFeedDialog({ onClose }: AddFeedDialogProps) {
                 type="text"
                 value={newCategory}
                 aria-label={t('addFeed.newCategory')}
+                aria-invalid={choice?.issue ? true : undefined}
+                aria-describedby={`${fieldId}-category-issue`}
                 onChange={(e) => setNewCategory(e.target.value)}
                 placeholder={t('addFeed.newCategoryPlaceholder')}
                 className="w-full text-sm px-3 py-2 rounded-lg border outline-none transition-colors"
@@ -184,6 +205,7 @@ export default function AddFeedDialog({ onClose }: AddFeedDialogProps) {
                 onBlur={(e) => e.target.style.borderColor = 'var(--panel-border)'}
                 autoFocus
               />
+              <NameRefusal id={`${fieldId}-category-issue`} issue={choice?.issue ?? null} name={newCategory} className="text-xs" />
             </div>
           )}
 
@@ -203,7 +225,7 @@ export default function AddFeedDialog({ onClose }: AddFeedDialogProps) {
             </button>
             <button
               type="submit"
-              disabled={loading || !feedUrl.trim()}
+              disabled={loading || !canAdd}
               className="px-4 py-2 text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
               style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
             >

@@ -74,7 +74,8 @@
     "newCategoryPlaceholder": "Nom de la catégorie",
     "add": "Ajouter",
     "adding": "Ajout…",
-    "error": "Erreur lors de l’ajout du flux"
+    "error": "Erreur lors de l’ajout du flux",
+    "alreadySubscribed": "Ce flux est déjà dans vos abonnements : « {{name}} »."
   },
   "articleList": {
     "allFeeds": "Tous les flux",

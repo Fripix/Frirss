@@ -5718,6 +5718,27 @@ Renommer, supprimer, et déplacer un flux d'une catégorie à l'autre.
   il revient au déclencheur à la fermeture — relevé au premier rendu, car
   dans un effet `autoFocus` l'a déjà déplacé. Boîte modale, elle laissait le
   focus derrière elle, sur « Ajouter un flux ».
+- **Nom d'une nouvelle catégorie : les règles de Préférences** (1.9.0,
+  `src/lib/addFeedCheck.ts` › `newCategoryChoice`) : « / » et le nom d'une
+  étiquette (casse comprise) sont refusés, motif sous le champ
+  (`NameRefusal`, `aria-invalid`, `aria-describedby`) et « Ajouter » grisé ;
+  le nom d'une catégorie existante à la casse près — vide comprise — n'est
+  pas un refus, le flux y va sous son nom exact. La boîte n'en appliquait
+  aucune : « / » passait, une étiquette finissait en « Erreur lors de l'ajout
+  du flux », « tech » créait une catégorie à côté de « Tech ». `addFeed` fait
+  le même contrôle avant tout envoi (il renvoie `false` sans appel). Choisir
+  « Nouvelle catégorie… » sans taper de nom grise aussi « Ajouter » :
+  le flux partait en silence sans catégorie. Tests :
+  `addFeedCheck.test.ts`, `AddFeedDialog.checks.test.tsx`,
+  `feedStore.labelNames.test.ts`.
+- **Flux déjà abonné reconnu sur place** (1.9.0, `subscribedFeed`) : une
+  adresse égale à celle d'un abonnement — hôte sans casse, port par défaut,
+  fragment et barre finale ignorés, `http` et `https` confondus ; chemin et
+  requête comparés tels quels — affiche sous le champ « Ce flux est déjà dans
+  vos abonnements : « Nom » » (`addFeed.alreadySubscribed`, région
+  `aria-live`) et grise « Ajouter ». Le doublon ne se disait que par l'erreur
+  générique, après l'aller-retour. Une adresse de **site** dont FreshRSS
+  découvrirait un flux déjà suivi n'est pas reconnue : seul le serveur le sait.
 - **Note** : la découverte automatique du flux depuis l'URL d'un site est assurée
   par FreshRSS, pas par FriRSS.
 

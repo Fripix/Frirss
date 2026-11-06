@@ -48,6 +48,7 @@ import { computeRefreshDelta } from '../lib/refreshDelta';
 import { countNewInView, viewFeedIds } from '../lib/newArticles';
 import { isValidCategoryName } from '../lib/feedCategories';
 import { nameOwners, takenBy, userLabels } from '../lib/labelNames';
+import { newCategoryChoice } from '../lib/addFeedCheck';
 import {
   actionKey, mergeAction, isNetworkFailure, shouldRetry,
   type QueuedAction, type QueuedActionType,
@@ -3494,6 +3495,16 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   },
 
   addFeed: async (feedUrl, title, categoryId, categoryLabel) => {
+    // Mêmes règles que Préférences (R3T1-3) : « / » et nom d'étiquette
+    // refusés sans rien envoyer ; une catégorie existante du même nom à la
+    // casse près est réutilisée sous son nom exact, au lieu d'en créer une
+    // seconde à côté.
+    if (categoryLabel?.trim()) {
+      const choice = newCategoryChoice(categoryLabel, nameOwners(get()));
+      if (!choice.id) return false;
+      categoryId = choice.id;
+      categoryLabel = choice.label;
+    }
     try {
       await subscribeFeed(feedUrl, title, categoryId, categoryLabel);
       structureChanged(); // une relecture en vol ne l'écrase pas (R2-4)

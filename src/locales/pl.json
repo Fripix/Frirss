@@ -78,7 +78,8 @@
     "newCategoryPlaceholder": "Nazwa kategorii",
     "add": "Dodaj",
     "adding": "Dodawanie…",
-    "error": "Błąd podczas dodawania kanału"
+    "error": "Błąd podczas dodawania kanału",
+    "alreadySubscribed": "Ten kanał jest już w subskrypcjach: „{{name}}”."
   },
   "articleList": {
     "allFeeds": "Wszystkie kanały",

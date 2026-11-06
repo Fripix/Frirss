@@ -120,6 +120,36 @@ describe('moveFeedToCategory — pas de catégorie au nom d’une étiquette (L-
   });
 });
 
+// « Ajouter un flux » n'appliquait aucune de ces règles (R3T1-3).
+describe('addFeed — mêmes règles de nom de catégorie que Préférences', () => {
+  beforeEach(() => {
+    vi.mocked(api.subscribeFeed).mockResolvedValue(undefined as never);
+    vi.mocked(api.getSubscriptionList).mockResolvedValue([] as never);
+  });
+  it('une barre oblique : refusé sans rien envoyer', async () => {
+    expect(await useFeedStore.getState().addFeed('https://example.com/rss', '', L('Tech/Web'), 'Tech/Web')).toBe(false);
+    expect(api.subscribeFeed).not.toHaveBeenCalled();
+  });
+  it('le nom d’une étiquette, casse comprise : refusé sans rien envoyer', async () => {
+    expect(await useFeedStore.getState().addFeed('https://example.com/rss', '', L('veille'), 'veille')).toBe(false);
+    expect(api.subscribeFeed).not.toHaveBeenCalled();
+  });
+  it('le nom d’une catégorie existante à la casse près : le flux y va, sous son nom exact', async () => {
+    expect(await useFeedStore.getState().addFeed('https://example.com/rss', '', L('tech'), 'tech')).toBe(true);
+    expect(api.subscribeFeed).toHaveBeenLastCalledWith('https://example.com/rss', '', L('Tech'), 'Tech');
+  });
+  it('de même pour une catégorie vide, qu’aucun flux ne porte', async () => {
+    expect(await useFeedStore.getState().addFeed('https://example.com/b', '', L('SANS CATÉGORIE'), 'SANS CATÉGORIE')).toBe(true);
+    expect(api.subscribeFeed).toHaveBeenLastCalledWith('https://example.com/b', '', L('Sans catégorie'), 'Sans catégorie');
+  });
+  it('sans catégorie, ou un nom libre : envoyé tel quel', async () => {
+    expect(await useFeedStore.getState().addFeed('https://example.com/rss', 'Nom', '', '')).toBe(true);
+    expect(api.subscribeFeed).toHaveBeenLastCalledWith('https://example.com/rss', 'Nom', '', '');
+    expect(await useFeedStore.getState().addFeed('https://example.com/rss', '', L('Science'), 'Science')).toBe(true);
+    expect(api.subscribeFeed).toHaveBeenLastCalledWith('https://example.com/rss', '', L('Science'), 'Science');
+  });
+});
+
 describe('la vue affichée suit le renommage et la suppression (L-16)', () => {
   it('renommer l’étiquette affichée : la vue passe sous le nouveau nom et se recharge', async () => {
     useFeedStore.setState({ selectedFeed: { id: L('Veille'), title: 'Veille' } as Subscription, filter: 'unread' });

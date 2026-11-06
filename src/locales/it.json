@@ -74,7 +74,8 @@
     "newCategoryPlaceholder": "Nome della categoria",
     "add": "Aggiungi",
     "adding": "Aggiunta in corso…",
-    "error": "Errore durante l'aggiunta del feed"
+    "error": "Errore durante l'aggiunta del feed",
+    "alreadySubscribed": "Sei già iscritto a questo feed: «{{name}}»."
   },
   "articleList": {
     "allFeeds": "Tutti i feed",
