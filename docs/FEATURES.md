@@ -8253,6 +8253,28 @@ qu'elle rend (voir *Extraction du contenu complet*).
   retenu, sans repli ; la ligne de journal (`worker crashed`, l'origine
   seule) rend visible un worker qui meurt à chaque analyse. Une exception
   levée PAR l'analyse, rendue par le worker, reste un 502 nu.
+  **Un document entier pour Readability** (quatrième round, C-03 —
+  `wholeDocument`, `server/extract.ts`). linkedom construit l'arbre tel
+  qu'il est écrit, sans le `<html>`, le `<head>` et le `<body>` qu'un
+  navigateur ajoute toujours. Une page sans aucun élément (vide, texte seul,
+  commentaire) levait une TypeError dès l'insertion du `<base>` ; une page
+  dont le contenu n'est pas sous un `<body>` (SVG seul, fragment sans
+  `<html>`, `<div>` écrit après `</html>`, balises facultatives omises) en
+  faisait lever une dans Readability, qui remonte de son candidat jusqu'au
+  `<body>`. C'était le 502 nu ci-dessus, et le client se repliait sur son
+  propre extracteur, qui lisait la page. Désormais : sans aucun élément, rien
+  à lire — `Not extractable` (422), sans repli ; sinon le document est
+  complété comme le ferait le navigateur — `<html>`, `<head>` et `<body>`
+  créés s'ils manquent, ce qui précède `<html>` en tête du `<body>` (sauf
+  `title`, `meta`, `link`, `base`, `style` écrits avant tout contenu, qui
+  vont dans `<head>` : le titre d'une page aux balises omises est gardé), ce
+  qui suit `</html>` à la fin. Ces pages s'extraient donc côté serveur, comme
+  le repli les lisait. Une page ordinaire — un seul élément racine,
+  `<html>`, qui a son `<body>` — n'est pas touchée. Mesuré (2026-11-06) :
+  dix des 275 pages du corpus passent par là (un `<script>` écrit après
+  `</html>`), aucune ne change. Effet de bord voulu : ce qui était écrit
+  hors du premier élément racine échappait jusqu'ici au filet
+  `assertTreeBounded`, qui ne mesure que `documentElement`.
   **File : cinq analyses au plus** (`EXTRACT_MAX_PENDING`). Le compteur est pris
   à l'ARRIVÉE, tenu pendant le travail du worker et rendu au départ : il borne
   donc la file ET le nombre de workers vivants (cinq, chacun ≤ 10 s et 256 Mo).

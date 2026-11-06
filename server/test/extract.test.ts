@@ -120,6 +120,40 @@ describe('extractArticle', () => {
     const out = extractArticle('https://example.com/a', '<html><body></body></html>');
     expect(out).toBeNull();
   });
+
+  // C-03 (quatrième round) : linkedom ne construit pas `<html>`, `<head>` et
+  // `<body>` comme un navigateur. Une page sans élément levait une TypeError
+  // dès l'insertion du `<base>` ; une page dont le contenu n'est pas sous un
+  // `<body>`, une TypeError dans Readability, qui remonte jusqu'à lui. Le
+  // client recevait un 502 « Upstream request failed » et se repliait.
+  const story = `<p>${'Une phrase d’article assez longue pour peser dans le score de Readability. '.repeat(12)}</p>`;
+
+  it('rend null, sans lever, quand la page n’a aucun élément (vide, texte seul, commentaire)', () => {
+    for (const html of ['', 'hello', '   \n', '<!-- rien -->', '<!doctype html>']) {
+      expect(extractArticle('https://example.com/a', html), JSON.stringify(html)).toBeNull();
+    }
+  });
+
+  it('lit une page dont le contenu n’est pas sous `<body>` comme un navigateur (SVG seul, fragment, contenu après `</html>`)', () => {
+    const pages = {
+      svg: `<svg><foreignObject>${story}</foreignObject></svg>`,
+      fragment: `<div><div><div>${story}</div></div></div>`,
+      table: `<table><tr><td>${story}</td></tr></table>`,
+      afterHtml: `<html><head><title>T</title></head><body><p>court</p></body></html><div><section>${story}</section></div>`,
+      noBodyTag: `<!doctype html><html><head><title>T</title></head><div><section>${story}</section></div></html>`,
+    };
+    for (const [name, html] of Object.entries(pages)) {
+      let out: ReturnType<typeof extractArticle> = null;
+      expect(() => { out = extractArticle('https://example.com/a', html); }, name).not.toThrow();
+      expect(out!.content, name).toContain('Une phrase d’article');
+    }
+  });
+
+  it('garde le titre d’une page aux balises facultatives omises (`<html>`, `<head>`, `<body>`)', () => {
+    const out = extractArticle('https://example.com/a', `<!doctype html><title>Titre omis</title><meta charset="utf-8"><div><section>${story}</section></div>`);
+    expect(out!.content).toContain('Une phrase d’article');
+    expect(out!.title).toBe('Titre omis');
+  });
 });
 
 // ── A1 (campagne 1.9.0, troisième round) : images paresseuses ────────

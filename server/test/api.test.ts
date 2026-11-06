@@ -1285,6 +1285,18 @@ describe('extract', () => {
     expect(res.body).toEqual({ error: 'Not extractable' });
   });
 
+  // C-03 (quatrième round) : sans aucun élément, l'analyse levait une
+  // TypeError, rendue en 502 « Upstream request failed » — le client se
+  // repliait sur son propre extracteur pour une page sans article.
+  it('answers 422, not a bare 502, when the page has no element at all', async () => {
+    for (const [i, page] of ['', 'hello', '<!-- nothing -->'].entries()) {
+      stubUpstream(htmlStream(page));
+      const res = await get(`https://news.example.com/sans-element-${i}`);
+      expect(res.status, JSON.stringify(page)).toBe(422);
+      expect(res.body).toEqual({ error: 'Not extractable' });
+    }
+  });
+
   it('refuses a non-HTML response without reading its body', async () => {
     let cancelled = false;
     const body = streamOf([new Uint8Array(1024)], () => { cancelled = true; });

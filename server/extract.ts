@@ -185,6 +185,77 @@ function assertTreeBounded(doc: ParsedDocument): void {
   }
 }
 
+// ── Un document entier pour Readability (C-03, quatrième round) ──────
+// Un navigateur construit toujours `<html>`, `<head>` et `<body>`, et range
+// dans le `<body>` tout contenu, même écrit hors de lui. linkedom construit
+// l'arbre tel qu'il est écrit : une page vide ou de texte seul n'a pas de
+// racine, et `document.head` levait une TypeError ; une page dont le contenu
+// n'est pas sous un `<body>` (SVG seul, fragment, `<div>` après `</html>`,
+// balises facultatives omises) en faisait lever une dans Readability, qui
+// remonte de son candidat jusqu'au `<body>` et tombait sur le document. La
+// route rendait un 502 nu, et le client se repliait sur son propre
+// extracteur — qui, lui, lisait la page.
+//
+// Le document est donc complété comme le ferait le navigateur, et seulement
+// quand il le faut : une page ordinaire (un seul élément racine, `<html>`, qui
+// a son `<body>`) n'est pas touchée. Sans aucun élément, il n'y a rien à lire :
+// `extractArticle` rend `null` (422 « Not extractable »).
+
+/** Ce qu'un navigateur range dans `<head>` tant que le corps n'a pas commencé. */
+const HEAD_ONLY = new Set(['title', 'meta', 'link', 'base', 'style']);
+
+/** Complète `doc` en `<html>` + `<head>` + `<body>` ; `false` s'il n'a aucun élément. */
+function wholeDocument(doc: ParsedDocument): boolean {
+  const top = Array.from(doc.childNodes as unknown as ArrayLike<Node>);
+  const roots = top.filter((node) => node.nodeType === 1) as Element[];
+  if (!roots.length) return false;
+  const childOf = (parent: Element, tag: string) => Array.from(parent.children).find((child) => child.tagName === tag) ?? null;
+  let html = roots.find((root) => root.tagName === 'HTML') ?? null;
+  if (roots.length === 1 && html && childOf(html, 'BODY')) return true;
+
+  const make = (tag: string) => doc.createElement(tag) as unknown as Element;
+  if (!html) {
+    html = make('html');
+    (doc as unknown as Element).append(html);
+  }
+  let head = childOf(html, 'HEAD');
+  if (!head) {
+    head = make('head');
+    html.prepend(head);
+  }
+  // Ce qui est écrit avant `<html>` ouvre la page ; ce qui suit `</html>` la
+  // ferme. Sans `<body>`, les enfants de `<html>` sont aussi le début de la page.
+  const opening: Node[] = [];
+  const closing: Node[] = [];
+  let afterHtml = false;
+  for (const node of top) {
+    if (node === html) afterHtml = true;
+    else if (node.nodeType !== 10) (afterHtml ? closing : opening).push(node);
+  }
+  let body = childOf(html, 'BODY');
+  if (!body) {
+    opening.push(...Array.from(html.childNodes).filter((node) => node !== head));
+    body = make('body');
+    html.append(body);
+  }
+  // Avant tout contenu, `title`, `meta`… vont dans `<head>` ; le reste, dans
+  // l'ordre, en tête du `<body>`.
+  const content: Node[] = [];
+  for (const node of opening) {
+    if (!content.length && headOnly(node)) head.append(node);
+    else content.push(node);
+  }
+  body.prepend(...content);
+  body.append(...closing);
+  return true;
+}
+
+/** Un nœud qui ne commence pas le corps de la page : `title`, `meta`…, un blanc, un commentaire. */
+function headOnly(node: Node): boolean {
+  if (node.nodeType === 1) return HEAD_ONLY.has((node as Element).tagName.toLowerCase());
+  return node.nodeType === 8 || (node.nodeType === 3 && !(node.textContent || '').trim());
+}
+
 // ── L'analyse dans un worker (M-01) ──────────────────────────────────
 
 /**
@@ -303,8 +374,9 @@ export const READABILITY_CHAR_THRESHOLD = 500;
  * d'abord **prouver qu'il filtre** (un test qui injecte un `onerror` et le voit
  * disparaître), avant de toucher au client.
  *
- * `null` quand Readability ne trouve pas d'article : l'appelant doit alors
- * laisser la main au navigateur plutôt que de renvoyer un corps vide.
+ * `null` quand Readability ne trouve pas d'article, ou que la page n'a aucun
+ * élément (vide, texte seul) : l'appelant le dit plutôt que de renvoyer un
+ * corps vide.
  *
  * Lève `PageTooComplexError` quand la page dépasse `EXTRACT_MAX_DEPTH` ou
  * `EXTRACT_MAX_ELEMENTS` — vérifié sur le texte avant l'analyse HTML, puis sur
@@ -314,13 +386,15 @@ export const READABILITY_CHAR_THRESHOLD = 500;
 export function extractArticle(url: string, html: string): ExtractedArticle | null {
   const load = () => {
     const { document } = parseHTML(html);
+    // Rien à lire sans élément ; et Readability veut un document entier (C-03).
+    if (!wholeDocument(document)) return null;
     // Une URL relative dans la page ne veut rien dire pour le navigateur, qui
     // reçoit le HTML sans savoir d'où il vient. `<base>` les résout ici.
     const base = document.createElement('base');
     base.setAttribute('href', url);
-    document.head?.prepend(base);
+    document.head.prepend(base);
     // Images paresseuses et boutons d'agrandissement, avant toute passe (A1).
-    if (document.documentElement) resolveLazyImages(document.documentElement as unknown as Element);
+    resolveLazyImages(document.documentElement as unknown as Element);
     return document;
   };
   // Les blocs étrangers à l'article sortent avant toute passe (M-04).
@@ -340,6 +414,7 @@ export function extractArticle(url: string, html: string): ExtractedArticle | nu
   const tooComplex = markupTooComplex(html, { maxDepth: EXTRACT_MAX_DEPTH, maxElements: EXTRACT_MAX_ELEMENTS });
   if (tooComplex) throw new PageTooComplexError(tooComplex);
   const document = load();
+  if (!document) return null;
   assertTreeBounded(document);
   clean(document);
   // Mesuré AVANT Readability, qui modifie le document qu'il lit.
@@ -350,7 +425,7 @@ export function extractArticle(url: string, html: string): ExtractedArticle | nu
   let content = parsed.content;
   let length = parsed.length || 0;
   if (mainLength != null && keptTooLittle(parsed.textContent || '', mainLength)) {
-    const retry = clean(load());
+    const retry = clean(load()!);
     if (keepOnlyMainContainer(retry)) {
       const again = new Readability(retry as never, MAIN_CONTAINER_OPTIONS).parse();
       if (again?.content && recoveredMore(again.textContent || '', parsed.textContent || '')) {
