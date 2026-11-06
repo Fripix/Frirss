@@ -216,6 +216,17 @@ export class ExtractorBusyError extends Error {
   constructor() { super('EXTRACTOR_BUSY'); this.name = 'ExtractorBusyError'; }
 }
 
+/**
+ * Le worker d'analyse du serveur est mort sans répondre (502 portant
+ * `crashed`). Échec PASSAGER, comme une file pleine : pas retenu,
+ * « Réessayer » possible, le passage suivant reprend l'article. Sans repli :
+ * rendu en 502 nu jusqu'ici, il renvoyait l'onglet sur son propre extracteur,
+ * qui refaisait l'analyse sans borne de durée.
+ */
+export class ExtractorCrashedError extends Error {
+  constructor() { super('EXTRACTOR_CRASHED'); this.name = 'ExtractorCrashedError'; }
+}
+
 /** Le repli a reçu une réponse en erreur de `/api/proxy`. */
 class FallbackHttpError extends Error {
   constructor(readonly status: number) { super(`HTTP ${status}`); this.name = 'FallbackHttpError'; }
@@ -469,7 +480,8 @@ async function extractOnce(url: string): Promise<ExtractedContent> {
   // cas où le serveur n'a PAS PU ESSAYER : route absente (serveur plus
   // ancien, 404, ou toute réponse inattendue), FriRSS injoignable ou muet
   // (erreur réseau, délai du client), page que le serveur n'a pas pu joindre
-  // (502 sans statut d'amont, 504 sans `timedOut`, 503 de son résolveur).
+  // (502 sans statut d'amont ni `crashed`, 504 sans `timedOut`, 503 de son
+  // résolveur).
   //
   // Quand le serveur a eu le HTML et l'a refusé, le repli relirait la même
   // page dans l'onglet, analyse comprise, sur le fil principal — décision de
@@ -479,7 +491,8 @@ async function extractOnce(url: string): Promise<ExtractedContent> {
   // ni sur un 504 portant `timedOut` (l'analyse a dépassé son délai) ; ni sur
   // un 503 portant `busy` (file d'analyse pleine : 14 s de gel mesurées quand
   // l'onglet prenait le relais). Ni sur un 502 portant `upstreamStatus` (le
-  // site a refusé la page, il la refuserait au proxy).
+  // site a refusé la page, il la refuserait au proxy) ou `crashed` (le worker
+  // d'analyse est mort sans répondre : passager, comme `busy`).
   //
   // Ce repli ne couvre PAS l'absence de Redis : sans cache, la route extrait
   // quand même et répond 200 — elle ne garde simplement rien, et le prochain
@@ -533,9 +546,14 @@ async function extractOnce(url: string): Promise<ExtractedContent> {
       if (body?.timedOut === true) throw new ExtractTimeoutError();
       return null;
     }
+    // 502 portant `crashed` : le worker d'analyse du serveur est mort sans
+    // répondre. Passager, comme `busy` : pas retenu, sans repli — l'onglet
+    // referait l'analyse sans borne de durée. Un 502 sans aucun des deux
+    // drapeaux (site injoignable depuis le serveur) garde le repli.
     if (served.status === 502) {
-      const body = (await served.json().catch(() => null)) as { upstreamStatus?: unknown } | null;
+      const body = (await served.json().catch(() => null)) as { upstreamStatus?: unknown; crashed?: unknown } | null;
       if (typeof body?.upstreamStatus === 'number') throw new UpstreamRefusedError(body.upstreamStatus);
+      if (body?.crashed === true) throw new ExtractorCrashedError();
       return null;
     }
     if (!served.ok) return null;
@@ -583,7 +601,8 @@ async function extractOnce(url: string): Promise<ExtractedContent> {
     if (served && !('limited' in served)) return served;
   } catch (err) {
     if (err instanceof NotAPageError || err instanceof UpstreamRefusedError || err instanceof PageTooComplexError
-      || err instanceof ExtractTimeoutError || err instanceof ExtractorBusyError || err instanceof NoContentError) throw err;
+      || err instanceof ExtractTimeoutError || err instanceof ExtractorBusyError || err instanceof ExtractorCrashedError
+      || err instanceof NoContentError) throw err;
     /* repli */
   }
 

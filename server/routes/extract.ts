@@ -3,7 +3,7 @@ import { requireAuth } from '../middleware/auth.js';
 import { assertTargetSafe, fetchUpstream, finishError, proxyRateLimiter, UnresolvedTargetError } from './proxy.js';
 import { cacheEnabled, cacheGet, cacheSet, extractKey } from '../cache.js';
 import { decodeBody } from '../charset.js';
-import { extractInWorker, ExtractorBusyError, ExtractTimeoutError, PageTooComplexError, withExtractSlot } from '../extract.js';
+import { extractInWorker, ExtractorBusyError, ExtractTimeoutError, ExtractWorkerCrashedError, PageTooComplexError, withExtractSlot } from '../extract.js';
 
 const router = Router();
 
@@ -169,7 +169,7 @@ const IN_FLIGHT_MAX = 64;
  * Seuls ces échecs-là y entrent : ils tiennent à la page, et ils ont coûté une
  * analyse. Une panne réseau, un délai amont, un refus du site, une file pleine,
  * un délai du worker dépassé (un serveur chargé peut le dépasser sur une page
- * ordinaire — relecture 1.9.0)
+ * ordinaire — relecture 1.9.0), un worker mort sans réponse
  * ne disent rien de la page et ne sont jamais gardés.
  *
  * Bornée dans le temps (`EXTRACT_FAILURE_TTL_MS`) — une page corrigée par son
@@ -282,6 +282,15 @@ async function produce(url: string, key: string | null): Promise<Outcome> {
     // ni retenu par le client, qui peut réessayer ; `timedOut` lui dit
     // seulement de ne pas se replier (l'onglet paierait la même analyse).
     if (err instanceof ExtractTimeoutError) return json(504, { error: 'Extraction timed out', timedOut: true });
+    // Worker mort sans réponse : passager, ni gardé ici ni retenu par le
+    // client. `crashed` le distingue du 502 nu d'un site injoignable, sur
+    // lequel le client se replie : il referait l'analyse dans l'onglet, sans
+    // borne de durée. Journalisé (l'origine seule) : un worker qui meurt à
+    // chaque analyse — fichier absent après un déploiement — doit se voir.
+    if (err instanceof ExtractWorkerCrashedError) {
+      console.error('Extract error: worker crashed', err.detail, '→', loggableTarget(url));
+      return json(502, { error: 'Extractor crashed', crashed: true });
+    }
     // Page piégée (trop imbriquée, trop d'éléments, mémoire du worker
     // épuisée) : échec DÉFINITIF. `tooComplex` dit au client de ne
     // pas se replier — son extracteur relirait la même page — et de la

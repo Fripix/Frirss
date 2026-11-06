@@ -8,6 +8,7 @@ import {
   PageTooComplexError,
   ExtractTimeoutError,
   ExtractorBusyError,
+  ExtractorCrashedError,
   UpstreamRefusedError,
   forgetExtractFailures,
   FALLBACK_EXTRACT_TIMEOUT_MS,
@@ -794,6 +795,30 @@ describe('extractFullContent — mémoire des échecs (L-03)', () => {
 
     // Pas retenue : l'automatique la redemande.
     await expect(extractFullContent('https://example.com/occupe')).rejects.toBeInstanceOf(ExtractorBusyError);
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+
+  // Le worker d'analyse du serveur est mort sans répondre (« extract worker
+  // exited ») : rendu en 502 nu, il renvoyait l'onglet sur son propre
+  // extracteur, qui refaisait l'analyse sans borne de durée. Passager, comme
+  // une file pleine : pas de repli, pas de mémoire d'échec, « Réessayer »
+  // possible.
+  it('ne se replie pas quand le worker du serveur a planté (502 `crashed`), et ne le retient pas', async () => {
+    const proxy = vi.fn();
+    const fetchSpy = vi.fn(async (input: RequestInfo) => {
+      if (String(input).startsWith('/api/extract')) {
+        return new Response(JSON.stringify({ error: 'Extractor crashed', crashed: true }), { status: 502 });
+      }
+      proxy();
+      return htmlPage(pageHtml);
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+
+    await expect(extractFullContent('https://example.com/plante')).rejects.toBeInstanceOf(ExtractorCrashedError);
+    expect(proxy).not.toHaveBeenCalled();
+
+    // Pas retenue : l'automatique la redemande.
+    await expect(extractFullContent('https://example.com/plante')).rejects.toBeInstanceOf(ExtractorCrashedError);
     expect(fetchSpy).toHaveBeenCalledTimes(2);
   });
 

@@ -5115,8 +5115,8 @@ serveur de développement en 1.4.4.)*
   route absente (404 d'un serveur plus ancien, toute réponse inattendue — 500,
   corps illisible, 200 sans `content`), FriRSS injoignable ou muet (erreur
   réseau, délai du client `SERVER_EXTRACT_TIMEOUT_MS`), page que le serveur
-  n'a pas pu joindre (502 sans `upstreamStatus`, 504 sans `timedOut`, 503
-  `Target host unresolved` de son résolveur). Page récupérée par `/api/proxy`
+  n'a pas pu joindre (502 sans `upstreamStatus` ni `crashed`, 504 sans
+  `timedOut`, 503 `Target host unresolved` de son résolveur). Page récupérée par `/api/proxy`
   (**JWT requis**, même garde anti-SSRF) puis Readability dans le navigateur.
   **Quand le serveur a eu le HTML et l'a refusé, pas de repli** : l'onglet
   relirait la même page, analyse comprise, sur le fil principal.
@@ -5126,6 +5126,11 @@ serveur de développement en 1.4.4.)*
     ouverture. Le repli n'avait qu'une borne de forme, aucune de durée : sur
     une page lente sous les seuils, quand d'autres analyses remplissaient la
     file, l'onglet gelait **14 s** (mesuré au banc, N-2) ;
+  - **502 portant `crashed`** (`Extractor crashed` : le worker d'analyse du
+    serveur est mort sans répondre — `ExtractorCrashedError`) : traité comme
+    `busy`, échec **passager**, pas retenu, « Réessayer » possible, sans
+    repli. Il sortait en 502 nu (« extract worker exited »), celui d'un site
+    injoignable, et l'onglet refaisait l'analyse sans borne de durée ;
   - **422** : `tooComplex` (M-01, page piégée — `PageTooComplexError`) ou
     `Not extractable` (le serveur n'y a rien trouvé de lisible —
     `NoContentError`) ; les deux sont **retenus pour la session**. Avant N-2,
@@ -5147,8 +5152,8 @@ serveur de développement en 1.4.4.)*
   files de fond (réchauffage de la vue, préchargement, préparation hors
   ligne, favoris épinglés, revalidation) avalent l'échec : l'article garde le
   contenu du flux, ou son extrait d'une version antérieure (M-03), et un
-  refus passager (503 `busy`, 504 `timedOut`) est repris au passage suivant,
-  rien n'ayant été mis en cache. ⚠️ Coût assumé : une préparation hors ligne
+  refus passager (503 `busy`, 502 `crashed`, 504 `timedOut`) est repris au
+  passage suivant, rien n'ayant été mis en cache. ⚠️ Coût assumé : une préparation hors ligne
   lancée pendant que d'autres comptes saturent la file laisse ces articles
   sans article complet jusqu'au passage suivant, là où le repli les
   extrayait — en gelant l'onglet sur les pages lentes. Ce repli n'est pas du
@@ -5454,7 +5459,7 @@ serveur de développement en 1.4.4.)*
   chaque extraction automatique, et un flux sans contenu n'avait pas de
   squelette en attendant l'extrait (L-06, `ReadingPane.extract.test.tsx`). Le
   squelette, lui, tombe dès que l'extraction automatique a échoué.
-- **Ce que coûte un repli** : sur un 502 sans `upstreamStatus` ou un 504
+- **Ce que coûte un repli** : sur un 502 sans `upstreamStatus` ni `crashed`, ou un 504
   sans `timedOut`, le site d'origine est sollicité **deux fois** — une fois
   par le serveur, une fois par le navigateur — et deux jetons quittent le seau
   de cadence partagé. (Sur le 503 `Target host unresolved`, le serveur n'a
@@ -7720,8 +7725,8 @@ qu'elle rend (voir *Extraction du contenu complet*).
     plus, en mémoire du processus) : une page refusée pour sa complexité et une
     page sans article lisible sont rendues sans être ni retéléchargées ni
     réanalysées. Seuls ces échecs-là — ils tiennent à la page et ont coûté une
-    analyse ; une panne réseau, un refus du site, une file pleine ou un délai
-    du worker dépassé ne sont jamais gardés.
+    analyse ; une panne réseau, un refus du site, une file pleine, un délai
+    du worker dépassé ou un worker mort sans réponse ne sont jamais gardés.
   Le refus se dit `422 { error: 'Page too complex', tooComplex: true }`
   (profondeur, éléments, mémoire du worker) : le client le traite comme un
   **échec définitif** — pas de repli sur son propre extracteur, page retenue
@@ -7736,6 +7741,14 @@ qu'elle rend (voir *Extraction du contenu complet*).
   par le client — échec ordinaire, « Réessayer » possible, l'automatique la
   redemandera —, mais **sans repli** : l'onglet paierait la même analyse. Un
   504 sans `timedOut` (site trop lent pour le serveur) se replie toujours.
+  **Un worker mort sans réponse non plus** (sortie sans message, erreur hors
+  de l'analyse autre que la mémoire épuisée — `ExtractWorkerCrashedError`) :
+  il sortait en 502 nu, `extract worker exited`, que le client prenait pour un
+  site injoignable et sur lequel il se repliait. Il se dit
+  `502 { error: 'Extractor crashed', crashed: true }` : passager, ni gardé ni
+  retenu, sans repli ; la ligne de journal (`worker crashed`, l'origine
+  seule) rend visible un worker qui meurt à chaque analyse. Une exception
+  levée PAR l'analyse, rendue par le worker, reste un 502 nu.
   **File : cinq analyses au plus** (`EXTRACT_MAX_PENDING`). Le compteur est pris
   à l'ARRIVÉE, tenu pendant le travail du worker et rendu au départ : il borne
   donc la file ET le nombre de workers vivants (cinq, chacun ≤ 10 s et 256 Mo).
@@ -7906,7 +7919,10 @@ qu'elle rend (voir *Extraction du contenu complet*).
   retient pour la session : `Not extractable` (rien de lisible) et `Page too
   complex` avec `tooComplex: true` (M-01, page piégée). Et un 504 propre, `Extraction
   timed out` avec `timedOut: true` : le délai du worker, distinct du 504 d'un
-  délai amont (le client ne se replie que sur ce dernier). Le corps ne nomme jamais la cible, et la ligne de
+  délai amont (le client ne se replie que sur ce dernier). Et un 502 propre,
+  `Extractor crashed` avec `crashed: true` : le worker mort sans réponse,
+  distinct du 502 d'une panne amont (le client ne se replie que sur ce
+  dernier). Le corps ne nomme jamais la cible, et la ligne de
   journal passe par `redactUrl` dans **toutes** les branches — la branche 503
   écrivait la cible en clair jusqu'au 2026-09-04, alors que le préchargement
   d'images y fait passer des URL de CDN signées par leur requête.

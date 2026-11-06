@@ -152,6 +152,22 @@ export class ExtractTimeoutError extends Error {
   }
 }
 
+/**
+ * Le worker est mort sans rendre de réponse : sorti de lui-même (« extract
+ * worker exited ») ou tombé sur une erreur hors de l'analyse (autre que la
+ * mémoire épuisée, qui est un refus pour complexité). Rendu jusqu'ici comme le
+ * 502 nu d'un site injoignable, il renvoyait le client sur son propre
+ * extracteur, qui refaisait l'analyse dans l'onglet sans borne de durée.
+ * Échec PASSAGER, qui se dit (`crashed`) : ni gardé par le serveur, ni retenu
+ * par le client, « Réessayer » possible, et pas de repli.
+ */
+export class ExtractWorkerCrashedError extends Error {
+  constructor(readonly detail: string) {
+    super(`Extract worker crashed (${detail})`);
+    this.name = 'ExtractWorkerCrashedError';
+  }
+}
+
 type ParsedDocument = ReturnType<typeof parseHTML>['document'];
 
 /** Lève `PageTooComplexError` au premier seuil dépassé. Itératif : une pile
@@ -215,7 +231,8 @@ export type WorkerReply =
  * La boucle principale ne fait qu'attendre un message : un piège qui coûterait
  * des minutes n'immobilise plus que son worker, et ce worker est terminé
  * (`terminate()` interrompt aussi une boucle JavaScript synchrone) à
- * l'échéance. Un dépassement est rendu comme `ExtractTimeoutError`.
+ * l'échéance. Un dépassement est rendu comme `ExtractTimeoutError` ; un worker
+ * mort sans réponse, comme `ExtractWorkerCrashedError`.
  *
  * Un worker par analyse, pas de réserve : démarrer un worker coûte quelques
  * dizaines de millisecondes, négligeables devant la récupération de la page,
@@ -244,10 +261,13 @@ export function extractInWorker(url: string, html: string, timeoutMs = EXTRACT_W
       else if (reply.tooComplex) reject(new PageTooComplexError(reply.tooComplex));
       else reject(new Error(reply.message));
     }));
+    // Mort sans réponse : un plantage, pas un refus de la page — sauf la
+    // mémoire épuisée, que la page a provoquée (`tooComplex`).
     worker.once('error', (err: Error & { code?: string }) => settle(() => {
-      reject(err.code === 'ERR_WORKER_OUT_OF_MEMORY' ? new PageTooComplexError('memory') : err);
+      reject(err.code === 'ERR_WORKER_OUT_OF_MEMORY' ? new PageTooComplexError('memory')
+        : new ExtractWorkerCrashedError(err.code || err.name || 'error'));
     }));
-    worker.once('exit', (code) => settle(() => reject(new Error(`extract worker exited (${code})`))));
+    worker.once('exit', (code) => settle(() => reject(new ExtractWorkerCrashedError(`exit ${code}`))));
   });
 }
 
