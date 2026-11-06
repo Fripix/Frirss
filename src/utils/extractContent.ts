@@ -178,6 +178,16 @@ export class UpstreamRefusedError extends Error {
   constructor(readonly status: number) { super(`UPSTREAM_${status}`); this.name = 'UpstreamRefusedError'; }
 }
 
+/**
+ * Le serveur a refusé la page pour sa COMPLEXITÉ (M-01) : imbrication ou
+ * nombre d'éléments au-delà de ses seuils, délai ou mémoire de son worker
+ * dépassés — une page piégée. Échec définitif : pas de repli (l'onglet
+ * relirait la même page), et la page est retenue pour la session.
+ */
+export class PageTooComplexError extends Error {
+  constructor() { super('PAGE_TOO_COMPLEX'); this.name = 'PageTooComplexError'; }
+}
+
 /** Le repli a reçu une réponse en erreur de `/api/proxy`. */
 class FallbackHttpError extends Error {
   constructor(readonly status: number) { super(`HTTP ${status}`); this.name = 'FallbackHttpError'; }
@@ -204,6 +214,7 @@ class PageTooLargeError extends Error {
  */
 function isPageFailure(err: unknown): boolean {
   if (err instanceof NotAPageError || err instanceof NoContentError || err instanceof PageTooLargeError) return true;
+  if (err instanceof PageTooComplexError) return true;
   if (err instanceof UpstreamRefusedError) return isPageRefusal(err.status, 'site');
   if (err instanceof FallbackHttpError) return isPageRefusal(err.status, 'proxy');
   return false;
@@ -352,7 +363,8 @@ async function extractOnce(url: string): Promise<ExtractedContent> {
   // route peut manquer (serveur plus ancien), ne pas savoir extraire la page
   // (422) ou échouer à la joindre (502, 504). Sauf un 415 (la cible n'est pas
   // une page) ou un 413 (plus de 2 Mo, le plafond du repli aussi) : le repli
-  // relirait la même réponse pour échouer (`NotAPageError`).
+  // relirait la même réponse pour échouer (`NotAPageError`). Ni un 422 portant
+  // `tooComplex` : la page est piégée, l'onglet la relirait (M-01).
   //
   // Ce repli ne couvre PAS l'absence de Redis : sans cache, la route extrait
   // quand même et répond 200 — elle ne garde simplement rien, et le prochain
@@ -380,6 +392,13 @@ async function extractOnce(url: string): Promise<ExtractedContent> {
     // 502 portant `upstreamStatus` : le serveur a joint le site, qui a
     // refusé la page. Le repli irait se faire refuser de même. Un 502 sans
     // lui (site injoignable depuis le serveur) garde le repli.
+    // 422 portant `tooComplex` : page piégée, refusée par le serveur (M-01).
+    // Un 422 sans lui (rien de lisible) garde le repli.
+    if (served.status === 422) {
+      const body = (await served.json().catch(() => null)) as { tooComplex?: unknown } | null;
+      if (body?.tooComplex === true) throw new PageTooComplexError();
+      return null;
+    }
     if (served.status === 502) {
       const body = (await served.json().catch(() => null)) as { upstreamStatus?: unknown } | null;
       if (typeof body?.upstreamStatus === 'number') throw new UpstreamRefusedError(body.upstreamStatus);
@@ -429,7 +448,7 @@ async function extractOnce(url: string): Promise<ExtractedContent> {
     }
     if (served && !('limited' in served)) return served;
   } catch (err) {
-    if (err instanceof NotAPageError || err instanceof UpstreamRefusedError) throw err;
+    if (err instanceof NotAPageError || err instanceof UpstreamRefusedError || err instanceof PageTooComplexError) throw err;
     /* repli */
   }
 

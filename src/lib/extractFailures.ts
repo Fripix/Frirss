@@ -6,7 +6,8 @@
 // suivi d'un repli `/api/proxy`, soit ~10 Mo pour une seule ouverture.
 //
 // Seuls les échecs qui tiennent à la PAGE y entrent (pas une page, trop
-// grosse, refusée par le site d'un 4xx, rien de lisible) : une cadence
+// grosse, trop complexe — refusée par le serveur, M-01 —, refusée par le site
+// d'un 4xx, rien de lisible) : une cadence
 // dépassée, un délai, un 5xx ou une panne réseau ne disent rien d'elle, ni un
 // refus de FriRSS lui-même (`isPageRefusal`), et le prochain passage peut
 // réussir. En mémoire seulement : un rechargement redonne sa chance à tout, et

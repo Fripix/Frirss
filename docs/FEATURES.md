@@ -5093,7 +5093,10 @@ serveur de développement en 1.4.4.)*
   `NotAPageError`, pas de repli), **et sauf un 502 qui porte `upstreamStatus`**
   (1.9.0 : le site a répondu, et refusé la page au serveur ; le repli irait se
   faire refuser par le même site — `UpstreamRefusedError`, pas de repli ; un
-  502 sans ce champ, site injoignable, se replie toujours) — page récupérée par `/api/proxy` (**JWT requis**,
+  502 sans ce champ, site injoignable, se replie toujours), **et sauf un 422
+  qui porte `tooComplex`** (1.9.0, M-01 : page piégée, refusée par le serveur
+  pour sa complexité — `PageTooComplexError`, pas de repli, l'onglet relirait
+  la même page ; un 422 sans ce champ, rien de lisible, se replie toujours) — page récupérée par `/api/proxy` (**JWT requis**,
   même garde anti-SSRF) puis Readability dans le navigateur. Ce repli n'est pas
   du code hérité : c'est ce qui tient quand le serveur n'a pas la route, ne sait
   pas lire la page, ou ne répond pas.
@@ -5269,7 +5272,7 @@ serveur de développement en 1.4.4.)*
     le lecteur. Le volet ne lance pas d'extraction automatique sur une vidéo,
     ne l'attend pas (pas de squelette) et n'affiche aucun échec ;
   - **un échec qui tient à la PAGE est retenu pour la session** (pas une page,
-    trop grosse, rien de lisible, refus **4xx** du site ou du repli hors 408
+    trop grosse, trop complexe — le 422 `tooComplex` du serveur, M-01 —, rien de lisible, refus **4xx** du site ou du repli hors 408
     et 429 — `isPageRefusal`) : les extractions automatiques et les files de
     fond ne la redemandent plus (`worthAutoExtracting`). Une cadence dépassée,
     un délai, une panne réseau ou un **5xx**, du site comme du proxy, ne sont
@@ -7507,28 +7510,58 @@ qu'elle rend (voir *Extraction du contenu complet*).
   `;` comme `,`, guillemets optionnels, casse libre. Et le décodage a lieu
   **après** la lecture bornée : le plafond (2 Mo) et le délai portent sur des
   octets, le jeu de caractères n'étant connu qu'une fois ceux-ci en main.
-- **Analyse bornée : une à la fois, cinq requêtes au plus dans la file**
-  (une en cours, quatre en attente — `EXTRACT_MAX_PENDING`,
-  `server/extract.ts`). `parseHTML` + `Readability` sont **synchrones** : de
-  ~20 ms pour 0,1 Mo à ~1 s au plafond de lecture (2 Mo depuis 1.8.0 : une page
-  plate de 4,9 Mo construite pour coûter cher bloquait ~3 s sous l'ancien
-  plafond de 5 Mo), pendant lesquels
-  l'unique processus Node qui sert toute l'instance ne fait rien d'autre — et
-  cette charge est NEUVE, elle vivait sur chaque téléphone avant la 1.4.10. Le
-  seau de cadence (600/min et par compte) permet un ordre de grandeur de plus
-  que ce que la boucle absorbe : ce n'était pas une borne. Le compteur est pris
-  à l'ARRIVÉE et rendu au départ, donc ce qui est borné est la **longueur de la
-  file**, pas un parallélisme — celui-ci vaut déjà un, l'analyse étant
-  synchrone. Au-delà de cinq, la route répond `503 { error: 'Extractor busy' }`
-  et le client se replie sur son propre extracteur — ce qu'il faisait de toute
-  façon avant la 1.4.10. Un `setImmediate` entre deux analyses rend un tour de
-  boucle COMPLET aux autres requêtes ; une simple promesse réglée n'aurait rendu
-  la main qu'aux micro-tâches.
-  ⚠️ **Ce que cette borne ne fait PAS : borner le CPU.** Un compte peut tenir
-  cinq requêtes en file indéfiniment, donc faire analyser en continu, avec un
-  tour de boucle rendu entre chaque analyse. C'est la différence entre « le
-  serveur est lent » et « le serveur ne répond plus » — pas une immunité à la
-  charge.
+- **Analyse hors de la boucle principale, bornée en nombre, en durée et en
+  forme** (M-01, campagne 1.9.0 ; `server/extract.ts`, `server/extractWorker.ts`).
+  Le coût de `parseHTML` + `Readability` ne dépend pas de la taille de la page
+  mais de sa **forme** : il croît comme le cube de la profondeur d'imbrication.
+  Une page plate de 2 Mo coûte ~0,3 s ; 1000 `<div>` imbriqués (23 Ko)
+  coûtaient 17,8 s, 5000 laissaient Node à 100 % plus de quatre minutes. Tant
+  que l'analyse tournait sur l'unique boucle Node (1.4.10 → 1.9.0), c'était
+  autant de temps où l'instance entière ne répondait plus — `/api/health`, le
+  proxy de tous les comptes —, et l'auteur d'un flux auquel on est abonné
+  pouvait le déclencher (extraction automatique, préparation hors ligne). Trois
+  couches, depuis :
+  - **Refus rapide** juste après l'analyse HTML, avant toute passe Readability :
+    profondeur au-delà de `EXTRACT_MAX_DEPTH` (256, `<html>` compte pour 1) ou
+    plus de `EXTRACT_MAX_ELEMENTS` éléments (60 000). Parcours itératif, qui
+    s'arrête au premier dépassement : le piège de 5000 niveaux est refusé en
+    ~50 ms. Calibrage (2026-11-06) sur 38 pages réelles de la campagne et deux
+    longues pages Wikipédia (2 et 3 Mo) : profondeur maximale relevée 34,
+    éléments 21 828. Coût au seuil d'une page faite pour coûter : 256 niveaux
+    seuls ~0,17 s, 60 000 éléments à 16 niveaux ~0,9 s.
+  - **Worker** : l'analyse tourne dans un `worker_thread` (`extractInWorker`),
+    terminé au bout de `EXTRACT_WORKER_TIMEOUT_MS` (10 s) et plafonné à 256 Mo
+    de tas. Sous les seuils, une page à la fois large et profonde coûte encore
+    plusieurs secondes (40 chaînes de 200 niveaux ~2 s) : c'est ce délai qui la
+    borne, et la boucle principale reste libre pendant ce temps. Un worker par
+    analyse (~45 ms de démarrage en production), aucune réserve : un worker
+    terminé à l'échéance ne laisse rien derrière lui.
+  - **Échec gardé** par URL, 5 minutes (`EXTRACT_FAILURE_TTL_MS`, 500 URL au
+    plus, en mémoire du processus) : une page refusée pour sa complexité et une
+    page sans article lisible sont rendues sans être ni retéléchargées ni
+    réanalysées. Seuls ces échecs-là — ils tiennent à la page et ont coûté une
+    analyse ; une panne réseau, un refus du site ou une file pleine ne sont
+    jamais gardés.
+  Le refus se dit `422 { error: 'Page too complex', tooComplex: true }` (délai et
+  mémoire du worker compris) : le client le traite comme un **échec définitif**
+  — pas de repli sur son propre extracteur, page retenue pour la session
+  (`PageTooComplexError`, `src/utils/extractContent.ts`) ; « Article complet »
+  peut toujours la redemander, et le serveur répond alors depuis sa mémoire
+  d'échecs.
+  **File : cinq analyses au plus** (`EXTRACT_MAX_PENDING`). Le compteur est pris
+  à l'ARRIVÉE, tenu pendant le travail du worker et rendu au départ : il borne
+  donc la file ET le nombre de workers vivants (cinq, chacun ≤ 10 s et 256 Mo).
+  Au-delà, la route répond `503 { error: 'Extractor busy' }` et le client se
+  replie sur son propre extracteur — ce qu'il faisait de toute façon avant la
+  1.4.10. Un `setImmediate` sépare deux départs.
+  ⚠️ **Ce que ces bornes ne font PAS : borner le CPU.** Un compte peut tenir
+  cinq analyses en cours indéfiniment, donc occuper jusqu'à cinq cœurs. Le
+  serveur reste disponible, pas immunisé contre la charge.
+  ⚠️ **Le worker doit tourner sous trois chargeurs** : le `.js` compilé à côté
+  de `server-dist/extract.js` en production ; sinon le source `.ts`, lancé
+  avec `--import tsx` (développement sous `tsx`, et vitest). Le choix se fait
+  sur l'existence du `.js` compilé — renommer ou déplacer l'un des deux
+  fichiers casse l'extraction en production seulement.
 - **Demandes simultanées coalescées** : dix appareils qui réclament la même URL
   froide en même temps ne déclenchent **qu'une** extraction et **une** requête
   chez le site d'origine. Le cache ne couvre que ce qui est déjà extrait : sans
@@ -7678,7 +7711,9 @@ qu'elle rend (voir *Extraction du contenu complet*).
   délai, 502 panne amont. S'y ajoute un 503 propre à cette route,
   **`Extractor busy`**, quand la file d'analyse est pleine
   (`EXTRACT_MAX_PENDING`) : même code, deux corps distincts, et le client se
-  replie dans les deux cas. Le corps ne nomme jamais la cible, et la ligne de
+  replie dans les deux cas. Et un 422 à deux corps : `Not extractable` (rien de
+  lisible, le client se replie) et `Page too complex` avec `tooComplex: true`
+  (M-01, page piégée : le client ne se replie pas). Le corps ne nomme jamais la cible, et la ligne de
   journal passe par `redactUrl` dans **toutes** les branches — la branche 503
   écrivait la cible en clair jusqu'au 2026-09-04, alors que le préchargement
   d'images y fait passer des URL de CDN signées par leur requête.

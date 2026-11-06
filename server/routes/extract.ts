@@ -3,7 +3,7 @@ import { requireAuth } from '../middleware/auth.js';
 import { assertTargetSafe, fetchUpstream, finishError, proxyRateLimiter, UnresolvedTargetError } from './proxy.js';
 import { cacheEnabled, cacheGet, cacheSet, extractKey } from '../cache.js';
 import { decodeBody } from '../charset.js';
-import { extractArticle, ExtractorBusyError, withExtractSlot } from '../extract.js';
+import { extractInWorker, ExtractorBusyError, PageTooComplexError, withExtractSlot } from '../extract.js';
 
 const router = Router();
 
@@ -33,8 +33,12 @@ function loggableTarget(url: string): string {
  * processus Node qui sert toute l'instance, puis à les passer à linkedom et
  * Readability. Une page d'article très riche pèse quelques centaines de Ko.
  * 2 Mo (5 Mo jusqu'en 1.8.0) : une page plate de 4,9 Mo, faite pour coûter
- * cher, bloquait la boucle d'événements ~3 s pour toute l'instance ; à 2 Mo
- * le pire cas tombe vers la seconde, et la marge reste de plusieurs fois.
+ * cher, coûtait ~3 s d'analyse ; à 2 Mo, une page plate tombe sous la seconde.
+ *
+ * ⚠️ Ce plafond ne borne PAS la durée de l'analyse : c'est la forme de la page
+ * qui coûte, pas sa taille (23 Ko de `<div>` imbriqués coûtaient 17,8 s, M-01).
+ * La durée est bornée par le refus rapide et le délai du worker
+ * (`server/extract.ts`), et l'analyse ne tourne plus sur la boucle principale.
  */
 const MAX_HTML_BYTES = 2_000_000;
 
@@ -155,6 +159,54 @@ const inFlight = new Map<string, Promise<Outcome>>();
  */
 const IN_FLIGHT_MAX = 64;
 
+/**
+ * Échecs d'ANALYSE gardés par URL (M-01) : une page piégée (refusée pour sa
+ * complexité, ou arrêtée par le délai du worker) et une page sans article
+ * lisible. Sans cette mémoire, chaque ouverture de l'article — et chaque
+ * appareil, chaque préparation hors ligne — retéléchargeait la page et relançait
+ * un worker pour jusqu'à 10 s de calcul.
+ *
+ * Seuls ces échecs-là y entrent : ils tiennent à la page, et ils ont coûté une
+ * analyse. Une panne réseau, un délai amont, un refus du site, une file pleine
+ * ne disent rien de la page et ne sont jamais gardés.
+ *
+ * Bornée dans le temps (`EXTRACT_FAILURE_TTL_MS`) — une page corrigée par son
+ * site redevient extractible en quelques minutes — et en taille
+ * (`EXTRACT_FAILURE_MAX`), la clé étant une chaîne fournie par le client.
+ * En mémoire du processus : elle protège l'instance, pas besoin de Redis.
+ */
+const failures = new Map<string, { outcome: Outcome; expires: number }>();
+
+/** Durée pendant laquelle un échec d'analyse est rendu sans recalcul. */
+export const EXTRACT_FAILURE_TTL_MS = 5 * 60_000;
+
+/** Nombre d'URL en échec gardées ; au-delà, la plus ancienne sort. */
+const EXTRACT_FAILURE_MAX = 500;
+
+function rememberFailure(url: string, outcome: Outcome): void {
+  failures.delete(url);
+  failures.set(url, { outcome, expires: Date.now() + EXTRACT_FAILURE_TTL_MS });
+  if (failures.size > EXTRACT_FAILURE_MAX) {
+    const oldest = failures.keys().next().value;
+    if (oldest !== undefined) failures.delete(oldest);
+  }
+}
+
+function recentFailure(url: string): Outcome | null {
+  const hit = failures.get(url);
+  if (!hit) return null;
+  if (hit.expires <= Date.now()) {
+    failures.delete(url);
+    return null;
+  }
+  return hit.outcome;
+}
+
+/** Vide la mémoire des échecs — pour les tests, et rien d'autre. */
+export function forgetExtractFailuresForTests(): void {
+  failures.clear();
+}
+
 /** Récupère la page et l'extrait. Une seule exécution sert tous les appelants. */
 async function produce(url: string, key: string | null): Promise<Outcome> {
   const json = (status: number, body: unknown): Outcome => ({ status, body: JSON.stringify(body) });
@@ -210,22 +262,35 @@ async function produce(url: string, key: string | null): Promise<Outcome> {
     throw err;
   }
 
-  // ── L'analyse passe par la file ───────────────────────────────────
-  // `parseHTML` + `Readability` bloquent l'unique boucle d'événements de
-  // l'instance, de quelques dizaines de millisecondes à ~1 s au plafond de
-  // 2 Mo (`MAX_HTML_BYTES`). Le seau de cadence (600/min par compte) n'est pas une borne à cette
-  // échelle-là : voir `EXTRACT_MAX_PENDING`. Une file pleine se dit — et le
-  // client se replie sur son propre extracteur, comme avant la 1.4.10.
+  // ── L'analyse passe par la file, puis par un worker ───────────────
+  // `parseHTML` + `Readability` coûtent de quelques millisecondes à des
+  // minutes selon la FORME de la page (M-01) : ils tournent dans un worker
+  // arrêté au bout de 10 s, et la file (`EXTRACT_MAX_PENDING`) borne le nombre
+  // de workers. Une file pleine se dit — et le client se replie sur son propre
+  // extracteur, comme avant la 1.4.10.
   let article;
   try {
-    article = await withExtractSlot(() => extractArticle(url, html));
+    article = await withExtractSlot(() => extractInWorker(url, html));
   } catch (err) {
     if (err instanceof ExtractorBusyError) return json(503, { error: 'Extractor busy' });
+    // Page piégée (trop imbriquée, trop d'éléments, délai ou mémoire du
+    // worker dépassés) : échec DÉFINITIF. `tooComplex` dit au client de ne
+    // pas se replier — son extracteur relirait la même page — et de la
+    // retenir pour la session.
+    if (err instanceof PageTooComplexError) {
+      const refused = json(422, { error: 'Page too complex', tooComplex: true });
+      rememberFailure(url, refused);
+      return refused;
+    }
     throw err;
   }
   // Pas d'article lisible : on le dit, pour que le client puisse extraire de
   // son côté. Un corps vide renvoyé en 200 le priverait de ce repli.
-  if (!article) return json(422, { error: 'Not extractable' });
+  if (!article) {
+    const unreadable = json(422, { error: 'Not extractable' });
+    rememberFailure(url, unreadable);
+    return unreadable;
+  }
 
   const body = JSON.stringify(article);
   // Écriture au mieux : un Redis en panne ne doit pas priver le client de sa
@@ -334,6 +399,14 @@ router.get('/', async (req, res) => {
     }
   }
 
+  // ── Échec d'analyse récent : rendu sans recalcul (M-01) ───────────
+  // Après la garde, comme le cache : une cible refusée depuis reste refusée.
+  const failed = recentFailure(url);
+  if (failed) {
+    res.set('Content-Type', 'application/json');
+    return res.status(failed.status).send(failed.body);
+  }
+
   // ── Coalescence des demandes simultanées ──────────────────────────
   // Le cache ne sert que ce qui est DÉJÀ extrait. Dix appareils qui demandent
   // la même URL froide en même temps — le cas typique d'un préchargement
@@ -355,9 +428,10 @@ router.get('/', async (req, res) => {
       // de laisser une rafale d'URL distinctes la faire enfler.
       if (inFlight.size < IN_FLIGHT_MAX) {
         inFlight.set(url, run);
-        // Retrait dans les DEUX issues. Un échec qui resterait mémorisé
+        // Retrait dans les DEUX issues. Un échec qui resterait mémorisé ICI
         // condamnerait l'URL à rendre la même erreur à tout le monde, pour
-        // toujours — un cache d'échecs que personne n'a demandé.
+        // toujours. Les seuls échecs gardés le sont à part, quelques minutes,
+        // et seulement s'ils tiennent à la page (`failures`).
         void run.then(() => inFlight.delete(url), () => inFlight.delete(url));
       }
       outcome = await run;

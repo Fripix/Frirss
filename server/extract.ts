@@ -1,3 +1,6 @@
+import { existsSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { Worker } from 'node:worker_threads';
 import { parseHTML } from 'linkedom';
 import { Readability } from '@mozilla/readability';
 
@@ -11,34 +14,30 @@ export interface ExtractedArticle {
 }
 
 /**
- * Nombre d'extractions qu'on accepte d'avoir en cours ou en attente.
+ * Nombre d'extractions qu'on accepte d'avoir en cours ou en attente — donc,
+ * depuis la 1.9.0, le nombre maximal de workers d'analyse vivants à la fois.
  *
- * `parseHTML` + `Readability` sont **entièrement synchrones** : pendant leur
- * exécution, l'unique processus Node qui sert toute l'instance ne fait rien
- * d'autre. Mesuré avec les modules de ce dépôt : 20 ms pour 0,1 Mo, 113 ms pour
- * 1,6 Mo, 203 ms pour 3,2 Mo de HTML synthétique — et environ le double sur du
- * HTML réel, bien plus dense en balises (471 ms relevés pour 2,7 Mo) — et
- * 2,96 s pour une page plate de 4,9 Mo construite pour coûter cher. D'où le
- * plafond de lecture ramené à 2 Mo (`MAX_HTML_BYTES`) : de l'ordre de la
- * seconde d'immobilité pour TOUS les lecteurs au pire cas. Et cette charge est neuve : elle vivait
- * auparavant sur chaque téléphone.
+ * `parseHTML` + `Readability` sont **entièrement synchrones**, et leur coût
+ * n'est PAS borné par la taille de la page : il croît comme le CUBE de la
+ * profondeur d'imbrication (M-01, campagne 1.9.0). Mesuré avec les modules de
+ * ce dépôt : une page plate de 2 Mo coûte ~0,3 s, mais 1000 `<div>` imbriqués
+ * (23 Ko) en coûtaient 17,8 s, 2000 (46 Ko) 158 s, et 5000 laissaient Node à
+ * 100 % plus de quatre minutes. Quand cette analyse tournait sur la boucle
+ * principale, c'était autant de temps où l'instance entière — `/api/health`,
+ * le proxy de tous les comptes — ne répondait plus.
  *
- * Le seul frein existant était le seau de cadence (600/min par compte), qui
- * autorise un ordre de grandeur de plus que ce que la boucle peut absorber.
+ * D'où les deux couches qui l'entourent désormais :
+ * - un **refus rapide** juste après l'analyse HTML, avant toute passe
+ *   Readability (`EXTRACT_MAX_DEPTH`, `EXTRACT_MAX_ELEMENTS`) ;
+ * - l'analyse elle-même dans un **`worker_thread`**, arrêté au bout de
+ *   `EXTRACT_WORKER_TIMEOUT_MS` (`extractInWorker`). La boucle principale reste
+ *   libre pendant tout ce temps.
  *
  * Ce que compte `pending` : les requêtes ARRIVÉES à l'analyse et pas encore
- * reparties — le compteur est pris à l'entrée, tenu pendant l'attente du tour,
- * et rendu dans un `finally`. C'est la LONGUEUR DE FILE qui est bornée, pas un
- * parallélisme : celui-ci vaut déjà un, l'analyse étant synchrone. Un compteur
- * qui n'entourerait que l'appel à `run()` ne bornerait rien — pendant qu'il
- * s'exécute, aucun autre appelant n'a la main pour le lire, donc il vaut
- * toujours zéro vu de l'extérieur.
- *
- * 5 : une en train de s'exécuter, quatre en attente, donc un retard d'au plus
- * ~5 analyses. Au pire cas mesuré (~1 s la pièce) cela reste bien sous le
- * budget que le client accorde à cette jambe (`SERVER_EXTRACT_TIMEOUT_MS`,
- * 20 s) — une attente qui a donc encore une chance d'aboutir, là où une file
- * plus longue ne promettrait que des réponses arrivant après l'abandon.
+ * reparties — le compteur est pris à l'entrée, tenu pendant l'attente du tour
+ * ET pendant le travail du worker, et rendu dans un `finally`. Il borne donc à
+ * la fois la file et le nombre de workers (et leur mémoire) : au plus cinq
+ * analyses à la fois, chacune bornée à 10 s.
  *
  * Au-delà, la requête est REFUSÉE plutôt que mise en attente : le client sait
  * se replier sur son propre extracteur, donc un refus lui coûte une extraction
@@ -60,18 +59,22 @@ export function extractPending(): number {
 }
 
 /**
- * Exécute `run` (l'étape synchrone et coûteuse) à son tour de file.
+ * Exécute `run` (l'analyse, synchrone ou confiée à un worker) à son tour de
+ * file.
  *
  * La file n'entoure QUE l'analyse : la tenir pendant la récupération réseau de
  * la page rendrait le débit de l'instance égal à celui du site le plus lent.
  *
- * `setImmediate` entre deux analyses, et pas un simple `await` : une promesse
+ * `setImmediate` entre deux départs, et pas un simple `await` : une promesse
  * déjà réglée ne rend la main qu'aux micro-tâches, donc enchaînerait N
- * immobilisations sans que la boucle traite la moindre entrée-sortie. Un tour
- * de boucle complet entre deux analyses, c'est la différence entre « le serveur
- * est lent » et « le serveur ne répond plus ».
+ * immobilisations sans que la boucle traite la moindre entrée-sortie — ce qui
+ * reste vrai pour un `run` synchrone.
+ *
+ * `return await` et pas `return` : avec un `run` asynchrone (le worker), un
+ * simple `return` exécuterait le `finally` AVANT la fin du travail, et
+ * `pending` ne compterait plus les workers vivants.
  */
-export async function withExtractSlot<T>(run: () => T): Promise<T> {
+export async function withExtractSlot<T>(run: () => T | Promise<T>): Promise<T> {
   if (pending >= EXTRACT_MAX_PENDING) throw new ExtractorBusyError();
   pending++;
   const turn = tail.then(() => new Promise<void>((resolve) => setImmediate(resolve)));
@@ -81,10 +84,143 @@ export async function withExtractSlot<T>(run: () => T): Promise<T> {
   tail = turn.catch(() => {});
   try {
     await turn;
-    return run();
+    return await run();
   } finally {
     pending--;
   }
+}
+
+// ── Refus rapide d'une page trop complexe (M-01) ─────────────────────
+// Mesuré juste après `parseHTML`, avant toute passe Readability : un parcours
+// itératif de l'arbre, qui s'arrête au premier dépassement. Son coût est celui
+// de l'analyse HTML (~7 ms pour 5000 niveaux), pas celui de Readability.
+//
+// Calibrage (2026-11-06, 38 pages réelles du corpus de la campagne — Ars,
+// CERT-FR, Cloudflare, go.dev, Krebs, Next, Numerama, Schneier, The Verge… —
+// plus deux longues pages Wikipédia de 2 et 3 Mo) : profondeur maximale
+// relevée 34, éléments 21 828. Les seuils laissent donc une marge de 7× sur la
+// profondeur et de près de 3× sur le nombre d'éléments.
+//
+// Coût AU seuil, sur une page faite pour coûter : 256 niveaux seuls ≈ 0,17 s ;
+// 60 000 éléments à 16 niveaux ≈ 0,9 s. Sous les seuils, une page à la fois
+// large ET profonde peut encore coûter plusieurs secondes (40 chaînes de
+// 200 niveaux ≈ 2 s) : celle-là est bornée par le délai du worker, pas ici.
+
+/** Profondeur d'imbrication maximale acceptée (`<html>` compte pour 1). */
+export const EXTRACT_MAX_DEPTH = 256;
+
+/** Nombre d'éléments maximal accepté. */
+export const EXTRACT_MAX_ELEMENTS = 60_000;
+
+/**
+ * La page est refusée pour sa complexité : imbrication (`depth`), nombre
+ * d'éléments (`elements`), délai du worker dépassé (`timeout`) ou mémoire du
+ * worker épuisée (`memory`). Échec DÉFINITIF : la route le dit, le serveur le
+ * garde quelques minutes, et le client ne se replie pas sur son propre
+ * extracteur.
+ */
+export class PageTooComplexError extends Error {
+  constructor(readonly reason: 'depth' | 'elements' | 'timeout' | 'memory') {
+    super(`Page too complex (${reason})`);
+    this.name = 'PageTooComplexError';
+  }
+}
+
+type ParsedDocument = ReturnType<typeof parseHTML>['document'];
+
+/** Lève `PageTooComplexError` au premier seuil dépassé. Itératif : une pile
+ *  d'appels récursive casserait (`RangeError`) bien avant les seuils. */
+function assertTreeBounded(doc: ParsedDocument): void {
+  const root = doc.documentElement as unknown as Element | null;
+  if (!root) return;
+  let elements = 0;
+  const stack: Array<[Element, number]> = [[root, 1]];
+  while (stack.length) {
+    const [el, depth] = stack.pop()!;
+    if (depth > EXTRACT_MAX_DEPTH) throw new PageTooComplexError('depth');
+    if (++elements > EXTRACT_MAX_ELEMENTS) throw new PageTooComplexError('elements');
+    for (let child = el.firstElementChild; child; child = child.nextElementSibling) stack.push([child, depth + 1]);
+  }
+}
+
+// ── L'analyse dans un worker (M-01) ──────────────────────────────────
+
+/**
+ * Délai accordé à une analyse. Une vraie page de 2 Mo s'analyse en moins d'une
+ * seconde (0,57 s pour la plus lourde du corpus) ; au-delà de 10 s, ce n'est
+ * plus une page, c'est un piège. Le client abandonne de toute façon à 20 s.
+ */
+export const EXTRACT_WORKER_TIMEOUT_MS = 10_000;
+
+/**
+ * Plafond de tas d'un worker. Une page de 2 Mo n'en demande que quelques
+ * dizaines de Mo ; le plafond empêche cinq workers piégés d'épuiser la mémoire
+ * du processus qui sert toute l'instance.
+ */
+const WORKER_MAX_OLD_GENERATION_MB = 256;
+
+/**
+ * Le fichier du worker, et comment le lancer. En production (`server-dist/`,
+ * image Docker), le `.js` compilé par `tsc` est à côté de ce module. En
+ * développement (`tsx`) et sous vitest, seul le source `.ts` existe : il est
+ * lancé avec le chargeur de `tsx` (`--import tsx`), qui résout aussi les
+ * imports `.js` → `.ts` du worker.
+ */
+let entryCache: { url: URL; execArgv: string[] | undefined } | undefined;
+function workerEntry(): { url: URL; execArgv: string[] | undefined } {
+  if (entryCache) return entryCache;
+  const compiled = new URL('./extractWorker.js', import.meta.url);
+  entryCache = existsSync(fileURLToPath(compiled))
+    ? { url: compiled, execArgv: undefined }
+    : { url: new URL('./extractWorker.ts', import.meta.url), execArgv: ['--import', 'tsx'] };
+  return entryCache;
+}
+
+/** Ce que le worker renvoie — le seul format qui traverse la frontière. */
+export type WorkerReply =
+  | { ok: true; article: ExtractedArticle | null }
+  | { ok: false; tooComplex?: PageTooComplexError['reason']; message: string };
+
+/**
+ * `extractArticle` dans un `worker_thread`, arrêté au bout de `timeoutMs`.
+ *
+ * La boucle principale ne fait qu'attendre un message : un piège qui coûterait
+ * des minutes n'immobilise plus que son worker, et ce worker est terminé
+ * (`terminate()` interrompt aussi une boucle JavaScript synchrone) à
+ * l'échéance. Un dépassement est rendu comme `PageTooComplexError('timeout')`.
+ *
+ * Un worker par analyse, pas de réserve : démarrer un worker coûte quelques
+ * dizaines de millisecondes, négligeables devant la récupération de la page,
+ * et un worker terminé à l'échéance ne laisse ainsi rien derrière lui.
+ */
+export function extractInWorker(url: string, html: string, timeoutMs = EXTRACT_WORKER_TIMEOUT_MS): Promise<ExtractedArticle | null> {
+  const entry = workerEntry();
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(entry.url, {
+      workerData: { url, html },
+      execArgv: entry.execArgv,
+      resourceLimits: { maxOldGenerationSizeMb: WORKER_MAX_OLD_GENERATION_MB },
+    });
+    let settled = false;
+    const settle = (fn: () => void) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      fn();
+      // Le résultat est en main : le worker n'a plus rien à faire.
+      void worker.terminate();
+    };
+    const timer = setTimeout(() => settle(() => reject(new PageTooComplexError('timeout'))), timeoutMs);
+    worker.once('message', (reply: WorkerReply) => settle(() => {
+      if (reply.ok) resolve(reply.article);
+      else if (reply.tooComplex) reject(new PageTooComplexError(reply.tooComplex));
+      else reject(new Error(reply.message));
+    }));
+    worker.once('error', (err: Error & { code?: string }) => settle(() => {
+      reject(err.code === 'ERR_WORKER_OUT_OF_MEMORY' ? new PageTooComplexError('memory') : err);
+    }));
+    worker.once('exit', (code) => settle(() => reject(new Error(`extract worker exited (${code})`))));
+  });
 }
 
 /**
@@ -121,6 +257,10 @@ export const READABILITY_CHAR_THRESHOLD = 500;
  *
  * `null` quand Readability ne trouve pas d'article : l'appelant doit alors
  * laisser la main au navigateur plutôt que de renvoyer un corps vide.
+ *
+ * Lève `PageTooComplexError` quand l'arbre dépasse `EXTRACT_MAX_DEPTH` ou
+ * `EXTRACT_MAX_ELEMENTS` — vérifié avant toute passe Readability (M-01).
+ * Synchrone : la route ne l'appelle qu'à travers `extractInWorker`.
  */
 export function extractArticle(url: string, html: string): ExtractedArticle | null {
   const load = () => {
@@ -134,6 +274,8 @@ export function extractArticle(url: string, html: string): ExtractedArticle | nu
   };
 
   const document = load();
+  // Le refus rapide d'abord : c'est Readability qui coûte, pas l'analyse HTML.
+  assertTreeBounded(document);
   // Mesuré AVANT Readability, qui modifie le document qu'il lit.
   const mainLength = mainContainerTextLength(document);
   const parsed = new Readability(document as never, { charThreshold: READABILITY_CHAR_THRESHOLD }).parse();
@@ -202,8 +344,6 @@ const MAIN_CONTAINER_OPTIONS = {
 };
 
 const normalizedLength = (text: string) => text.replace(/\s+/g, ' ').trim().length;
-
-type ParsedDocument = ReturnType<typeof parseHTML>['document'];
 
 function findMainContainer(doc: ParsedDocument): Element | null {
   for (const selector of ['article', '[role="main"]', 'main']) {

@@ -5,6 +5,7 @@ import {
   retryAfterMs,
   RateLimitedError,
   NotExtractableError,
+  PageTooComplexError,
   UpstreamRefusedError,
   forgetExtractFailures,
   FALLBACK_EXTRACT_TIMEOUT_MS,
@@ -627,5 +628,28 @@ describe('extractFullContent — mémoire des échecs (L-03)', () => {
     }));
     const out = await extractFullContent('https://example.com/injoignable');
     expect(out.content).toContain('paragraphe');
+  });
+
+  // M-01 : le serveur a refusé la page pour sa complexité (imbrication,
+  // nombre d'éléments, délai de son worker). Échec DÉFINITIF : le repli
+  // relirait la même page piégée dans l'onglet, et l'extraction automatique
+  // ne doit plus la redemander de la session.
+  it('ne se replie pas sur une page refusée pour sa complexité, et la retient pour la session', async () => {
+    const proxy = vi.fn();
+    const fetchSpy = vi.fn(async (input: RequestInfo) => {
+      if (String(input).startsWith('/api/extract')) {
+        return new Response(JSON.stringify({ error: 'Page too complex', tooComplex: true }), { status: 422 });
+      }
+      proxy();
+      return htmlPage(pageHtml);
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+
+    await expect(extractFullContent('https://example.com/piege')).rejects.toBeInstanceOf(PageTooComplexError);
+    expect(proxy).not.toHaveBeenCalled();
+
+    // Retenue : l'automatique ne la redemande pas.
+    await expect(extractFullContent('https://example.com/piege')).rejects.toBeInstanceOf(NotExtractableError);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
   });
 });
