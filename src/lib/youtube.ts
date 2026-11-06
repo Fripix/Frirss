@@ -4,6 +4,9 @@ export interface YouTubeRef {
   start?: number;
 }
 
+// ⚠️ Cette contrainte est une garde de sécurité : la façade de tête du volet
+// (`headFacadeHtml`) est injectée sans DOMPurify depuis l'adresse de
+// l'article. Ne pas l'élargir (`youtube.test.ts`, façade sûre sans assainissement).
 const ID = '[A-Za-z0-9_-]{11}';
 const PATTERNS = [
   new RegExp(`(?:youtube\\.com|youtube-nocookie\\.com)/(?:embed|shorts|v)/(${ID})`, 'i'),

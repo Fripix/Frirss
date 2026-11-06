@@ -14,8 +14,10 @@ COPY . .
 ARG FRIRSS_DEV_VERSION=""
 ENV FRIRSS_DEV_VERSION=$FRIRSS_DEV_VERSION
 # Builds the frontend (Vite → dist/) AND compiles the TypeScript server
-# (tsc → server-dist/, runnable Node ESM).
-RUN npm run build
+# (tsc → server-dist/, runnable Node ESM). tsc also compiles the tests kept
+# next to their module (server/ai/*.test.ts…): they are dropped here rather
+# than excluded from server/tsconfig.json, which `npm run typecheck` uses.
+RUN npm run build && find server-dist -name '*.test.js' -delete
 # Drop dev dependencies — keeps the compiled better-sqlite3 binary
 RUN npm prune --omit=dev
 

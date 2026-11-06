@@ -5695,6 +5695,14 @@ Vignette cliquable (façade) au lieu d'un `<iframe>` chargé d'emblée.
 - **Piège** : la façade doit être posée **avant** l'assainissement — après, il n'y
   a plus d'iframe à remplacer. `src/lib/youtubeFacade.sanitize.test.ts` épingle
   cet invariant.
+- **Piège — la façade de tête n'est PAS assainie** (`headFacadeHtml`,
+  `ReadingPane.tsx`) : elle est construite depuis l'adresse de l'article, une
+  donnée du flux, et injectée telle quelle. Elle n'est sûre que parce
+  qu'`extractYouTubeId` n'en garde qu'un identifiant de 11 caractères
+  `[A-Za-z0-9_-]` et un nombre de secondes. Élargir l'un ou l'autre ouvre une
+  injection : `youtube.test.ts` › « ce qui rend la façade de tête sûre sans
+  assainissement » le vérifie sur des adresses hostiles (1.9.0, troisième
+  round).
 - **Une seule passe, dans l'ordre du document** (`injectVideoFacades`, 1.9.0) :
   iframes et liens sont reconnus par la même expression. Jusqu'en 1.8.0, une
   passe sur les iframes précédait une passe sur les liens, et la seconde
@@ -8241,6 +8249,14 @@ désactive délibérément la CSP de helmet pour ne pas entretenir deux politiqu
 divergentes).
 
 - **Où** : `nginx.conf`, `Dockerfile`, `docker-entrypoint.sh`
+- **Pas de tests dans l'image** (1.9.0, troisième round) : `tsc` compile tout
+  `server/` sauf `server/test/`, donc aussi les tests rangés à côté de leur
+  module (`server/ai/*.test.ts`, `server/backup.test.ts`… — 24 fichiers), que
+  l'image publiait dans `server-dist/`. Ils sont supprimés juste après
+  `npm run build` dans l'étape de construction (`find server-dist -name
+  '*.test.js' -delete`). Pas exclus de `server/tsconfig.json` : c'est lui que
+  `npm run typecheck` vérifie, et ces tests y perdraient leur contrôle de
+  types. Garde-fou : `server/test/imageContents.test.ts`.
 - **Adresse et schéma du client réel** (1.8.0) : `set_real_ip_from` sur les
   réseaux privés, `real_ip_header X-Forwarded-For` et `real_ip_recursive on`,
   puis `X-Forwarded-For $remote_addr` vers Express. Derrière un reverse proxy,

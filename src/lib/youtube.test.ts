@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { extractYouTubeId, youtubeThumbnail, youtubeWatchUrl, injectVideoFacades, dropNonVideoIframes } from './youtube';
+import { extractYouTubeId, facadeMarkup, youtubeThumbnail, youtubeWatchUrl, injectVideoFacades, dropNonVideoIframes } from './youtube';
 
 const L = { play: 'Lire', open: 'Ouvrir sur YouTube' };
 
@@ -40,6 +40,45 @@ describe('extractYouTubeId', () => {
   });
   it('handles empty input', () => {
     expect(extractYouTubeId('')).toBeNull();
+  });
+});
+
+// La façade en tête du volet (`headFacadeHtml`, `ReadingPane.tsx`) est
+// injectée SANS DOMPurify, depuis l'adresse de l'article — une donnée du
+// flux. Elle n'est sûre que parce qu'`extractYouTubeId` n'en garde qu'un
+// identifiant de 11 caractères [A-Za-z0-9_-] et un nombre de secondes :
+// élargir l'un ou l'autre ouvrirait une injection (campagne 1.9.0,
+// troisième round).
+describe('extractYouTubeId — ce qui rend la façade de tête sûre sans assainissement', () => {
+  const hostile = [
+    'https://www.youtube.com/watch?v=dQw4w9WgXcQ"><img src=x onerror=alert(1)>',
+    "https://youtu.be/dQw4w9WgXcQ'onmouseover='alert(1)",
+    'https://www.youtube.com/embed/<script>alert(1)</script>',
+    'https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=1"><svg onload=alert(1)>',
+    'https://www.youtube.com/watch?v=dQw4w9WgXcQ&start=javascript:alert(1)',
+    'https://youtu.be/AAAAAAAAA"<>onerror=x',
+    'https://www.youtube.com/shorts/&quot;onerror&#61;x',
+  ];
+  const reference = facadeMarkup({ id: 'dQw4w9WgXcQ' }, youtubeThumbnail('dQw4w9WgXcQ'), L);
+
+  it('ne rend qu’un identifiant de 11 caractères sûrs et un nombre de secondes', () => {
+    expect(hostile.filter((url) => extractYouTubeId(url)).length).toBeGreaterThan(0);
+    for (const url of hostile) {
+      const ref = extractYouTubeId(url);
+      if (!ref) continue;
+      expect(ref.id).toMatch(/^[A-Za-z0-9_-]{11}$/);
+      if (ref.start !== undefined) expect(Number.isInteger(ref.start) && ref.start >= 0).toBe(true);
+    }
+  });
+
+  it('la façade construite depuis une adresse hostile ne porte ni balise ni attribut étrangers', () => {
+    for (const url of hostile) {
+      const ref = extractYouTubeId(url);
+      if (!ref) continue;
+      const html = facadeMarkup(ref, youtubeThumbnail(ref.id), L);
+      expect(html).not.toMatch(/onerror|onload|onmouseover|<script|<svg|javascript:/i);
+      expect(html.match(/</g)?.length).toBe(reference.match(/</g)?.length);
+    }
   });
 });
 
