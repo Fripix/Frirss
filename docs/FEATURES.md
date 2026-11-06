@@ -3013,8 +3013,26 @@ libellés disaient « plein écran » jusqu'en 1.8.0) au double-clic. Contenu bi
   page, pas l'article complet — sur le CERT-FR, l'extraction ne gardait que la
   section « Solutions » quand le flux portait l'avis entier, et rien ne le
   signalait. Le flux reste affiché. Comptés : le texte visible, balises
-  retirées. La moitié tolère l'extrait légitimement plus court (le flux répète
-  souvent titre et chapeau). **La garde ne vaut que pour l'extraction
+  retirées, entités décodées. La moitié tolère l'extrait légitimement plus court (le flux répète
+  souvent titre et chapeau). **Ni un extrait qui ne contient pas le texte du
+  flux** (troisième round, A2) : sur un billet très court (Simon Willison,
+  ~160 caractères), Readability rendait la colonne du site (« This is a
+  beat… », « Sponsor me »), plus longue que le flux — la moitié laissait
+  passer. Mesure : la part des mots **distincts** du flux (trois lettres ou
+  chiffres au moins, adresses retirées, entités décodées) retrouvés dans
+  l'extrait ; sous **un cinquième** (`FEED_MIN_SHARED`), le flux reste. Pas de
+  jugement sous **20 mots distincts** (`FEED_MIN_WORDS`) : trop peu pour
+  conclure. Les adresses sont retirées parce que le flux d'un agrégateur
+  (Hacker News : « Article URL », « Comments URL ») n'est fait que de liens.
+  Mesuré (2026-11-06) sur 116 pages réelles dont le flux était connu : le
+  billet en cause 13 %, une page d'abonné LWN 16 % ; un vrai extrait 54 % et
+  plus, sauf Ars Technica, 24 à 39 % — l'extraction y perd le chapeau, que
+  porte le flux, mais garde la suite, et reste montrée. Deux textes sans
+  rapport se partagent 10 à 20 % de mots courants. Sur les extraits
+  d'avant ce round, la garde écarte les deux billets de Simon Willison et les
+  deux pages d'abonné LWN ; sur ceux d'après, seulement LWN (le nettoyage du
+  serveur retire désormais la colonne, A3) ; aucune autre des 116 pages ne
+  change. **La garde ne vaut que pour l'extraction
   automatique** (relecture 1.9.0, `extractShown`, `forced`) : quand le
   lecteur demande lui-même l'article complet (bouton, palette, « Réessayer »,
   `extractForcedFor` dans le volet), l'extrait s'affiche même court — avant,
@@ -5310,7 +5328,25 @@ serveur de développement en 1.4.4.)*
   sur la nouvelle mise en page du CERT-FR (AVI-1448), la première passe
   écartait le corps et gardait « Solutions » : 135 caractères au lieu de
   2 800. Doublé par la garde du volet (« Ce que le volet montre » : un extrait
-  qui n'a pas la moitié du texte du flux n'est pas montré).
+  qui n'a pas la moitié du texte du flux, ou qui n'en contient presque aucun
+  mot, n'est pas montré).
+  ⚠️ **Le revers du seuil : un billet très court** (troisième round, A2).
+  Quand AUCUNE passe n'atteint 500 caractères, Readability rend la plus
+  longue, celle qui écarte le moins — l'habillage du site plutôt que le
+  billet. Simon Willison : sa colonne `div#secondary` (« This is a beat… »,
+  « Monthly briefing ») remplaçait un billet de 160 caractères, que la 1.8.0
+  rendait. Revenir à 50 a été mesuré (2026-11-06, 126 pages) : seules trois
+  pages de ce blog changeaient, mais le test L-04 (une page sans conteneur
+  principal, le corps dans un bloc « improbable ») retombait sur la courte
+  section — le seuil reste à 500. Couvert par le nettoyage (la colonne
+  `#secondary` et le bandeau `sponsored` sortent avant toute passe, A3 ;
+  test « rend le texte d'un billet très court, pas la colonne voisine
+  (structure Simon Willison) », serveur et repli, sur
+  `src/test/shortPostStructureFixture.html`) et, pour les habillages que le
+  nettoyage ne connaît pas, par la garde du volet sur les mots du flux. Une
+  repasse à 50 quand aucune passe n'atteint 500 a aussi été mesurée : après
+  le nettoyage, elle ne changeait plus que ce billet, en lui retirant sa
+  ligne de titre — écartée.
 - **Seconde passe sur le conteneur principal de la page** (1.9.0, A-1,
   `server/extract.ts`, copiée dans le repli de `extractContent.ts` ; tests :
   `server/test/extract.test.ts` et `extractContent.test.ts` › « conteneur

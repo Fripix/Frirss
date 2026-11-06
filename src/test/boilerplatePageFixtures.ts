@@ -21,6 +21,7 @@
 // URL `file:`, et la fixture sert aux deux environnements de test.
 import newsStructureHtml from './newsStructureFixture.html?raw';
 import pressStructureHtml from './pressStructureFixture.html?raw';
+import shortPostStructureHtml from './shortPostStructureFixture.html?raw';
 
 /** L'article de type « The Verge » (voir l'en-tête). */
 export function newsPageHtml(): string {
@@ -41,6 +42,19 @@ export function newsPageHtml(): string {
  */
 export function pressPageHtml(): string {
   return pressStructureHtml;
+}
+
+/**
+ * L'arbre d'un billet très court du blog de Simon Willison (A2, campagne
+ * 1.9.0, troisième round), fait comme `pressPageHtml()` mais sur tout le
+ * `<body>` : chaque lettre remplacée par une lettre d'un texte inventé,
+ * classes et ids gardés. Le billet (`.beat-note p`, ~160 caractères) est sous
+ * le seuil de 500 de Readability : aucune passe ne l'atteint, et Readability
+ * rendait la plus longue — la colonne `div#secondary` (« This is a beat… »,
+ * « Monthly briefing », « Sponsor me »), à la place du texte.
+ */
+export function shortPostPageHtml(): string {
+  return shortPostStructureHtml;
 }
 
 /** Phrase repérable dans le billet court de type « Schneier ». */

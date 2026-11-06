@@ -17,7 +17,7 @@ import {
   SERVER_EXTRACT_TIMEOUT_MS,
 } from './extractContent';
 import { advisoryPageHtml, ADVISORY_BODY_MARKER } from '../test/advisoryPageFixture';
-import { blogPageHtml, BLOG_BODY_MARKER, newsPageHtml, pressPageHtml } from '../test/boilerplatePageFixtures';
+import { blogPageHtml, BLOG_BODY_MARKER, newsPageHtml, pressPageHtml, shortPostPageHtml } from '../test/boilerplatePageFixtures';
 import { INLINE_IMAGE, LAZY_IMAGES, lazyImagePageHtml } from '../test/lazyImagePageFixture';
 
 const serverAnswer = {
@@ -343,6 +343,18 @@ describe('extractFullContent — repli local : blocs étrangers (M-04)', () => {
     const out = await extractFullContent('https://example.com/avis-m04');
     expect(out.content).toContain(ADVISORY_BODY_MARKER);
     expect(out.content).toContain('Gestion du document');
+  });
+
+  // A2 (campagne 1.9.0, troisième round) : même billet que le serveur.
+  it('rend le texte d’un billet très court, pas la colonne voisine (structure Simon Willison)', async () => {
+    const html = shortPostPageHtml();
+    const page = new DOMParser().parseFromString(html, 'text/html');
+    const post = (page.querySelector('.beat-note p')!.textContent || '').replace(/\s+/g, ' ').trim();
+    const column = (page.querySelector('#secondary .this-is')!.textContent || '').replace(/\s+/g, ' ').trim();
+    fallbackOn(html);
+    const text = textOf((await extractFullContent('https://example.com/billet')).content);
+    expect(text).toContain(post);
+    expect(text).not.toContain(column);
   });
 
   // A3 (campagne 1.9.0, troisième round) : mêmes familles que le serveur.

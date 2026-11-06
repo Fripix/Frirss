@@ -5,7 +5,7 @@ import {
 } from '../extract.js';
 import { advisoryPageHtml, ADVISORY_BODY_MARKER } from '../../src/test/advisoryPageFixture.js';
 import { INLINE_IMAGE, LAZY_IMAGES, lazyImagePageHtml } from '../../src/test/lazyImagePageFixture.js';
-import { blogPageHtml, BLOG_BODY_MARKER, newsPageHtml, pressPageHtml } from '../../src/test/boilerplatePageFixtures.js';
+import { blogPageHtml, BLOG_BODY_MARKER, newsPageHtml, pressPageHtml, shortPostPageHtml } from '../../src/test/boilerplatePageFixtures.js';
 
 const page = `<!doctype html><html><head><title>Titre de la page</title></head>
 <body><article><h1>Un vrai titre</h1>
@@ -206,6 +206,18 @@ describe('extractArticle — blocs étrangers (M-04)', () => {
     for (const junk of ['Accueil', 'Commentaires', 'Powered by', 'S’abonner aux commentaires', 'Laisser un commentaire', 'Billet précédent']) {
       expect(text).not.toContain(junk);
     }
+  });
+
+  // A2 (campagne 1.9.0, troisième round) : sous le seuil de 500, Readability
+  // rendait la passe la plus longue — la colonne voisine du billet.
+  it('rend le texte d’un billet très court, pas la colonne voisine (structure Simon Willison)', () => {
+    const html = shortPostPageHtml();
+    const { document } = parseHTML(html);
+    const post = textOf((document.querySelector('.beat-note p') as Element).innerHTML);
+    const column = textOf((document.querySelector('#secondary .this-is') as Element).innerHTML);
+    const text = textOf(extractArticle('https://example.com/billet', html)!.content);
+    expect(text).toContain(post);
+    expect(text).not.toContain(column);
   });
 
   // Readability lit l'auteur dans le document AVANT d'écarter lui-même
