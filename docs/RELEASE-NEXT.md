@@ -160,7 +160,9 @@ la release publiée.
   gardées ; publicités, mentions d'affiliation, formulaires d'abonnement,
   replis CodePen en double et colonnes latérales sont retirés ; un extrait
   qui ne contient presque rien du texte du flux n'est plus montré
-  automatiquement (billet court remplacé par l'habillage du site).
+  automatiquement (billet court remplacé par l'habillage du site) ; le corps
+  d'un article réparti en plusieurs blocs (Ars Technica) est gardé en entier,
+  chapeau compris.
 - **Ajouter un flux** : la nouvelle catégorie suit les mêmes règles que dans
   les Préférences (pas de « / », pas le nom d'une étiquette, une catégorie
   existante est réutilisée), et un flux déjà suivi est signalé.
