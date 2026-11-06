@@ -272,10 +272,18 @@ export function extractArticle(url: string, html: string): ExtractedArticle | nu
     document.head?.prepend(base);
     return document;
   };
+  // Les blocs étrangers à l'article sortent avant toute passe (M-04).
+  const clean = (doc: ParsedDocument) => {
+    // `documentElement` et pas `body` : linkedom produit parfois DEUX `<body>`
+    // (The Verge), et `document.body` désigne alors le premier, vide.
+    if (doc.documentElement) stripBoilerplate(doc.documentElement as unknown as Element);
+    return doc;
+  };
 
   const document = load();
   // Le refus rapide d'abord : c'est Readability qui coûte, pas l'analyse HTML.
   assertTreeBounded(document);
+  clean(document);
   // Mesuré AVANT Readability, qui modifie le document qu'il lit.
   const mainLength = mainContainerTextLength(document);
   const parsed = new Readability(document as never, { charThreshold: READABILITY_CHAR_THRESHOLD }).parse();
@@ -284,7 +292,7 @@ export function extractArticle(url: string, html: string): ExtractedArticle | nu
   let content = parsed.content;
   let length = parsed.length || 0;
   if (mainLength != null && keptTooLittle(parsed.textContent || '', mainLength)) {
-    const retry = load();
+    const retry = clean(load());
     if (keepOnlyMainContainer(retry)) {
       const again = new Readability(retry as never, MAIN_CONTAINER_OPTIONS).parse();
       if (again?.content && normalizedLength(again.textContent || '') > normalizedLength(parsed.textContent || '')) {
@@ -316,8 +324,10 @@ export function extractArticle(url: string, html: string): ExtractedArticle | nu
 // contenu — un `<article>` unique, sinon un `[role=main]` ou un `<main>`
 // unique — et que Readability en garde moins de la moitié du texte, une seconde
 // passe est faite sur CE conteneur seul, en tolérant davantage de liens. Elle
-// ne peut rien ramasser hors du conteneur (navigation, pied), et n'est retenue
-// que si elle rend plus de texte. Le titre, l'auteur et le chapeau restent
+// ne ramasse rien hors du conteneur, et n'est retenue que si elle rend plus de
+// texte. ⚠️ Le conteneur n'est pas que l'article : pied, rail, formulaire et
+// blocs « Related » y vivent souvent — d'où le nettoyage qui précède toute
+// passe (M-04, plus bas). Le titre, l'auteur et le chapeau restent
 // ceux de la passe normale, qui voit toute la page.
 //
 // Même règle dans le repli du navigateur (`src/utils/extractContent.ts`) ;
@@ -374,4 +384,123 @@ function keepOnlyMainContainer(doc: ParsedDocument): boolean {
   if (!container || !doc.body) return false;
   doc.body.replaceChildren(container);
   return true;
+}
+
+// ── Blocs étrangers retirés avant toute passe (M-04) ─────────────────
+// Sur The Verge, la seconde passe (A-1) ramassait dans le conteneur principal
+// les mentions légales du formulaire de lettre d'information (en fin
+// d'article) et un bloc « Related » (au milieu du texte) : le `<main>` porte
+// aussi le rail, et la tolérance de liens y est relevée à 0,5. Sur Schneier,
+// c'est la PREMIÈRE passe : l'article est court (412 caractères), sous le
+// seuil de 500 (L-04), donc Readability refait ses passes en écartant moins et
+// garde la plus longue — fil d'Ariane, « Comments », « Powered by WordPress »
+// compris. Readability écarte bien ces blocs à sa première tentative (classes
+// « improbables »), mais les reprend aux suivantes. Retirés du document avant
+// toute passe, ils ne reviennent plus (campagne 1.9.0, second round).
+//
+// Ce qui est retiré, sous la racine donnée (jamais la racine elle-même) :
+// - les éléments `footer`, `nav`, `form`, et les rôles `navigation`,
+//   `contentinfo` ;
+// - un `aside` ou un rôle `complementary` HORS d'un `<article>` : la barre
+//   latérale d'une page (Schneier). Dans un `<article>`, c'est une incise de
+//   l'article — The Verge y range des fenêtres « Follow » au milieu de son
+//   chapeau : les retirer changeait le poids du chapeau, et Readability
+//   perdait l'image d'en-tête. Readability écarte lui-même ces `aside` du
+//   corps, après en avoir pesé le bloc ;
+// - un bloc dont la classe ou l'id contient l'un des mots de
+//   `BOILERPLATE_TOKENS` (découpés sur tout ce qui n'est pas lettre ou
+//   chiffre : `duet--cta--newsletter`, `comment-respond`) — jamais un titre ni
+//   un élément de texte (`<h2 id="related-work">` est un titre d'article) ;
+// - un court bloc qui commence par « Powered by ».
+// Deux gardes :
+// - un bloc qui porte la moitié du texte de la racine ou plus n'est jamais
+//   retiré — c'est le corps, quel que soit son nom (une page entière
+//   enveloppée dans un `<form>`, un `div.comments-enabled`) ;
+// - un bloc qui porte l'auteur non plus (`carriesByline`) : Readability lit
+//   l'auteur dans le document AVANT d'écarter lui-même `aside` et `footer`
+//   du corps ; le retirer plus tôt effaçait l'auteur (un `footer.entry-meta`
+//   de blog, un `aside.author` de Le Monde Informatique hors règle d'article).
+//
+// Mesuré sur les 38 pages réelles de la campagne et deux pages Wikipédia
+// (2026-11-06) : seules quatre pages changent — Schneier (fil d'Ariane,
+// « Comments », crédits) et trois articles de The Verge (lettre
+// d'information et mentions légales) ; aucune autre ne perd ni ne gagne un
+// caractère, aucune image, aucun auteur ni titre ne bouge, le CERT-FR garde son
+// corps complet (A-1).
+
+const BOILERPLATE_TAGS = new Set(['footer', 'nav', 'form']);
+const BOILERPLATE_ROLES = new Set(['navigation', 'contentinfo']);
+const BOILERPLATE_TOKENS = new Set([
+  'related', 'comment', 'comments', 'breadcrumb', 'breadcrumbs', 'share', 'sharing', 'footer', 'newsletter',
+]);
+/** Jamais jugés sur leur nom : titres et éléments de texte. */
+const NAMED_EXEMPT = new Set([
+  'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'a', 'span', 'b', 'i', 'em', 'strong', 'code', 'small', 'sup', 'sub',
+  'time', 'abbr', 'label', 'img', 'figcaption',
+]);
+const POWERED_BY = /^powered by\b/i;
+/** Un crédit est court : au-delà, c'est une phrase d'article. */
+const POWERED_BY_MAX_LENGTH = 120;
+
+function isBoilerplate(el: Element, insideArticle: boolean): boolean {
+  const tag = el.tagName.toLowerCase();
+  const role = (el.getAttribute('role') || '').toLowerCase();
+  if (BOILERPLATE_TAGS.has(tag) || BOILERPLATE_ROLES.has(role)) return true;
+  if (!insideArticle && (tag === 'aside' || role === 'complementary')) return true;
+  if (!NAMED_EXEMPT.has(tag)) {
+    const names = `${el.getAttribute('class') || ''} ${el.getAttribute('id') || ''}`.toLowerCase();
+    if (names.split(/[^a-z0-9]+/).some((token) => BOILERPLATE_TOKENS.has(token))) return true;
+  }
+  // Seulement sur un bloc presque feuille : lire `textContent` de chaque
+  // élément d'un arbre profond coûterait le carré de sa taille.
+  if (el.childElementCount <= 3 && Array.from(el.children).every((child) => child.childElementCount === 0)) {
+    const text = (el.textContent || '').replace(/\s+/g, ' ').trim();
+    if (text.length <= POWERED_BY_MAX_LENGTH && POWERED_BY.test(text)) return true;
+  }
+  return false;
+}
+
+/**
+ * Signaux d'auteur, ceux que Readability lit (`_checkByline`) : un bloc qui en
+ * porte un n'est pas retiré, même s'il est un `<footer>` ou un `<aside>`.
+ * Readability en tire l'auteur, puis écarte lui-même ce bloc du corps.
+ */
+const BYLINE_SIGNALS = '[rel~="author"], [itemprop*="author"], [class*="byline"], [id*="byline"], [class*="author"], [id*="author"], [class*="dateline"], [class*="writtenby"]';
+
+function carriesByline(el: Element): boolean {
+  return el.matches(BYLINE_SIGNALS) || !!el.querySelector(BYLINE_SIGNALS);
+}
+
+/** Éléments dont le texte n'est pas lu : le JSON embarqué d'une page (`__NEXT_DATA__`
+ *  de The Verge, ~100 Ko) fausserait la garde de la moitié du texte. */
+const INVISIBLE = new Set(['script', 'style', 'template', 'noscript']);
+
+/** Longueur du texte lisible de `root`, blancs réduits — sans script ni style. */
+function visibleTextLength(root: Element): number {
+  let length = 0;
+  const stack: Node[] = [root];
+  while (stack.length) {
+    const node = stack.pop()!;
+    if (node.nodeType === 3) {
+      length += (node.textContent || '').replace(/\s+/g, ' ').length;
+    } else if (node.nodeType === 1 && !INVISIBLE.has((node as Element).tagName.toLowerCase())) {
+      for (let child = node.firstChild; child; child = child.nextSibling) stack.push(child);
+    }
+  }
+  return length;
+}
+
+/** Retire de `root` (jamais `root` lui-même) les blocs étrangers à l'article. */
+export function stripBoilerplate(root: Element): void {
+  const total = visibleTextLength(root);
+  const stack: Array<[Element, boolean]> = Array.from(root.children, (child) => [child, false]);
+  while (stack.length) {
+    const [el, insideArticle] = stack.pop()!;
+    if (isBoilerplate(el, insideArticle) && visibleTextLength(el) < total * MAIN_CONTAINER_MIN_SHARE && !carriesByline(el)) {
+      el.remove();
+      continue;
+    }
+    const inArticle = insideArticle || el.tagName.toLowerCase() === 'article';
+    for (let child = el.firstElementChild; child; child = child.nextElementSibling) stack.push([child, inArticle]);
+  }
 }

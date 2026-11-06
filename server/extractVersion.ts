@@ -15,5 +15,8 @@
  * 1 : jusqu'à la 1.8.x (implicite, absent des clés et des extraits).
  * 2 : 1.9.0 — seuil de Readability à 500 (L-04), seconde passe sur le
  *     conteneur principal (A-1).
+ * 3 : 1.9.0 — blocs étrangers (pied, rail, formulaires, fil d'Ariane,
+ *     commentaires, « Related », crédits) retirés avant toute passe (M-04) :
+ *     les extraits v2 pollués sont refaits.
  */
-export const EXTRACT_VERSION = 2;
+export const EXTRACT_VERSION = 3;

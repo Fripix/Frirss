@@ -5220,7 +5220,12 @@ serveur de développement en 1.4.4.)*
   relevée (`linkDensityModifier` 0,5 — option de Readability 0.6.0 absente de
   ses types). Retenue seulement si elle rend plus de texte ; seul le corps est
   repris, le titre, l'auteur et le chapeau restent ceux de la passe normale.
-  Elle ne peut rien ramasser hors du conteneur (navigation, pied de page).
+  Elle ne ramasse rien hors du conteneur, mais ⚠️ **le conteneur n'est pas que
+  l'article** : le `<main>` de The Verge porte aussi le rail (lettre
+  d'information et ses mentions légales), un conteneur de blog le fil
+  d'Ariane et les commentaires. Jusqu'au correctif M-04 ci-dessous, la seconde
+  passe, tolérante aux liens, ramassait ces blocs (mentions légales en fin
+  d'article, bloc « Related » au milieu du texte).
   Relevé sur trois avis réels : AVI-1449 545 → 2 460 caractères, AVI-1354
   503 → 1 885, AVI-1448 déjà complet (1 520) et inchangé.
   ⚠️ **Coût** : la page est analysée deux fois quand la seconde passe se
@@ -5228,10 +5233,47 @@ serveur de développement en 1.4.4.)*
   d'articles*, dans le même tour de file.
   ⚠️ **Changer l'une ou l'autre passe, c'est monter `EXTRACT_VERSION`** (voir
   ci-dessous), sinon les extraits déjà gardés restent servis.
+- **Blocs étrangers retirés avant toute passe** (1.9.0, M-04 — `stripBoilerplate`,
+  `server/extract.ts`, copiée dans le repli de `extractContent.ts` ; tests :
+  `server/test/extract.test.ts` › « blocs étrangers (M-04) » et
+  « stripBoilerplate », `extractContent.test.ts` › « repli local : blocs
+  étrangers (M-04) », sur `src/test/boilerplatePageFixtures.ts` et
+  `src/test/newsStructureFixture.html` — l'arbre d'un article de The Verge,
+  chaque texte remplacé par un texte inventé de même longueur). Deux défauts,
+  une cause. The Verge : la **seconde** passe ramassait les mentions légales
+  de la lettre d'information du rail. Schneier : le billet court (412
+  caractères, sous le seuil de 500) faisait refaire à Readability ses
+  **premières** passes en écartant moins, et il gardait alors fil d'Ariane,
+  « Comments » et « Powered by WordPress ». Readability écarte bien ces blocs à
+  sa première tentative (classes « improbables »), mais les reprend aux
+  suivantes. Ils sortent donc du document **avant toute passe** : `footer`,
+  `nav`, `form`, rôles `navigation` et `contentinfo` ; `aside` et rôle
+  `complementary` **hors d'un `<article>`** seulement ; un bloc dont la classe
+  ou l'id contient `related`, `comment(s)`, `breadcrumb(s)`, `share`,
+  `sharing`, `footer` ou `newsletter` (jamais un titre ni un élément de
+  texte : `<h2 id="related-work">` reste) ; un court bloc qui commence par
+  « Powered by ». Gardes : un bloc qui porte la moitié du texte lisible ou plus
+  n'est jamais retiré (une page entière dans un `<form>` ASP.NET), ni un bloc
+  qui porte l'auteur (mêmes signaux que Readability, qui lit l'auteur avant
+  d'écarter lui-même `footer` et `aside` du corps).
+  ⚠️ **Pièges trouvés en le mesurant** : un `aside` DANS l'article (fenêtres
+  « Suivre » du chapeau de The Verge) ne doit pas sortir — son retrait
+  changeait le poids du chapeau et Readability perdait l'image d'en-tête ;
+  linkedom produit parfois **deux `<body>`** (The Verge) et `document.body`
+  désigne alors le premier, vide — d'où une racine `documentElement` ; le
+  texte des `<script>` (le JSON embarqué de The Verge) est exclu de la garde
+  de la moitié du texte.
+  Mesuré (2026-11-06) sur les 38 pages réelles de la campagne et deux pages
+  Wikipédia : quatre pages changent — Schneier et trois articles de The Verge,
+  débarrassés de leurs blocs étrangers ; aucune autre ne perd ni ne gagne un
+  caractère, aucune image, aucun auteur ni titre ne bouge, le CERT-FR garde son
+  corps complet. Le bloc « Related » au milieu du texte n'apparaissait plus sur
+  les articles du jour : un test direct du nettoyage le couvre.
 - **Version de l'extraction** (1.9.0, A-2 — `server/extractVersion.ts` et
   `src/lib/extractVersion.ts`, même valeur vérifiée par
   `server/test/cache.test.ts`). À monter à chaque changement du résultat de
-  l'extraction pour une même page. Les extraits gardés avant le seuil à 500 et
+  l'extraction pour une même page. **3** depuis le retrait des blocs étrangers
+  (M-04) : les extraits v2 qui les contenaient sont refaits. Les extraits gardés avant le seuil à 500 et
   la seconde passe (l'avis tronqué) restaient servis : 24 h par Redis, 30 jours
   dans le navigateur, **sans limite** pour un article épinglé.
   - **Serveur** : la version entre dans la clé Redis (`extractKey`), une

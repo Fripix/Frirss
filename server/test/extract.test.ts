@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { extractArticle, EXTRACT_MAX_PENDING, ExtractorBusyError, extractPending, withExtractSlot } from '../extract.js';
+import { parseHTML } from 'linkedom';
+import {
+  extractArticle, EXTRACT_MAX_PENDING, ExtractorBusyError, extractPending, stripBoilerplate, withExtractSlot,
+} from '../extract.js';
 import { advisoryPageHtml, ADVISORY_BODY_MARKER } from '../../src/test/advisoryPageFixture.js';
+import { blogPageHtml, BLOG_BODY_MARKER, newsPageHtml } from '../../src/test/boilerplatePageFixtures.js';
 
 const page = `<!doctype html><html><head><title>Titre de la page</title></head>
 <body><article><h1>Un vrai titre</h1>
@@ -91,6 +95,79 @@ describe('extractArticle', () => {
   it('rend null quand la page n’a pas d’article lisible', () => {
     const out = extractArticle('https://example.com/a', '<html><body></body></html>');
     expect(out).toBeNull();
+  });
+});
+
+// ── M-04 (campagne 1.9.0, second round) : blocs étrangers ────────────
+// La seconde passe (A-1) ramassait dans le conteneur principal de The Verge
+// les mentions légales du formulaire de lettre d'information ; sur un billet
+// court de Schneier, la première passe (seuil 500, L-04) ramassait fil
+// d'Ariane, « Comments » et « Powered by WordPress ». Ces blocs sont retirés
+// du document avant toute passe (`stripBoilerplate`).
+describe('extractArticle — blocs étrangers (M-04)', () => {
+  const textOf = (html: string) => (parseHTML(`<html><body>${html}</body></html>`).document.body.textContent || '').replace(/\s+/g, ' ').trim();
+
+  it('ne ramasse pas les mentions légales de la lettre d’information du rail (structure The Verge)', () => {
+    const html = newsPageHtml();
+    const { document } = parseHTML(html);
+    const legal = textOf((document.querySelector('.duet--layout--rail form') as Element).innerHTML);
+    const firstParagraph = textOf((document.querySelector('.duet--article--article-body-component p') as Element).innerHTML);
+
+    const out = extractArticle('https://example.com/news', html);
+
+    expect(textOf(out!.content)).toContain(firstParagraph);
+    expect(textOf(out!.content)).not.toContain(legal.slice(-80));
+    // Le chapeau garde son image : retirer les fenêtres « Suivre » (des
+    // `<aside>` DANS l'article) faisait perdre l'image d'en-tête.
+    expect(out!.content.match(/<img/g)?.length).toBe(3);
+  });
+
+  it('ne ramasse ni fil d’Ariane, ni commentaires, ni crédits d’un billet court (structure Schneier)', () => {
+    const out = extractArticle('https://example.com/blog', blogPageHtml());
+    const text = textOf(out!.content);
+    expect(text).toContain(BLOG_BODY_MARKER);
+    expect(text).toContain('monde nouveau');
+    for (const junk of ['Accueil', 'Commentaires', 'Powered by', 'S’abonner aux commentaires', 'Laisser un commentaire', 'Billet précédent']) {
+      expect(text).not.toContain(junk);
+    }
+  });
+
+  // Readability lit l'auteur dans le document AVANT d'écarter lui-même
+  // `footer` et `aside` du corps : retirer ce bloc plus tôt effaçait l'auteur.
+  it('garde l’auteur rangé dans le pied de l’article', () => {
+    const html = page.replace('</article>',
+      '<footer class="entry-meta"><span class="byline">par <a rel="author" href="/auteur/je">Jeanne Exemple</a></span></footer></article>');
+    expect(extractArticle('https://example.com/a', html)!.byline).toContain('Jeanne Exemple');
+  });
+});
+
+describe('stripBoilerplate', () => {
+  const strip = (body: string) => {
+    const { document } = parseHTML(`<html><body>${body}</body></html>`);
+    stripBoilerplate(document.documentElement as unknown as Element);
+    return (document.body.textContent || '').replace(/\s+/g, ' ').trim();
+  };
+  const long = 'Un paragraphe d’article assez long pour peser bien plus que tout le reste de la page réunie, et même davantage encore.';
+
+  it('retire un bloc « Related » glissé au milieu du texte', () => {
+    expect(strip(`<article><p>${long}</p><div class="duet--article--related"><h3>Related</h3><ul><li><a href="/x">Un autre article</a></li></ul></div><p>${long}</p></article>`))
+      .not.toContain('Un autre article');
+  });
+
+  it('retire pied, navigation, formulaire, barre latérale de page et crédit « Powered by »', () => {
+    const text = strip(`<nav>Menu</nav><aside>Barre latérale</aside><div role="contentinfo">Pied de rôle</div><article><p>${long}</p><p>${long}</p><footer>Pied d’article</footer><form>Lettre d’information</form></article><p>Powered by Exemple</p>`);
+    for (const junk of ['Menu', 'Barre latérale', 'Pied de rôle', 'Pied d’article', 'Lettre d’information', 'Powered by']) expect(text).not.toContain(junk);
+  });
+
+  it('garde un titre dont l’id contient un mot visé, et un aside dans l’article', () => {
+    const text = strip(`<article><h2 id="related-work">Travaux voisins</h2><p>${long}</p><aside>Une incise de l’article</aside><p>${long}</p></article>`);
+    expect(text).toContain('Travaux voisins');
+    expect(text).toContain('Une incise de l’article');
+  });
+
+  it('ne retire jamais un bloc qui porte la moitié du texte, quel que soit son nom', () => {
+    // Une page ASP.NET enveloppe tout dans un `<form>`.
+    expect(strip(`<form id="aspnetForm"><p>${long}</p><p>${long}</p></form><nav>Menu</nav>`)).toContain(long);
   });
 });
 

@@ -353,6 +353,73 @@ function keepOnlyMainContainer(doc: Document): boolean {
   return true;
 }
 
+// ── Blocs étrangers retirés avant toute passe (M-04) ─────────────────
+// Copie de `stripBoilerplate` (`server/extract.ts`, qui dit pourquoi : mentions
+// légales de The Verge ramassées par la seconde passe, fil d'Ariane et
+// crédits de Schneier par la première). Règles, mots et gardes identiques.
+const BOILERPLATE_TAGS = new Set(['footer', 'nav', 'form']);
+const BOILERPLATE_ROLES = new Set(['navigation', 'contentinfo']);
+const BOILERPLATE_TOKENS = new Set([
+  'related', 'comment', 'comments', 'breadcrumb', 'breadcrumbs', 'share', 'sharing', 'footer', 'newsletter',
+]);
+const NAMED_EXEMPT = new Set([
+  'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'a', 'span', 'b', 'i', 'em', 'strong', 'code', 'small', 'sup', 'sub',
+  'time', 'abbr', 'label', 'img', 'figcaption',
+]);
+const POWERED_BY = /^powered by\b/i;
+const POWERED_BY_MAX_LENGTH = 120;
+const BYLINE_SIGNALS = '[rel~="author"], [itemprop*="author"], [class*="byline"], [id*="byline"], [class*="author"], [id*="author"], [class*="dateline"], [class*="writtenby"]';
+const INVISIBLE = new Set(['script', 'style', 'template', 'noscript']);
+
+function isBoilerplate(el: Element, insideArticle: boolean): boolean {
+  const tag = el.tagName.toLowerCase();
+  const role = (el.getAttribute('role') || '').toLowerCase();
+  if (BOILERPLATE_TAGS.has(tag) || BOILERPLATE_ROLES.has(role)) return true;
+  if (!insideArticle && (tag === 'aside' || role === 'complementary')) return true;
+  if (!NAMED_EXEMPT.has(tag)) {
+    const names = `${el.getAttribute('class') || ''} ${el.getAttribute('id') || ''}`.toLowerCase();
+    if (names.split(/[^a-z0-9]+/).some((token) => BOILERPLATE_TOKENS.has(token))) return true;
+  }
+  if (el.childElementCount <= 3 && Array.from(el.children).every((child) => child.childElementCount === 0)) {
+    const text = (el.textContent || '').replace(/\s+/g, ' ').trim();
+    if (text.length <= POWERED_BY_MAX_LENGTH && POWERED_BY.test(text)) return true;
+  }
+  return false;
+}
+
+function carriesByline(el: Element): boolean {
+  return el.matches(BYLINE_SIGNALS) || !!el.querySelector(BYLINE_SIGNALS);
+}
+
+function visibleTextLength(root: Element): number {
+  let length = 0;
+  const stack: Node[] = [root];
+  while (stack.length) {
+    const node = stack.pop()!;
+    if (node.nodeType === Node.TEXT_NODE) {
+      length += (node.textContent || '').replace(/\s+/g, ' ').length;
+    } else if (node.nodeType === Node.ELEMENT_NODE && !INVISIBLE.has((node as Element).tagName.toLowerCase())) {
+      for (let child = node.firstChild; child; child = child.nextSibling) stack.push(child);
+    }
+  }
+  return length;
+}
+
+/** Retire de `root` (jamais `root` lui-même) les blocs étrangers à l'article. */
+function stripBoilerplate(root: Element): void {
+  const total = visibleTextLength(root);
+  const stack: Array<[Element, boolean]> = Array.from(root.children, (child) => [child, false]);
+  while (stack.length) {
+    const [el, insideArticle] = stack.pop()!;
+    if (isBoilerplate(el, insideArticle) && visibleTextLength(el) < total * MAIN_CONTAINER_MIN_SHARE && !carriesByline(el)) {
+      el.remove();
+      continue;
+    }
+    const inArticle = insideArticle || el.tagName.toLowerCase() === 'article';
+    for (let child = el.firstElementChild; child; child = child.nextElementSibling) stack.push([child, inArticle]);
+  }
+}
+
 async function extractOnce(url: string): Promise<ExtractedContent> {
   const { backendToken } = useAuthStore.getState();
 
@@ -486,6 +553,8 @@ async function extractOnce(url: string): Promise<ExtractedContent> {
   const load = () => {
     const parsed = new DOMParser().parseFromString(html, 'text/html');
     absolutizeUrls(parsed, url);
+    // Les blocs étrangers à l'article sortent avant toute passe (M-04).
+    stripBoilerplate(parsed.documentElement);
     return parsed;
   };
 

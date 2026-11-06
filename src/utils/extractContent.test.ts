@@ -14,6 +14,7 @@ import {
   SERVER_EXTRACT_TIMEOUT_MS,
 } from './extractContent';
 import { advisoryPageHtml, ADVISORY_BODY_MARKER } from '../test/advisoryPageFixture';
+import { blogPageHtml, BLOG_BODY_MARKER, newsPageHtml } from '../test/boilerplatePageFixtures';
 
 const serverAnswer = {
   title: 'Titre serveur', content: '<p>corps serveur</p>',
@@ -202,6 +203,45 @@ describe('extractFullContent — repli local : conteneur principal', () => {
     expect(out.content).toContain('EX-2026-1008');
     expect(out.content).not.toContain('mentions légales');
     expect(out.title).toBe('Avis d’exemple');
+  });
+});
+
+// M-04 : les mêmes blocs étrangers que côté serveur (`server/extract.ts`,
+// `stripBoilerplate`) sortent du document avant toute passe.
+describe('extractFullContent — repli local : blocs étrangers (M-04)', () => {
+  const fallbackOn = (html: string) => vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo) => {
+    if (String(input).startsWith('/api/extract')) return new Response('', { status: 422 });
+    return htmlPage(html);
+  }));
+  const textOf = (html: string) => (new DOMParser().parseFromString(html, 'text/html').body.textContent || '').replace(/\s+/g, ' ').trim();
+
+  it('ne ramasse pas les mentions légales de la lettre d’information du rail (structure The Verge)', async () => {
+    const html = newsPageHtml();
+    const page = new DOMParser().parseFromString(html, 'text/html');
+    const legal = (page.querySelector('.duet--layout--rail form')!.textContent || '').replace(/\s+/g, ' ').trim();
+    const firstParagraph = (page.querySelector('.duet--article--article-body-component p')!.textContent || '').replace(/\s+/g, ' ').trim();
+    fallbackOn(html);
+
+    const out = await extractFullContent('https://example.com/news');
+
+    expect(textOf(out.content)).toContain(firstParagraph);
+    expect(textOf(out.content)).not.toContain(legal.slice(-80));
+  });
+
+  it('ne ramasse ni fil d’Ariane, ni commentaires, ni crédits d’un billet court (structure Schneier)', async () => {
+    fallbackOn(blogPageHtml());
+    const text = textOf((await extractFullContent('https://example.com/blog')).content);
+    expect(text).toContain(BLOG_BODY_MARKER);
+    for (const junk of ['Accueil', 'Commentaires', 'Powered by', 'S’abonner aux commentaires', 'Laisser un commentaire', 'Billet précédent']) {
+      expect(text).not.toContain(junk);
+    }
+  });
+
+  it('garde le conteneur principal complet du CERT-FR', async () => {
+    fallbackOn(advisoryPageHtml());
+    const out = await extractFullContent('https://example.com/avis-m04');
+    expect(out.content).toContain(ADVISORY_BODY_MARKER);
+    expect(out.content).toContain('Gestion du document');
   });
 });
 

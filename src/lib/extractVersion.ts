@@ -4,9 +4,10 @@
  * `server/test/cache.test.ts`).
  *
  * Chaque extrait gardé dans IndexedDB en porte le tampon (`extractVersion`,
- * absent avant la 1.9.0, donc version 1). Un extrait d'une version antérieure
- * n'est plus servi en ligne : il est réextrait, et le nouveau le remplace en
- * gardant son épinglage. Hors ligne il reste servi — un article d'une version
- * antérieure vaut mieux qu'aucun (`extractCache.ts`).
+ * absent avant la 1.9.0, donc version 1). En ligne, un extrait d'une version
+ * antérieure est réextrait, et le nouveau le remplace en gardant son
+ * épinglage ; si cette réextraction échoue, l'extrait ancien est servi plutôt
+ * que l'erreur (`getOutdatedExtract`, M-03). Hors ligne il reste servi — un
+ * article d'une version antérieure vaut mieux qu'aucun (`extractCache.ts`).
  */
-export const EXTRACT_VERSION = 2;
+export const EXTRACT_VERSION = 3;
