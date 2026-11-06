@@ -123,9 +123,12 @@ la release publiée.
   automatique ou la préparation hors ligne). Une telle page est maintenant
   refusée en quelques millisecondes, l'analyse tourne à l'écart du serveur
   avec un délai de 10 secondes, et un échec est retenu quelques minutes.
+  Quand le serveur refuse une page ou est occupé, l'app ne refait plus
+  l'extraction elle-même (elle pouvait geler l'onglet).
 - **Article complet plus propre** : mentions légales, fil d'Ariane, blocs
   « Related », commentaires et « Powered by » ne s'invitent plus dans
-  l'article extrait. Les extraits déjà en cache sont refaits une fois. Si la
+  l'article extrait (ni, sur certains sites, les encarts promotionnels en fin
+  d'article). Les extraits déjà en cache sont refaits une fois. Si la
   nouvelle extraction échoue, l'ancien extrait reste affiché (favoris
   épinglés compris, avec leurs images).
 - **Tableaux larges** : ils défilent de côté au lieu d'être coupés, et le
