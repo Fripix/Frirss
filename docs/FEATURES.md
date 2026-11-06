@@ -338,7 +338,7 @@ plus jamais au navigateur (seule sa présence est exposée, `has_token`).
   portée hors ligne, et la file, les listes du premier seraient servies au
   second — un autre utilisateur est un autre serveur à ajouter, qui a sa propre
   portée et, avec Redis, ses propres clés de cache (la clé porte l'id du
-  serveur, voir « Cache Redis » ; jusqu'à 1.9.0 deux serveurs à la même
+  serveur, voir « Cache Redis » ; avant 1.9.0, deux serveurs à la même
   adresse partageaient leurs listes en cache). Le serveur
   **garde son identifiant**, donc sa portée hors ligne : jusque-là, le seul
   moyen était de le supprimer puis de le rajouter, et les actions en attente
@@ -7659,7 +7659,12 @@ divergentes).
   (`/.env`, `/.git/HEAD`, `/x.js.map`), et réécrit sinon vers `/index.html`.
   Avant, ces chemins répondaient 200 avec l'application. La réécriture (`rewrite …
   last`) repasse par `location /` : le document garde ses en-têtes sans qu'on les
-  recopie dans `@spa`. Le job `docker` de `ci.yml` vérifie les 404 et que `/` et
+  recopie dans `@spa`. Le **404**, lui, est rendu par `@spa` même : il partait
+  sans aucun en-tête de sécurité avant 1.9.0. `@spa` porte maintenant les
+  quatre du document (CSP, `X-Frame-Options`, `nosniff`, `Referrer-Policy`),
+  déclarés sur la location et non dans son `if`, qui en hérite tant qu'il n'en
+  déclare aucun (`server/test/nginxHeaders.test.ts` garde les listes alignées).
+  Le job `docker` de `ci.yml` vérifie les 404 et leurs en-têtes, et que `/` et
   une route d'application restent en 200 avec CSP. ⚠️ Une route de l'application
   avec un point dans son dernier segment serait désormais un 404.
 - **`index.html` sort aussi en `no-cache`.** Le document de l'application (`location /`,

@@ -159,6 +159,14 @@ jobs:
               echo "::error::$path answered $code instead of 404 (SPA fallback too wide)"
               exit 1
             fi
+            # Ce 404 est rendu par `@spa` lui-même : il partait sans en-têtes.
+            hdrs=$(curl -sSI "http://localhost:8080$path")
+            for h in content-security-policy x-content-type-options x-frame-options referrer-policy; do
+              if ! echo "$hdrs" | grep -qi "^$h:"; then
+                echo "::error::the 404 for $path is missing $h"
+                exit 1
+              fi
+            done
           done
           for path in / /some/app/route; do
             hdrs=$(curl -sSI "http://localhost:8080$path")
@@ -171,7 +179,7 @@ jobs:
               exit 1
             fi
           done
-          echo "missing files 404, app routes 200 with CSP"
+          echo "missing files 404 with security headers, app routes 200 with CSP"
 
       # Le conteneur ne doit pas être plus strict que le backend qu'il sert.
       # Avec le défaut nginx (1 Mo), une requête de 2 Mo mourait sur un 413
