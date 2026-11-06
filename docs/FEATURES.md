@@ -5470,7 +5470,12 @@ serveur de développement en 1.4.4.)*
   ras du haut de `.reading-bottombar` (du bas du volet sans barre). Sous
   l'article et pas au-dessus : rien ne saute pendant la lecture, sur aucun
   format. Une extraction demandée par le lecteur garde le bandeau rouge
-  (`readingPane.extractError`) : il l'a demandée, l'échec doit se voir.
+  (`readingPane.extractError`) : il l'a demandée, l'échec doit se voir. Le
+  bandeau est **annoncé** (`role="alert"`, icône `aria-hidden`) et finit par
+  « Réessayer » (1.9.0, R3T1-4 : sans rôle, rien n'était dit au lecteur
+  d'écran, et il fallait retrouver « Article complet » dans la barre).
+  Même geste que la ligne discrète : le focus passe au volet, et l'échec de
+  la nouvelle tentative revient dans le bandeau, annoncé de nouveau.
 - **L'avis « Article complet »** (bandeau accent au-dessus du corps, desktop
   seulement) ne suit qu'une extraction **demandée** : il se tait quand le
   réglage effectif (`effectiveAutoExtract`, global compris) extrait de

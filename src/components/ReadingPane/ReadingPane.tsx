@@ -2168,15 +2168,30 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
 
           {/* Extraction error — demandée par le lecteur. L'échec d'une
               extraction AUTOMATIQUE se dit sous l'article, discrètement. */}
+          {/* Annoncé (`role="alert"`, R3T1-4), icône muette, et de quoi
+              insister sur place : « Réessayer » rend le focus au volet
+              (le bandeau disparaît pendant la tentative) et un nouvel échec
+              revient ici, annoncé de nouveau. */}
           {extractError && !extractErrorAuto && inlineRetryFor !== article.id && (
             <div
+              role="alert"
               className="mb-4 px-4 py-3 rounded-lg text-sm flex items-center gap-2"
               style={{ background: 'var(--danger-light)', color: 'var(--danger)', border: '1px solid var(--danger)' }}
             >
-              <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <svg aria-hidden="true" className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
               </svg>
-              {extractError}
+              <span className="flex-1 min-w-0">{extractError}</span>
+              <button
+                type="button"
+                onClick={() => {
+                  scrollContainerRef.current?.focus({ preventScroll: true });
+                  void handleExtract();
+                }}
+                className="flex-shrink-0 font-medium underline underline-offset-2 py-2 -my-2"
+              >
+                {t('readingPane.retry')}
+              </button>
             </div>
           )}
 

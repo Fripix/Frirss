@@ -217,6 +217,33 @@ describe('ReadingPane — échec d’une extraction', () => {
     expect(container.textContent).toContain('readingPane.extractError');
     expect(container.textContent).not.toContain('readingPane.extractUnavailable');
   });
+
+  // R3T1-4 : le bandeau n'avait ni rôle (rien d'annoncé au lecteur d'écran),
+  // ni `aria-hidden` sur son icône, ni « Réessayer » — il fallait retrouver le
+  // bouton « Article complet » dans la barre.
+  it('demandée par le lecteur : le bandeau est annoncé, son icône muette, et « Réessayer » relance en gardant le focus dans le volet', async () => {
+    extractMock.fn.mockRejectedValue(new Error('NO_CONTENT'));
+    const { container } = await open(article('f4'));
+    const btn = container.querySelector('[title="readingPane.fullContent"]') as HTMLElement;
+    await act(async () => { btn.click(); await new Promise((r) => setTimeout(r, 0)); });
+    const banner = container.querySelector('[style*="danger-light"]') as HTMLElement;
+    expect(banner.getAttribute('role')).toBe('alert');
+    expect(banner.textContent).toContain('readingPane.extractError');
+    expect(banner.querySelector('svg')?.getAttribute('aria-hidden')).toBe('true');
+    const retry = banner.querySelector('button') as HTMLButtonElement;
+    expect(retry.textContent).toBe('readingPane.retry');
+
+    extractMock.fn.mockClear();
+    let finish!: (e: Error) => void;
+    extractMock.fn.mockImplementation(() => new Promise((_, reject) => { finish = reject; }));
+    act(() => { retry.focus(); });
+    await act(async () => { retry.click(); await Promise.resolve(); });
+    expect(extractMock.fn).toHaveBeenCalledWith('https://example.com/f4', { retry: true });
+    expect(container.contains(document.activeElement)).toBe(true);
+    // Un nouvel échec revient dans le bandeau, annoncé de nouveau.
+    await act(async () => { finish(new Error('NO_CONTENT')); await new Promise((r) => setTimeout(r, 0)); });
+    expect(container.querySelector('[style*="danger-light"]')?.getAttribute('role')).toBe('alert');
+  });
 });
 
 // M-11 (second round) : le balayage du volet prenait tout geste horizontal,
