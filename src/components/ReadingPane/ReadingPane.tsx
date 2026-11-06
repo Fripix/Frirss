@@ -20,7 +20,7 @@ import { revealScrollTop } from '../../lib/listScroll';
 import { scrollsHorizontallyWithin } from '../../lib/horizontalScroller';
 import { isFocusToggleTarget } from '../../lib/readingFocus';
 import { focusSidebar } from '../../lib/focusSidebar';
-import { extractYouTubeId, facadeMarkup, youtubeThumbnail } from '../../lib/youtube';
+import { articleVideoRef, facadeMarkup, youtubeThumbnail } from '../../lib/youtube';
 import { READ_LATER_PREFIX, STARRED_PREFIX } from '../../lib/savedCategories';
 import { nameOf, nameOwners, takenBy } from '../../lib/labelNames';
 import NameRefusal from '../NameRefusal';
@@ -1378,7 +1378,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   // corps porte déjà la même (l'injection ci-dessus l'a alors transformée en
   // façade).
   const headFacadeHtml = useMemo(() => {
-    const ref = inlineVideos ? extractYouTubeId(selectedArticle?.url || '') : null;
+    const ref = inlineVideos ? articleVideoRef(selectedArticle?.url || '') : null;
     if (!ref || body.videoIds.includes(ref.id)) return '';
     return facadeMarkup(ref, youtubeThumbnail(ref.id), { play: videoPlayLabel, open: videoOpenLabel });
   }, [inlineVideos, selectedArticle?.url, body.videoIds, videoPlayLabel, videoOpenLabel]);

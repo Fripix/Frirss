@@ -53,6 +53,40 @@ export function isYouTubeHost(url: string): boolean {
     || host === 'youtube-nocookie.com' || host.endsWith('.youtube-nocookie.com');
 }
 
+const EXACT_ID = new RegExp(`^${ID}$`);
+const PATH_ID = /^\/(?:embed|shorts|v|live)\/([^/]+)\/?$/i;
+
+/**
+ * La vidéo qu'EST l'adresse d'un article, ou `null`. Seule porte d'entrée
+ * pour une adresse d'article : la façade de tête du volet, le retrait des
+ * vignettes, le badge de la carte et `isExtractableUrl`.
+ *
+ * `extractYouTubeId` reste souple (une adresse YouTube n'importe où dans la
+ * chaîne, utile pour les iframes d'un corps) : appliquée à l'adresse de
+ * l'article, elle donnait une façade sur un faux identifiant et un badge
+ * vidéo à une redirection `…?to=https://www.youtube.com/watch?v=…` ou à un
+ * chemin `…/why-youtu.be/abcdefghijk-…` (RO-01, 1.9.0). Ici, tout se lit sur
+ * l'adresse analysée : l'hôte (`isYouTubeHost`), puis le chemin ou le seul
+ * paramètre `v` de `/watch`. L'identifiant doit faire exactement 11
+ * caractères sûrs — la façade de tête est injectée sans DOMPurify.
+ */
+export function articleVideoRef(url: string): YouTubeRef | null {
+  if (!url || !isYouTubeHost(url)) return null;
+  let u: URL;
+  try { u = new URL(url.startsWith('//') ? `https:${url}` : url); } catch { return null; }
+  let id: string | null = null;
+  if (u.hostname.toLowerCase() === 'youtu.be') {
+    id = u.pathname.replace(/^\/|\/$/g, '');
+  } else if (u.pathname.replace(/\/$/, '').toLowerCase() === '/watch') {
+    id = u.searchParams.get('v');
+  } else {
+    id = u.pathname.match(PATH_ID)?.[1] ?? null;
+  }
+  if (!id || !EXACT_ID.test(id)) return null;
+  const start = parseStart(u.searchParams.get('t') ?? u.searchParams.get('start'));
+  return start === undefined ? { id } : { id, start };
+}
+
 /** Fallback thumbnail, used when the article provides none. */
 export function youtubeThumbnail(id: string): string {
   return `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;

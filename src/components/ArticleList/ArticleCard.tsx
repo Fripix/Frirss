@@ -6,7 +6,7 @@ import { articleTitle } from '../../lib/articleTitle';
 import { READ_LATER_LABEL } from '../../stores/feedStore';
 import { extractImageFromContent, sourceInitial } from '../../lib/articleThumbnail';
 import { timeAgo } from '../../lib/timeAgo';
-import { extractYouTubeId } from '../../lib/youtube';
+import { articleVideoRef } from '../../lib/youtube';
 import type { RowActionSettings } from '../../lib/rowActions';
 import { ArticleRowActions } from './ArticleActions';
 import Highlighted from './Highlighted';
@@ -44,7 +44,7 @@ export default function ArticleCard({
   // nouveau contenu (article complet extrait) retente sa propre image.
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
   const showImage = !!thumbnail && failedSrc !== thumbnail;
-  const isVideo = !!extractYouTubeId(article.url || '');
+  const isVideo = !!articleVideoRef(article.url || '');
 
   return (
     <div

@@ -310,6 +310,13 @@ describe('article de flux YouTube : vignette du flux', () => {
     expect(out.html).toContain(`ytimg.com/vi/${ID}/`);
   });
 
+  it('garde la vignette quand l’adresse de l’article ne fait que porter celle de la vidéo (RO-01)', () => {
+    for (const url of [`https://example.com/redirect?to=${videoUrl}`, `https://blog.example.com/why-youtu.be/${ID}-links`]) {
+      const out = buildArticleBody({ rssHtml: rss, extractedHtml: null, inlineVideos: true, videoLabels: labels, videoUrl: url });
+      expect(out.html, url).toContain(`ytimg.com/vi/${ID}/`);
+    }
+  });
+
   it('garde la vignette d’une AUTRE vidéo', () => {
     const other = rss.replace(`/vi/${ID}/`, '/vi/abcdefghijk/');
     const out = buildArticleBody({ rssHtml: other, extractedHtml: null, inlineVideos: true, videoLabels: labels, videoUrl });

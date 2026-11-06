@@ -231,5 +231,22 @@ describe('ArticleCard', () => {
       expect(container.querySelector('.article-card__title')?.textContent).toBe('Hello World');
     });
   });
+
+  // Le badge « vidéo » se décide sur l'HÔTE de l'adresse : une page qui porte
+  // une adresse YouTube dans la sienne n'est pas une vidéo (RO-01, 1.9.0).
+  it('le badge vidéo ne marque que les adresses YouTube, pas celles qui en portent une (RO-01)', () => {
+    const badge = (url: string) => {
+      const { container, unmount } = render(
+        <ArticleCard article={{ ...base, url }} showSource rowActions={DEFAULT_ROW_ACTIONS} active={false}
+          onSelect={noop} onToggleStar={noop} onToggleRead={noop} onToggleReadLater={noop} onOpenSource={noop} />
+      );
+      const shown = !!container.querySelector('.article-card__play');
+      unmount();
+      return shown;
+    };
+    expect(badge('https://www.youtube.com/watch?v=dQw4w9WgXcQ')).toBe(true);
+    expect(badge('https://example.com/redirect?to=https://www.youtube.com/watch?v=dQw4w9WgXcQ')).toBe(false);
+    expect(badge('https://blog.example.com/notes/why-youtu.be/abcdefghijk-links-break')).toBe(false);
+  });
 });
 

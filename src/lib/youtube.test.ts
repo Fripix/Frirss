@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { extractYouTubeId, facadeMarkup, youtubeThumbnail, youtubeWatchUrl, injectVideoFacades, dropNonVideoIframes } from './youtube';
+import { articleVideoRef, extractYouTubeId, facadeMarkup, youtubeThumbnail, youtubeWatchUrl, injectVideoFacades, dropNonVideoIframes } from './youtube';
 
 const L = { play: 'Lire', open: 'Ouvrir sur YouTube' };
 
@@ -43,6 +43,39 @@ describe('extractYouTubeId', () => {
   });
 });
 
+// L'adresse D'UN ARTICLE est-elle une vidéo YouTube ? Décidé sur l'hôte : la
+// façade de tête, le retrait des vignettes et le badge de la carte prenaient
+// une adresse YouTube trouvée n'importe où dans la chaîne (RO-01, 1.9.0).
+describe('articleVideoRef — l’adresse de l’article mène-t-elle à une vidéo YouTube (RO-01)', () => {
+  it('lit les formes d’une vidéo sous ses hôtes, avec son départ', () => {
+    expect(articleVideoRef('https://www.youtube.com/watch?v=dQw4w9WgXcQ')).toEqual({ id: 'dQw4w9WgXcQ' });
+    expect(articleVideoRef('https://m.youtube.com/watch?feature=share&v=dQw4w9WgXcQ&t=90')).toEqual({ id: 'dQw4w9WgXcQ', start: 90 });
+    expect(articleVideoRef('https://youtu.be/dQw4w9WgXcQ?t=1m30s')).toEqual({ id: 'dQw4w9WgXcQ', start: 90 });
+    expect(articleVideoRef('https://www.youtube.com/shorts/dQw4w9WgXcQ')).toEqual({ id: 'dQw4w9WgXcQ' });
+    expect(articleVideoRef('https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?start=42')).toEqual({ id: 'dQw4w9WgXcQ', start: 42 });
+  });
+
+  it('une page qui porte une adresse YouTube dans la sienne n’est pas une vidéo', () => {
+    for (const url of [
+      'https://blog.example.com/notes/why-youtu.be/abcdefghijk-links-break',
+      'https://example.com/redirect?to=https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+      'https://example.com/a#https://youtu.be/dQw4w9WgXcQ',
+      'https://www.youtube.com/redirect?q=https://youtu.be/dQw4w9WgXcQ',
+      'https://www.youtube.com/@chaine?v=dQw4w9WgXcQ',
+    ]) expect(articleVideoRef(url), url).toBeNull();
+  });
+
+  it('un identifiant qui n’a pas la forme d’une vidéo n’en est pas une', () => {
+    for (const url of [
+      'https://youtu.be/dQw4w9WgXcQ"><img src=x onerror=alert(1)>',
+      'https://www.youtube.com/watch?v=short',
+      'https://youtu.be/',
+      'pas une adresse',
+      '',
+    ]) expect(articleVideoRef(url), url).toBeNull();
+  });
+});
+
 // La façade en tête du volet (`headFacadeHtml`, `ReadingPane.tsx`) est
 // injectée SANS DOMPurify, depuis l'adresse de l'article — une donnée du
 // flux. Elle n'est sûre que parce qu'`extractYouTubeId` n'en garde qu'un
@@ -78,6 +111,19 @@ describe('extractYouTubeId — ce qui rend la façade de tête sûre sans assain
       const html = facadeMarkup(ref, youtubeThumbnail(ref.id), L);
       expect(html).not.toMatch(/onerror|onload|onmouseover|<script|<svg|javascript:/i);
       expect(html.match(/</g)?.length).toBe(reference.match(/</g)?.length);
+    }
+  });
+
+  // La façade de tête lit désormais l'adresse par `articleVideoRef` (RO-01) :
+  // même contrat, sur la même liste.
+  it('articleVideoRef, qui la nourrit, ne rend lui aussi qu’un identifiant sûr et un nombre de secondes', () => {
+    expect(hostile.filter((url) => articleVideoRef(url)).length).toBeGreaterThan(0);
+    for (const url of hostile) {
+      const ref = articleVideoRef(url);
+      if (!ref) continue;
+      expect(ref.id).toMatch(/^[A-Za-z0-9_-]{11}$/);
+      if (ref.start !== undefined) expect(Number.isInteger(ref.start) && ref.start >= 0).toBe(true);
+      expect(facadeMarkup(ref, youtubeThumbnail(ref.id), L)).not.toMatch(/onerror|onload|onmouseover|<script|<svg|javascript:/i);
     }
   });
 });

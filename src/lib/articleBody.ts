@@ -17,7 +17,7 @@
 // mémoïse. Rien ici ne connaît React.
 
 import { sanitizeArticleBody } from '../utils/sanitizeHtml';
-import { dropVideoThumbnails, extractYouTubeId, injectVideoFacades, type FacadeLabels } from './youtube';
+import { articleVideoRef, dropVideoThumbnails, injectVideoFacades, type FacadeLabels } from './youtube';
 import { extractShown, hasRenderableContent } from './readingBody';
 
 /** Combien d'images du début échappent au chargement différé. Les premières
@@ -100,7 +100,7 @@ export function buildArticleBody(input: ArticleBodyInput): ArticleBody {
   const displayed = displayedHtml(input.rssHtml, input.extractedHtml, { forced: input.extractForced });
   const words = displayed.replace(/<[^<>]*>/g, ' ').split(/\s+/).filter(Boolean).length;
 
-  const headVideo = input.inlineVideos ? extractYouTubeId(input.videoUrl || '') : null;
+  const headVideo = input.inlineVideos ? articleVideoRef(input.videoUrl || '') : null;
   const shown = headVideo ? dropVideoThumbnails(displayed, headVideo.id) : displayed;
   const withVideos = input.inlineVideos
     ? injectVideoFacades(shown, input.videoLabels)

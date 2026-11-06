@@ -192,4 +192,23 @@ describe('ReadingPane — corps d’article', () => {
     // Rien à mesurer : pas de pastille de durée non plus.
     expect(container.textContent).not.toMatch(/readingPane\.readingTime/);
   });
+
+  // La façade de tête se décide sur l'HÔTE de l'adresse de l'article : une
+  // redirection ou un chemin qui porte une adresse YouTube recevait une façade
+  // sur un faux identifiant (RO-01, 1.9.0).
+  it('pose la façade de tête pour une vidéo YouTube, jamais pour une page qui en porte l’adresse (RO-01)', async () => {
+    useUiStore.setState({ inlineVideos: true, feedSettings: {} } as never);
+    const facades = async (id: string, url: string) => {
+      const a = { ...article, id, url, content: '<p>texte</p>' } as Article;
+      useFeedStore.setState({ selectedArticle: a, articles: [a] } as never);
+      const { container, unmount } = render(<ReadingPane />);
+      await act(async () => { await Promise.resolve(); });
+      const n = container.querySelectorAll('.yt-facade').length;
+      unmount();
+      return n;
+    };
+    expect(await facades('v1', 'https://www.youtube.com/watch?v=dQw4w9WgXcQ')).toBe(1);
+    expect(await facades('v2', 'https://example.com/redirect?to=https://www.youtube.com/watch?v=dQw4w9WgXcQ')).toBe(0);
+    expect(await facades('v3', 'https://blog.example.com/notes/why-youtu.be/abcdefghijk-links-break')).toBe(0);
+  });
 });

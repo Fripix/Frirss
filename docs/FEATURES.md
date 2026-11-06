@@ -5783,13 +5783,19 @@ serveur de développement en 1.4.4.)*
   - **une URL YouTube n'est jamais envoyée** (`isExtractableUrl`) :
     `NotExtractableError` sans réseau, même demandée par le lecteur. Le volet
     ne lance pas d'extraction automatique sur une vidéo, ne l'attend pas (pas
-    de squelette) et n'affiche aucun échec. ⚠️ La décision tient à l'**hôte**
-    (`youtube.com` et ses sous-domaines, `youtube-nocookie.com`, `youtu.be`),
-    puis à `extractYouTubeId` : celui-ci trouve une adresse YouTube n'importe
-    où dans la chaîne, et une redirection `…?to=https://www.youtube.com/watch?v=…`
-    ou un chemin contenant `youtu.be/…` passaient pour des vidéos, refusées
-    même au réessai (D-02, 1.9.0). Une page YouTube sans vidéo (chaîne) et
-    une adresse illisible restent extractibles ;
+    de squelette) et n'affiche aucun échec. ⚠️ La décision passe par
+    `articleVideoRef` (`src/lib/youtube.ts`), qui tient à l'**hôte**
+    (`youtube.com` et ses sous-domaines, `youtube-nocookie.com`, `youtu.be`)
+    puis lit l'identifiant sur l'adresse analysée (chemin de `youtu.be`,
+    paramètre `v` de `/watch`, `/embed/`, `/shorts/`, `/v/`, `/live/`) :
+    `extractYouTubeId` trouve une adresse YouTube n'importe où dans la chaîne,
+    et une redirection `…?to=https://www.youtube.com/watch?v=…` ou un chemin
+    contenant `youtu.be/…` passaient pour des vidéos, refusées même au
+    réessai (D-02, 1.9.0). Une page YouTube sans vidéo (chaîne, redirection
+    `youtube.com/redirect?q=…`) et une adresse illisible restent
+    extractibles. La même fonction décide la façade de tête, le retrait des
+    vignettes et le badge vidéo de la carte (voir « Vidéos YouTube
+    intégrées ») ;
   - **un échec qui tient à la PAGE est retenu pour la session** (pas une page,
     trop grosse, trop complexe — le 422 `tooComplex` du serveur, M-01, ou le refus du repli lui-même —, rien de lisible (le 422 `Not extractable` du serveur, ou le repli), refus **4xx** du site ou du repli hors 408
     et 429 — `isPageRefusal`) : les extractions automatiques et les files de
@@ -5936,11 +5942,20 @@ Vignette cliquable (façade) au lieu d'un `<iframe>` chargé d'emblée.
 - **Piège — la façade de tête n'est PAS assainie** (`headFacadeHtml`,
   `ReadingPane.tsx`) : elle est construite depuis l'adresse de l'article, une
   donnée du flux, et injectée telle quelle. Elle n'est sûre que parce
-  qu'`extractYouTubeId` n'en garde qu'un identifiant de 11 caractères
-  `[A-Za-z0-9_-]` et un nombre de secondes. Élargir l'un ou l'autre ouvre une
-  injection : `youtube.test.ts` › « ce qui rend la façade de tête sûre sans
-  assainissement » le vérifie sur des adresses hostiles (1.9.0, troisième
-  round).
+  qu'`articleVideoRef` n'en garde qu'un identifiant d'exactement 11
+  caractères `[A-Za-z0-9_-]` et un nombre de secondes. Élargir l'un ou
+  l'autre ouvre une injection : `youtube.test.ts` › « ce qui rend la façade
+  de tête sûre sans assainissement » le vérifie sur des adresses hostiles
+  (1.9.0, troisième round).
+- **L'adresse d'un article est une vidéo seulement sur un hôte YouTube**
+  (`articleVideoRef`, 1.9.0, RO-01) : façade de tête du volet, retrait des
+  vignettes (`buildArticleBody`), badge ▶ de la carte (`ArticleCard`) et
+  refus de l'extraction (`isExtractableUrl`) passent tous par elle. Ils
+  appelaient `extractYouTubeId`, qui trouve une adresse YouTube n'importe où
+  dans la chaîne : un billet `…/why-youtu.be/abcdefghijk-links-break` ou une
+  redirection `…?to=https://www.youtube.com/watch?v=…` recevaient une façade
+  sur un faux identifiant et un badge vidéo. `extractYouTubeId` reste
+  souple pour les iframes et les liens d'un corps.
 - **Une seule passe, dans l'ordre du document** (`injectVideoFacades`, 1.9.0) :
   iframes et liens sont reconnus par la même expression. Jusqu'en 1.8.0, une
   passe sur les iframes précédait une passe sur les liens, et la seconde
