@@ -455,6 +455,8 @@ export function extractArticle(url: string, html: string): ExtractedArticle | nu
     // (The Verge), et `document.body` désigne alors le premier, vide.
     if (doc.documentElement) {
       stripBoilerplate(doc.documentElement as unknown as Element);
+      // Puis les liens vers l'article lui-même qui ne sont pas du texte (V-02, V-03).
+      stripSelfReferences(doc.documentElement as unknown as Element, pageAddresses(doc, url));
       // Après le nettoyage : un bloc retiré ne compte plus dans un groupe.
       joinSplitBody(doc.documentElement as unknown as Element);
     }
@@ -823,7 +825,8 @@ function isZoomButton(button: Element): boolean {
 //   du texte de son billet : c'est alors le corps d'une lettre publiée comme
 //   billet, et seul le conteneur du formulaire, en lui, est visé ;
 // - un voile de consentement (`consent`) sans citation ni média, un encart
-//   dont tous les liens sont payants, un bouton « retour en haut » nommé en
+//   dont tous les liens sont payants ou qui porte l'étiquette « sponsorisé »
+//   (V-01), un bouton « retour en haut » nommé en
 //   entier (A4-03, resserrés en RX-02 à RX-04 : voir leurs constantes) ;
 // - les classes de taxonomie (`tag-*`, `category-*`) ne comptent pas : WordPress
 //   y range les SUJETS d'un billet, sur son `<article>` (`tag-pwa`,
@@ -879,6 +882,14 @@ const EMBEDDED_CONTENT = 'blockquote, img, picture, video, audio, iframe, figure
 const BACK_TO_TOP_NAME = /^(?:top|(?:back|go|scroll)?-?to-?top|scroll-?top|back-?top)(?:-(?:button|btn|link|anchor|arrow|icon))?$/;
 /** Un lien payant : la campagne qui l'a acheté le dit dans son adresse (A4-03). */
 const PAID_LINK = /[?&]utm_medium=paid/i;
+/**
+ * L'étiquette d'un encart sponsorisé (V-01 : « Sponsorisé » de Numerama et de
+ * Frandroid, `div.sponsored-label`) : un élément nommé `sponsored` ou
+ * `sponsor` dont le texte est court et non vide. Le lien de l'encart est un
+ * lien raccourci, sans `utm_medium` : c'est l'étiquette qui le signe.
+ */
+const SPONSOR_LABEL_TOKENS = new Set(['sponsored', 'sponsor']);
+const SPONSOR_LABEL_MAX_LENGTH = 40;
 /** Mots qui ne désignent un bloc étranger que s'il est court (règle « share » de Readability). */
 const SHORT_BLOCK_TOKENS = new Set([
   'share', 'sharing', 'newsletter',
@@ -918,7 +929,7 @@ function isBoilerplate(el: Element, insideArticle: boolean, postLength: PostLeng
       if (tokens.some((token) => SHORT_BLOCK_TOKENS.has(token))
         && visibleTextLength(el, READABILITY_CHAR_THRESHOLD) < READABILITY_CHAR_THRESHOLD) return true;
       const counts = paid.get(el);
-      if (counts && isPaidPromotion(counts) && !carriesMostOfItsPost(el, postLength, counts.text)) return true;
+      if (counts && (isPaidPromotion(counts) || counts.sponsoredCard) && !carriesMostOfItsPost(el, postLength, counts.text)) return true;
     }
   }
   // Seulement sur un bloc presque feuille : lire `textContent` de chaque
@@ -961,21 +972,36 @@ function isPaidPromotion(counts: LinkCounts): boolean {
 }
 
 /** Sous un élément : texte lisible (comme `visibleTextLength`), liens, liens payants, liens payants sur une image. */
-interface LinkCounts { text: number; links: number; paidLinks: number; paidImageLinks: number; image: boolean }
+interface LinkCounts {
+  text: number; links: number; paidLinks: number; paidImageLinks: number; image: boolean;
+  /** Étiquettes « sponsorisé » dessous ; le plus petit bloc court qui en porte une avec une image et un lien est l'encart (V-01). */
+  labels: number; sponsoredCard: boolean; cardInside: boolean;
+}
 
 /**
- * Les ancêtres d'un lien payant (seuls candidats à l'encart), chacun avec ses
+ * Les ancêtres d'un lien payant ou d'une étiquette « sponsorisé » (V-01) —
+ * seuls candidats à l'encart —, chacun avec ses
  * comptes (`LinkCounts`), faits de bas en haut en UNE passe sur `root`.
  * Relire le sous-arbre à chaque ancêtre coûtait sa profondeur fois sa taille
  * (RX-04 : 240 niveaux au-dessus de 55 000 éléments, 1,5 s au lieu de 0,5).
  * Les comptes restent justes au moment du jugement : un ancêtre est jugé avant
  * tout ce qu'il contient, et rien de son sous-arbre n'a encore été retiré.
  */
-function paidLinkAncestors(root: Element): Map<Node, LinkCounts> {
+function promotionCandidates(root: Element): Map<Node, LinkCounts> {
   const candidates = new Map<Node, LinkCounts | null>();
+  const addAncestors = (from: Node) => {
+    for (let up: Node | null = from; up && up !== root && !candidates.has(up); up = up.parentNode) candidates.set(up, null);
+  };
   for (const link of Array.from(root.querySelectorAll('a[href*="utm_medium"]')) as Element[]) {
-    if (!PAID_LINK.test(link.getAttribute('href') || '')) continue;
-    for (let up: Node | null = link; up && up !== root && !candidates.has(up); up = up.parentNode) candidates.set(up, null);
+    if (PAID_LINK.test(link.getAttribute('href') || '')) addAncestors(link);
+  }
+  // Les étiquettes « sponsorisé » (V-01) ; leur texte est jugé dans la passe.
+  const labels = new Set<Node>();
+  for (const label of Array.from(root.querySelectorAll('[class*="ponsor"], [id*="ponsor"]')) as Element[]) {
+    const tokens = `${label.getAttribute('class') || ''} ${label.getAttribute('id') || ''}`.toLowerCase().split(/[^a-z0-9]+/);
+    if (!tokens.some((token) => SPONSOR_LABEL_TOKENS.has(token))) continue;
+    labels.add(label);
+    addAncestors(label);
   }
   const found = new Map<Node, LinkCounts>();
   if (!candidates.size) return found;
@@ -991,7 +1017,7 @@ function paidLinkAncestors(root: Element): Map<Node, LinkCounts> {
   for (let i = order.length - 1; i >= 0; i--) {
     const el = order[i];
     const invisible = INVISIBLE.has(el.tagName.toLowerCase());
-    const mine: LinkCounts = { text: 0, links: 0, paidLinks: 0, paidImageLinks: 0, image: false };
+    const mine: LinkCounts = { text: 0, links: 0, paidLinks: 0, paidImageLinks: 0, image: false, labels: 0, sponsoredCard: false, cardInside: false };
     for (let node = el.firstChild; node; node = node.nextSibling) {
       if (node.nodeType === 3) {
         if (!invisible) mine.text += (node.textContent || '').replace(/\s+/g, ' ').length;
@@ -1007,6 +1033,8 @@ function paidLinkAncestors(root: Element): Map<Node, LinkCounts> {
       mine.paidLinks += below.paidLinks;
       mine.paidImageLinks += below.paidImageLinks;
       mine.image ||= below.image || tag === 'img';
+      mine.labels += below.labels + (labels.has(child) && below.text > 0 && below.text <= SPONSOR_LABEL_MAX_LENGTH ? 1 : 0);
+      mine.cardInside ||= below.sponsoredCard || below.cardInside;
       if (tag === 'a' && child.hasAttribute('href')) {
         mine.links++;
         if (PAID_LINK.test(child.getAttribute('href') || '')) {
@@ -1015,6 +1043,7 @@ function paidLinkAncestors(root: Element): Map<Node, LinkCounts> {
         }
       }
     }
+    mine.sponsoredCard = mine.labels > 0 && mine.image && mine.links > 0 && mine.text < READABILITY_CHAR_THRESHOLD && !mine.cardInside;
     counts.set(el, mine);
     if (candidates.has(el)) found.set(el, mine);
   }
@@ -1098,9 +1127,10 @@ export function stripBoilerplate(root: Element): void {
     if (length === undefined) posts.set(post, length = visibleTextLength(post));
     return length;
   };
-  // Seuls les ancêtres d'un lien payant peuvent être un encart publicitaire
+  // Seuls les ancêtres d'un lien payant ou d'une étiquette « sponsorisé »
+  // peuvent être un encart publicitaire
   // (A4-03) : sans cela, chaque élément relirait tous ses liens.
-  const paid = paidLinkAncestors(root);
+  const paid = promotionCandidates(root);
   const stack: Array<[Element, boolean]> = Array.from(root.children, (child) => [child, false]);
   while (stack.length) {
     const [el, insideArticle] = stack.pop()!;
@@ -1129,6 +1159,106 @@ function forgetText(posts: Map<Element, number>, el: Element, length: number): v
     const measured = posts.get(ancestor);
     if (measured !== undefined && !unread) posts.set(ancestor, measured - length);
   }
+}
+
+// ── Liens vers la page elle-même (V-02, V-03, vus en direct, 1.9.0) ──
+// Un lien vers l'article lui-même ne fait pas partie de son texte.
+// - V-02 : une LISTE de liens dont une entrée mène à l'article est une boîte
+//   « dernières actualités », « articles récents », « les plus lus » — jamais
+//   une liste de sources, qui ne cite pas l'article où elle se trouve. La
+//   boîte de Numerama (« Les dernières actualités sur Netflix », huit titres
+//   dont l'article) restait en fin d'article ; elle sort, avec son titre quand
+//   son conteneur ne porte rien d'autre (moins de `SELF_LIST_TITLE_MAX`
+//   caractères, ni image ni tableau). Une liste « de liens » : deux entrées au
+//   moins, 80 % de son texte (blancs exclus) dans des liens ; une liste de
+//   prose qui cite l'article reste. Un sommaire (`#ancre`) n'est pas visé :
+//   un lien qui porte une ancre ne compte jamais.
+// - V-03 : un lien SEUL dans son bloc vers l'article dans un autre format
+//   (`…/json/`, `.pdf`, `/feed/`, `/print/`…) est un bouton : le « Json »
+//   d'un avis du CERT-FR, que la seconde passe sur le conteneur principal
+//   gardait sous le titre. Dans une phrase, il reste.
+// L'article se reconnaît à l'adresse demandée, à son `<link rel=canonical>` et
+// à son `og:url` — même hôte (sans `www.`) et même chemin (sans barre
+// finale) ; paramètres ignorés. Mêmes gardes que les blocs étrangers : jamais
+// un bloc qui porte la moitié du texte, ni l'auteur.
+
+const SELF_LIST_MIN_ITEMS = 2;
+const SELF_LIST_LINK_SHARE = 0.8;
+const SELF_LIST_TITLE_MAX = 80;
+/** La même page, dans un autre format : `/json`, `.pdf`… après son chemin. */
+const PAGE_FORMAT_SUFFIX = /^[/.](?:json|xml|pdf|txt|csv|rss|atom|feed|print|amp)$/;
+const SELF_BOX_MEDIA = 'img, picture, video, audio, iframe, figure, table';
+
+/** Hôte (sans `www.`) et chemin (sans barre finale) : ce qui désigne une page. */
+function pageKey(url: URL): string {
+  return `${url.host.toLowerCase().replace(/^www\./, '')}${url.pathname.replace(/\/+$/, '')}`;
+}
+
+/** Les adresses de la page : celle demandée, puis sa canonique et son `og:url`. */
+function pageAddresses(doc: ParsedDocument, url: string): string[] {
+  const addresses = [url];
+  const canonical = doc.querySelector('link[rel="canonical"]')?.getAttribute('href');
+  const og = doc.querySelector('meta[property="og:url"]')?.getAttribute('content');
+  for (const raw of [canonical, og]) {
+    if (!raw) continue;
+    try { addresses.push(new URL(raw, url).href); } catch { /* adresse illisible : ignorée */ }
+  }
+  return addresses;
+}
+
+const squeezedLength = (text: string | null) => (text || '').replace(/\s+/g, '').length;
+
+/** Retire de `root` les liens vers la page elle-même qui ne sont pas du texte (V-02, V-03). */
+export function stripSelfReferences(root: Element, pageUrls: string[]): void {
+  const pages: string[] = [];
+  for (const raw of pageUrls) {
+    try { pages.push(pageKey(new URL(raw))); } catch { /* adresse illisible : ignorée */ }
+  }
+  if (!pages.length) return;
+  const base = pageUrls.find((raw) => { try { return !!new URL(raw); } catch { return false; } })!;
+  const lists = new Set<Element>();
+  const formatLinks: Element[] = [];
+  for (const link of Array.from(root.querySelectorAll('a[href]')) as Element[]) {
+    const raw = link.getAttribute('href') || '';
+    if (raw.startsWith('#')) continue;
+    let target: URL;
+    try { target = new URL(raw, base); } catch { continue; }
+    if (target.hash) continue;
+    const key = pageKey(target);
+    if (pages.includes(key)) {
+      const list = link.closest('ul, ol');
+      if (list && list !== root && root.contains(list)) lists.add(list);
+    } else if (pages.some((page) => key.startsWith(page) && PAGE_FORMAT_SUFFIX.test(key.slice(page.length)))) {
+      formatLinks.push(link);
+    }
+  }
+  if (!lists.size && !formatLinks.length) return;
+  const total = visibleTextLength(root);
+  for (const list of lists) {
+    if (!root.contains(list)) continue;
+    const box = selfLinkBox(list, root);
+    if (box && visibleTextLength(box) < total * MAIN_CONTAINER_MIN_SHARE && !carriesByline(box)) box.remove();
+  }
+  for (const link of formatLinks) {
+    const block = link.parentElement;
+    const length = squeezedLength(link.textContent);
+    if (block && root.contains(link) && length && squeezedLength(block.textContent) === length) link.remove();
+  }
+}
+
+/** La boîte à retirer pour une liste qui contient un lien vers la page : la liste, avec son conteneur s'il n'est que son titre ; `null` si elle ne fait pas que lier. */
+function selfLinkBox(list: Element, root: Element): Element | null {
+  const items = Array.from(list.children).filter((child) => child.tagName === 'LI');
+  if (items.length < SELF_LIST_MIN_ITEMS) return null;
+  const length = squeezedLength(list.textContent);
+  let linked = 0;
+  for (const link of Array.from(list.querySelectorAll('a[href]'))) linked += squeezedLength(link.textContent);
+  if (!length || linked < length * SELF_LIST_LINK_SHARE) return null;
+  const holder = list.parentElement;
+  if (!holder || holder === root || isPostContainer(holder.tagName.toLowerCase(), (holder.getAttribute('role') || '').toLowerCase())) return list;
+  if (squeezedLength(holder.textContent) - length > SELF_LIST_TITLE_MAX) return list;
+  if (Array.from(holder.querySelectorAll(SELF_BOX_MEDIA)).some((media) => !list.contains(media))) return list;
+  return holder;
 }
 
 // ── Corps réparti en plusieurs blocs (troisième round) ───────────────

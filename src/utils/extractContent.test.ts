@@ -4,6 +4,7 @@ import {
   aroundTheList,
   extractFullContent,
   stripBoilerplate,
+  stripSelfReferences,
   retryAfterMs,
   RateLimitedError,
   NotExtractableError,
@@ -438,6 +439,38 @@ describe('extractFullContent — repli local : blocs étrangers (M-04)', () => {
     const doc = new DOMParser().parseFromString(`<html><body><article class="post"><h1>Un court billet</h1><div class="entry-content"><p>BILLET Un court billet sur l’objet acheté, avec une photo.</p><p><a href="${paid}"><img src="/photo.jpg" alt=""></a></p></div></article><div class="archives"><p>${long}</p><p>${long}</p></div></body></html>`, 'text/html');
     stripBoilerplate(doc.documentElement);
     expect(doc.body.textContent).toContain('BILLET');
+  });
+
+  // V-01, V-02, V-03 (vus en direct, 1.9.0), voir le serveur : encart
+  // sponsorisé, boîte de liens qui contient l'article lui-même, bouton
+  // « Json » vers la même page dans un autre format.
+  it('retire encart sponsorisé, liste de liens qui contient l’article lui-même et lien seul vers la même page en JSON', async () => {
+    const pageUrl = 'https://www.example.com/avis/2369601-un-article/';
+    const para = (i: number) => `<p>Paragraphe ${i} de l’article, qui raconte longuement ce qui s’est passé, avec des détails et des chiffres pour peser.</p>`;
+    const body = (from: number) => Array.from({ length: 5 }, (_, i) => para(from + i)).join('');
+    const titles = ['Un autre article sur le sujet', 'Encore un article du site', 'Le dernier article du site'];
+    const items = [`<li><a href="${pageUrl}">L’ARTICLE LUI-MÊME</a></li>`, ...titles.map((t, i) => `<li><a href="/p/${i}">${t}</a></li>`)].join('');
+    fallbackOn(`<html><head><title>Article</title></head><body><article><div class="row"><div class="col"><h1>Article</h1></div><div class="col-auto"><a href="/avis/2369601-un-article/json/" title="Exporter au format JSON" class="fr-btn">JSONSEUL</a></div></div>${body(1)}
+      <div class="opti-kyd"><div class="h-bic"><div class="h-bic__cover"><img src="/encart.png" alt=""></div><div class="h-bic__content"><div class="h-bic__title">ENCART Économisez sur la console</div><div>Le partenaire vous offre 40 € de réduction. Dépêchez-vous !</div><div class="sponsored-label">Sponsorisé</div><a href="https://shop.example.com/5e7sgo7z" class="stretched-link"><span>Profiter de l’offre</span></a></div></div></div>
+      ${body(6)}<figure><a href="/photo-grande.jpg"><img src="/photo.jpg" alt=""></a><figcaption>LEGENDE photo de l’article</figcaption></figure>${body(11)}
+      <div class="embedded-tag-container"><p class="title">ACTUALITES Les dernières actualités</p><ul>${items}</ul></div></article></body></html>`);
+    const text = textOf((await extractFullContent(pageUrl)).content);
+    expect(text).toContain('Paragraphe 15');
+    expect(text).toContain('LEGENDE');
+    for (const junk of ['JSONSEUL', 'ENCART', 'Profiter de l’offre', 'ACTUALITES', 'Encore un article du site']) expect(text).not.toContain(junk);
+  });
+
+  it('garde une liste de sources, un sommaire en ancres et une liste qui ne fait pas que lier', () => {
+    const pageUrl = 'https://www.example.com/pop-culture/2369601-un-article.html';
+    const long = 'Un paragraphe d’article assez long pour peser bien plus que tout le reste de la page réunie, et même davantage encore.';
+    const titles = ['Un autre article sur le sujet', 'Encore un article du site', 'Le dernier article du site'];
+    const sources = titles.map((t, i) => `<li><a href="https://source${i}.example.org/rapport">SOURCE ${t}</a></li>`).join('');
+    const toc = ['intro', 'suite', 'fin'].map((id) => `<li><a href="${pageUrl}#${id}">SOMMAIRE ${id}</a></li>`).join('');
+    const prose = `<li>PROSE Comme l’explique <a href="${pageUrl}">cet article</a>, la série reviendra en 2028 avec une nouvelle distribution et un autre décor.</li><li>Une deuxième entrée de prose, longue elle aussi, sans aucun lien du tout.</li>`;
+    const doc = new DOMParser().parseFromString(`<html><body><article>${`<p>${long}</p>`.repeat(10)}<ul>${sources}</ul><ol>${toc}</ol><ul>${prose}</ul></article></body></html>`, 'text/html');
+    stripSelfReferences(doc.documentElement, [pageUrl]);
+    const text = (doc.body.textContent || '').replace(/\s+/g, ' ');
+    for (const kept of ['SOURCE Un autre article', 'SOMMAIRE intro', 'PROSE Comme l’explique cet article']) expect(text).toContain(kept);
   });
 
   // B-02 (quatrième round) : chaque formulaire de lettre d'information

@@ -5584,19 +5584,62 @@ serveur de développement en 1.4.4.)*
   BleepingComputer l'encart, 2 de tech-wd le bouton) ; aucune phrase
   d'article n'est perdue. Les resserrements RX-02 à RX-04 ne changent
   aucune de ces 275 pages (2026-11-07, sortie identique champ par champ).
+  **Encart sponsorisé** (vu en direct, V-01) : l'encart Back Market de
+  Numerama (« Pré-Black Friday : Économisez sur la PlayStation 5… »,
+  image `box-backmarket-ps5…`) et celui de Next Mobiles chez Frandroid
+  restaient au milieu du texte — leur lien est raccourci
+  (`shop.numerama.com/…`), sans `utm_medium`. Ce qui les signe : une
+  étiquette « Sponsorisé » (`div.sponsored-label`), un élément dont la classe
+  ou l'id porte le mot `sponsored` ou `sponsor` et dont le texte est court
+  (1 à 40 caractères). Le **plus petit** bloc qui porte une telle étiquette,
+  une image et un lien, en moins de 500 caractères lisibles, est retiré —
+  le plus petit, pour ne jamais emporter une image d'article voisine ; un
+  paragraphe qui nomme les « sponsors » d'un salon, sans image, reste ; un
+  bloc qui porte la moitié de son billet aussi (un court billet « en
+  partenariat »). Compté dans la même passe que les liens payants
+  (`promotionCandidates`). Mesuré (2026-11-07) sur 275 pages : 5 perdent
+  l'encart (3 Numerama, 2 Frandroid), rien d'autre.
   **Restent** (pas de signal sûr dans le balisage) : « Follow topics and
   authors », la signature, la date, « Photo: » et la notice de l'auteur de
   The Verge, son chapeau et son image d'en-tête doublés (classes hachées ; la
   notice et le bloc « Follow » portent `author`, que la garde de l'auteur
   protège), la notice de l'auteur de TechCrunch et son « View Bio »
   (`wp-block-tc23-author-card-bio` : même garde), chez Numerama et
-  Frandroid la boîte de liens d'un sujet (`#embedded-tag-*` : « Regardez le
-  monde depuis l'Espace », « Le meilleur des Bons plans… ») et « Pour aller
-  plus loin » (`div.to-read`) — une liste de liens ou une vignette en lien
-  ne se distinguent pas, par leur seule forme, d'une liste de sources ou
-  d'une image d'article —, l'encart Back Market, les invitations à suivre de
-  01net et des Numériques (paragraphes sans classe), le rappel d'abonnement
-  de Developpez (`#nagging`).
+  Frandroid « Pour aller plus loin » (`div.to-read`) — une liste de liens
+  ou une vignette en lien ne se distinguent pas, par leur seule forme,
+  d'une liste de sources ou d'une image d'article ; la boîte de liens d'un
+  sujet (`#embedded-tag-*`), elle, sort quand elle contient l'article
+  lui-même (ci-dessous) —, les invitations à suivre de 01net et des
+  Numériques (paragraphes sans classe), le rappel d'abonnement de
+  Developpez (`#nagging`).
+- **Liens vers la page elle-même** (1.9.0, vus en direct, V-02 et V-03 —
+  `stripSelfReferences`, `server/extract.ts`, copiée dans le repli de
+  `extractContent.ts`, appelée après `stripBoilerplate` ; tests :
+  `server/test/extract.test.ts` › « stripSelfReferences »,
+  `extractContent.test.ts` › « repli local : blocs étrangers (M-04) »). Un
+  lien vers l'article lui-même n'est pas de son texte. **V-02** : une liste
+  de liens dont une entrée mène à l'article est une boîte « dernières
+  actualités » ou « articles récents » — une liste de sources ne cite pas
+  l'article où elle se trouve. La boîte de Numerama (« Les dernières
+  actualités sur Netflix », huit titres dont le premier est l'article)
+  restait en fin d'article. Elle sort, avec son titre quand son conteneur ne
+  porte rien d'autre (moins de 80 caractères hors de la liste, ni image ni
+  tableau). Une liste « de liens » : deux entrées au moins, 80 % de son texte
+  (blancs exclus) dans des liens ; une liste de prose qui cite l'article
+  reste, et un lien qui porte une ancre (`#…`, un sommaire) ne compte
+  jamais. **V-03** : un lien seul dans son bloc vers l'article dans un autre
+  format (`…/json/`, `.pdf`, `/feed/`, `/print/`, `/amp/`…) est un bouton —
+  le « Json » d'un petit avis du CERT-FR, que la seconde passe sur le
+  conteneur principal gardait sous « Avis du CERT-FR » ; dans une phrase, il
+  reste. L'article se reconnaît à l'adresse demandée, à son
+  `<link rel=canonical>` et à son `og:url` : même hôte (sans `www.`), même
+  chemin (sans barre finale), paramètres ignorés. Mêmes gardes que les blocs
+  étrangers (moitié du texte, auteur). Mesuré (2026-11-07) sur 275 pages :
+  9 pages de Numerama et 1 de Frandroid perdent leur boîte de liens, rien
+  d'autre ne bouge ;
+  le corpus juge ses pages sous leur adresse canonique, que les avis du
+  CERT-FR n'ont pas : sous leur vraie adresse, l'avis 1474 perd son « Json »
+  (1 220 → 1 215 caractères), les avis 1470 et 1475 ne changent pas.
 - **Corps réparti en plusieurs blocs, réuni avant toute passe** (1.9.0,
   troisième round — `joinSplitBody`, `server/extract.ts`, copiée dans le
   repli de `extractContent.ts`, appelée après `stripBoilerplate` ; tests :

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { parseHTML } from 'linkedom';
 import {
-  aroundTheList, extractArticle, EXTRACT_MAX_PENDING, ExtractorBusyError, extractPending, joinSplitBody, resolveLazyImages, stripBoilerplate, withExtractSlot,
+  aroundTheList, extractArticle, EXTRACT_MAX_PENDING, ExtractorBusyError, extractPending, joinSplitBody, resolveLazyImages, stripBoilerplate, stripSelfReferences, withExtractSlot,
 } from '../extract.js';
 import { advisoryPageHtml, ADVISORY_BODY_MARKER } from '../../src/test/advisoryPageFixture.js';
 import { INLINE_IMAGE, LAZY_IMAGES, lazyImagePageHtml } from '../../src/test/lazyImagePageFixture.js';
@@ -491,6 +491,24 @@ describe('stripBoilerplate', () => {
     expect(text).toContain('BILLET');
   });
 
+  // V-01 (vu en direct, 1.9.0) : l'encart Back Market de Numerama et de
+  // Frandroid — un lien raccourci, sans `utm_medium` — restait au milieu du
+  // texte. Ce qui le signe : une étiquette « Sponsorisé » (`.sponsored-label`).
+  it('retire un encart sponsorisé : le plus petit bloc court qui porte l’étiquette, une image et un lien (Numerama, Frandroid)', () => {
+    const card = `<div class="opti-kyd my-3"><div class="h-bic stretched-link-container"><div class="h-bic__header"><picture><img src="/logo-partenaire.png" alt="logo"></picture></div><div class="h-bic__cover"><picture><img src="/encart-console.png" alt="encart"></picture></div><div class="h-bic__content"><div class="h-bic__title">ENCART Économisez sur la console</div><div>Du 6 au 8 novembre, le partenaire vous offre 40 € de réduction. Dépêchez-vous !</div><div class="h-bic__footer"><div class="sponsored-label">Sponsorisé</div><a href="https://shop.example.com/5e7sgo7z" rel="nofollow noopener" class="stretched-link"><div class="button"><span>Profiter de l’offre</span></div></a></div></div></div></div>`;
+    const text = strip(`<article>${body}${card}<figure><a href="/photo-grande.jpg"><img src="/photo.jpg" alt=""></a><figcaption>LEGENDE photo de l’article</figcaption></figure><p>SPONSORS Les <span class="sponsor">sponsors</span> du salon : <a href="/acme">Acme</a> et d’autres.</p>${body}</article>`);
+    expect(text).not.toContain('ENCART');
+    expect(text).not.toContain('Profiter de l’offre');
+    expect(text).toContain('LEGENDE');
+    expect(text).toContain('SPONSORS Les sponsors');
+    expect(text).toContain(long);
+  });
+
+  it('garde un court billet qui porte une étiquette de partenaire, une image et un lien', () => {
+    const text = strip(`<article><div class="entry-content"><p class="sponsored-label">Partenaire</p><p>BILLET Un court billet en partenariat, avec une photo.</p><p><a href="/photo.jpg"><img src="/photo.jpg" alt=""></a></p></div></article><div class="archives"><p>${long}</p><p>${long}</p></div>`);
+    expect(text).toContain('BILLET');
+  });
+
   // B-02 (quatrième round) : chaque bloc « newsletter » à champ de saisie
   // relisait tout le texte de son billet — 4 000 blocs au pied d'un billet de
   // 1 Mo coûtaient 11,4 s.
@@ -543,6 +561,69 @@ describe('stripBoilerplate', () => {
     const text = strip(`<div id="wrapper"><div id="primary">${body}</div><div id="secondary"><div class="metabox"><p class="this-is">COLONNE billet publié le 4 novembre.</p><h3>Lettre mensuelle</h3><p>Soutenez-moi.</p></div></div></div>`);
     expect(text).not.toContain('COLONNE');
     expect(text).toContain(long);
+  });
+});
+
+// ── Liens vers la page elle-même (vu en direct, 1.9.0) ───────────────
+// V-02 : la boîte « Les dernières actualités sur Netflix » de Numerama (huit
+// titres liés, le premier étant l'article lui-même) restait en fin
+// d'article. V-03 : le bouton « Json » d'un avis du CERT-FR (la même page,
+// dans un autre format) restait sous le titre.
+describe('stripSelfReferences', () => {
+  const pageUrl = 'https://www.example.com/pop-culture/2369601-un-article.html';
+  const strip = (body: string, urls = [pageUrl]) => {
+    const { document } = parseHTML(`<html><body>${body}</body></html>`);
+    stripSelfReferences(document.documentElement as unknown as Element, urls);
+    return (document.body.textContent || '').replace(/\s+/g, ' ').trim();
+  };
+  const long = 'Un paragraphe d’article assez long pour peser bien plus que tout le reste de la page réunie, et même davantage encore.';
+  const body = Array.from({ length: 10 }, () => `<p>${long}</p>`).join('');
+  const titles = ['Un autre article sur le sujet', 'Encore un article du site', 'Le dernier article du site'];
+
+  it('retire une liste de liens dont une entrée est l’article lui-même, avec son titre (Numerama)', () => {
+    const items = [`<li class="link"><a href="${pageUrl}">L’ARTICLE LUI-MÊME</a></li>`, ...titles.map((t, i) => `<li class="link"><a href="/pop-culture/${i}-autre.html">${t}</a></li>`)].join('');
+    const text = strip(`<article>${body}<div id="embedded-tag-netflix" class="embedded-tag-container"><p class="title">ACTUALITES Les dernières actualités sur <a href="/telecharger/netflix.html">Netflix</a></p><ul>${items}</ul></div></article>`);
+    expect(text).not.toContain('ACTUALITES');
+    expect(text).not.toContain('L’ARTICLE LUI-MÊME');
+    expect(text).not.toContain('Encore un article du site');
+    expect(text).toContain(long);
+  });
+
+  it('reconnaît l’article à son adresse canonique, sans `www`, sa barre finale ni ses paramètres', () => {
+    const items = [`<li><a href="https://example.com/pop-culture/2369601-un-article.html/?utm_source=x">LUI-MÊME</a></li>`, ...titles.map((t, i) => `<li><a href="/p/${i}">${t}</a></li>`)].join('');
+    expect(strip(`<article>${body}<ul>${items}</ul></article>`, ['https://example.com/a-redirect', pageUrl])).not.toContain('LUI-MÊME');
+  });
+
+  it('garde une liste de sources, un sommaire en ancres et une liste qui ne fait pas que lier', () => {
+    const sources = titles.map((t, i) => `<li><a href="https://source${i}.example.org/rapport">SOURCE ${t}</a></li>`).join('');
+    const toc = ['intro', 'suite', 'fin'].map((id) => `<li><a href="${pageUrl}#${id}">SOMMAIRE ${id}</a></li><li><a href="#${id}-bis">ANCRE ${id}</a></li>`).join('');
+    const prose = `<li>PROSE Comme l’explique <a href="${pageUrl}">cet article</a>, la série reviendra en 2028 avec une nouvelle distribution et un autre décor, loin de Hawkins.</li><li>Une deuxième entrée de prose, longue elle aussi, sans aucun lien du tout.</li>`;
+    const text = strip(`<article>${body}<ul>${sources}</ul><ol>${toc}</ol><ul>${prose}</ul></article>`);
+    for (const kept of ['SOURCE Un autre article', 'SOMMAIRE intro', 'ANCRE fin', 'PROSE Comme l’explique cet article']) expect(text).toContain(kept);
+  });
+
+  it('retire le lien seul vers la même page dans un autre format (« Json » du CERT-FR), pas dans une phrase', () => {
+    const advisory = 'https://www.example.gouv.fr/avis/EXEMPLE-2026-AVI-1474/';
+    const text = strip(`<article><div class="fr-grid-row"><div class="fr-col"><h1>Avis d’exemple</h1></div><div class="fr-col-auto"><a href="/avis/EXEMPLE-2026-AVI-1474/json/" title="Exporter au format JSON" class="fr-btn">JSONSEUL</a></div></div>${body}<p>L’avis existe aussi <a href="/avis/EXEMPLE-2026-AVI-1474/json/">EN JSON</a> pour les outils.</p><div><a href="/avis/EXEMPLE-2026-AVI-1475/json/">AUTREAVIS</a></div></article>`, [advisory]);
+    expect(text).not.toContain('JSONSEUL');
+    expect(text).toContain('EN JSON');
+    expect(text).toContain('AUTREAVIS');
+  });
+
+  it('ne retire jamais un bloc qui porte la moitié du texte', () => {
+    const items = [`<li><a href="${pageUrl}">LUI-MÊME ${long}</a></li>`, ...titles.map((t, i) => `<li><a href="/p/${i}">${t} ${long}</a></li>`)].join('');
+    expect(strip(`<p>${long}</p><ul>${items}</ul>`)).toContain('LUI-MÊME');
+  });
+
+  it('extractArticle reconnaît l’article à l’adresse demandée comme à son adresse canonique', () => {
+    const items = [`<li><a href="${pageUrl}">LUI-MÊME</a></li>`, ...titles.map((t, i) => `<li><a href="/p/${i}">${t}</a></li>`)].join('');
+    const html = `<!doctype html><html><head><title>T</title><link rel="canonical" href="${pageUrl}"></head><body><article><h1>Titre</h1>${body}<div class="embedded-tag-container"><p class="title">ACTUALITES Les dernières actualités</p><ul>${items}</ul></div></article></body></html>`;
+    const out = extractArticle('https://feeds.example.net/~r/site/~3/abc/', html)!;
+    expect(out.content).toContain(long);
+    expect(out.content).not.toContain('ACTUALITES');
+    expect(out.content).not.toContain('Encore un article du site');
+    const direct = extractArticle(pageUrl, html.replace(/<link rel="canonical"[^>]*>/, ''))!;
+    expect(direct.content).not.toContain('Encore un article du site');
   });
 });
 
