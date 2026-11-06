@@ -40,12 +40,26 @@ const foreignHits: string[] = [];
 
 const tokenFor = (auth: string | undefined) => `${(auth ?? '').replace('GoogleLogin auth=', '').replace(/\W/g, '')}${generation}`.padEnd(57, 'Z');
 
+// Ce que nginx (image FreshRSS linuxserver) fait du chemin avant FastCGI :
+// décoder une fois, fusionner les barres, résoudre `.` et `..`. C'est cette
+// résolution qui menait `x/..%2Ftoken` au vrai jeton (C-02).
+function nginxPath(url: string): string {
+  const decoded = url.split('?')[0].replace(/%([0-9a-f]{2})/gi, (_, h: string) => String.fromCharCode(parseInt(h, 16)));
+  const out: string[] = [];
+  for (const seg of decoded.split('/')) {
+    if (!seg || seg === '.') continue;
+    if (seg === '..') out.pop();
+    else out.push(seg);
+  }
+  return `/${out.join('/')}`;
+}
+
 const upstream = http.createServer((req, res) => {
   const url = req.url ?? '';
   let body = '';
   req.on('data', (c: Buffer) => { body += c.toString('utf8'); });
   req.on('end', () => {
-    if (url.includes('/reader/api/0/token')) {
+    if (nginxPath(url).includes('/reader/api/0/token')) {
       tokenHits.push(req.headers.authorization ?? '');
       if (rotateOnFetch) generation++;
       if (!req.headers.authorization || tokenStatus !== 200) { res.writeHead(tokenStatus === 200 ? 401 : tokenStatus); res.end('Unauthorized'); return; }
@@ -270,5 +284,68 @@ describe('/api/proxy — le jeton d’écriture ne sort pas du serveur', () => {
     warn.mockRestore();
     expect(res.status).toBe(502);
     expect(foreignHits).toEqual([]);
+  });
+});
+
+describe('/api/proxy — un chemin qui remonte d’un segment ne part pas vers le serveur du compte', () => {
+  let prefixedId = 0;
+  beforeAll(() => {
+    prefixedId = Number(db.prepare("INSERT INTO servers (user_id, url, freshrss_user, freshrss_token) VALUES (1, ?, 'u', ?)")
+      .run(`${upBase}/freshrss`, encrypt('alice/secret1')).lastInsertRowid);
+  });
+
+  // nginx décode `%2F` puis résout `..` : chacune de ces cibles rendait le
+  // vrai jeton de FreshRSS, relayé tel quel (C-02).
+  const escapes = () => [
+    [serverId, `${API}/x/..%2Ftoken`],
+    [serverId, `${API}/x/..%2ftoken`],
+    [serverId, `${API}/x/%2e%2e%2ftoken`],
+    [serverId, `${API}/x/%2E%2E%2Ftoken`],
+    [serverId, `${API}/x/..%2Ftoken?output=json`],
+    [serverId, `${API}/x/..%252Ftoken`],
+    [serverId, `${API}/x/..%5Ctoken`],
+    [serverId, '/reader/api/0/x/..%2F..%2F..%2F..%2Fapi/greader.php/reader/api/0/token'],
+    [prefixedId, `/freshrss${API}/x/..%2Ftoken`],
+    // Sortir du préfixe du serveur : l'en-tête `Authorization` partirait vers
+    // une autre application de la même origine.
+    [prefixedId, '/freshrss/..%2Fautre/collect'],
+  ] as const;
+
+  it('refuse en 400, sans rien envoyer à FreshRSS, par GET comme par POST', async () => {
+    for (const [id, path] of escapes()) {
+      for (const method of ['get', 'post'] as const) {
+        tokenHits.length = 0;
+        writes.length = 0;
+        const res = await request(app)[method]('/api/proxy')
+          .set('X-Proxy-Target', `${upBase}${path}`)
+          .set('X-Server-Id', String(id))
+          .set('Content-Type', 'application/x-www-form-urlencoded;charset=utf-8')
+          .send(method === 'post' ? 'i=1' : undefined);
+        expect(res.text, `${method} ${path}`).not.toContain(realToken());
+        expect(res.status, `${method} ${path}`).toBe(400);
+        expect(tokenHits, `${method} ${path}`).toEqual([]);
+        expect(writes, `${method} ${path}`).toEqual([]);
+      }
+    }
+  });
+
+  it('laisse passer les lectures et écritures de l’application, étiquettes encodées comprises', async () => {
+    for (const path of [
+      `${API}/stream/contents/feed%2F123?n=20`,
+      `${API}/stream/contents/user/-/label/test1%2Ffilms?n=20`,
+      `${API}/stream/contents/user/-/label/Films...`,
+      `${API}/stream/items/ids?s=user%2F-%2Flabel%2F..&n=20`,
+    ]) {
+      writes.length = 0;
+      const res = await request(app).get('/api/proxy')
+        .set('X-Proxy-Target', `${upBase}${path}`)
+        .set('X-Server-Id', String(serverId));
+      expect(res.status, path).not.toBe(400);
+      expect(writes.map((w) => w.path), path).toEqual([path]);
+    }
+    writes.length = 0;
+    const res = await write(`${API}/edit-tag`, 'i=42&a=user%2F-%2Flabel%2F..');
+    expect(res.status).toBe(200);
+    expect(writes).toHaveLength(1);
   });
 });

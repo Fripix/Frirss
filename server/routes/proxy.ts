@@ -11,7 +11,7 @@ import { cacheEnabled, cacheGet, cacheSet, cacheDel, cacheKey, serverCacheIdenti
 import { stripTrailingSlashes } from '../validate.js';
 import {
   WRITE_TOKEN_PLACEHOLDER, MAX_WRITE_TOKEN_BYTES, WriteTokenRefusedError,
-  isWriteTokenPath, isGreaderWrite, isSignableContentType, writeTokenUrl, signFormBody,
+  isWriteTokenPath, hasDotSegment, isGreaderWrite, isSignableContentType, writeTokenUrl, signFormBody,
   isStaleWriteTokenStatus, parseWriteToken, cachedWriteToken, forgetWriteToken, fetchWriteTokenOnce,
 } from '../writeToken.js';
 
@@ -794,6 +794,15 @@ router.all('/', async (req, res) => {
       if (tok) headers.Authorization = `GoogleLogin auth=${tok}`;
       tokenStamp = `${srv.freshrss_token}\n${srv.url}`;
     }
+  }
+
+  // ── Un chemin qui remonte d'un segment ne part pas vers le serveur du compte ──
+  // `reader/api/0/x/..%2Ftoken` : l'analyseur d'URL y voit un seul segment,
+  // nginx décode `%2F` puis résout `..`, et FreshRSS rendait le VRAI jeton
+  // d'écriture (C-02). Refusé avant tout envoi, quel que soit le verbe : il
+  // pouvait aussi sortir du préfixe du serveur avec `Authorization`.
+  if (ownServerTarget && hasDotSegment(rawTarget)) {
+    return res.status(400).json({ error: 'X-Proxy-Target path contains a dot segment' });
   }
 
   // ── Jeton d'écriture : son corps ne sort jamais du serveur ──

@@ -6938,8 +6938,18 @@ l'obtient et signe** : le navigateur ne le demande ni ne l'envoie plus.
   après la déconnexion, jusqu'au changement du mot de passe d'API. Le corps de
   `/reader/api/0/token` ne sort donc plus : pour un serveur du compte, le proxy
   répond un jeton **factice** (`WRITE_TOKEN_PLACEHOLDER`), sous toute forme du
-  chemin que FreshRSS route (encodée, `token/…`, barres doublées) et pour tout
-  verbe. ⚠️ Limite : le navigateur voit encore `Auth=` une fois, à la
+  chemin que FreshRSS route (encodée, `token/…`, barres doublées, derrière
+  n'importe quelle occurrence de `reader/api/0`) et pour tout verbe.
+- **Chemins qui remontent** : une cible vers un serveur du compte dont le
+  chemin, décodé (doubles encodages et barres inverses compris), porte un
+  segment `.` ou `..` est refusée en **400** sans rien envoyer à FreshRSS
+  (`hasDotSegment`). L'analyseur d'URL ne voit qu'un segment dans
+  `x/..%2Ftoken`, mais nginx (image FreshRSS linuxserver) décode `%2F` puis
+  résout `..` : FreshRSS rendait le vrai jeton, et un `..` pouvait aussi
+  sortir du préfixe du serveur (`/freshrss/..%2Fautre`) avec `Authorization`.
+  Seul le chemin est lu, pas la requête ; les `%2F` légitimes (nom
+  d'étiquette encodé, `feed%2F123`) passent. En filet, `isWriteTokenPath`
+  lit aussi les segments résolus comme nginx. ⚠️ Limite : le navigateur voit encore `Auth=` une fois, à la
   connexion ou à l'ajout d'un serveur (`src/api/auth.ts`).
 - **Signature** : une écriture greader (méthode autre que GET/HEAD sous
   `/reader/api/0/`, corps de formulaire ou vide) vers un serveur du compte

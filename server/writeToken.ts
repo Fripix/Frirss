@@ -25,9 +25,10 @@ export const MAX_WRITE_TOKEN_BYTES = 4096;
  * à un `PATH_INFO` que le serveur web a souvent déjà décodé, et nginx fusionne
  * les barres répétées. Décoder jusqu'à stabilité et ignorer les segments vides
  * donne un SUR-ensemble de ce que FreshRSS route : c'est le bon côté pour une
- * garde.
+ * garde. La barre inverse sépare aussi (un serveur web sous Windows la lit
+ * comme une barre) : encore un sur-ensemble.
  */
-function freshrssSegments(rawTarget: string): string[] | null {
+function decodedSegments(rawTarget: string): string[] | null {
   let path: string;
   try { path = new URL(rawTarget).pathname; } catch { return null; }
   for (let i = 0; i < 5; i++) {
@@ -35,7 +36,38 @@ function freshrssSegments(rawTarget: string): string[] | null {
     if (next === path) break;
     path = next;
   }
-  return path.toLowerCase().split('/').filter(Boolean);
+  return path.toLowerCase().split(/[/\\]/).filter(Boolean);
+}
+
+const isDot = (seg: string) => seg === '.' || seg === '..';
+
+/**
+ * Le chemin, décodé, porte-t-il un segment `.` ou `..` ? (C-02)
+ *
+ * L'analyseur d'URL résout `..` et `%2e%2e` écrits en clair, mais pas
+ * `..%2Ftoken` : pour lui c'est UN segment. nginx (celui de l'image FreshRSS
+ * linuxserver) décode `%2F` PUIS résout `..` : `reader/api/0/x/..%2Ftoken`
+ * arrivait à FreshRSS comme `reader/api/0/token`, qui rendait le vrai jeton.
+ * Toute cible vers un serveur du compte qui en porte un est refusée par le
+ * proxy : ce chemin n'atteint jamais ce qu'il écrit, ni pour nous ni pour
+ * FreshRSS, et il pouvait aussi sortir du préfixe du serveur (`/freshrss/..`)
+ * avec l'en-tête `Authorization`. L'application n'en écrit aucun : un nom
+ * d'étiquette encodé (`test1%2Ffilms`) n'a pas de segment `..`, et la requête
+ * (`?s=…`) n'est pas lue.
+ */
+export function hasDotSegment(rawTarget: string): boolean {
+  const segs = decodedSegments(rawTarget);
+  return !!segs && segs.some(isDot);
+}
+
+/** Les segments après résolution de `.` et `..`, comme nginx. */
+function resolveDots(segs: string[]): string[] {
+  const out: string[] = [];
+  for (const seg of segs) {
+    if (seg === '..') out.pop();
+    else if (seg !== '.') out.push(seg);
+  }
+  return out;
 }
 
 function indexOfApi(segs: string[]): number {
@@ -45,21 +77,30 @@ function indexOfApi(segs: string[]): number {
   return -1;
 }
 
+/** `reader/api/0/token` à N'IMPORTE QUELLE position, pas seulement la première. */
+function hasTokenSegment(segs: string[]): boolean {
+  for (let i = 0; i + 3 < segs.length; i++) {
+    if (segs[i] === 'reader' && segs[i + 1] === 'api' && segs[i + 2] === '0' && segs[i + 3] === 'token') return true;
+  }
+  return false;
+}
+
 /**
  * La cible désigne-t-elle le point d'accès qui rend le jeton ? Tout verbe :
  * FreshRSS ne regarde pas la méthode, et `token/autre-chose` y mène aussi.
+ * Lu sur les segments tels quels ET résolus comme nginx, à toute position :
+ * le refus de `hasDotSegment` dans le proxy passe avant, ceci reste un filet.
  */
 export function isWriteTokenPath(rawTarget: string): boolean {
-  const segs = freshrssSegments(rawTarget);
+  const segs = decodedSegments(rawTarget);
   if (!segs) return false;
-  const at = indexOfApi(segs);
-  return at >= 0 && segs[at] === 'token';
+  return hasTokenSegment(segs) || hasTokenSegment(resolveDots(segs));
 }
 
 /** Une écriture greader : tout sauf GET/HEAD sous `/reader/api/0/`, `/token` exclu. */
 export function isGreaderWrite(method: string, rawTarget: string): boolean {
   if (method === 'GET' || method === 'HEAD') return false;
-  const segs = freshrssSegments(rawTarget);
+  const segs = decodedSegments(rawTarget);
   return !!segs && indexOfApi(segs) >= 0 && !isWriteTokenPath(rawTarget);
 }
 

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
-  isWriteTokenPath, isGreaderWrite, writeTokenUrl, signFormBody, isSignableContentType,
+  isWriteTokenPath, hasDotSegment, isGreaderWrite, writeTokenUrl, signFormBody, isSignableContentType,
   isStaleWriteTokenStatus, parseWriteToken, cachedWriteToken, forgetWriteToken, fetchWriteTokenOnce, resetWriteTokens,
 } from './writeToken.js';
 
@@ -19,6 +19,52 @@ describe('isWriteTokenPath', () => {
       expect(isWriteTokenPath(`${S}${p}`), p).toBe(false);
     }
     expect(isWriteTokenPath('pas une url')).toBe(false);
+  });
+});
+
+// C-02 : nginx (image FreshRSS linuxserver) décode `%2F` PUIS résout `..`.
+// `x/..%2Ftoken` n'avait aucun segment `token` derrière `reader/api/0`, et
+// FreshRSS rendait pourtant le vrai jeton.
+const DOT_ESCAPES = [
+  `${S}/x/..%2Ftoken`,
+  `${S}/x/..%2ftoken`,
+  `${S}/x/%2e%2e%2ftoken`,
+  `${S}/x/%2E%2E%2Ftoken`,
+  `${S}/x/..%252Ftoken`,
+  `${S}/x/.%2F..%2Ftoken`,
+  `${S}/x/..%5Ctoken`,
+  `${S}/x/..%2Ftoken?output=json`,
+  'https://rss.example.com/reader/api/0/x/..%2F..%2F..%2F..%2Fapi/greader.php/reader/api/0/token',
+  'https://rss.example.com/freshrss/api/greader.php/reader/api/0/x/..%2Ftoken',
+];
+
+describe('isWriteTokenPath — segments . et .. résolus comme nginx', () => {
+  it('reconnaît /token derrière un segment .. encodé, sous toutes ses casses et encodages', () => {
+    for (const t of DOT_ESCAPES) expect(isWriteTokenPath(t), t).toBe(true);
+  });
+
+  it('reconnaît /token derrière n’importe quelle occurrence de reader/api/0', () => {
+    expect(isWriteTokenPath(`${S}/x/reader/api/0/token`)).toBe(true);
+  });
+});
+
+describe('hasDotSegment', () => {
+  it('voit un segment . ou .. une fois le chemin décodé', () => {
+    for (const t of DOT_ESCAPES) expect(hasDotSegment(t), t).toBe(true);
+    expect(hasDotSegment('https://rss.example.com/freshrss/..%2Fautre/')).toBe(true);
+  });
+
+  it('laisse passer les chemins de l’application, étiquettes encodées comprises', () => {
+    for (const p of [
+      '/stream/contents/feed%2F123',
+      '/stream/contents/user/-/label/test1%2Ffilms',
+      '/stream/contents/user/-/label/Films...',
+      '/stream/contents/user/-/label/..Films',
+      '/stream/contents/user/-/state/com.google/reading-list',
+      '/stream/items/ids',
+      '/edit-tag',
+    ]) expect(hasDotSegment(`${S}${p}?s=user%2F-%2Flabel%2F..&n=20`), p).toBe(false);
+    expect(hasDotSegment('pas une url')).toBe(false);
   });
 });
 
