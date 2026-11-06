@@ -3498,9 +3498,13 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     // Mêmes règles que Préférences (R3T1-3) : « / » et nom d'étiquette
     // refusés sans rien envoyer ; une catégorie existante du même nom à la
     // casse près est réutilisée sous son nom exact, au lieu d'en créer une
-    // seconde à côté.
-    if (categoryLabel?.trim()) {
-      const choice = newCategoryChoice(categoryLabel, nameOwners(get()));
+    // seconde à côté. Ces règles ne valent que pour une catégorie NOUVELLE :
+    // une catégorie existante, choisie dans la liste, part telle quelle sous
+    // son id — « Actu/Suisse » créée dans FreshRSS ne recevait plus aucun
+    // flux, et « tech » choisie à côté de « Tech » partait dans « Tech ».
+    const owners = nameOwners(get());
+    if (categoryLabel?.trim() && !(categoryId && owners.categories.includes(categoryId))) {
+      const choice = newCategoryChoice(categoryLabel, owners);
       if (!choice.id) return false;
       categoryId = choice.id;
       categoryLabel = choice.label;

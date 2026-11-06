@@ -5916,8 +5916,14 @@ Renommer, supprimer, et déplacer un flux d'une catégorie à l'autre.
   le nom d'une catégorie existante à la casse près — vide comprise — n'est
   pas un refus, le flux y va sous son nom exact. La boîte n'en appliquait
   aucune : « / » passait, une étiquette finissait en « Erreur lors de l'ajout
-  du flux », « tech » créait une catégorie à côté de « Tech ». `addFeed` fait
-  le même contrôle avant tout envoi (il renvoie `false` sans appel). Choisir
+  du flux », « tech » créait une catégorie à côté de « Tech ». Avec « Tech »
+  et « tech » côte à côte, le nom tapé exactement l'emporte. `addFeed` fait
+  le même contrôle avant tout envoi (il renvoie `false` sans appel), **pour
+  une catégorie nouvelle seulement** : une catégorie existante choisie dans
+  la liste (son id est dans `categoryIds`/`folderIds`) part telle quelle —
+  la première version appliquait les règles à toutes, et « Actu/Suisse »,
+  créée dans FreshRSS, ne recevait plus aucun flux (erreur générique), « tech »
+  choisie dans la liste partait dans « Tech » (relecture du troisième round). Choisir
   « Nouvelle catégorie… » sans taper de nom grise aussi « Ajouter » :
   le flux partait en silence sans catégorie. Tests :
   `addFeedCheck.test.ts`, `AddFeedDialog.checks.test.tsx`,

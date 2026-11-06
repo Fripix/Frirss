@@ -148,6 +148,19 @@ describe('addFeed — mêmes règles de nom de catégorie que Préférences', ()
     expect(await useFeedStore.getState().addFeed('https://example.com/rss', '', L('Science'), 'Science')).toBe(true);
     expect(api.subscribeFeed).toHaveBeenLastCalledWith('https://example.com/rss', '', L('Science'), 'Science');
   });
+  // Relecture du troisième round : les règles du nom d'une NOUVELLE catégorie
+  // s'appliquaient aussi à une catégorie existante choisie dans la liste.
+  // « Actu/Suisse », créée dans FreshRSS, ne recevait plus aucun flux.
+  it('une catégorie existante choisie dans la liste est utilisée telle quelle, même avec une barre oblique', async () => {
+    useFeedStore.setState({ subscriptions: [feed('feed/1', 'Actu/Suisse')], categoryIds: [L('Actu/Suisse')] });
+    expect(await useFeedStore.getState().addFeed('https://example.com/rss', '', L('Actu/Suisse'), 'Actu/Suisse')).toBe(true);
+    expect(api.subscribeFeed).toHaveBeenLastCalledWith('https://example.com/rss', '', L('Actu/Suisse'), 'Actu/Suisse');
+  });
+  it('« tech » choisie dans la liste à côté de « Tech » : c’est « tech » qui reçoit le flux', async () => {
+    useFeedStore.setState({ subscriptions: [feed('feed/1', 'Tech'), feed('feed/2', 'tech')], categoryIds: [L('Tech'), L('tech')] });
+    expect(await useFeedStore.getState().addFeed('https://example.com/rss', '', L('tech'), 'tech')).toBe(true);
+    expect(api.subscribeFeed).toHaveBeenLastCalledWith('https://example.com/rss', '', L('tech'), 'tech');
+  });
 });
 
 describe('la vue affichée suit le renommage et la suppression (L-16)', () => {

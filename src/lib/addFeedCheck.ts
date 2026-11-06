@@ -32,7 +32,10 @@ export function newCategoryChoice(name: string, owners: NameOwners): NewCategory
   if (!wanted) return { issue: null, id: null, label: '' };
   const issue = categoryNameIssue(wanted, owners);
   if (issue === 'slash' || issue === 'label') return { issue, id: null, label: '' };
-  const existing = owners.categories.find((id) => nameOf(id).trim().toLowerCase() === wanted.toLowerCase());
+  // Le nom exact d'abord : avec « Tech » et « tech » côte à côte, « tech »
+  // tapé va dans « tech », pas dans la première trouvée à la casse près.
+  const existing = owners.categories.find((id) => nameOf(id).trim() === wanted)
+    ?? owners.categories.find((id) => nameOf(id).trim().toLowerCase() === wanted.toLowerCase());
   if (existing) return { issue: null, id: existing, label: nameOf(existing) };
   return { issue: null, id: `user/-/label/${wanted}`, label: wanted };
 }

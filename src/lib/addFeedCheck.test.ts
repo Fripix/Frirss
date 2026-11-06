@@ -20,6 +20,11 @@ describe('newCategoryChoice — nom d’une nouvelle catégorie dans « Ajouter 
     expect(newCategoryChoice(' tech ', owners)).toEqual({ issue: null, id: 'user/-/label/Tech', label: 'Tech' });
     expect(newCategoryChoice('VIDE', owners)).toEqual({ issue: null, id: 'user/-/label/Vide', label: 'Vide' });
   });
+  it('deux catégories à la casse près (« Tech » et « tech ») : le nom tapé exactement l’emporte', () => {
+    const both = { labels: [], categories: ['user/-/label/Tech', 'user/-/label/tech'] };
+    expect(newCategoryChoice('tech', both)).toEqual({ issue: null, id: 'user/-/label/tech', label: 'tech' });
+    expect(newCategoryChoice('Tech', both)).toEqual({ issue: null, id: 'user/-/label/Tech', label: 'Tech' });
+  });
   it('un nom libre devient une nouvelle catégorie, sans les blancs autour', () => {
     expect(newCategoryChoice('  Science ', owners)).toEqual({ issue: null, id: 'user/-/label/Science', label: 'Science' });
   });
