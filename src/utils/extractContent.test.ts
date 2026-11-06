@@ -19,7 +19,7 @@ import {
 import { advisoryPageHtml, ADVISORY_BODY_MARKER } from '../test/advisoryPageFixture';
 import { blogPageHtml, BLOG_BODY_MARKER, newsPageHtml, pressPageHtml, shortPostPageHtml } from '../test/boilerplatePageFixtures';
 import { INLINE_IMAGE, LAZY_IMAGES, lazyImagePageHtml } from '../test/lazyImagePageFixture';
-import { splitBodyPageHtml, splitBodyWithBioPageHtml } from '../test/splitBodyPageFixtures';
+import { splitBodyAcrossImagesPageHtml, splitBodyPageHtml, splitBodyWithBioPageHtml } from '../test/splitBodyPageFixtures';
 
 const serverAnswer = {
   title: 'Titre serveur', content: '<p>corps serveur</p>',
@@ -404,6 +404,30 @@ describe('extractFullContent — repli local : corps réparti en plusieurs blocs
     const text = textOf((await extractFullContent('https://example.com/ars-bio-repli')).content);
     for (const block of blocks) expect(text).toContain(block);
     expect(text).not.toContain(bio.slice(-80));
+  });
+
+  it('garde tout un corps que des images coupent, chapeau et images compris (structure Clubic)', async () => {
+    const html = splitBodyAcrossImagesPageHtml();
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const blocks = Array.from(doc.querySelectorAll('div.slate-content p'), (b) => norm(b.textContent)).filter(Boolean);
+    expect(blocks.length).toBeGreaterThan(5);
+    const bodyImages = Array.from(doc.querySelectorAll('article img'), (img) => img.getAttribute('src')!);
+    expect(bodyImages).toHaveLength(2);
+    fallbackOn(html);
+    const { content } = await extractFullContent('https://example.com/clubic-repli');
+    const text = textOf(content);
+    for (const block of blocks) expect(text).toContain(block);
+    for (const src of bodyImages) expect(content).toContain(`https://example.com${src}`);
+  });
+
+  it('ne vide pas les cellules d’un tableau dans la première', async () => {
+    const para = (s: string) => `<p>${s} — une phrase d’article assez longue pour peser dans le score de Readability, avec des virgules, des mots et encore des mots.</p>`;
+    const cell = (s: string) => `<td><div class="rich-text-content">${para(s)}</div></td>`;
+    fallbackOn(`<!doctype html><html><body><article><h1>Titre</h1>${para('INTRO')}${para('SUITE')}
+      <table><tr>${cell('UN')}${cell('DEUX')}</tr><tr>${cell('TROIS')}${cell('QUATRE')}</tr></table>${para('FIN')}</article></body></html>`);
+    const { content } = await extractFullContent('https://example.com/tableau-repli');
+    const cells = new DOMParser().parseFromString(content, 'text/html').querySelectorAll('td');
+    expect(Array.from(cells, (td) => td.querySelectorAll('p').length)).toEqual([1, 1, 1, 1]);
   });
 });
 

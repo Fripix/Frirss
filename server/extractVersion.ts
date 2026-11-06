@@ -33,5 +33,9 @@
  *     billet WordPress court étiqueté `pwa` ou `ads` sortait entier) ; seuls
  *     les boutons d'agrandissement déballés (les icônes entraient) : les
  *     extraits v5 sont refaits.
+ * 7 : 1.9.0 (vérification du troisième round, R3V-01) — la réunion du corps
+ *     réparti est tout ou rien par `<article>`, et jamais d'une cellule de
+ *     tableau à l'autre : les extraits v6 de Clubic réduits à un morceau du
+ *     milieu (chapeau, moitié du texte et images perdus) sont refaits.
  */
-export const EXTRACT_VERSION = 6;
+export const EXTRACT_VERSION = 7;

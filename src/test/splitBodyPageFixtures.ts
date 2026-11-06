@@ -19,6 +19,7 @@
 // `?raw` (Vite) plutôt que `fs` : voir `boilerplatePageFixtures.ts`.
 import splitBodyStructureHtml from './splitBodyStructureFixture.html?raw';
 import splitBodyBioStructureHtml from './splitBodyBioStructureFixture.html?raw';
+import splitBodyAcrossImagesHtml from './splitBodyAcrossImagesFixture.html?raw';
 
 /**
  * Trois blocs (1 827, 1 722 et 2 258 caractères). Readability ne gardait que
@@ -37,4 +38,16 @@ export function splitBodyPageHtml(): string {
  */
 export function splitBodyWithBioPageHtml(): string {
   return splitBodyBioStructureHtml;
+}
+
+/**
+ * Dix blocs `div.slate-content` cousins (l'arbre d'un article de Clubic,
+ * vérification du troisième round, R3V-01), chacun dans sa grille ; deux
+ * images légendées et un intertitre seul dans son bloc (sans paragraphe)
+ * coupent la suite. La réunion ne prenait que les blocs que rien ne séparait :
+ * le morceau du milieu, ainsi grossi, devenait le seul corps — 1 970
+ * caractères sur 4 907, chapeau et images perdus.
+ */
+export function splitBodyAcrossImagesPageHtml(): string {
+  return splitBodyAcrossImagesHtml;
 }

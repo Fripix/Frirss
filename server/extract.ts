@@ -807,6 +807,19 @@ export function stripBoilerplate(root: Element): void {
 // (bonus des frères de même classe : The Verge). Deux `<article>` différents
 // ne sont jamais réunis.
 //
+// TOUT OU RIEN (vérification du troisième round, R3V-01) : les blocs d'un
+// même groupe dans un même `<article>` sont réunis tous en un seul, ou aucun.
+// Clubic coupe son corps en `div.slate-content` cousins, avec des images
+// légendées et des intertitres entre certains d'entre eux ; ne réunir que les
+// blocs que rien ne séparait faisait d'un morceau du milieu, ainsi grossi, le
+// seul candidat de Readability — chapeau, moitié du texte et images perdus
+// (1 970 caractères sur 4 907). Laissés tels quels, ils reviennent à ce que
+// Readability en faisait avant cette règle. Une réunion ne rend donc jamais
+// moins de texte que sans elle : le bloc réuni contient tout le groupe.
+// (Verser aussi ce qui se lit entre les blocs dans le corps a été mesuré :
+// cela ramassait les encarts « À découvrir » et les offres glissés entre les
+// blocs, et coupait des pages Numerama.)
+//
 // Même règle dans le repli du navigateur (`src/utils/extractContent.ts`) ;
 // toute modification de l'une va avec l'autre, et avec `EXTRACT_VERSION`.
 
@@ -816,6 +829,16 @@ const POSITIVE_NAME = /article|body|content|entry|hentry|h-entry|main|page|pagin
 const NEGATIVE_NAME = /-ad-|hidden|^hid$| hid$| hid |^hid |banner|combx|comment|com-|contact|footer|gdpr|masthead|media|meta|outbrain|promo|related|scroll|share|shoutbox|sidebar|skyscraper|sponsor|shopping|tags|widget/i;
 /** Un média se lit aussi : deux blocs qu'une image sépare ne sont pas réunis. */
 const MEDIA = 'img, picture, video, audio, iframe, object, embed';
+/**
+ * Le cadre d'un bloc : seuls les blocs d'un même cadre sont réunis. Deux
+ * `<article>` sont deux billets ; deux cellules d'un tableau sont deux cases,
+ * que rien de lisible ne sépare pourtant — leurs blocs étaient tous versés
+ * dans la première (tableau comparatif de Docker, mesure de R3V-01). Les
+ * entrées de liste (`li`) ne sont pas des cadres : mesuré, cela ne changeait
+ * que des listes de billets liés (Docker), dont la réunion laisse justement
+ * l'article l'emporter sur elles.
+ */
+const SCOPE = 'article, td, th';
 
 /** Un nœud qui se lit : du texte hors script et style, ou un média. */
 function isReadable(node: Node): boolean {
@@ -875,7 +898,10 @@ export function joinSplitBody(root: Element): void {
       const last = blocks[blocks.length - 1];
       if (!last || !last.contains(el)) blocks.push(el);
     }
-    let body: Element | null = null;
+    // Par `<article>` (ou hors de tout `<article>`), dans l'ordre. Une cellule
+    // de tableau est son propre cadre : ses blocs ne sont jamais versés dans
+    // ceux d'une autre (`SCOPE`).
+    const runs = new Map<Element | null, Element[]>();
     for (const block of blocks) {
       // Un bloc sans texte n'est pas un corps. C'est aussi ce qui borne le
       // coût : un bloc qui se lit arrête tout parcours qui le croise, donc les
@@ -883,13 +909,23 @@ export function joinSplitBody(root: Element): void {
       // cette règle, 1 000 groupes de blocs vides encadrant 50 000 `<div>`
       // coûtaient 54 s.
       if (!block.querySelector('p') || !isReadable(block)) continue;
-      if (!body || block.parentElement === body.parentElement
-        || block.closest('article') !== body.closest('article') || readableBetween(body, block)) {
-        body = block;
-        continue;
+      const scope = block.closest(SCOPE);
+      const run = runs.get(scope);
+      if (run) run.push(block);
+      else runs.set(scope, [block]);
+    }
+    for (const run of runs.values()) {
+      // Tout ou rien : une seule coupure lisible, et aucun bloc n'est réuni.
+      if (run.some((block, i) => i > 0 && readableBetween(run[i - 1], block))) continue;
+      let body = run[0];
+      for (const block of run.slice(1)) {
+        if (block.parentElement === body.parentElement) {
+          body = block;
+          continue;
+        }
+        body.append(...Array.from(block.childNodes));
+        block.remove();
       }
-      body.append(...Array.from(block.childNodes));
-      block.remove();
     }
   }
 }

@@ -10,4 +10,4 @@
  * que l'erreur (`getOutdatedExtract`, M-03). Hors ligne il reste servi — un
  * article d'une version antérieure vaut mieux qu'aucun (`extractCache.ts`).
  */
-export const EXTRACT_VERSION = 6;
+export const EXTRACT_VERSION = 7;

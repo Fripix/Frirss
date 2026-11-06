@@ -6,7 +6,7 @@ import {
 import { advisoryPageHtml, ADVISORY_BODY_MARKER } from '../../src/test/advisoryPageFixture.js';
 import { INLINE_IMAGE, LAZY_IMAGES, lazyImagePageHtml } from '../../src/test/lazyImagePageFixture.js';
 import { blogPageHtml, BLOG_BODY_MARKER, newsPageHtml, pressPageHtml, shortPostPageHtml } from '../../src/test/boilerplatePageFixtures.js';
-import { splitBodyPageHtml, splitBodyWithBioPageHtml } from '../../src/test/splitBodyPageFixtures.js';
+import { splitBodyAcrossImagesPageHtml, splitBodyPageHtml, splitBodyWithBioPageHtml } from '../../src/test/splitBodyPageFixtures.js';
 
 const page = `<!doctype html><html><head><title>Titre de la page</title></head>
 <body><article><h1>Un vrai titre</h1>
@@ -417,6 +417,23 @@ describe('extractArticle — corps réparti en plusieurs blocs', () => {
     for (const src of bodyImages) expect(out.content).toContain(`https://example.com${src}`);
     for (const src of srcs('.author-mini-bio img')) expect(out.content).not.toContain(src);
   });
+
+  // Vérification du troisième round (R3V-01) : la réunion ne prenait que les
+  // blocs que rien ne séparait ; le morceau du milieu, ainsi grossi, devenait
+  // le seul corps — chapeau, moitié du texte et images perdus.
+  it('garde tout un corps que des images coupent, chapeau et images compris (structure Clubic)', () => {
+    const html = splitBodyAcrossImagesPageHtml();
+    const { document } = parseHTML(html);
+    const blocks = Array.from(document.querySelectorAll('div.slate-content p'), (b) => norm((b as Element).textContent)).filter(Boolean);
+    expect(blocks.length).toBeGreaterThan(5);
+    const out = extractArticle('https://example.com/clubic', html)!;
+    const text = textOf(out.content);
+    for (const block of blocks) expect(text).toContain(block);
+    expect(text.indexOf(blocks[0])).toBeLessThan(text.indexOf(blocks[blocks.length - 1]));
+    const bodyImages = Array.from(document.querySelectorAll('article img'), (img) => (img as Element).getAttribute('src')!);
+    expect(bodyImages).toHaveLength(2);
+    for (const src of bodyImages) expect(out.content).toContain(`https://example.com${src}`);
+  });
 });
 
 describe('joinSplitBody', () => {
@@ -462,6 +479,39 @@ describe('joinSplitBody', () => {
       <figure><img src="/a.jpg"></figure>
       <div class="w"><div class="post-content">${para('DEUX')}</div></div></article>`);
     expect(document.querySelectorAll('.post-content')).toHaveLength(2);
+  });
+
+  // R3V-01 : réunir les seuls blocs contigus d'un corps coupé faisait d'un
+  // morceau le seul candidat de Readability. C'est tout le groupe ou rien.
+  it('ne réunit aucun bloc d’un corps qu’une image coupe ailleurs : tout ou rien', () => {
+    const { document, before, after } = run(`<article>
+      <div class="w"><div class="post-content">${para('UN')}</div></div>
+      <div class="ad-slot"></div>
+      <div class="w"><div class="post-content">${para('DEUX')}</div></div>
+      <figure><img src="/a.jpg"></figure>
+      <div class="w"><div class="post-content">${para('TROIS')}</div></div></article>`);
+    expect(parentsOf(document, '.post-content').map((p) => p?.className)).toEqual(['w', 'w', 'w']);
+    expect(after).toBe(before);
+  });
+
+  // Mesure de R3V-01 (Docker) : les cellules d'un tableau, chacune avec son
+  // bloc de même classe, étaient toutes versées dans la première.
+  it('ne vide pas les cellules d’un tableau dans la première', () => {
+    const cell = (s: string) => `<td><div class="rich-text-content">${para(s)}</div></td>`;
+    const { document, after, before } = run(`<article><table>
+      <tr>${cell('UN')}${cell('DEUX')}</tr><tr>${cell('TROIS')}${cell('QUATRE')}</tr></table></article>`);
+    expect(Array.from(document.querySelectorAll('td'), (td) => (td as Element).querySelectorAll('p').length)).toEqual([1, 1, 1, 1]);
+    expect(after).toBe(before);
+  });
+
+  it('réunit le corps d’un article même quand un autre article de la page est coupé', () => {
+    const { document } = run(`<article>
+      <div class="w"><div class="post-content">${para('UN')}</div></div>
+      <div class="w"><div class="post-content">${para('DEUX')}</div></div></article>
+      <article><div class="w"><div class="post-content">${para('TROIS')}</div></div>
+      <figure><img src="/a.jpg"></figure>
+      <div class="w"><div class="post-content">${para('QUATRE')}</div></div></article>`);
+    expect(parentsOf(document, '.post-content').map((p) => p?.className)).toEqual(['w', 'w', 'w']);
   });
 
   it('laisse les blocs que sépare un texte à eux (heure et titre des entrées d’un direct)', () => {

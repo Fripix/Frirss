@@ -5511,23 +5511,47 @@ serveur de développement en 1.4.4.)*
   `server/test/extract.test.ts` › « corps réparti en plusieurs blocs » et
   « joinSplitBody », `extractContent.test.ts` › « repli local : corps réparti
   en plusieurs blocs », sur `src/test/splitBodyPageFixtures.ts` — l'arbre de
-  deux articles d'Ars Technica, chaque texte remplacé par un texte inventé de
-  même longueur). Ars coupe le corps en plusieurs `div.post-content`, chacun
+  deux articles d'Ars Technica et d'un de Clubic, chaque texte remplacé par
+  un texte inventé de même longueur). Ars coupe le corps en plusieurs `div.post-content`, chacun
   dans sa propre grille (le texte, une colonne de publicité vide), séparées
   par un emplacement publicitaire : des **cousins**. Readability choisit le
   mieux noté et ne lui adjoint que ses **frères** : depuis la 1.8.0, il ne
   gardait qu'un bloc — le chapeau perdu, parfois les deux tiers du texte.
   Quand la seconde passe (A-1) rattrapait le corps, elle ramassait aussi ce
   que porte la grille du dernier bloc : la notice et le portrait de l'auteur,
-  « 48 Comments ». Règle : deux blocs de **même classe exacte**, au nom que
+  « 48 Comments ». Règle : les blocs de **même classe exacte**, au nom que
   Readability juge favorable (ses propres expressions `positive`/`negative` :
   `post-content` oui, `comment-body` non), qui contiennent un paragraphe et du
-  texte, dans le même `<article>` (ou hors de tout `<article>`), **sans rien
-  de lisible entre eux** (ni texte ni média), sont un seul corps : le second
-  est versé dans le premier. **L'ordre du texte ne change jamais**, puisque
-  rien ne les sépare ; c'est aussi ce qui laisse en paix les entrées d'un
-  direct (heure et titre entre elles) et les cartes d'une liste. Des blocs
-  déjà frères (The Verge) sont laissés à Readability, qui les réunit lui-même.
+  texte, dans le même **cadre** — le même `<article>` (ou hors de tout
+  `<article>`), la même cellule de tableau — sont réunis **tous en un seul,
+  ou aucun** : seulement si **rien de lisible** (ni texte ni média) ne sépare
+  deux d'entre eux ; les suivants sont versés dans le premier. **L'ordre du
+  texte ne change jamais**, puisque rien ne les sépare ; c'est aussi ce qui
+  laisse en paix les entrées d'un direct (heure et titre entre elles) et les
+  cartes d'une liste. Des blocs déjà frères (The Verge) sont laissés à
+  Readability, qui les réunit lui-même.
+  ⚠️ **Tout ou rien** (vérification du troisième round, R3V-01) : la première
+  version réunissait chaque suite de blocs que rien ne séparait. Clubic coupe
+  son corps en `div.slate-content` cousins, avec des images légendées et des
+  intertitres (seuls dans leur bloc, sans paragraphe) entre certains : le
+  morceau du milieu, ainsi grossi, devenait le seul candidat de Readability —
+  chapeau, moitié du texte et images perdus (4 907 → 1 970 caractères ; 6
+  des 20 derniers articles, 23 à 63 % du texte). Un groupe coupé n'est plus
+  réuni du tout, et revient à ce qu'en faisait Readability avant cette règle.
+  Verser aussi dans le corps ce qui se lit entre les blocs a été mesuré et
+  écarté : les encarts « À découvrir » et les offres de Clubic entraient dans
+  l'article (896 → 5 927 caractères sur un bon plan), et quatre pages
+  Numerama perdaient de 8 à 46 % de leur texte.
+  ⚠️ **Une cellule de tableau est un cadre** : dans un tableau dont chaque
+  cellule porte un bloc de même classe, rien de lisible ne sépare deux
+  cellules voisines, et tout le texte allait dans la première (tableau
+  comparatif d'un billet de Docker). Les entrées de liste, elles, ne sont pas
+  des cadres : mesuré, cela ne changeait que des listes de billets liés, dont
+  la réunion laisse justement l'article l'emporter sur elles (le même billet
+  de Docker : 19 028 caractères d'article au lieu de 1 038 de liens).
+  Limite connue : un intertitre seul dans un bloc sans paragraphe, en tête
+  d'une suite de blocs (Clubic), est écarté par Readability, avant cette
+  règle comme depuis.
   ⚠️ **Coût** : sans la règle « du texte dans chaque bloc », 1 000 groupes de
   blocs vides encadrant 50 000 `<div>` faisaient parcourir ce vide une fois
   par groupe — 54 s ; avec elle, un bloc qui se lit arrête tout parcours qui
@@ -5542,10 +5566,26 @@ serveur de développement en 1.4.4.)*
   (six blocs), la seconde passe ne se déclenche plus et le surtitre, le
   chapeau d'en-tête et la légende de l'image d'en-tête, qu'elle ramassait
   avec la notice, ne sont plus repris — comme sur toutes les autres pages
-  d'Ars, où ils ne l'ont jamais été. Zoomit gagne un tweet intégré (texte,
-  traduction, avatar) à sa place dans l'article ; la page d'accueil de Simon
-  Willison (une liste) gagne une ligne. Aucun titre ni auteur ne bouge, aucune
-  image d'article n'est perdue.
+  d'Ars, où ils ne l'ont jamais été. Aucun titre ni auteur ne bouge, aucune
+  image d'article n'est perdue. (Zoomit et la page d'accueil de Simon
+  Willison gagnaient alors un tweet intégré et une ligne : des réunions
+  partielles, retirées avec la règle « tout ou rien ».)
+  Remesuré après « tout ou rien » (2026-11-06) sur 246 pages (le même corpus,
+  plus 95 pages de 40 flux et les 20 derniers articles de Clubic ; 20 pages
+  distinctes changent) : **chacune redevient exactement son extrait d'avant
+  la réunion** — titre, auteur, corps, images. Ce sont 16 articles de Clubic :
+  sept retrouvent chapeau, texte et photos (1 970 → 4 907 caractères et
+  2 images ; 834 → 2 254 ; 2 257 → 5 293 ; 761 → 984…), cinq ne changent que
+  par leur balisage, trois perdent la ligne « Source : … » que la réunion
+  partielle leur ajoutait, et un, déjà mal extrait avant (572 caractères sur
+  3 300), rend un autre fragment que celui de la réunion partielle (863) ; et
+  le tweet de Zoomit et la ligne de Simon Willison. Ars Technica ne bouge pas
+  (chapeau gardé, ni notice ni compteur), le billet de Docker garde son
+  article (19 028 caractères au lieu de 1 038 de liens) et retrouve son
+  tableau cellule par cellule. Face à l'extraction d'avant la réunion, aucune
+  page n'a moins de texte, sauf les sept d'Ars, qui perdent exactement la
+  notice de l'auteur, le compteur de commentaires et, sur la Rocket Report,
+  l'en-tête que ramassait la seconde passe.
 - **Images paresseuses résolues avant toute passe** (1.9.0, troisième round,
   A1 — `resolveLazyImages`, `server/extract.ts`, copiée dans le repli de
   `extractContent.ts` ; tests : `server/test/extract.test.ts` › « images
@@ -5585,10 +5625,13 @@ serveur de développement en 1.4.4.)*
 - **Version de l'extraction** (1.9.0, A-2 — `server/extractVersion.ts` et
   `src/lib/extractVersion.ts`, même valeur vérifiée par
   `server/test/cache.test.ts`). À monter à chaque changement du résultat de
-  l'extraction pour une même page. **6** depuis la réunion du corps réparti
-  en blocs (Ars Technica), les termes de taxonomie ignorés et les seuls
-  boutons d'agrandissement déballés (suite du troisième round) : les
-  extraits v5 sans chapeau, avec notice d'auteur ou icônes sont refaits ; 5
+  l'extraction pour une même page. **7** depuis la réunion « tout ou rien »
+  du corps réparti, cellules de tableau comprises (R3V-01) : les extraits v6
+  de Clubic réduits à un morceau du milieu sont refaits ; 6 avait accompagné
+  la réunion du corps réparti en blocs (Ars Technica), les termes de
+  taxonomie ignorés et les seuls boutons d'agrandissement déballés (suite du
+  troisième round : extraits v5 sans chapeau, avec notice d'auteur ou
+  icônes) ; 5
   avait accompagné les images paresseuses (A1) et les nouvelles familles de
   blocs étrangers (A3), 4 le gain minimal de la seconde passe (N-1 : encart
   produit, ligne promotionnelle), 3 le retrait des blocs étrangers (M-04). Les extraits gardés avant le seuil à 500 et

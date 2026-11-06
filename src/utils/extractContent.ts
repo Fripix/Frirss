@@ -587,10 +587,14 @@ function stripBoilerplate(root: Element): void {
 // gardait qu'un — chapeau perdu — ou que la seconde passe rattrapait avec la
 // notice de l'auteur). Règles et gardes identiques : même classe, nom
 // favorable pour Readability, un paragraphe et du texte, même `<article>`,
-// rien de lisible entre deux blocs ; l'ordre du texte ne change jamais.
+// rien de lisible entre deux blocs ; l'ordre du texte ne change jamais. Tout
+// ou rien : un groupe qu'une image ou un texte coupe n'est pas réuni du tout
+// (Clubic, R3V-01) ; une cellule de tableau est son propre cadre, comme un
+// `<article>`.
 const POSITIVE_NAME = /article|body|content|entry|hentry|h-entry|main|page|pagination|post|text|blog|story/i;
 const NEGATIVE_NAME = /-ad-|hidden|^hid$| hid$| hid |^hid |banner|combx|comment|com-|contact|footer|gdpr|masthead|media|meta|outbrain|promo|related|scroll|share|shoutbox|sidebar|skyscraper|sponsor|shopping|tags|widget/i;
 const MEDIA = 'img, picture, video, audio, iframe, object, embed';
+const SCOPE = 'article, td, th';
 
 function isReadable(node: Node): boolean {
   const stack: Node[] = [node];
@@ -643,17 +647,27 @@ function joinSplitBody(root: Element): void {
       const last = blocks[blocks.length - 1];
       if (!last || !last.contains(el)) blocks.push(el);
     }
-    let body: Element | null = null;
+    const runs = new Map<Element | null, Element[]>();
     for (const block of blocks) {
       // Sans texte, pas un corps — et la borne du coût (voir le serveur).
       if (!block.querySelector('p') || !isReadable(block)) continue;
-      if (!body || block.parentElement === body.parentElement
-        || block.closest('article') !== body.closest('article') || readableBetween(body, block)) {
-        body = block;
-        continue;
+      const scope = block.closest(SCOPE);
+      const run = runs.get(scope);
+      if (run) run.push(block);
+      else runs.set(scope, [block]);
+    }
+    for (const run of runs.values()) {
+      // Tout ou rien par cadre (R3V-01, voir le serveur).
+      if (run.some((block, i) => i > 0 && readableBetween(run[i - 1], block))) continue;
+      let body = run[0];
+      for (const block of run.slice(1)) {
+        if (block.parentElement === body.parentElement) {
+          body = block;
+          continue;
+        }
+        body.append(...Array.from(block.childNodes));
+        block.remove();
       }
-      body.append(...Array.from(block.childNodes));
-      block.remove();
     }
   }
 }
