@@ -36,7 +36,10 @@ function Row({ icon, name, first, children }: { icon: ReactNode; name: string; f
         <span aria-hidden="true" className={ICON} style={{ width: 22, height: 22, color: 'var(--list-title)' }}>{icon}</span>
       </td>
       <th scope="row" className={`w-28 ${CELL} ${rule} text-left font-semibold pr-3`} style={{ ...border, color: 'var(--list-title)' }}>
-        <span className={FIRST_LINE}>{name}</span>
+        {/* Coupable : « Zusammenfassungsfeld », insécable, élargissait la
+            colonne hors du cadre à 320 px (R3T1-2). Césure dans la langue du
+            document (`<html lang>`), sinon coupure n'importe où. */}
+        <span className={`${FIRST_LINE} hyphens-auto [overflow-wrap:anywhere]`}>{name}</span>
       </th>
       <td className={`${CELL} ${rule}`} style={{ ...border, color: 'var(--list-title)', opacity: 0.75 }}>
         <span className={FIRST_LINE}>{children}</span>

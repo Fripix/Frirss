@@ -133,7 +133,9 @@ function ThemeSection() {
             onChange={(e) => setThemeName(e.target.value)}
             placeholder={t('preferences.themes.themeName')}
             aria-label={t('preferences.themes.themeName')}
-            className="flex-1 px-3 py-1.5 text-sm rounded-md"
+            // `min-w-0` : sans lui, le champ garde sa largeur intrinsèque
+            // (~200 px) et pousse « Enregistrer » hors de la ligne à 320 px.
+            className="flex-1 min-w-0 px-3 py-1.5 text-sm rounded-md"
             style={{
               border: '1px solid var(--panel-border)',
               color: 'var(--list-title)',
@@ -142,7 +144,7 @@ function ThemeSection() {
           />
           <button
             onClick={saveCurrentTheme}
-            className="px-3 py-1.5 text-xs font-medium rounded-md"
+            className="flex-shrink-0 whitespace-nowrap px-3 py-1.5 text-xs font-medium rounded-md"
             style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
           >
             {t('preferences.themes.save')}

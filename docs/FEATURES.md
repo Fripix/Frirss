@@ -4120,7 +4120,11 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   en **deux parties nettement séparées**. (1) **Ce que fait chaque colonne** :
   un vrai `<table>` de **cinq lignes** sans ligne d'en-tête — icône de 22 px
   (cellule `w-8`), nom en `<th scope="row">` (`font-semibold`, `--list-title`,
-  colonne fixe `w-28` : les descriptions s'alignent), description en
+  colonne fixe `w-28` : les descriptions s'alignent ; le nom se coupe,
+  `hyphens-auto` dans la langue du document puis `overflow-wrap: anywhere` —
+  « Zusammenfassungsfeld », insécable, élargissait le tableau de 53 px hors
+  du cadre `overflow-hidden` à 320 px, 5 px en néerlandais ; il se lit
+  désormais « Zusammen-fassungs-feld », test `ai/RoutingKey.test.tsx`), description en
   `--list-title` à 75 % : Résumer (`keySummary`), Traduire (`keyTranslate`),
   Résumé traduit (`summaryTranslate` / `keySummaryTranslate`), Panneau Résumé
   (`keyPanelName` / `keyPanel` — « Panneau IA » jusqu'au 2026-10-23, le
@@ -7183,6 +7187,13 @@ réglage clair/sombre du système.
   principaux (Préparer le hors-ligne, Télécharger la sauvegarde, Enregistrer).
 - **Piège** : `--sidebar-header-from` / `--sidebar-header-to` sont des **clés de
   thème**, pas des variables CSS ; seul `--sidebar-header-bg` est publié.
+- **Ligne « Enregistrer le thème actuel » à 320 px** (1.9.0) : le champ du
+  nom est `flex-1 min-w-0`, le bouton `flex-shrink-0 whitespace-nowrap`.
+  Sans `min-w-0`, le champ gardait sa largeur intrinsèque (~200 px) et
+  « Enregistrer » sortait de sa ligne dans sept langues (jusqu'à 33 px en
+  français, hors de l'écran avec des polices plus larges). Mesuré contre la
+  feuille construite dans les dix langues : le bouton finit au bord de la
+  ligne. Test : `AppearanceTab.narrow.test.tsx`.
 
 ---
 
