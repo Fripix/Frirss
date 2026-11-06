@@ -489,6 +489,14 @@ tard » l'y classe — **à la souris seulement** (au doigt, l'appui long ouvre
 le menu ; voir *Menu d'un article*, piège Chrome Android).
 
 - **Où** : `src/components/Sidebar/Sidebar.tsx`, `src/stores/uiStore.ts`
+- **« Ajouter un flux » dans le tiroir du téléphone** (1.9.0) : le libellé
+  est **dans** le bouton, contre son « + », à droite de la ligne ; toute la
+  pastille « Ajouter un flux + » se touche. Seul à gauche, il suivait
+  l'icône œil (« masquer les flux lus ») et semblait la nommer, le « + »
+  restant au bout de la ligne. Sur ordinateur et tablette, le « + » reste une
+  icône seule. Test : `Sidebar.addFeedLabel.test.tsx` ; mesuré à 320 px
+  (tiroir de 272 px) dans les dix langues : une ligne, 6 px entre le
+  libellé et le « + ».
 - **Compte et « ⋯ » d'une ligne de flux échangés par le CSS** (1.8.0) : les
   deux sont rendus, et `.sidebar-feed-item:hover` sous `@media (hover: hover)`
   montre « ⋯ » à la place du compte. Un état JavaScript de survol
