@@ -5063,7 +5063,11 @@ serveur de développement en 1.4.4.)*
   jours, flux « Non » compris — un tel article s'ouvrait ensuite en article
   complet, depuis le cache. Elle n'extrait plus que là où l'article s'ouvrirait
   en article complet (`feedStore.prepareOffline.extract.test.ts`) ; un extrait
-  déjà gardé reste lu pour ses images. Un global éteint et aucun flux sur
+  déjà gardé, de la version courante, reste lu pour ses images. Un extrait
+  d'une version antérieure (le repli de M-03), lui, ne l'est plus pour un
+  flux « Non » (relecture du second round) : l'article s'y ouvre sur le
+  contenu du flux, et ces images prenaient la place des siennes dans le
+  budget. Un global éteint et aucun flux sur
   « Oui » : la préparation ne fait plus aucune extraction, seulement les listes
   et les images du contenu du flux.
   **Exception assumée, inchangée** : le réchauffage des Favoris et d'À lire
@@ -5294,7 +5298,9 @@ serveur de développement en 1.4.4.)*
     dont la page ne s'extrait plus s'ouvrait complet hors ligne mais, en
     ligne, sur l'erreur et le contenu du flux. Le volet le montre sans
     message d'échec (`ReadingPane.extract.test.tsx`) ; la préparation hors
-    ligne en lit les images, qui sinon partaient au balayage final
+    ligne en lit les images — sauf pour un flux réglé « Article complet :
+    Non », qui s'ouvre sur le contenu du flux (relecture du second round) —,
+    qui sinon partaient au balayage final
     (`feedStore.prepareOffline.extract.test.ts`), et le réchauffage des
     épinglés le réépingle pour la portée. Il n'est toujours pas promu en
     mémoire : l'ouverture suivante repasse par l'extraction (que la mémoire

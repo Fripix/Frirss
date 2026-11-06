@@ -1884,7 +1884,8 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
           // flux réglé « Non » (ou au défaut, global éteint) n'est pas extrait
           // (L-05). La préparation ne lisait jamais le réglage, et un tel
           // article s'ouvrait ensuite en article complet, depuis le cache.
-          if (!extracted && !deviceFull && effectiveAutoExtract(ui.autoExtractDefault, ui.feedSettings, a.sourceId)) {
+          const wantsFull = effectiveAutoExtract(ui.autoExtractDefault, ui.feedSettings, a.sourceId);
+          if (!extracted && !deviceFull && wantsFull) {
             try {
               const content = await extractFullContent(a.url);
               await putExtract(a.id, content);
@@ -1894,8 +1895,11 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
           // Un extrait d'une version antérieure, que la réextraction n'a pas
           // remplacé, reste celui que l'article ouvre (hors ligne, et en ligne
           // en repli) : ses images sont préparées et gardées, sinon le
-          // balayage final les retire (M-03).
-          if (!extracted) extracted = (await getOutdatedExtract(a.id))?.content ?? null;
+          // balayage final les retire (M-03). Pas pour un flux réglé
+          // « Article complet : Non » (relecture R2-6) : il s'ouvre sur le
+          // contenu du flux, et les images de l'ancien extrait prenaient la
+          // place de celles qu'on lira.
+          if (!extracted && wantsFull) extracted = (await getOutdatedExtract(a.id))?.content ?? null;
         }
 
         if (!budgetReached) {

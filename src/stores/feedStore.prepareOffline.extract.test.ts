@@ -172,4 +172,27 @@ describe('M-03 — extrait d’une version antérieure, réextraction en échec'
       vi.mocked(dbGet).mockImplementation(() => Promise.resolve(undefined));
     }
   });
+
+  // Relecture R2-6 : un flux réglé « Article complet : Non » s'ouvre sur le
+  // contenu du flux, jamais sur l'ancien extrait. La préparation le lisait
+  // quand même, et en gardait les images.
+  it('flux réglé « Non » : l’ancien extrait n’est pas lu, ses images ne sont pas gardées', async () => {
+    useUiStore.setState({ autoExtractDefault: true, feedSettings: { 'feed/9': { autoExtract: false } } } as never);
+    useFeedStore.setState({ subscriptions: [{ id: 'feed/9', title: 'Non' } as never] });
+    const { imageBudget } = await import('../lib/offlineImages');
+    vi.mocked(imageBudget).mockReturnValueOnce({ bytes: 1e9, perArticle: 10 });
+    const { cacheImages } = await import('../lib/imageCache');
+    vi.mocked(cacheImages).mockImplementation(async (urls: string[]) => ({ stored: urls.length, bytes: 0, reusedBytes: 0, kept: urls, sizes: {}, failed: 0 }) as never);
+    const { dbGet } = await import('../lib/extractStore');
+    const old = { title: '', content: '<p>texte</p><img src="https://img.example.com/ancien.jpg">', excerpt: '', byline: '', siteName: '', length: 5, cachedAt: Date.now(), pinned: true };
+    vi.mocked(dbGet).mockImplementation(async (id: string) => ({ ...old, id }) as never);
+    try {
+      await useFeedStore.getState().prepareOffline();
+      const urls = vi.mocked(cacheImages).mock.calls.flatMap(([u]) => u as string[]);
+      expect(urls).not.toContain('https://img.example.com/ancien.jpg');
+      expect(extract.fn).not.toHaveBeenCalled();
+    } finally {
+      vi.mocked(dbGet).mockImplementation(() => Promise.resolve(undefined));
+    }
+  });
 });
