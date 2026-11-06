@@ -319,6 +319,8 @@ export function extractArticle(url: string, html: string): ExtractedArticle | nu
     const base = document.createElement('base');
     base.setAttribute('href', url);
     document.head?.prepend(base);
+    // Images paresseuses et boutons d'agrandissement, avant toute passe (A1).
+    if (document.documentElement) resolveLazyImages(document.documentElement as unknown as Element);
     return document;
   };
   // Les blocs étrangers à l'article sortent avant toute passe (M-04).
@@ -463,6 +465,78 @@ function keepOnlyMainContainer(doc: ParsedDocument): boolean {
   if (!container || !doc.body) return false;
   doc.body.replaceChildren(container);
   return true;
+}
+
+// ── Images paresseuses (A1) ──────────────────────────────────────────
+// Beaucoup de pages ne chargent leurs images qu'au défilement, par script :
+// l'`<img>` porte un cadre vide (pas de `src`, ou un `data:` non base64 —
+// Numerama : `data:image/svg+xml;utf8,<svg width height/>`) et la vraie
+// adresse dans `data-src` / `data-srcset`, parfois dans une `<picture>` dont la
+// `<source>` porte elle aussi `data-srcset`, avec l'image réelle dans un
+// `<noscript>` qui suit. Readability ne résout que le `data:` base64 et le
+// `<noscript>` qui suit une image SEULE (pas une `<picture>` à deux enfants),
+// et le client retire ensuite tous les attributs `data-*`
+// (`ALLOW_DATA_ATTR: false`) : l'article perdait ses images derrière des
+// cadres blancs. Zoomit enveloppe chaque image dans un `<button>`
+// d'agrandissement, que Readability retire avec ce qu'il contient.
+//
+// Résolu ici, avant toute passe :
+// - une image sans adresse réelle (aucun `src`, ou un `data:` non base64)
+//   prend `data-src` et `data-srcset` quand ce sont des adresses web ;
+// - sinon, le `<noscript>` qui la suit (elle ou sa `<picture>`) et ne porte
+//   qu'une image la remplace ;
+// - une `<source>` sans `srcset` prend son `data-srcset` ;
+// - un `<button>` sans texte qui n'enveloppe qu'une image est déballé.
+// Un `data:` base64 est une vraie image en ligne : Readability juge lui-même
+// les plus petites (ses « pixels » de remplacement) et n'est pas devancé ici.
+//
+// Même règle dans le repli du navigateur (`src/utils/extractContent.ts`).
+
+/** Pas d'adresse réelle : absente, vide, ou un `data:` non base64 (un cadre). */
+function isPlaceholderSource(value: string | null): boolean {
+  if (!value || !value.trim()) return true;
+  return /^\s*data:/i.test(value) && !/^\s*data:[^,]*;base64,/i.test(value);
+}
+
+/** Une adresse web (absolue, ou relative à la page) — rien d'autre n'est repris. */
+function webAddress(value: string | null): string | null {
+  const v = value?.trim();
+  if (!v) return null;
+  const scheme = /^([a-z][a-z0-9+.-]*):/i.exec(v)?.[1].toLowerCase();
+  return !scheme || scheme === 'http' || scheme === 'https' ? v : null;
+}
+
+/** L'unique image d'un élément sans texte, ou `null`. */
+function onlyImage(el: Element): Element | null {
+  if ((el.textContent || '').trim()) return null;
+  const images = el.querySelectorAll('img');
+  return images.length === 1 ? images[0] as Element : null;
+}
+
+/** Résout, sous `root`, les images paresseuses et les boutons d'agrandissement (A1). */
+export function resolveLazyImages(root: Element): void {
+  for (const img of Array.from(root.querySelectorAll('img')) as Element[]) {
+    if (!isPlaceholderSource(img.getAttribute('src'))) continue;
+    const src = webAddress(img.getAttribute('data-src'));
+    const srcset = webAddress(img.getAttribute('data-srcset'));
+    if (src) img.setAttribute('src', src);
+    if (srcset && isPlaceholderSource(img.getAttribute('srcset'))) img.setAttribute('srcset', srcset);
+    if (src || srcset) continue;
+    const holder = img.parentElement?.tagName.toLowerCase() === 'picture' ? img.parentElement : img;
+    const next = holder.nextElementSibling;
+    const real = next?.tagName.toLowerCase() === 'noscript' ? onlyImage(next) : null;
+    if (real && webAddress(real.getAttribute('src'))) {
+      holder.replaceWith(real);
+      next!.remove();
+    }
+  }
+  for (const source of Array.from(root.querySelectorAll('source[data-srcset]')) as Element[]) {
+    const srcset = webAddress(source.getAttribute('data-srcset'));
+    if (srcset && isPlaceholderSource(source.getAttribute('srcset'))) source.setAttribute('srcset', srcset);
+  }
+  for (const button of Array.from(root.querySelectorAll('button')) as Element[]) {
+    if (onlyImage(button)) button.replaceWith(...Array.from(button.childNodes));
+  }
 }
 
 // ── Blocs étrangers retirés avant toute passe (M-04) ─────────────────

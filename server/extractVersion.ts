@@ -21,5 +21,8 @@
  * 4 : 1.9.0 — la seconde passe n'est retenue que si elle rend 1,5 fois plus
  *     de texte (N-1) : les extraits v3 qui portaient un encart produit ou une
  *     ligne promotionnelle (Numerama) sont refaits.
+ * 5 : 1.9.0 (troisième round) — images paresseuses résolues et boutons
+ *     d'agrandissement déballés (A1) : les extraits v4 aux images en cadre
+ *     blanc sont refaits.
  */
-export const EXTRACT_VERSION = 4;
+export const EXTRACT_VERSION = 5;

@@ -1,9 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { parseHTML } from 'linkedom';
 import {
-  extractArticle, EXTRACT_MAX_PENDING, ExtractorBusyError, extractPending, stripBoilerplate, withExtractSlot,
+  extractArticle, EXTRACT_MAX_PENDING, ExtractorBusyError, extractPending, resolveLazyImages, stripBoilerplate, withExtractSlot,
 } from '../extract.js';
 import { advisoryPageHtml, ADVISORY_BODY_MARKER } from '../../src/test/advisoryPageFixture.js';
+import { INLINE_IMAGE, LAZY_IMAGES, lazyImagePageHtml } from '../../src/test/lazyImagePageFixture.js';
 import { blogPageHtml, BLOG_BODY_MARKER, newsPageHtml, pressPageHtml } from '../../src/test/boilerplatePageFixtures.js';
 
 const page = `<!doctype html><html><head><title>Titre de la page</title></head>
@@ -117,6 +118,59 @@ describe('extractArticle', () => {
   it('rend null quand la page n’a pas d’article lisible', () => {
     const out = extractArticle('https://example.com/a', '<html><body></body></html>');
     expect(out).toBeNull();
+  });
+});
+
+// ── A1 (campagne 1.9.0, troisième round) : images paresseuses ────────
+// Numerama : l'`<img>` porte un cadre blanc (`data:image/svg+xml` non base64)
+// et sa vraie adresse dans `data-src` / `data-srcset`, dans une `<picture>` —
+// Readability ne la résout pas, et le client retire ensuite les attributs
+// `data-*`. Zoomit : chaque image vit dans un `<button>` d'agrandissement, que
+// Readability retire avec elle.
+describe('extractArticle — images paresseuses (A1)', () => {
+  const imgs = (html: string) => Array.from(parseHTML(`<html><body>${html}</body></html>`).document.querySelectorAll('img'), (img) => (img as Element).getAttribute('src') || '');
+
+  it('rend l’adresse réelle d’une image paresseuse, pas son cadre blanc', () => {
+    const out = extractArticle('https://example.com/usine', lazyImagePageHtml());
+    const sources = imgs(out!.content);
+    expect(sources).toContain(LAZY_IMAGES.picture);
+    expect(sources.filter((src) => src.startsWith('data:image/svg'))).toEqual([]);
+    expect(out!.content).toContain(LAZY_IMAGES.pictureSet);
+    expect(out!.content).toContain(LAZY_IMAGES.webpSet);
+  });
+
+  it('garde l’image que seul son `noscript` porte', () => {
+    expect(imgs(extractArticle('https://example.com/usine', lazyImagePageHtml())!.content)).toContain(LAZY_IMAGES.noscriptOnly);
+  });
+
+  it('garde une image enveloppée dans un bouton d’agrandissement', () => {
+    const out = extractArticle('https://example.com/usine', lazyImagePageHtml());
+    expect(imgs(out!.content)).toContain(LAZY_IMAGES.zoomed);
+    expect(out!.content).not.toContain('<button');
+  });
+
+  it('ne touche pas une vraie image en ligne', () => {
+    expect(imgs(extractArticle('https://example.com/usine', lazyImagePageHtml())!.content)).toContain(INLINE_IMAGE);
+  });
+});
+
+describe('resolveLazyImages', () => {
+  const resolve = (body: string) => {
+    const { document } = parseHTML(`<html><body>${body}</body></html>`);
+    resolveLazyImages(document.documentElement as unknown as Element);
+    return document.body.innerHTML;
+  };
+
+  it('ne remplace pas une adresse réelle par celle de data-src', () => {
+    expect(resolve('<img src="https://example.com/a.jpg" data-src="https://example.com/b.jpg">')).toContain('src="https://example.com/a.jpg"');
+  });
+
+  it('n’adopte pas une adresse data-src qui n’est pas web', () => {
+    expect(resolve('<img src="data:image/svg+xml;utf8,x" data-src="javascript:alert(1)">')).toContain('src="data:image/svg+xml;utf8,x"');
+  });
+
+  it('laisse un bouton qui porte du texte', () => {
+    expect(resolve('<button><img src="https://example.com/a.jpg"> Agrandir</button>')).toContain('<button');
   });
 });
 

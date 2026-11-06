@@ -400,6 +400,55 @@ function keepOnlyMainContainer(doc: Document): boolean {
   return true;
 }
 
+// ── Images paresseuses (A1) ──────────────────────────────────────────
+// Copie de `resolveLazyImages` (`server/extract.ts`, qui dit pourquoi : cadres
+// blancs de Numerama, boutons d'agrandissement de Zoomit). Ici elle compte
+// double : `sanitizeExtracted` retire ensuite tous les attributs `data-*`.
+// Appelée AVANT `absolutizeUrls`, pour qu'une adresse `data-src` relative soit
+// résolue contre l'article comme les autres.
+function isPlaceholderSource(value: string | null): boolean {
+  if (!value || !value.trim()) return true;
+  return /^\s*data:/i.test(value) && !/^\s*data:[^,]*;base64,/i.test(value);
+}
+
+function webAddress(value: string | null): string | null {
+  const v = value?.trim();
+  if (!v) return null;
+  const scheme = /^([a-z][a-z0-9+.-]*):/i.exec(v)?.[1].toLowerCase();
+  return !scheme || scheme === 'http' || scheme === 'https' ? v : null;
+}
+
+function onlyImage(el: Element): Element | null {
+  if ((el.textContent || '').trim()) return null;
+  const images = el.querySelectorAll('img');
+  return images.length === 1 ? images[0] : null;
+}
+
+function resolveLazyImages(root: Element): void {
+  for (const img of Array.from(root.querySelectorAll('img'))) {
+    if (!isPlaceholderSource(img.getAttribute('src'))) continue;
+    const src = webAddress(img.getAttribute('data-src'));
+    const srcset = webAddress(img.getAttribute('data-srcset'));
+    if (src) img.setAttribute('src', src);
+    if (srcset && isPlaceholderSource(img.getAttribute('srcset'))) img.setAttribute('srcset', srcset);
+    if (src || srcset) continue;
+    const holder = img.parentElement?.tagName.toLowerCase() === 'picture' ? img.parentElement : img;
+    const next = holder.nextElementSibling;
+    const real = next?.tagName.toLowerCase() === 'noscript' ? onlyImage(next) : null;
+    if (real && webAddress(real.getAttribute('src'))) {
+      holder.replaceWith(real);
+      next!.remove();
+    }
+  }
+  for (const source of Array.from(root.querySelectorAll('source[data-srcset]'))) {
+    const srcset = webAddress(source.getAttribute('data-srcset'));
+    if (srcset && isPlaceholderSource(source.getAttribute('srcset'))) source.setAttribute('srcset', srcset);
+  }
+  for (const button of Array.from(root.querySelectorAll('button'))) {
+    if (onlyImage(button)) button.replaceWith(...Array.from(button.childNodes));
+  }
+}
+
 // ── Blocs étrangers retirés avant toute passe (M-04) ─────────────────
 // Copie de `stripBoilerplate` (`server/extract.ts`, qui dit pourquoi : mentions
 // légales de The Verge ramassées par la seconde passe, fil d'Ariane et
@@ -650,6 +699,9 @@ async function extractOnce(url: string): Promise<ExtractedContent> {
   // n'apparaît que dans la console. Voir `absolutizeUrls`.
   const load = () => {
     const parsed = new DOMParser().parseFromString(html, 'text/html');
+    // Images paresseuses d'abord : leurs adresses `data-src` relatives sont
+    // ensuite résolues avec les autres (A1).
+    resolveLazyImages(parsed.documentElement);
     absolutizeUrls(parsed, url);
     // Les blocs étrangers à l'article sortent avant toute passe (M-04).
     stripBoilerplate(parsed.documentElement);

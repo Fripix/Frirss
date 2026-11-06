@@ -5405,13 +5405,41 @@ serveur de développement en 1.4.4.)*
   les articles du jour : un test direct du nettoyage le couvre. Le
   resserrement de `share`/`newsletter` ne change aucune de ces pages
   (comparaison avant/après, 2026-11-06).
+- **Images paresseuses résolues avant toute passe** (1.9.0, troisième round,
+  A1 — `resolveLazyImages`, `server/extract.ts`, copiée dans le repli de
+  `extractContent.ts` ; tests : `server/test/extract.test.ts` › « images
+  paresseuses (A1) » et « resolveLazyImages », `extractContent.test.ts` ›
+  « repli local : images paresseuses (A1) », sur
+  `src/test/lazyImagePageFixture.ts`). « Article complet » perdait des
+  images : Numerama les charge au défilement — l'`<img>` porte un cadre blanc
+  (`data:image/svg+xml` **non base64**) et la vraie adresse dans `data-src` /
+  `data-srcset`, dans une `<picture>` dont la `<source>` porte aussi
+  `data-srcset`. Readability ne résout que le `data:` base64 et le
+  `<noscript>` qui suit une image **seule** (pas une `<picture>` à deux
+  enfants), et le client retire ensuite tous les `data-*`
+  (`ALLOW_DATA_ATTR: false`) : des cadres blancs à la place des photos.
+  Zoomit range chaque image dans un `<button>` d'agrandissement, que
+  Readability retire avec elle : toutes perdues. Désormais : une image sans
+  adresse réelle (aucun `src`, ou un `data:` non base64) prend `data-src` et
+  `data-srcset` s'ils sont des adresses web (pas de `javascript:`), sinon le
+  `<noscript>` qui la suit (elle ou sa `<picture>`) et ne porte qu'une image
+  la remplace ; une `<source>` sans `srcset` prend son `data-srcset` ; un
+  `<button>` sans texte qui n'enveloppe qu'une image est déballé. Un `data:`
+  base64 est une vraie image en ligne et n'est pas touché. Dans le repli,
+  avant `absolutizeUrls` : une adresse `data-src` relative est résolue
+  contre l'article comme les autres.
+  Mesuré (2026-11-06) sur 126 pages (corpus des trois rounds et pages
+  fraîches des sites cités) : 19 pages changent, **uniquement par leurs
+  images** — Numerama et Frandroid perdent tous leurs cadres blancs (jusqu'à
+  38 sur une page), Zoomit retrouve ses six photos ; pas un caractère de
+  texte, pas un titre ni un auteur ne bouge.
 - **Version de l'extraction** (1.9.0, A-2 — `server/extractVersion.ts` et
   `src/lib/extractVersion.ts`, même valeur vérifiée par
   `server/test/cache.test.ts`). À monter à chaque changement du résultat de
-  l'extraction pour une même page. **4** depuis le gain minimal de la seconde
-  passe (N-1) : les extraits v3 qui portaient un encart produit ou une ligne
-  promotionnelle sont refaits ; 3 avait accompagné le retrait des blocs
-  étrangers (M-04). Les extraits gardés avant le seuil à 500 et
+  l'extraction pour une même page. **5** depuis les images paresseuses (A1,
+  troisième round) : les extraits v4 aux images en cadre blanc sont refaits ;
+  4 avait accompagné le gain minimal de la seconde passe (N-1 : encart
+  produit, ligne promotionnelle), 3 le retrait des blocs étrangers (M-04). Les extraits gardés avant le seuil à 500 et
   la seconde passe (l'avis tronqué) restaient servis : 24 h par Redis, 30 jours
   dans le navigateur, **sans limite** pour un article épinglé.
   - **Serveur** : la version entre dans la clé Redis (`extractKey`), une

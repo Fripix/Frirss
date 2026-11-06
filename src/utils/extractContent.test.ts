@@ -18,6 +18,7 @@ import {
 } from './extractContent';
 import { advisoryPageHtml, ADVISORY_BODY_MARKER } from '../test/advisoryPageFixture';
 import { blogPageHtml, BLOG_BODY_MARKER, newsPageHtml, pressPageHtml } from '../test/boilerplatePageFixtures';
+import { INLINE_IMAGE, LAZY_IMAGES, lazyImagePageHtml } from '../test/lazyImagePageFixture';
 
 const serverAnswer = {
   title: 'Titre serveur', content: '<p>corps serveur</p>',
@@ -228,6 +229,47 @@ describe('extractFullContent — repli local : conteneur principal', () => {
     expect(text).toContain(paragraphs[paragraphs.length - 1]);
     expect(text).not.toContain(promo);
     expect(text).not.toContain(product.slice(0, 40));
+  });
+});
+
+// A1 (campagne 1.9.0, troisième round) : même résolution des images
+// paresseuses que la route serveur (`server/extract.ts`, `resolveLazyImages`).
+// Ici, elle compte double : `sanitizeExtracted` retire tous les `data-*`.
+describe('extractFullContent — repli local : images paresseuses (A1)', () => {
+  const imgs = (html: string) => Array.from(new DOMParser().parseFromString(html, 'text/html').querySelectorAll('img'), (img) => img.getAttribute('src') || '');
+  const extractLazyPage = async (url: string) => {
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo) => {
+      if (String(input).startsWith('/api/extract')) return new Response('', { status: 404 });
+      return htmlPage(lazyImagePageHtml());
+    }));
+    return extractFullContent(url);
+  };
+
+  it('rend l’adresse réelle d’une image paresseuse, pas son cadre blanc', async () => {
+    const out = await extractLazyPage('https://example.com/usine-a');
+    const sources = imgs(out.content);
+    expect(sources).toContain(LAZY_IMAGES.picture);
+    expect(sources.filter((src) => src.startsWith('data:image/svg'))).toEqual([]);
+    expect(out.content).toContain(LAZY_IMAGES.pictureSet);
+  });
+
+  it('garde l’image que seul son `noscript` porte, et celle d’un bouton d’agrandissement', async () => {
+    const sources = imgs((await extractLazyPage('https://example.com/usine-b')).content);
+    expect(sources).toContain(LAZY_IMAGES.noscriptOnly);
+    expect(sources).toContain(LAZY_IMAGES.zoomed);
+  });
+
+  it('ne touche pas une vraie image en ligne', async () => {
+    expect(imgs((await extractLazyPage('https://example.com/usine-c')).content)).toContain(INLINE_IMAGE);
+  });
+
+  it('résout une adresse data-src relative contre l’article', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo) => {
+      if (String(input).startsWith('/api/extract')) return new Response('', { status: 404 });
+      return htmlPage(lazyImagePageHtml().replace(`data-src="${LAZY_IMAGES.picture}"`, 'data-src="/media/usine-relative.jpg"'));
+    }));
+    const out = await extractFullContent('https://presse.example.fr/2026/usine/');
+    expect(imgs(out.content)).toContain('https://presse.example.fr/media/usine-relative.jpg');
   });
 });
 
