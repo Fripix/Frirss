@@ -5110,25 +5110,50 @@ serveur de développement en 1.4.4.)*
   `extractFullContent()` demande `GET /api/extract?url=…` (**JWT requis**, garde
   anti-SSRF sur la cible), qui extrait une fois pour toute l'instance et — quand
   Redis est là — partage le résultat entre appareils et entre comptes.
-  **Toute** réponse absente, en erreur (404 sur un serveur plus ancien, 422 page
-  non extractible, 403, 502, 503, 504) ou illisible fait tomber sur
-  l'extraction locale décrite ci-dessous — **sauf un 429**, qui est une question
-  de cadence et non de capacité : voir plus bas, **et sauf un 415 ou un 413**
-  (la cible n'est pas une page, ou dépasse 2 Mo, le plafond du repli aussi :
-  `NotAPageError`, pas de repli), **et sauf un 502 qui porte `upstreamStatus`**
-  (1.9.0 : le site a répondu, et refusé la page au serveur ; le repli irait se
-  faire refuser par le même site — `UpstreamRefusedError`, pas de repli ; un
-  502 sans ce champ, site injoignable, se replie toujours), **et sauf un 422
-  qui porte `tooComplex`** (1.9.0, M-01 : page piégée, refusée par le serveur
-  pour sa complexité — `PageTooComplexError`, pas de repli, l'onglet relirait
-  la même page ; un 422 sans ce champ, rien de lisible, se replie toujours),
-  **et sauf un 504 qui porte `timedOut`** (relecture 1.9.0 : l'analyse du
-  serveur a dépassé son délai — `ExtractTimeoutError`, pas de repli, l'onglet
-  paierait la même analyse, mais pas de mémoire non plus : « Réessayer » reste
-  utile ; un 504 sans ce champ se replie toujours) — page récupérée par `/api/proxy` (**JWT requis**,
-  même garde anti-SSRF) puis Readability dans le navigateur. Ce repli n'est pas
-  du code hérité : c'est ce qui tient quand le serveur n'a pas la route, ne sait
-  pas lire la page, ou ne répond pas.
+  **Le repli — l'extraction locale décrite ci-dessous — ne joue que quand le
+  serveur n'a pas pu essayer** (décision de la vérification 1.9.0, N-2) :
+  route absente (404 d'un serveur plus ancien, toute réponse inattendue — 500,
+  corps illisible, 200 sans `content`), FriRSS injoignable ou muet (erreur
+  réseau, délai du client `SERVER_EXTRACT_TIMEOUT_MS`), page que le serveur
+  n'a pas pu joindre (502 sans `upstreamStatus`, 504 sans `timedOut`, 503
+  `Target host unresolved` de son résolveur). Page récupérée par `/api/proxy`
+  (**JWT requis**, même garde anti-SSRF) puis Readability dans le navigateur.
+  **Quand le serveur a eu le HTML et l'a refusé, pas de repli** : l'onglet
+  relirait la même page, analyse comprise, sur le fil principal.
+  - **503 portant `busy`** (`Extractor busy`, file d'analyse pleine) :
+    `ExtractorBusyError`, échec **passager** — pas retenu, « Réessayer »
+    possible, l'extraction automatique le redemandera à la prochaine
+    ouverture. Le repli n'avait qu'une borne de forme, aucune de durée : sur
+    une page lente sous les seuils, quand d'autres analyses remplissaient la
+    file, l'onglet gelait **14 s** (mesuré au banc, N-2) ;
+  - **422** : `tooComplex` (M-01, page piégée — `PageTooComplexError`) ou
+    `Not extractable` (le serveur n'y a rien trouvé de lisible —
+    `NoContentError`) ; les deux sont **retenus pour la session**. Avant N-2,
+    le second se repliait, et l'onglet refaisait l'analyse que le serveur
+    avait peut-être payée plusieurs secondes ;
+  - **504 portant `timedOut`** (relecture 1.9.0 : l'analyse du serveur a
+    dépassé son délai — `ExtractTimeoutError`) : pas retenu, « Réessayer »
+    reste utile ;
+  - **415 ou 413** (la cible n'est pas une page, ou dépasse 2 Mo, le plafond
+    du repli aussi — `NotAPageError`) ;
+  - **502 portant `upstreamStatus`** (1.9.0 : le site a répondu, et refusé la
+    page au serveur ; le repli irait se faire refuser par le même site —
+    `UpstreamRefusedError`) ;
+  - **429**, question de cadence et non de capacité : voir plus bas.
+  **Ce que le lecteur voit** sur ces refus : le message ordinaire d'échec —
+  bandeau `readingPane.extractError` pour une extraction demandée, ligne
+  discrète « Article complet indisponible… » suivie de « Réessayer » pour une
+  extraction automatique (voir plus bas), aucun texte propre au refus. Les
+  files de fond (réchauffage de la vue, préchargement, préparation hors
+  ligne, favoris épinglés, revalidation) avalent l'échec : l'article garde le
+  contenu du flux, ou son extrait d'une version antérieure (M-03), et un
+  refus passager (503 `busy`, 504 `timedOut`) est repris au passage suivant,
+  rien n'ayant été mis en cache. ⚠️ Coût assumé : une préparation hors ligne
+  lancée pendant que d'autres comptes saturent la file laisse ces articles
+  sans article complet jusqu'au passage suivant, là où le repli les
+  extrayait — en gelant l'onglet sur les pages lentes. Ce repli n'est pas du
+  code hérité : c'est ce qui tient quand le serveur n'a pas la route ou ne
+  répond pas.
   ⚠️ **Le repli ne lit qu'une page, et bornée** (`readPageText`,
   `FALLBACK_MAX_HTML_BYTES` = 2 Mo, le plafond de la route) : un type annoncé
   qui n'est pas `text/html`/XHTML est refusé sans lire le corps, un type absent
@@ -5143,9 +5168,11 @@ serveur de développement en 1.4.4.)*
   du serveur, mêmes seuils — `FALLBACK_MARKUP_LIMITS`) :
   `PageTooComplexError`, retenue pour la session. Il n'avait aucune borne de
   profondeur (relecture 1.9.0) : une page que le serveur n'a pas pu refuser
-  (route absente, file pleine, 422 ordinaire) passait à Readability, dont le
-  coût croît comme le cube de la profondeur — l'onglet gelait, et jsdom levait
-  même un `RangeError` à 2000 niveaux.
+  (route absente, serveur injoignable) passait à Readability, dont le coût
+  croît comme le cube de la profondeur — l'onglet gelait, et jsdom levait
+  même un `RangeError` à 2000 niveaux. ⚠️ Borne de **forme**, pas de durée :
+  une page large ET profonde sous les seuils coûte encore son analyse à
+  l'onglet — c'est pourquoi les refus du serveur ne se replient plus (N-2).
   ⚠️ **Les URLs relatives du repli sont rendues absolues À LA MAIN**
   (`src/utils/absolutizeUrls.ts`, 1.5.0), avant Readability, contre l'URL de
   l'article — ou contre le `<base>` que la page distante porte elle-même.
@@ -5384,10 +5411,11 @@ serveur de développement en 1.4.4.)*
     le lecteur. Le volet ne lance pas d'extraction automatique sur une vidéo,
     ne l'attend pas (pas de squelette) et n'affiche aucun échec ;
   - **un échec qui tient à la PAGE est retenu pour la session** (pas une page,
-    trop grosse, trop complexe — le 422 `tooComplex` du serveur, M-01, ou le refus du repli lui-même —, rien de lisible, refus **4xx** du site ou du repli hors 408
+    trop grosse, trop complexe — le 422 `tooComplex` du serveur, M-01, ou le refus du repli lui-même —, rien de lisible (le 422 `Not extractable` du serveur, ou le repli), refus **4xx** du site ou du repli hors 408
     et 429 — `isPageRefusal`) : les extractions automatiques et les files de
     fond ne la redemandent plus (`worthAutoExtracting`). Une cadence dépassée,
-    un délai (dont celui de l'analyse du serveur, `timedOut`), une panne réseau ou un **5xx**, du site comme du proxy, ne sont
+    un délai (dont celui de l'analyse du serveur, `timedOut`), une file
+    d'analyse pleine (503 `busy`), une panne réseau ou un **5xx**, du site comme du proxy, ne sont
     PAS retenus : ils ne disent rien de la page (un 503 passager excluait
     sinon la page de l'automatique jusqu'au rechargement — relecture 1.9.0).
     Ni un **401/403 de `/api/proxy`** : il peut venir de FriRSS lui-même
@@ -5426,11 +5454,13 @@ serveur de développement en 1.4.4.)*
   chaque extraction automatique, et un flux sans contenu n'avait pas de
   squelette en attendant l'extrait (L-06, `ReadingPane.extract.test.tsx`). Le
   squelette, lui, tombe dès que l'extraction automatique a échoué.
-- **Ce que coûte un repli** : sur 422, 502 sans `upstreamStatus` ou 503 `Extractor busy`, le site
-  d'origine est récupéré **deux fois** — une fois par le serveur, une fois par
-  le navigateur — et deux jetons quittent le seau de cadence partagé. (Sur
-  l'autre 503, `Target host unresolved`, le serveur n'a joint personne : le
-  repli est la seule requête.) Le « une requête au
+- **Ce que coûte un repli** : sur un 502 sans `upstreamStatus` ou un 504
+  sans `timedOut`, le site d'origine est sollicité **deux fois** — une fois
+  par le serveur, une fois par le navigateur — et deux jetons quittent le seau
+  de cadence partagé. (Sur le 503 `Target host unresolved`, le serveur n'a
+  joint personne : le repli est la seule requête.) Un 422 et un 503 `busy`,
+  qui coûtaient eux aussi deux récupérations de la page, ne se replient plus
+  depuis N-2. Le « une requête au
   lieu de dix » du README décrit le chemin nominal ; le repli, lui, double le
   trafic vers l'origine pour cet article-là.
 - **Piège — le HTML rendu par la route est BRUT.** Le serveur n'assainit rien
@@ -7709,9 +7739,11 @@ qu'elle rend (voir *Extraction du contenu complet*).
   **File : cinq analyses au plus** (`EXTRACT_MAX_PENDING`). Le compteur est pris
   à l'ARRIVÉE, tenu pendant le travail du worker et rendu au départ : il borne
   donc la file ET le nombre de workers vivants (cinq, chacun ≤ 10 s et 256 Mo).
-  Au-delà, la route répond `503 { error: 'Extractor busy' }` et le client se
-  replie sur son propre extracteur — ce qu'il faisait de toute façon avant la
-  1.4.10. Un `setImmediate` sépare deux départs.
+  Au-delà, la route répond `503 { error: 'Extractor busy', busy: true }` :
+  échec passager, que le client ne retient pas et dont il **ne se replie
+  pas** sur son propre extracteur (N-2, vérification 1.9.0 — l'onglet gelait
+  14 s sur une page lente en refaisant l'analyse refusée). Un `setImmediate`
+  sépare deux départs.
   ⚠️ **Ce que ces bornes ne font PAS : borner le CPU.** Un compte peut tenir
   cinq analyses en cours indéfiniment, donc occuper jusqu'à cinq cœurs. Le
   serveur reste disponible, pas immunisé contre la charge.
@@ -7867,11 +7899,12 @@ qu'elle rend (voir *Extraction du contenu complet*).
   pour qu'un balayage SSRF laisse une trace), **503 `Target host unresolved`**
   (le résolveur n'a pas répondu — une panne, pas un refus : voir plus bas), 504
   délai, 502 panne amont. S'y ajoute un 503 propre à cette route,
-  **`Extractor busy`**, quand la file d'analyse est pleine
-  (`EXTRACT_MAX_PENDING`) : même code, deux corps distincts, et le client se
-  replie dans les deux cas. Et un 422 à deux corps : `Not extractable` (rien de
-  lisible, le client se replie) et `Page too complex` avec `tooComplex: true`
-  (M-01, page piégée : le client ne se replie pas). Et un 504 propre, `Extraction
+  **`Extractor busy`** avec `busy: true`, quand la file d'analyse est pleine
+  (`EXTRACT_MAX_PENDING`) : même code, deux corps distincts — le client se
+  replie sur le premier (le serveur n'a pas essayé), pas sur le second (N-2).
+  Et un 422 à deux corps, sur lesquels le client ne se replie pas et qu'il
+  retient pour la session : `Not extractable` (rien de lisible) et `Page too
+  complex` avec `tooComplex: true` (M-01, page piégée). Et un 504 propre, `Extraction
   timed out` avec `timedOut: true` : le délai du worker, distinct du 504 d'un
   délai amont (le client ne se replie que sur ce dernier). Le corps ne nomme jamais la cible, et la ligne de
   journal passe par `redactUrl` dans **toutes** les branches — la branche 503
@@ -7904,9 +7937,11 @@ qu'elle rend (voir *Extraction du contenu complet*).
   resterait vert quel que soit son comportement.
   Un `400 { error: 'Invalid or missing url' }` couvre les deux entrées
   refusées d'emblée — `url` absente, ou présente mais pas http(s).
-- **422 quand la page n'est pas extractible** : le client tombe alors sur son
-  extracteur local ; un corps vide en 200 l'en priverait, puisqu'il ne
-  retient la réponse du serveur que lorsqu'elle porte un `content` non vide.
+- **422 quand la page n'est pas extractible** : un corps vide en 200 serait
+  affiché comme un article vide. Le client ne se replie pas sur son
+  extracteur local (N-2, vérification 1.9.0) — il relirait le même HTML — et
+  retient la page pour la session ; le serveur la garde aussi quelques
+  minutes.
 
 ### nginx (image de production)
 Sert `dist/` et proxifie `/api/` vers Express. Porte les en-têtes de sécurité

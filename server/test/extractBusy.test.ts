@@ -12,8 +12,10 @@ import type { Request, Response, NextFunction } from 'express';
 // du refus en réponse. Le comportement de la file elle-même est couvert
 // directement dans `server/test/extract.test.ts`.
 //
-// Ce que ce test garde : le refus doit être un échec ORDINAIRE, dont le client
-// se replie sur son propre extracteur — pas un 200 vide, pas un 403.
+// Ce que ce test garde : le refus doit être un échec PASSAGER, qui se dit
+// (`busy`) — pas un 200 vide, pas un 403. Le client ne le retient pas et ne se
+// replie pas sur son propre extracteur : l'onglet referait l'analyse que le
+// serveur refuse, sans borne de durée (N-2, vérification 1.9.0).
 vi.mock('../extract.js', async () => {
   const actual = await vi.importActual<typeof import('../extract.js')>('../extract.js');
   return {
@@ -44,7 +46,7 @@ const app = express();
 app.use('/api/extract', extractRoutes);
 
 describe('extract — file d’analyse saturée', () => {
-  it('répond un échec ordinaire dont le client peut se replier', async () => {
+  it('répond un échec passager qui se dit occupé', async () => {
     dnsLookup.mockResolvedValue([{ address: '93.184.216.34', family: 4 }]);
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
       ok: true, status: 200,
@@ -57,7 +59,7 @@ describe('extract — file d’analyse saturée', () => {
     const res = await request(app).get('/api/extract').query({ url: 'https://news.example.com/a' });
 
     expect(res.status).toBe(503);
-    expect(res.body).toEqual({ error: 'Extractor busy' });
+    expect(res.body).toEqual({ error: 'Extractor busy', busy: true });
     vi.unstubAllGlobals();
   });
 });

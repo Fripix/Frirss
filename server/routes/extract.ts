@@ -268,13 +268,15 @@ async function produce(url: string, key: string | null): Promise<Outcome> {
   // `parseHTML` + `Readability` coûtent de quelques millisecondes à des
   // minutes selon la FORME de la page (M-01) : ils tournent dans un worker
   // arrêté au bout de 10 s, et la file (`EXTRACT_MAX_PENDING`) borne le nombre
-  // de workers. Une file pleine se dit — et le client se replie sur son propre
-  // extracteur, comme avant la 1.4.10.
+  // de workers. Une file pleine se dit (`busy`) : un échec passager, que le
+  // client ne retient pas et dont il ne se replie PAS sur son propre
+  // extracteur — l'onglet referait l'analyse refusée ici, sans borne de durée
+  // (N-2, vérification 1.9.0).
   let article;
   try {
     article = await withExtractSlot(() => extractInWorker(url, html));
   } catch (err) {
-    if (err instanceof ExtractorBusyError) return json(503, { error: 'Extractor busy' });
+    if (err instanceof ExtractorBusyError) return json(503, { error: 'Extractor busy', busy: true });
     // Délai du worker dépassé : PAS une page piégée (relecture 1.9.0) — un
     // serveur chargé peut le dépasser sur une page ordinaire. Ni gardé ici,
     // ni retenu par le client, qui peut réessayer ; `timedOut` lui dit
@@ -291,8 +293,10 @@ async function produce(url: string, key: string | null): Promise<Outcome> {
     }
     throw err;
   }
-  // Pas d'article lisible : on le dit, pour que le client puisse extraire de
-  // son côté. Un corps vide renvoyé en 200 le priverait de ce repli.
+  // Pas d'article lisible : on le dit, plutôt qu'un corps vide en 200 que le
+  // volet afficherait. Le client ne se replie pas sur son propre extracteur
+  // (N-2, vérification 1.9.0) : il relirait le même HTML, analyse comprise,
+  // dans l'onglet ; il retient la page pour la session.
   if (!article) {
     const unreadable = json(422, { error: 'Not extractable' });
     rememberFailure(url, unreadable);

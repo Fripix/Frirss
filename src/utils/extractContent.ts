@@ -71,7 +71,8 @@ export function sanitizeExtracted(html: string): string {
  * la page, et il vaut mieux lui rendre le texte que son propre navigateur sait
  * extraire. Ce qu'il coûte, assumé : sur une page vraiment lente, le repli
  * repart chercher la MÊME origine, soit deux requêtes chez elle pour cet
- * article-là — c'est déjà le coût connu d'un repli sur 422 ou 502 (ni un 415 ni un 413 ne se replient).
+ * article-là — c'est déjà le coût connu d'un repli sur un 502 sans statut
+ * d'amont (ni un 415, ni un 413, ni un refus de l'extracteur ne se replient).
  * L'extraction serveur, elle, va au bout et remplit le cache : le prochain
  * appareil, lui, sera servi tout de suite.
  *
@@ -204,12 +205,24 @@ export class ExtractTimeoutError extends Error {
   constructor() { super('EXTRACT_TIMEOUT'); this.name = 'ExtractTimeoutError'; }
 }
 
+/**
+ * La file d'analyse du serveur est pleine (503 portant `busy`). Échec
+ * PASSAGER : pas retenu, « Réessayer » possible, le passage suivant reprend
+ * l'article. Sans repli : l'onglet referait l'analyse que le serveur refuse,
+ * sans borne de durée — 14 s de gel mesurées sur une page lente (N-2,
+ * vérification 1.9.0).
+ */
+export class ExtractorBusyError extends Error {
+  constructor() { super('EXTRACTOR_BUSY'); this.name = 'ExtractorBusyError'; }
+}
+
 /** Le repli a reçu une réponse en erreur de `/api/proxy`. */
 class FallbackHttpError extends Error {
   constructor(readonly status: number) { super(`HTTP ${status}`); this.name = 'FallbackHttpError'; }
 }
 
-/** Readability n'a rien trouvé de lisible, ni au serveur ni ici. */
+/** Readability n'a rien trouvé de lisible : au serveur (422 sans
+ *  `tooComplex`, pas de repli depuis N-2), ou ici, dans le repli. */
 class NoContentError extends Error {
   constructor() { super('NO_CONTENT'); this.name = 'NoContentError'; }
 }
@@ -452,14 +465,21 @@ async function extractOnce(url: string): Promise<ExtractedContent> {
 
   // Le serveur fait autorité quand il répond : il extrait une fois pour toute
   // l'instance et, quand Redis est là, partage le résultat entre appareils et
-  // entre comptes. Toute réponse absente, en erreur, trop lente ou illisible
-  // fait tomber sur l'extraction locale ci-dessous, qui reste le filet — la
-  // route peut manquer (serveur plus ancien), ne pas savoir extraire la page
-  // (422) ou échouer à la joindre (502, 504). Sauf un 415 (la cible n'est pas
-  // une page) ou un 413 (plus de 2 Mo, le plafond du repli aussi) : le repli
-  // relirait la même réponse pour échouer (`NotAPageError`). Ni un 422 portant
-  // `tooComplex` : la page est piégée, l'onglet la relirait (M-01) ; ni un 504
-  // portant `timedOut` : l'analyse a dépassé son délai, l'onglet la paierait.
+  // entre comptes. L'extraction locale ci-dessous n'est qu'un filet pour les
+  // cas où le serveur n'a PAS PU ESSAYER : route absente (serveur plus
+  // ancien, 404, ou toute réponse inattendue), FriRSS injoignable ou muet
+  // (erreur réseau, délai du client), page que le serveur n'a pas pu joindre
+  // (502 sans statut d'amont, 504 sans `timedOut`, 503 de son résolveur).
+  //
+  // Quand le serveur a eu le HTML et l'a refusé, le repli relirait la même
+  // page dans l'onglet, analyse comprise, sur le fil principal — décision de
+  // la vérification 1.9.0 (N-2) : pas de repli. Ni sur un 415 (la cible n'est
+  // pas une page) ou un 413 (plus de 2 Mo, le plafond du repli aussi) ; ni
+  // sur un 422, `tooComplex` (page piégée, M-01) ou non (rien de lisible) ;
+  // ni sur un 504 portant `timedOut` (l'analyse a dépassé son délai) ; ni sur
+  // un 503 portant `busy` (file d'analyse pleine : 14 s de gel mesurées quand
+  // l'onglet prenait le relais). Ni sur un 502 portant `upstreamStatus` (le
+  // site a refusé la page, il la refuserait au proxy).
   //
   // Ce repli ne couvre PAS l'absence de Redis : sans cache, la route extrait
   // quand même et répond 200 — elle ne garde simplement rien, et le prochain
@@ -488,10 +508,20 @@ async function extractOnce(url: string): Promise<ExtractedContent> {
     // refusé la page. Le repli irait se faire refuser de même. Un 502 sans
     // lui (site injoignable depuis le serveur) garde le repli.
     // 422 portant `tooComplex` : page piégée, refusée par le serveur (M-01).
-    // Un 422 sans lui (rien de lisible) garde le repli.
+    // Un 422 sans lui : le serveur n'y a rien trouvé de lisible. Ni l'un ni
+    // l'autre ne se replient (N-2) — l'onglet relirait le même HTML —, et les
+    // deux sont retenus pour la session.
     if (served.status === 422) {
       const body = (await served.json().catch(() => null)) as { tooComplex?: unknown } | null;
       if (body?.tooComplex === true) throw new PageTooComplexError();
+      throw new NoContentError();
+    }
+    // 503 portant `busy` : file d'analyse du serveur pleine (N-2). Passager,
+    // pas retenu, sans repli. Un 503 sans lui (résolveur du serveur muet)
+    // garde le repli : le serveur n'a pas essayé.
+    if (served.status === 503) {
+      const body = (await served.json().catch(() => null)) as { busy?: unknown } | null;
+      if (body?.busy === true) throw new ExtractorBusyError();
       return null;
     }
     // 504 portant `timedOut` : l'analyse du serveur a dépassé son délai.
@@ -553,7 +583,7 @@ async function extractOnce(url: string): Promise<ExtractedContent> {
     if (served && !('limited' in served)) return served;
   } catch (err) {
     if (err instanceof NotAPageError || err instanceof UpstreamRefusedError || err instanceof PageTooComplexError
-      || err instanceof ExtractTimeoutError) throw err;
+      || err instanceof ExtractTimeoutError || err instanceof ExtractorBusyError || err instanceof NoContentError) throw err;
     /* repli */
   }
 
@@ -586,8 +616,11 @@ async function extractOnce(url: string): Promise<ExtractedContent> {
   // Page piégée : refusée sur son texte, avant toute analyse — les seuils du
   // serveur (`EXTRACT_MAX_DEPTH`, `EXTRACT_MAX_ELEMENTS`, `server/extract.ts`).
   // Readability coûte le cube de la profondeur : sans cette borne, une page
-  // que le serveur n'a pas pu refuser (route absente, file pleine, 422
-  // ordinaire) gelait l'onglet (relecture 1.9.0). Retenue pour la session.
+  // que le serveur n'a pas pu refuser (route absente, serveur injoignable)
+  // gelait l'onglet (relecture 1.9.0). Retenue pour la session. Cette borne
+  // est de FORME, pas de durée : une page lente sous les seuils coûte encore
+  // son analyse à l'onglet — d'où l'absence de repli sur les refus du
+  // serveur (N-2).
   if (markupTooComplex(html, FALLBACK_MARKUP_LIMITS)) throw new PageTooComplexError();
 
   // Parse into a DOM document that Readability can work with. Rendre les URLs

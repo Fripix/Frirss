@@ -7,6 +7,7 @@ import {
   NotExtractableError,
   PageTooComplexError,
   ExtractTimeoutError,
+  ExtractorBusyError,
   UpstreamRefusedError,
   forgetExtractFailures,
   FALLBACK_EXTRACT_TIMEOUT_MS,
@@ -118,7 +119,6 @@ describe('extractFullContent', () => {
 
   for (const [label, reply] of [
     ['404 (serveur plus ancien, route absente)', () => new Response('', { status: 404 })],
-    ['422 (page non extractible)', () => new Response('', { status: 422 })],
     ['500', () => new Response('', { status: 500 })],
     ['corps illisible', () => new Response('pas du json', { status: 200 })],
     // Le 200 à `content` vide est la raison d'être du 422 côté serveur : sans
@@ -183,7 +183,7 @@ describe('extractFullContent — repli local : seuil de Readability', () => {
       <section><h2>Solutions</h2><p>Se référer au bulletin de sécurité de l’éditeur pour l’obtention des correctifs.</p></section>
     </body></html>`;
     vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo) => {
-      if (String(input).startsWith('/api/extract')) return new Response('', { status: 422 });
+      if (String(input).startsWith('/api/extract')) return new Response('', { status: 404 });
       return htmlPage(html);
     }));
     const out = await extractFullContent('https://example.com/avis-seuil');
@@ -196,7 +196,7 @@ describe('extractFullContent — repli local : seuil de Readability', () => {
 describe('extractFullContent — repli local : conteneur principal', () => {
   it('ne garde pas un fragment quand le conteneur principal de la page est bien plus long', async () => {
     vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo) => {
-      if (String(input).startsWith('/api/extract')) return new Response('', { status: 422 });
+      if (String(input).startsWith('/api/extract')) return new Response('', { status: 404 });
       return htmlPage(advisoryPageHtml());
     }));
     const out = await extractFullContent('https://example.com/avis-conteneur');
@@ -234,7 +234,7 @@ describe('extractFullContent — repli local : conteneur principal', () => {
 // `stripBoilerplate`) sortent du document avant toute passe.
 describe('extractFullContent — repli local : blocs étrangers (M-04)', () => {
   const fallbackOn = (html: string) => vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo) => {
-    if (String(input).startsWith('/api/extract')) return new Response('', { status: 422 });
+    if (String(input).startsWith('/api/extract')) return new Response('', { status: 404 });
     return htmlPage(html);
   }));
   const textOf = (html: string) => (new DOMParser().parseFromString(html, 'text/html').body.textContent || '').replace(/\s+/g, ' ').trim();
@@ -280,11 +280,11 @@ describe('extractFullContent — repli local : blocs étrangers (M-04)', () => {
 
   // Relecture 1.9.0 (R1-3) : le repli n'avait aucune borne de profondeur.
   // Readability coûte le cube de la profondeur : une page piégée que le
-  // serveur n'a pas pu refuser (route absente, file pleine) gelait l'onglet.
+  // serveur n'a pas pu refuser (route absente) gelait l'onglet.
   it('refuse une page piégée sans l’analyser, et la retient pour la session', async () => {
     const proxyCalls = vi.fn();
     vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo) => {
-      if (String(input).startsWith('/api/extract')) return new Response('', { status: 503 });
+      if (String(input).startsWith('/api/extract')) return new Response('', { status: 404 });
       proxyCalls();
       return htmlPage(`<html><body>${'<div>'.repeat(2000)}<p>court</p>${'</div>'.repeat(2000)}</body></html>`);
     }));
@@ -772,6 +772,58 @@ describe('extractFullContent — mémoire des échecs (L-03)', () => {
     // Pas retenue : l'automatique la redemande.
     await expect(extractFullContent('https://example.com/lente')).rejects.toBeInstanceOf(ExtractTimeoutError);
     expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+
+  // N-2 (vérification 1.9.0) : file d'analyse du serveur pleine. Le repli
+  // refaisait dans l'onglet l'analyse que le serveur refusait, sans borne de
+  // durée : 14 s de gel sur une page lente. Un échec passager — pas retenu,
+  // « Réessayer » possible —, mais sans repli.
+  it('ne se replie pas quand l’extracteur du serveur est occupé (503), et ne le retient pas', async () => {
+    const proxy = vi.fn();
+    const fetchSpy = vi.fn(async (input: RequestInfo) => {
+      if (String(input).startsWith('/api/extract')) {
+        return new Response(JSON.stringify({ error: 'Extractor busy', busy: true }), { status: 503 });
+      }
+      proxy();
+      return htmlPage(pageHtml);
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+
+    await expect(extractFullContent('https://example.com/occupe')).rejects.toBeInstanceOf(ExtractorBusyError);
+    expect(proxy).not.toHaveBeenCalled();
+
+    // Pas retenue : l'automatique la redemande.
+    await expect(extractFullContent('https://example.com/occupe')).rejects.toBeInstanceOf(ExtractorBusyError);
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+
+  // N-2 : le serveur a eu le même HTML et n'y a rien trouvé de lisible ; le
+  // repli refaisait l'analyse dans l'onglet, aussi longue fût-elle.
+  it('ne se replie pas sur une page que le serveur n’a pas su lire (422), et la retient pour la session', async () => {
+    const proxy = vi.fn();
+    const fetchSpy = vi.fn(async (input: RequestInfo) => {
+      if (String(input).startsWith('/api/extract')) {
+        return new Response(JSON.stringify({ error: 'Not extractable' }), { status: 422 });
+      }
+      proxy();
+      return htmlPage(pageHtml);
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+
+    await expect(extractFullContent('https://example.com/illisible')).rejects.toThrow();
+    expect(proxy).not.toHaveBeenCalled();
+    await expect(extractFullContent('https://example.com/illisible')).rejects.toBeInstanceOf(NotExtractableError);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  // Le serveur n'a pas essayé : son résolveur n'a pas répondu (`finishError`).
+  it('se replie toujours sur un 503 qui ne dit pas l’extracteur occupé', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo) => {
+      if (String(input).startsWith('/api/extract')) return new Response(JSON.stringify({ error: 'Target host unresolved' }), { status: 503 });
+      return htmlPage(pageHtml);
+    }));
+    const out = await extractFullContent('https://example.com/resolveur');
+    expect(out.content).toContain('paragraphe');
   });
 
   it('se replie toujours sur un 504 ordinaire (site trop lent pour le serveur)', async () => {

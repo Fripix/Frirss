@@ -40,14 +40,17 @@ export interface ExtractedArticle {
  * la fois la file et le nombre de workers (et leur mémoire) : au plus cinq
  * analyses à la fois, chacune bornée à 10 s.
  *
- * Au-delà, la requête est REFUSÉE plutôt que mise en attente : le client sait
- * se replier sur son propre extracteur, donc un refus lui coûte une extraction
- * locale — ce qu'il faisait de toute façon avant la 1.4.10 — quand une file
- * sans borne coûterait la mémoire du serveur et la patience du lecteur.
+ * Au-delà, la requête est REFUSÉE plutôt que mise en attente (503 portant
+ * `busy`) : un échec passager, que le client ne retient pas — « Réessayer »
+ * reste possible, le passage suivant reprend l'article — quand une file sans
+ * borne coûterait la mémoire du serveur et la patience du lecteur. Le client
+ * ne se replie PAS sur son propre extracteur : il referait dans l'onglet
+ * l'analyse refusée ici, sans borne de durée — 14 s de gel sur une page lente
+ * (N-2, vérification 1.9.0).
  */
 export const EXTRACT_MAX_PENDING = 5;
 
-/** La file d'extraction est pleine — échec ordinaire, le client se replie. */
+/** La file d'extraction est pleine — échec passager, sans repli du client. */
 export class ExtractorBusyError extends Error {}
 
 let pending = 0;
