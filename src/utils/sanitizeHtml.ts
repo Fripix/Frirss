@@ -94,6 +94,23 @@ function dropBlankLead(body: Element): void {
 }
 
 /**
+ * Chaque tableau (le plus extérieur seulement) dans un bloc qui défile de
+ * côté (`.article-scroll-x`, `index.css`) : un tableau plus large que la
+ * colonne était coupé à droite, sans défilement (M-11). Le tableau garde sa
+ * largeur naturelle ; c'est l'enveloppe qui défile, et le balayage du volet
+ * lui laisse le geste (`horizontalScroller.ts`).
+ */
+function wrapTables(body: Element): void {
+  for (const table of Array.from(body.querySelectorAll('table'))) {
+    if (table.parentElement?.closest('table')) continue;
+    const box = body.ownerDocument.createElement('div');
+    box.className = 'article-scroll-x';
+    table.replaceWith(box);
+    box.appendChild(table);
+  }
+}
+
+/**
  * `sanitizeHtml` pour le corps d'un article, avec les retouches faites sur
  * l'arbre que DOMPurify vient d'assainir, avant son unique sérialisation :
  *
@@ -103,7 +120,9 @@ function dropBlankLead(body: Element): void {
  *   pas déjà de `dir` (sauf `blockDir: false`) ;
  * - `aspect-ratio` réservé dans le `style` des images aux dimensions connues
  *   (`reserveImgAspect`, `imageAspect.ts`) ;
- * - paragraphes vides et blancs de tête retirés.
+ * - paragraphes vides et blancs de tête retirés ;
+ * - chaque tableau extérieur enveloppé d'un bloc qui défile de côté
+ *   (`wrapTables`, M-11).
  *
  * ⚠️ Pas de motif sur le HTML sérialisé. Ceux d'avant n'avaient pas de borne
  * après le nom (`<pre>` → `<p dir="auto"re>`, `<picture>` → `<p dir="auto"icture>`)
@@ -123,6 +142,7 @@ export function sanitizeArticleBody(
     const body = DOMPurify.sanitize(html, { ...CONFIG, RETURN_DOM: true }) as Element;
     try {
       dropBlankLead(body);
+      wrapTables(body);
       return body.innerHTML;
     } finally {
       releaseDocument(body.ownerDocument); // voir `parsedDocument.ts`

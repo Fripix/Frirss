@@ -440,6 +440,8 @@ html {
   border-radius: var(--radius-sm);
   padding: 1em;
   overflow-x: auto;
+  /* Au bout du bloc, le geste ne glisse pas au volet (M-11). */
+  overscroll-behavior-x: contain;
   margin: 1em 0;
 }
 
@@ -447,11 +449,15 @@ html {
   background: var(--code-bg);
   padding: 0.15em 0.4em;
   border-radius: 3px;
+  /* Un nom de fichier ou une commande en ligne, sans espace, sortait de la
+     colonne à 320 px (M-11) : il se coupe où il faut. */
+  overflow-wrap: anywhere;
 }
 
 .article-content pre code {
   background: none;
   padding: 0;
+  overflow-wrap: normal;
 }
 
 .article-content h1,
@@ -473,10 +479,24 @@ html {
   margin-bottom: 0.3em;
 }
 
+/* L'enveloppe de chaque tableau (`wrapTables`, `sanitizeHtml.ts`) : un
+   tableau plus large que la colonne était coupé à droite, sans défilement
+   (M-11). Il garde sa largeur naturelle, au moins celle de la colonne, et
+   c'est l'enveloppe qui défile ; le balayage du volet lui laisse le geste. */
+.article-content .article-scroll-x {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  margin: 1em 0;
+}
+
 .article-content table {
   width: 100%;
   border-collapse: collapse;
   margin: 1em 0;
+}
+
+.article-content .article-scroll-x > table {
+  margin: 0;
 }
 
 .article-content th,

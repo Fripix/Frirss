@@ -3041,7 +3041,10 @@ libellés disaient « plein écran » jusqu'en 1.8.0) au double-clic. Contenu bi
   `blockquote`, `figcaption` sans `dir`) et `aspect-ratio` dans le hook
   `afterSanitizeAttributes`, actif le temps de cet appel seulement ; puis
   retrait des paragraphes vides (blancs, `&nbsp;`, `<br>`) et des `<br>` /
-  blancs de tête. **Plus aucun motif sur le HTML après l'assainisseur.** La
+  blancs de tête ; enfin chaque tableau extérieur passe dans un
+  `<div class="article-scroll-x">` (`wrapTables`, second round M-11 — voir
+  *Tableaux larges et code* ci-dessous). **Plus aucun motif sur le HTML
+  après l'assainisseur.** Sur les attributs, la
   passe ne crée que `style`, `dir` et `loading`, par un simple `setAttribute`
   : l'attribut s'ajoute **après** les autres (le `style` d'une image venait
   avant en tête), un `style` existant est complété sur place
@@ -3114,6 +3117,23 @@ libellés disaient « plein écran » jusqu'en 1.8.0) au double-clic. Contenu bi
   l'animation) porte l'article visé. À l'arrivée, le vrai article est commité
   en `flushSync` **derrière** le fantôme, qui ne se fond qu'ensuite : sans ce
   maintien, le fondu découvrirait un article encore vide.
+  **Un geste né dans un bloc qui défile de côté lui revient** (second round,
+  M-11, `src/lib/horizontalScroller.ts`) : tableau enveloppé, `<pre>`, tout
+  élément entre le doigt et le volet dont `overflow-x` est `auto`/`scroll` et
+  qui déborde. Le balayage prenait tout geste horizontal et l'annulait
+  (`preventDefault`) : au doigt, même un `<pre>` défilant ne défilait pas.
+  Seulement **dans le sens où le bloc peut encore défiler** (sens inversé de
+  droite à gauche) : arrivé au bout, le geste qui va plus loin redevient un
+  balayage. Le bloc porte `overscroll-behavior-x: contain`
+  (`ReadingPane.extract.test.tsx`, `horizontalScroller.test.ts`).
+- **Tableaux larges et code** (second round, M-11, `wrapTables` dans
+  `sanitizeHtml.ts`, `.article-scroll-x` dans `index.css`) : un tableau plus
+  large que la colonne était coupé à droite, sans défilement
+  (`table { width: 100% }` sans enveloppe) — à 320 px, 398 px de tableau dans
+  288. Chaque tableau extérieur est enveloppé d'un bloc qui défile de côté ;
+  le tableau garde au moins la largeur de la colonne. Le `<code>` en ligne
+  se coupe n'importe où (`overflow-wrap: anywhere`), pas celui d'un `<pre>`,
+  qui défile.
 - **Quand le fantôme s'efface** : câblé dans `ReadingPane.tsx`. On regarde les
   **trois premières** images du corps ; si elles sont déjà `complete` — ou si
   l'article venait du cache d'extraits — le fondu part tout de suite, sinon on

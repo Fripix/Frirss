@@ -127,3 +127,31 @@ describe('sanitizeArticleBody — liens (issue #24)', () => {
     expect(out).not.toContain('target=');
   });
 });
+
+// M-11 (second round) : un tableau large était coupé à droite, sans défilement
+// (`table { width: 100% }`, sans enveloppe). Le corps l'enveloppe d'un bloc qui
+// défile de côté.
+describe('sanitizeArticleBody — tableaux larges (M-11)', () => {
+  const wrap = (html: string) => {
+    const div = document.createElement('div');
+    div.innerHTML = sanitizeArticleBody(html, 2);
+    return div;
+  };
+
+  it('enveloppe chaque tableau d’un bloc qui défile de côté', () => {
+    const div = wrap('<p>a</p><table><tr><td>1</td></tr></table><table><tr><td>2</td></tr></table>');
+    const tables = div.querySelectorAll('table');
+    expect(tables).toHaveLength(2);
+    for (const t of tables) expect(t.parentElement?.className).toBe('article-scroll-x');
+  });
+
+  it('un tableau dans un tableau n’est pas enveloppé une seconde fois', () => {
+    const div = wrap('<table><tr><td><table><tr><td>x</td></tr></table></td></tr></table>');
+    expect(div.querySelectorAll('.article-scroll-x')).toHaveLength(1);
+    expect(div.querySelector('td table')?.parentElement?.tagName).toBe('TD');
+  });
+
+  it('hors corps d’article, rien n’est enveloppé', () => {
+    expect(sanitizeHtml('<table><tr><td>1</td></tr></table>')).not.toContain('article-scroll-x');
+  });
+});

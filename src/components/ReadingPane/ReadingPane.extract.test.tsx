@@ -3,7 +3,7 @@
 // Volet de lecture : ce qu'il montre autour de l'extraction de l'article
 // complet et des vidéos YouTube (campagne 1.9.0, L-03, L-06, L-08).
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, cleanup, act } from '@testing-library/react';
+import { render, cleanup, act, fireEvent } from '@testing-library/react';
 import type { Article } from '../../types';
 
 const extractMock = vi.hoisted(() => ({ fn: vi.fn() }));
@@ -216,6 +216,38 @@ describe('ReadingPane — échec d’une extraction', () => {
     expect(extractMock.fn).toHaveBeenCalledWith('https://example.com/f2', { retry: true });
     expect(container.textContent).toContain('readingPane.extractError');
     expect(container.textContent).not.toContain('readingPane.extractUnavailable');
+  });
+});
+
+// M-11 (second round) : le balayage du volet prenait tout geste horizontal,
+// et annulait le défilement natif : au doigt, même un `<pre>` défilant ne
+// défilait pas.
+describe('ReadingPane — balayage et bloc qui défile de côté (M-11)', () => {
+  it('un geste horizontal né dans un bloc qui défile encore dans ce sens lui revient, pas au balayage', async () => {
+    const width = window.innerWidth;
+    window.innerWidth = 375;
+    try {
+      const a = { ...base, id: 'w1', url: 'https://example.com/w1', content: '<pre style="overflow-x: auto">ligne très longue</pre><p>suite</p>' } as unknown as Article;
+      const { container } = await open(a);
+      const pre = container.querySelector<HTMLElement>('.article-content pre');
+      expect(pre).not.toBeNull();
+      Object.defineProperty(pre!, 'scrollWidth', { configurable: true, value: 800 });
+      Object.defineProperty(pre!, 'clientWidth', { configurable: true, value: 300 });
+      const scroller = container.querySelector<HTMLElement>('.overflow-y-auto[tabindex="-1"]')!;
+      fireEvent.touchStart(pre!, { touches: [{ clientX: 200, clientY: 100 }] });
+      const notCancelled = fireEvent.touchMove(pre!, { touches: [{ clientX: 140, clientY: 102 }] });
+      expect(notCancelled).toBe(true);
+      expect(scroller.style.transform).toBe('');
+      fireEvent.touchEnd(pre!);
+
+      // Le même geste hors du bloc reste un balayage.
+      const p = [...container.querySelectorAll<HTMLElement>('.article-content p')].find((x) => x.textContent === 'suite')!;
+      fireEvent.touchStart(p, { touches: [{ clientX: 200, clientY: 100 }] });
+      expect(fireEvent.touchMove(p, { touches: [{ clientX: 140, clientY: 102 }] })).toBe(false);
+      fireEvent.touchEnd(p);
+    } finally {
+      window.innerWidth = width;
+    }
   });
 });
 

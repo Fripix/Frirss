@@ -17,6 +17,7 @@ import { articleTitle } from '../../lib/articleTitle';
 import type { ExtractedContent } from '../../utils/extractContent';
 import { peekExtract, getExtract, getOutdatedExtract, putExtract, revalidateIfStale } from '../../lib/extractCache';
 import { revealScrollTop } from '../../lib/listScroll';
+import { scrollsHorizontallyWithin } from '../../lib/horizontalScroller';
 import { isFocusToggleTarget } from '../../lib/readingFocus';
 import { focusSidebar } from '../../lib/focusSidebar';
 import { extractYouTubeId, facadeMarkup, youtubeThumbnail } from '../../lib/youtube';
@@ -145,6 +146,8 @@ interface SwipeTouch {
   preview?: HTMLDivElement | null;
   previewSide?: number;
   adj?: Article;
+  /** Où le doigt s'est posé : un bloc qui défile de côté y garde son geste (M-11). */
+  origin?: Element | null;
 }
 
 interface ReadingPaneProps {
@@ -529,6 +532,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
         active: false,
         preview: null,
         previewSide: 0,
+        origin: e.target instanceof Element ? e.target : null,
       };
     }
 
@@ -553,7 +557,11 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
         // whenever the finger jitters down at the start.
         if (adx < 12 && ady < 12) return;
 
-        if (adx > ady * 0.7) {
+        if (adx > ady * 0.7 && el && scrollsHorizontallyWithin(t.origin ?? null, el, dx)) {
+          t.decided = true;
+          t.active = false;           // a wide table / <pre> scrolls sideways itself (M-11)
+          return;
+        } else if (adx > ady * 0.7) {
           t.decided = true;
           t.active = true;            // horizontal-ish (generous ~55° cone) → swipe
         } else if (ady > adx * 1.4) {
