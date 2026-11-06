@@ -35,7 +35,7 @@ vi.mock('../cache.js', () => ({
   cacheEnabled: true,
   cacheGet: vi.fn(async () => null),
   cacheSet: vi.fn(async () => {}),
-  cacheKey: (u: unknown, t: string) => `k:${String(u)}:${t}`,
+  cacheKey: (u: unknown, sv: unknown, t: string) => `k:${String(u)}:${String(sv)}:${t}`,
   trimStreamJson: (s: string) => s,
   cacheableEntry: (s: string) => s,
   claimCacheRead: () => ({ done: () => {} }),

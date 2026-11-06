@@ -15,7 +15,7 @@ vi.mock('../routes/proxy.js', async () => {
 });
 const cacheSet = vi.fn(async () => {});
 vi.mock('../cache.js', () => ({
-  cacheEnabled: true, cacheSet: (...a: unknown[]) => cacheSet(...(a as [])), cacheKey: (u: unknown, t: string) => `k:${String(u)}:${t}`,
+  cacheEnabled: true, cacheSet: (...a: unknown[]) => cacheSet(...(a as [])), cacheKey: (u: unknown, sv: unknown, t: string) => `k:${String(u)}:${String(sv)}:${t}`,
   trimStreamJson: (s: string) => s, cacheableEntry: (s: string) => (s.startsWith('<') ? null : s), cacheGet: vi.fn(async () => null),
 }));
 
@@ -35,13 +35,18 @@ const slowUpstream = async (_url: string, opts: { signal: AbortSignal }): Promis
   return new Response('{"items":[]}', { status: 200 });
 };
 
+const accounts = new Map<string, { user: number; server: number }>();
 beforeAll(() => {
   for (const name of ['alice', 'bob', 'carol']) {
     const u = db.prepare(
       "INSERT INTO users (username, email, password_hash, display_name, role, auth_provider, last_active_at) VALUES (?, ?, 'x', ?, 'user', 'local', datetime('now'))",
     ).run(name, `${name}@example.com`, name);
-    db.prepare('INSERT INTO servers (user_id, name, url, freshrss_user, freshrss_token, is_default) VALUES (?, ?, ?, ?, ?, 1)')
+    // Un serveur non synchronisé d'abord : l'id du serveur ne suit pas celui du compte.
+    db.prepare('INSERT INTO servers (user_id, name, url, freshrss_user, freshrss_token, is_default) VALUES (?, ?, ?, ?, ?, 0)')
+      .run(u.lastInsertRowid, `${name}-bis`, `https://${name}.example.com`, `${name}-bis`, encrypt('jeton'));
+    const sv = db.prepare('INSERT INTO servers (user_id, name, url, freshrss_user, freshrss_token, is_default) VALUES (?, ?, ?, ?, ?, 1)')
       .run(u.lastInsertRowid, name, `https://${name}.example.com`, name, encrypt('jeton'));
+    accounts.set(name, { user: Number(u.lastInsertRowid), server: Number(sv.lastInsertRowid) });
   }
 });
 beforeEach(() => { cacheSet.mockClear(); fetchUpstream.mockReset(); });
@@ -58,5 +63,21 @@ describe('cycle de synchronisation', () => {
     const keys = (cacheSet.mock.calls as unknown as [string, string][]).map(([k]) => k);
     expect(keys.some((k) => k.includes('alice.example.com'))).toBe(true);
     expect(keys.some((k) => k.includes('carol.example.com'))).toBe(true);
+  });
+
+  // M-09 : le worker écrivait sous `cacheKey(compte, cible)`. La clé porte
+  // désormais le serveur ; sans lui, le pré-remplissage du serveur par défaut
+  // se peignait sous un autre serveur du compte à la même adresse.
+  it('écrit sous la clé du serveur synchronisé, celle que relit le proxy', async () => {
+    fetchUpstream.mockImplementation(slowUpstream);
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    try {
+      await runCycle();
+    } finally { log.mockRestore(); }
+    const keys = (cacheSet.mock.calls as unknown as [string, string][]).map(([k]) => k);
+    const alice = accounts.get('alice')!;
+    const ofAlice = keys.filter((k) => k.includes('alice.example.com'));
+    expect(ofAlice).toHaveLength(5);
+    for (const k of ofAlice) expect(k.startsWith(`k:${alice.user}:${alice.server}:https://alice.example.com/`)).toBe(true);
   });
 });

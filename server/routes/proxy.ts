@@ -780,10 +780,12 @@ router.all('/', async (req, res) => {
   // fait correspondre « 01 », « 1.0 », « 1e0 » au serveur 1 ; chaque variante
   // aurait créé une entrée et évincé les jetons des autres comptes.
   let writeTokenKey = '';
+  // L'id du serveur lu en base : il entre dans la clé du cache des listes.
+  let cacheServerId = 0;
   if (serverId) {
     const srv = db.prepare('SELECT id, url, freshrss_token FROM servers WHERE id = ? AND user_id = ?')
       .get(serverId, req.user.id) as { id: number; url: string; freshrss_token: string | null } | undefined;
-    if (srv) writeTokenKey = `${req.user.id}:${srv.id}`;
+    if (srv) { writeTokenKey = `${req.user.id}:${srv.id}`; cacheServerId = srv.id; }
     ownServerTarget = !!srv && targetBelongsToServer(srv.url, rawTarget);
     if (srv && srv.freshrss_token && ownServerTarget) {
       const tok = decrypt(srv.freshrss_token);
@@ -832,7 +834,9 @@ router.all('/', async (req, res) => {
   // n'est pas une preuve de confiance (un compte enregistre l'hôte qu'il veut) :
   // ce qui entre vraiment dans Redis passe aussi par `cacheableEntry`.
   const cacheable = cacheEnabled && ownServerTarget && isCacheableRead(req.method, rawTarget);
-  const key = cacheable ? cacheKey(req.user.id, rawTarget) : null;
+  // La clé porte le serveur : deux serveurs du compte à la même adresse (deux
+  // utilisateurs FreshRSS) partageaient sinon leurs listes (M-09).
+  const key = cacheable ? cacheKey(req.user.id, cacheServerId, rawTarget) : null;
 
   // ── Cache-only read: instant paint, no FreshRSS round-trip ──
   //
@@ -841,7 +845,8 @@ router.all('/', async (req, res) => {
   // passé, `assertTargetSafe` ne tourne pas, et un hôte interne au nom POINTÉ
   // retiré de `PROXY_INTERNAL_HOSTS` peut donc encore se faire rendre son
   // entrée. Ce qui la rend étroite, contrairement au cache d'extraction : la
-  // clé porte l'identifiant de l'utilisateur (`cacheKey(req.user.id, …)`) et
+  // clé porte l'identifiant de l'utilisateur et celui de SON serveur
+  // (`cacheKey(req.user.id, cacheServerId, …)`) et
   // `isCacheableRead` exige un GET sur `/reader/api/0/` — l'appelant ne peut
   // donc relire que ce que SON compte a lui-même mis en cache du temps où
   // l'hôte était autorisé, jamais le travail d'un autre. Y placer la garde

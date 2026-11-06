@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import fs from 'fs';
 import path from 'path';
-import { extractKey, cacheKey, userCachePattern, cacheableEntry, claimCacheRead, MAX_CACHED_ENTRY_BYTES, MAX_CACHE_READS_AT_ONCE, MAX_CACHE_READ_BYTES_PER_MINUTE } from '../cache.js';
+import { extractKey, cacheKey, userCachePattern, serverCachePattern, cacheableEntry, claimCacheRead, MAX_CACHED_ENTRY_BYTES, MAX_CACHE_READS_AT_ONCE, MAX_CACHE_READ_BYTES_PER_MINUTE } from '../cache.js';
 import { EXTRACT_VERSION } from '../extractVersion.js';
 import { EXTRACT_VERSION as CLIENT_EXTRACT_VERSION } from '../../src/lib/extractVersion.js';
 
@@ -18,7 +18,7 @@ describe('extractKey', () => {
     // Les deux vivent dans le même Redis : un préfixe distinct permet de
     // purger l'un sans l'autre et rend les clés lisibles en exploitation.
     expect(extractKey('https://example.com/a').startsWith('frirss:x:')).toBe(true);
-    expect(cacheKey(1, 'https://example.com/a').startsWith('frirss:x:')).toBe(false);
+    expect(cacheKey(1, 1, 'https://example.com/a').startsWith('frirss:x:')).toBe(false);
   });
 
   // A-2 (campagne 1.9.0) : un extrait gardé avant un changement de
@@ -51,17 +51,39 @@ describe('extractKey', () => {
 // Supprimer un compte laissait ses listes d'articles en cache jusqu'à
 // `CACHE_TTL` (24 h par défaut) : une donnée personnelle qui survivait à la
 // suppression demandée. La purge vise ses clés, et elles seules.
-describe('userCachePattern', () => {
-  const matches = (pattern: string, key: string) =>
-    new RegExp(`^${pattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*')}$`).test(key);
+const matches = (pattern: string, key: string) =>
+  new RegExp(`^${pattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*')}$`).test(key);
 
+describe('userCachePattern', () => {
   it('couvre toutes les clés du compte', () => {
-    expect(matches(userCachePattern(7), cacheKey(7, 'https://rss.example.com/a'))).toBe(true);
+    expect(matches(userCachePattern(7), cacheKey(7, 3, 'https://rss.example.com/a'))).toBe(true);
   });
   it('ne touche ni un autre compte ni le cache partagé des extraits', () => {
-    expect(matches(userCachePattern(7), cacheKey(70, 'https://rss.example.com/a'))).toBe(false);
-    expect(matches(userCachePattern(7), cacheKey(17, 'https://rss.example.com/a'))).toBe(false);
+    expect(matches(userCachePattern(7), cacheKey(70, 3, 'https://rss.example.com/a'))).toBe(false);
+    expect(matches(userCachePattern(7), cacheKey(17, 3, 'https://rss.example.com/a'))).toBe(false);
     expect(matches(userCachePattern(7), extractKey('https://example.com/a'))).toBe(false);
+  });
+});
+
+// M-09 (campagne 1.9.0, second round) : deux serveurs du même compte à la même
+// adresse (deux utilisateurs FreshRSS) partageaient la clé, qui ne portait que
+// le compte et l'URL. La liste de l'un se peignait sous l'autre.
+describe('cacheKey — un serveur, une clé', () => {
+  it('distingue deux serveurs à la même adresse', () => {
+    const url = 'https://rss.example.com/api/greader.php/reader/api/0/stream/contents/user/-/state/com.google/starred?output=json&n=50';
+    expect(cacheKey(1, 4, url)).not.toBe(cacheKey(1, 5, url));
+    expect(cacheKey(1, 4, url)).toBe(cacheKey(1, 4, url));
+  });
+});
+
+describe('serverCachePattern', () => {
+  it('couvre les clés de ce serveur, et elles seules', () => {
+    const url = 'https://rss.example.com/a';
+    expect(matches(serverCachePattern(7, 3), cacheKey(7, 3, url))).toBe(true);
+    expect(matches(serverCachePattern(7, 3), cacheKey(7, 30, url))).toBe(false);
+    expect(matches(serverCachePattern(7, 3), cacheKey(7, 13, url))).toBe(false);
+    expect(matches(serverCachePattern(7, 3), cacheKey(70, 3, url))).toBe(false);
+    expect(matches(serverCachePattern(7, 3), extractKey(url))).toBe(false);
   });
 });
 

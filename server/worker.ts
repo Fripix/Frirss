@@ -37,6 +37,8 @@ function streamTargets(serverUrl: string): string[] {
 
 interface SyncRow {
   user_id: number;
+  /** L'id de la ligne serveur : il fait partie de la clé (voir `cacheKey`). */
+  server_id: number;
   url: string;
   freshrss_token: string;
 }
@@ -66,7 +68,7 @@ export async function syncUser(row: SyncRow, deadlineMs = PROXY_TOTAL_TIMEOUT_MS
       // Du JSON seulement : un proxy d'authentification répond 200 en HTML, et
       // la peinture depuis le cache en faisait une liste vide.
       const entry = cacheableEntry(text);
-      if (entry !== null) await cacheSet(cacheKey(row.user_id, target), entry);
+      if (entry !== null) await cacheSet(cacheKey(row.user_id, row.server_id, target), entry);
     } catch { /* skip this stream, keep going */ } finally {
       clearTimeout(timer);
     }
@@ -79,7 +81,7 @@ export async function runCycle(): Promise<void> {
   running = true;
   try {
     const users = db.prepare(`
-      SELECT s.user_id, s.url, s.freshrss_token
+      SELECT s.user_id, s.id AS server_id, s.url, s.freshrss_token
       FROM servers s
       JOIN users u ON u.id = s.user_id
       WHERE s.is_default = 1

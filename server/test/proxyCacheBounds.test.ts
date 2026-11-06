@@ -31,7 +31,7 @@ vi.mock('../cache.js', async () => ({
   cacheSet: (...a: unknown[]) => cacheSet(...(a as [])),
   cacheDel: (...a: unknown[]) => cacheDel(...(a as [])),
   claimCacheRead: () => claimCacheRead(),
-  cacheKey: (u: unknown, t: string) => `k:${String(u)}:${t}`,
+  cacheKey: (u: unknown, sv: unknown, t: string) => `k:${String(u)}:${String(sv)}:${t}`,
 }));
 
 const { default: proxyRouter, MAX_CACHED_BODY_BYTES } = await import('../routes/proxy.js');

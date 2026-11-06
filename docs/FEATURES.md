@@ -335,8 +335,11 @@ plus jamais au navigateur (seule sa présence est exposée, `has_token`).
   formulaire, sinon il tombait sur `<body>` et l'Échap des Préférences fermait
   tout ; après un refus il revient au mot de passe. ⚠️ L'utilisateur ne
   change pas : un autre utilisateur sur le même serveur garderait la même
-  portée, et la file, les listes, le cache Redis du premier seraient servis au
-  second — un autre utilisateur est un autre serveur à ajouter. Le serveur
+  portée hors ligne, et la file, les listes du premier seraient servies au
+  second — un autre utilisateur est un autre serveur à ajouter, qui a sa propre
+  portée et, avec Redis, ses propres clés de cache (la clé porte l'id du
+  serveur, voir « Cache Redis » ; jusqu'à 1.9.0 deux serveurs à la même
+  adresse partageaient leurs listes en cache). Le serveur
   **garde son identifiant**, donc sa portée hors ligne : jusque-là, le seul
   moyen était de le supprimer puis de le rajouter, et les actions en attente
   ne repartaient plus. Serveur actif : un rejeu encore en vol sous l'ancien
@@ -7679,7 +7682,34 @@ divergentes).
 Mise en cache write-through des lectures greader, avec revalidation. Vide =
 désactivé, aucune dépendance.
 
+- **Où** : `server/cache.ts` ; écrit et relu par `/api/proxy` (lectures d'un
+  serveur du compte, `X-Cache-Only` pour la peinture instantanée) et écrit par
+  le worker de synchronisation.
 - **Réglages** : `REDIS_URL`, `CACHE_ARTICLES_PER_FEED`, `CACHE_TTL`
+- **Clé** (`cacheKey`) : `frirss:c:<compte>:<serveur>:<sha1(url) tronqué>`, où
+  `<serveur>` est l'id de la ligne `servers` lu en base (pas l'en-tête
+  `X-Server-Id` brut). Le serveur en fait partie depuis 1.9.0 (M-09) : deux
+  serveurs d'un compte à la même adresse — deux utilisateurs FreshRSS sur la
+  même instance, ce que la section Serveurs recommande — ont les mêmes URL, et
+  la clé `compte + URL` peignait la liste de l'un sous l'autre, jusque dans son
+  cache hors ligne (marquer lu envoyait alors un id étranger). Le proxy et le
+  worker passent le même id, sinon le pré-remplissage n'est jamais relu
+  (`workerCycle.test.ts`, `proxyCacheServerKey.test.ts`). Les clés d'avant
+  1.9.0 (`frirss:c:<compte>:<empreinte>`) ne sont plus lues et expirent avec
+  `CACHE_TTL`.
+- **Purges** : toutes les clés `frirss:c:*` après une restauration de
+  sauvegarde (`cachePurgeAll`) ; celles d'un compte supprimé par
+  l'administration (`cachePurgeUser`, motif `userCachePattern`) ; celles d'un
+  serveur supprimé, ou modifié vers une autre origine ou un autre utilisateur
+  FreshRSS en gardant son id (`cachePurgeServer`, motif `serverCachePattern`,
+  `serverCachePurge.test.ts`) — sans elle, la ligne modifiée peignait la liste
+  de l'ancien compte FreshRSS jusqu'au TTL. Un simple renommage, un nouveau
+  mot de passe API pour le même utilisateur ou un changement de chemin sur la
+  même origine ne purgent rien (les URL changent avec le chemin). Une purge en
+  échec est journalisée (`[cache] purge failed`), jamais bloquante. Le cache
+  partagé des extraits (`frirss:x:*`) n'est jamais touché par ces purges.
+- Bornes, part par compte et `commandTimeout` : voir « Lecture mise en cache
+  bornée » (proxy).
 
 ### Worker de synchronisation
 Pré-remplit les flux des utilisateurs actifs même navigateur fermé.
@@ -7994,9 +8024,9 @@ et le jetable de l'IA, `ai_usage` (compteur du jour) et `ai_cache`.
     avant de répondre 500 générique au client — sans quoi un échec de
     restauration, précisément le moment où le diagnostic compte, ne laissait
     aucune trace.
-  - Avec `REDIS_URL` défini, le cache est indexé par identifiant numérique
-    d'utilisateur ; `applyBackup` réinstalle un jeu d'utilisateurs différent
-    sur ces mêmes identifiants. `cachePurgeAll()` (`server/cache.ts`) purge
+  - Avec `REDIS_URL` défini, le cache est indexé par identifiants numériques
+    d'utilisateur et de serveur ; `applyBackup` réinstalle un jeu
+    d'utilisateurs différent sur ces mêmes identifiants. `cachePurgeAll()` (`server/cache.ts`) purge
     tout l'espace de clés `frirss:c:*` après le commit, **juste à côté de**
     `resetKeyCache()` — même piège (état vivant hors de la transaction) sous
     deux formes. No-op si le cache est désactivé.

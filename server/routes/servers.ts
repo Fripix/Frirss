@@ -6,6 +6,7 @@ import { startJob, getJob, isRefreshKind, REFRESH_TIMEOUT_MS } from '../refreshJ
 import { requireAuth } from '../middleware/auth.js';
 import { fetchUpstream, proxyRateLimiter } from './proxy.js';
 import { stripTrailingSlashes } from '../validate.js';
+import { cachePurgeServer } from '../cache.js';
 
 const router = Router();
 
@@ -198,6 +199,9 @@ router.put('/:id', (req, res) => {
       id,
       req.user.id
     );
+    // Même id, autre compte FreshRSS (ou autre hôte) : les listes en cache sous
+    // cet id sont celles de l'ancien, et seraient peintes avant la revalidation.
+    if (moved) void cachePurgeServer(req.user.id, server.id);
 
     const updated = db.prepare('SELECT id, name, url, freshrss_user, is_default, created_at FROM servers WHERE id = ?').get(id);
     res.json({ server: updated });
@@ -217,6 +221,7 @@ router.delete('/:id', (req, res) => {
   }
 
   db.prepare('DELETE FROM servers WHERE id = ? AND user_id = ?').run(id, req.user.id);
+  void cachePurgeServer(req.user.id, server.id); // ses listes en cache partent avec lui
 
   // If deleted server was default, promote the next one
   if (server.is_default) {

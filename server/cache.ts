@@ -32,10 +32,20 @@ if (cacheEnabled) {
 
 const KEY_PREFIX = 'frirss:c:';
 
-/** Namespaced key for a cached response of `target` belonging to `userId`. */
-export function cacheKey(userId: number | string, target: string): string {
+/**
+ * Clé d'une lecture greader mise en cache : `frirss:c:<compte>:<serveur>:<empreinte>`.
+ *
+ * Le SERVEUR (l'id de sa ligne dans `servers`) en fait partie : deux serveurs
+ * d'un même compte peuvent avoir la même adresse — deux utilisateurs FreshRSS
+ * sur la même instance — et donc les mêmes URL. Sans lui, la liste de l'un se
+ * peignait sous l'autre (M-09, 1.9.0). Le proxy et le worker de
+ * synchronisation doivent passer le même id, sinon le pré-remplissage n'est
+ * jamais relu. Les clés d'avant (`frirss:c:<compte>:<empreinte>`) ne sont plus
+ * lues et expirent avec `CACHE_TTL` ; `userCachePattern` les couvre encore.
+ */
+export function cacheKey(userId: number | string, serverId: number | string, target: string): string {
   const h = createHash('sha1').update(target).digest('hex').slice(0, 24);
-  return `${KEY_PREFIX}${userId}:${h}`;
+  return `${KEY_PREFIX}${userId}:${serverId}:${h}`;
 }
 
 /**
@@ -100,11 +110,33 @@ export function userCachePattern(userId: number): string {
  * survivait à la suppression. Le cache partagé des extraits n'est pas touché.
  */
 export async function cachePurgeUser(userId: number): Promise<void> {
+  await purgeMatching(userCachePattern(userId));
+}
+
+/**
+ * Motif SCAN des clés de listes d'UN serveur d'un compte. Des nombres lus en
+ * base, pas l'en-tête ni l'URL, pour la même raison que `userCachePattern`.
+ */
+export function serverCachePattern(userId: number, serverId: number): string {
+  return `${KEY_PREFIX}${userId}:${serverId}:*`;
+}
+
+/**
+ * Efface les listes en cache d'un serveur supprimé, ou qui change d'identité
+ * (autre adresse, autre utilisateur FreshRSS) en gardant son id : sans cela,
+ * la ligne modifiée peignait la liste de l'ancien compte FreshRSS jusqu'à
+ * `CACHE_TTL`, et un serveur supprimé laissait ses listes derrière lui.
+ */
+export async function cachePurgeServer(userId: number, serverId: number): Promise<void> {
+  await purgeMatching(serverCachePattern(userId, serverId));
+}
+
+async function purgeMatching(pattern: string): Promise<void> {
   if (!client) return;
   try {
     let cursor = '0';
     do {
-      const [next, keys]: [string, string[]] = await client.scan(cursor, 'MATCH', userCachePattern(userId), 'COUNT', 500);
+      const [next, keys]: [string, string[]] = await client.scan(cursor, 'MATCH', pattern, 'COUNT', 500);
       cursor = next;
       if (keys.length > 0) await client.unlink(...keys);
     } while (cursor !== '0');
