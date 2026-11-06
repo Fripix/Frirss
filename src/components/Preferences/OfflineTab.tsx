@@ -72,8 +72,16 @@ export default function OfflineTab({ active = true }: { active?: boolean }) {
   const eta = remaining === null || cancelling || waitingServer ? null : etaFor(remaining);
   // Faits sans l'article complet qu'ils devaient ouvrir : ils ne se disent
   // pas prêts (« Hors ligne prêt (6) » sans un seul extrait obtenu).
+  // La base du bilan est ce qui DEVAIT s'ouvrir en article complet
+  // (`wantFull`) : `done - missingFull` comptait comme complets les articles
+  // d'un flux réglé « Non », qui s'ouvrent sur le contenu du flux, voulu
+  // (relecture du troisième round).
   const missingFull = offlinePrep?.missingFull ?? 0;
-  const complete = offlinePrep ? offlinePrep.done - missingFull : 0;
+  const wantFull = offlinePrep?.wantFull ?? 0;
+  // Arrêtée (« Annuler », réseau coupé, autre serveur) : tous les articles
+  // n'ont pas été vus, elle ne se dit pas « prête » — « 3 articles complets
+  // sur 6 » se lisait aussi sur une simple interruption.
+  const stopped = !!offlinePrep && (!!offlinePrep.cancelled || offlinePrep.done < offlinePrep.total);
   const autoOffline = useUiStore((s) => s.autoOffline);
   const setAutoOffline = useUiStore((s) => s.setAutoOffline);
   const offlineImagePreset = useUiStore((s) => s.offlineImagePreset);
@@ -174,10 +182,10 @@ export default function OfflineTab({ active = true }: { active?: boolean }) {
         )}
         {offlinePrep && !offlinePrep.running && offlinePrep.phase === 'done' && (
           <p className="text-[11px] mt-2" style={{ color: 'var(--list-summary)' }}>
-            {offlinePrep.cancelled
+            {stopped
               ? t('preferences.offline.cancelledReport', { done: offlinePrep.done, total: offlinePrep.total, count: offlinePrep.total })
-              : complete < offlinePrep.total
-                ? t('preferences.offline.doneMissing', { count: complete, total: offlinePrep.total })
+              : missingFull > 0
+                ? t('preferences.offline.doneMissing', { count: offlinePrep.done, full: wantFull - missingFull, wanted: wantFull })
                 : `${t('preferences.offline.done')} (${offlinePrep.total})`}
             {missingFull > 0 && (
               <span className="block">

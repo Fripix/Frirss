@@ -499,8 +499,8 @@
       "etaWholeHours_other": "大约还剩 {{count}} 小时",
       "waitingServer_one": "服务器繁忙：{{count}} 篇文章将在几秒后重新请求。",
       "waitingServer_other": "服务器繁忙：{{count}} 篇文章将在几秒后重新请求。",
-      "doneMissing_one": "离线内容已就绪：{{total}} 篇中有 {{count}} 篇全文",
-      "doneMissing_other": "离线内容已就绪：{{total}} 篇中有 {{count}} 篇全文",
+      "doneMissing_one": "离线内容已就绪：{{count}} 篇文章，其中 {{wanted}} 篇应有全文，已获取 {{full}} 篇",
+      "doneMissing_other": "离线内容已就绪：{{count}} 篇文章，其中 {{wanted}} 篇应有全文，已获取 {{full}} 篇",
       "missingFull_one": "{{count}} 篇文章将以 RSS 内容打开：未能获取其全文。下次准备时会重新请求。",
       "missingFull_other": "{{count}} 篇文章将以 RSS 内容打开：未能获取其全文。下次准备时会重新请求。"
     },

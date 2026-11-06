@@ -499,8 +499,8 @@
       "etaWholeHours_other": "Environ {{count}} h restantes",
       "waitingServer_one": "Le serveur est occupé : {{count}} article sera redemandé dans quelques secondes.",
       "waitingServer_other": "Le serveur est occupé : {{count}} articles seront redemandés dans quelques secondes.",
-      "doneMissing_one": "Hors ligne prêt : {{count}} article complet sur {{total}}",
-      "doneMissing_other": "Hors ligne prêt : {{count}} articles complets sur {{total}}",
+      "doneMissing_one": "Hors ligne prêt : {{count}} article, dont {{full}} sur {{wanted}} avec l’article complet attendu",
+      "doneMissing_other": "Hors ligne prêt : {{count}} articles, dont {{full}} sur {{wanted}} avec l’article complet attendu",
       "missingFull_one": "{{count}} article s’ouvrira avec le contenu RSS : son article complet n’a pas pu être obtenu. La prochaine préparation le redemandera.",
       "missingFull_other": "{{count}} articles s’ouvriront avec le contenu RSS : leur article complet n’a pas pu être obtenu. La prochaine préparation les redemandera."
     },

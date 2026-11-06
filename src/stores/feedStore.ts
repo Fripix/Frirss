@@ -924,6 +924,9 @@ export interface FeedState {
     /** Articles faits qui devaient s'ouvrir en article complet et n'en ont
      *  aucun (extraction refusée ou en échec) : ils ne se disent pas prêts. */
     missingFull?: number;
+    /** Articles faits qui devaient s'ouvrir en article complet (pas ceux
+     *  d'un flux réglé « Non ») : la base du bilan, pas `done`. */
+    wantFull?: number;
   } | null;
   /** Arrête la préparation en cours après l'article en cours. Sans effet sinon. */
   cancelOfflinePrep: () => void;
@@ -1924,6 +1927,10 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       // obtenu (l'article s'ouvre dessus) ; un flux réglé « Non » ne manque de
       // rien.
       let missingFull = 0;
+      // Ceux qui devaient s'ouvrir en article complet : le bilan disait
+      // « 4 articles complets sur 6 » en comptant comme complets ceux d'un
+      // flux réglé « Non » (relecture du troisième round).
+      let wantFull = 0;
       const total = ordered.length;
       const publish = (waitingServer?: number) => set({
         offlinePrep: {
@@ -1982,6 +1989,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         let extracted: string | null = peekExtract(a.id)?.content ?? null;
         let refusedBusy = false;
         let lacksFull = false;
+        const wantsFull = !!a.url && effectiveAutoExtract(ui.autoExtractDefault, ui.feedSettings, a.sourceId);
         if (a.url && !extracted) {
           const stored = await getExtract(a.id);
           extracted = stored?.content ?? null;
@@ -1991,7 +1999,6 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
           // flux réglé « Non » (ou au défaut, global éteint) n'est pas extrait
           // (L-05). La préparation ne lisait jamais le réglage, et un tel
           // article s'ouvrait ensuite en article complet, depuis le cache.
-          const wantsFull = effectiveAutoExtract(ui.autoExtractDefault, ui.feedSettings, a.sourceId);
           if (!extracted && !deviceFull && wantsFull) {
             try {
               const content = await extractFullContent(a.url);
@@ -2018,6 +2025,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
 
         if (refusedBusy) { busy.push({ article: a, seen: new Set(urls), fallback: !!extracted }); continue; }
         if (lacksFull) missingFull++;
+        if (wantsFull) wantFull++;
         done++;
         if (done % 5 === 0 || done === total) publish();
       }
@@ -2065,6 +2073,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
             }
           }
           if (!obtained) missingFull++;
+          wantFull++;
           done++;
           if (done % 5 === 0 || done === total) publish();
         }
@@ -2077,7 +2086,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       if (!interrupted && !scopeLeft() && budget.bytes > 0) await pruneImages(keptImages, undefined, scope);
       set({
         offlinePrep: {
-          running: false, phase: 'done', done, total: ordered.length, missingFull,
+          running: false, phase: 'done', done, total: ordered.length, missingFull, wantFull,
           imagesFound, imagesStored, imagesFailed,
           budgetStopped: budgetReached && budget.bytes > 0, deviceFull, imagesError,
           ...(stoppedOnCancel ? { cancelled: true } : {}),

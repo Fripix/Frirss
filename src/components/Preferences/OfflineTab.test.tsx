@@ -180,9 +180,9 @@ describe('Préférences › Hors ligne', () => {
       });
 
       it('ne compte pas comme complets les articles restés sans article complet', async () => {
-        useFeedStore.setState({ offlinePrep: { running: false, phase: 'done', done: 6, total: 6, missingFull: 6 } } as never);
+        useFeedStore.setState({ offlinePrep: { running: false, phase: 'done', done: 6, total: 6, wantFull: 6, missingFull: 6 } } as never);
         await act(async () => { render(<OfflineTab />); });
-        expect(screen.getByText('preferences.offline.doneMissing{"count":0,"total":6}')).toBeTruthy();
+        expect(screen.getByText('preferences.offline.doneMissing{"count":6,"full":0,"wanted":6}')).toBeTruthy();
         expect(screen.getByText('preferences.offline.missingFull{"count":6}')).toBeTruthy();
         expect(screen.queryByText(/preferences\.offline\.done \(/)).toBeNull();
       });
@@ -192,6 +192,23 @@ describe('Préférences › Hors ligne', () => {
         await act(async () => { render(<OfflineTab />); });
         expect(screen.getByText('preferences.offline.done (6)')).toBeTruthy();
         expect(screen.queryByText(/missingFull/)).toBeNull();
+      });
+
+      // Relecture du troisième round : « 4 articles complets sur 6 » comptait
+      // les articles d’un flux réglé « Non » (contenu du flux, voulu) comme
+      // complets, et se disait aussi d’une préparation interrompue.
+      it('les articles d’un flux réglé « Non » ne sont pas comptés comme complets : prêts, dont ceux qui ont l’article complet attendu', async () => {
+        useFeedStore.setState({ offlinePrep: { running: false, phase: 'done', done: 6, total: 6, wantFull: 2, missingFull: 2 } } as never);
+        await act(async () => { render(<OfflineTab />); });
+        expect(screen.getByText('preferences.offline.doneMissing{"count":6,"full":0,"wanted":2}')).toBeTruthy();
+        expect(screen.getByText('preferences.offline.missingFull{"count":2}')).toBeTruthy();
+      });
+
+      it('une préparation interrompue (réseau coupé, autre serveur) se dit arrêtée, pas « prête »', async () => {
+        useFeedStore.setState({ offlinePrep: { running: false, phase: 'done', done: 3, total: 6, wantFull: 3, missingFull: 0 } } as never);
+        await act(async () => { render(<OfflineTab />); });
+        expect(screen.getByText('preferences.offline.cancelledReport{"done":3,"total":6,"count":6}')).toBeTruthy();
+        expect(screen.queryByText(/preferences\.offline\.done/)).toBeNull();
       });
 
       it('une préparation annulée dit aussi ce qui manque', async () => {

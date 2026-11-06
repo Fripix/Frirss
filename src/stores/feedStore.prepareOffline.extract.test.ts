@@ -359,4 +359,25 @@ describe('préparation : attente du serveur dite, compte rendu honnête', () => 
     await useFeedStore.getState().prepareOffline();
     expect(useFeedStore.getState().offlinePrep!.missingFull).toBe(0);
   });
+
+  // Relecture du troisième round : le bilan comptait « complets » les
+  // articles d'un flux réglé « Non », qui s'ouvrent sur le contenu du flux.
+  it('compte à part les articles qui attendent leur article complet : pas ceux d’un flux réglé « Non »', async () => {
+    useUiStore.setState({ autoExtractDefault: false, feedSettings: { 'feed/2': { autoExtract: true } } } as never);
+    await useFeedStore.getState().prepareOffline();
+    const prep = useFeedStore.getState().offlinePrep!;
+    expect(prep.done).toBe(6);
+    expect(prep.wantFull).toBe(2);
+    expect(prep.missingFull).toBe(0);
+  });
+
+  it('un article refusé pour occupation puis repris compte parmi ceux qui attendent leur article complet', async () => {
+    extract.fn.mockImplementation(async () => { throw new ExtractorBusyError(); });
+    const run = useFeedStore.getState().prepareOffline();
+    await vi.advanceTimersByTimeAsync(PREP_BUSY_RETRY_DELAYS_MS[0] + PREP_BUSY_RETRY_DELAYS_MS[1] + 1_000);
+    await run;
+    const prep = useFeedStore.getState().offlinePrep!;
+    expect(prep.wantFull).toBe(6);
+    expect(prep.missingFull).toBe(6);
+  });
 });

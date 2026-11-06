@@ -499,8 +499,8 @@
       "etaWholeHours_other": "Nog ongeveer {{count}} u",
       "waitingServer_one": "De server is bezet: {{count}} artikel wordt over enkele seconden opnieuw opgevraagd.",
       "waitingServer_other": "De server is bezet: {{count}} artikelen worden over enkele seconden opnieuw opgevraagd.",
-      "doneMissing_one": "Offline klaar: {{count}} volledig artikel van {{total}}",
-      "doneMissing_other": "Offline klaar: {{count}} volledige artikelen van {{total}}",
+      "doneMissing_one": "Offline klaar: {{count}} artikel, waarvan {{full}} van {{wanted}} met het verwachte volledige artikel",
+      "doneMissing_other": "Offline klaar: {{count}} artikelen, waarvan {{full}} van {{wanted}} met het verwachte volledige artikel",
       "missingFull_one": "{{count}} artikel opent met de RSS-inhoud: het volledige artikel kon niet worden opgehaald. De volgende voorbereiding vraagt het opnieuw op.",
       "missingFull_other": "{{count}} artikelen openen met de RSS-inhoud: het volledige artikel kon niet worden opgehaald. De volgende voorbereiding vraagt ze opnieuw op."
     },

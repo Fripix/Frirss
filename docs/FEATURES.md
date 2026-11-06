@@ -6440,15 +6440,24 @@ images consultés restent lisibles sans réseau.
   pour occupation après les reprises, appareil plein. Ne comptent pas : un
   flux réglé « Article complet : Non » (il s'ouvre sur le contenu RSS, comme
   en ligne) et un article qui garde un extrait d'une version antérieure (il
-  s'ouvre dessus). Le rapport ne dit « Hors ligne prêt (N) » que si tous les
-  articles faits ont ce qu'ils devaient ouvrir et que tous sont faits ;
-  sinon « Hors ligne prêt : K articles complets sur N » (`offline.doneMissing`,
-  K = faits − manquants, donc une préparation coupée par le réseau ne compte
-  pas non plus comme complets les articles jamais atteints), puis une ligne
-  dit combien s'ouvriront avec le contenu RSS et que la préparation suivante
-  redemandera leur article complet (`offline.missingFull`, aussi sous un
-  rapport d'annulation). Avant, « Hors ligne prêt (6) » s'affichait quand
-  aucun article complet n'avait été obtenu.
+  s'ouvre dessus). `offlinePrep.wantFull` compte les articles faits qui
+  **devaient** s'ouvrir en article complet — c'est la base du bilan, pas
+  `done`. Le rapport, selon le cas :
+  - **arrêtée** (« Annuler », réseau coupé, changement de serveur : `cancelled`
+    ou `done < total`) : « Préparation arrêtée : X sur N articles »
+    (`offline.cancelledReport`), jamais « prête » ;
+  - **finie, un article complet manquant** : « Hors ligne prêt : N articles,
+    dont K sur W avec l'article complet attendu » (`offline.doneMissing`,
+    K = W − manquants) ;
+  - **finie, rien ne manque** : « Hors ligne prêt (N) ».
+  Puis une ligne dit combien s'ouvriront avec le contenu RSS et que la
+  préparation suivante redemandera leur article complet
+  (`offline.missingFull`, aussi sous un rapport d'arrêt). Avant,
+  « Hors ligne prêt (6) » s'affichait quand aucun article complet n'avait
+  été obtenu ; puis (première correction) « K articles complets sur N »
+  comptait comme complets les articles d'un flux réglé « Non » (K = faits −
+  manquants) et se lisait aussi sur une simple interruption (relecture du
+  troisième round).
 - **Ce qui est gardé pour le hors ligne est rangé par compte et par serveur**
   (1.8.0, `offlineScope` dans `feedStore.ts`, `feedStore.scope.test.ts`) :
   `viewKey` et `viewIdentity` commencent par `user@serveur`, donc le cache
