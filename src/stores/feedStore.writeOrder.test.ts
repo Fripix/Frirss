@@ -157,3 +157,121 @@ describe('écritures d’un même article mises en série (M-12)', () => {
     expect(order).toEqual([a.id, b.id]);
   });
 });
+
+// Relecture du second round 1.9.0 (R2) : trois chemins d'écriture restaient
+// hors de la mise en série — le rejeu de la file hors ligne, les étiquettes
+// ordinaires et les écritures groupées.
+const netErr = () => Object.assign(new Error('Network Error'), { response: undefined });
+
+describe('écritures hors série rattrapées (relecture R2)', () => {
+  it('rejeu : un « non lu » direct pendant l’envoi rejoué de « lu » attend son règlement', async () => {
+    const { api, useFeedStore } = await load();
+    const a = useFeedStore.getState().articles[0];
+    // « Lu » hors ligne : l'action entre en file.
+    vi.mocked(api.markAsRead).mockRejectedValueOnce(netErr());
+    await useFeedStore.getState().toggleRead(a);
+    expect(useFeedStore.getState().pendingActions).toBe(1);
+    const order: string[] = [];
+    const slow = deferred();
+    vi.mocked(api.markAsRead).mockImplementation(async () => { order.push('lu'); await slow.promise; order.push('lu ✓'); });
+    vi.mocked(api.markAsUnread).mockImplementation(async () => { order.push('non lu'); });
+    const replay = useFeedStore.getState().replayQueue();
+    await settled();
+    expect(order).toEqual(['lu']);
+    const p = useFeedStore.getState().toggleRead({ ...a, read: true });
+    await settled();
+    expect(order, 'le geste direct attend l’envoi rejoué').toEqual(['lu']);
+    slow.resolve();
+    await replay; await p; await settled();
+    expect(order).toEqual(['lu', 'lu ✓', 'non lu']);
+  });
+
+  it('rejeu qui attend un geste direct plus récent : il ne renvoie pas l’ancienne intention', async () => {
+    const { api, useFeedStore } = await load();
+    const a = useFeedStore.getState().articles[0];
+    vi.mocked(api.markAsRead).mockRejectedValueOnce(netErr());
+    await useFeedStore.getState().toggleRead(a); // « lu » en file
+    const order: string[] = [];
+    const slow = deferred();
+    vi.mocked(api.markAsUnread).mockImplementation(async () => { order.push('non lu'); await slow.promise; order.push('non lu ✓'); });
+    vi.mocked(api.markAsRead).mockImplementation(async () => { order.push('lu rejoué'); });
+    const p = useFeedStore.getState().toggleRead({ ...a, read: true }); // « non lu » direct, lent
+    await settled();
+    const replay = useFeedStore.getState().replayQueue();
+    await settled();
+    slow.resolve();
+    await p; await replay; await settled();
+    expect(order).toEqual(['non lu', 'non lu ✓']);
+    expect(useFeedStore.getState().pendingActions).toBe(0);
+  });
+
+  it('étiquette ordinaire : le retrait attend la réponse à la pose, une autre étiquette n’attend pas', async () => {
+    const { api, useFeedStore } = await load();
+    const order: string[] = [];
+    const slow = deferred();
+    vi.mocked(api.setArticleLabel).mockImplementation(async (_id: string | string[], label: string, on?: boolean) => {
+      order.push(`${label}:${on}`);
+      if (label === 'user/-/label/A' && on) await slow.promise;
+    });
+    const a = useFeedStore.getState().articles[0];
+    const p1 = useFeedStore.getState().toggleArticleLabel(a, 'user/-/label/A');
+    const p2 = useFeedStore.getState().toggleArticleLabel({ ...a, labels: ['user/-/label/A'] }, 'user/-/label/A');
+    const p3 = useFeedStore.getState().toggleArticleLabel(a, 'user/-/label/B');
+    await settled();
+    expect(order).toEqual(['user/-/label/A:true', 'user/-/label/B:true']);
+    slow.resolve();
+    await p1; await p2; await p3;
+    expect(order).toEqual(['user/-/label/A:true', 'user/-/label/B:true', 'user/-/label/A:false']);
+  });
+
+  it('plage « au-dessus » : le lot attend l’écriture « non lu » en vol d’un article qu’il contient', async () => {
+    const { api, useFeedStore } = await load();
+    const [recent, older] = useFeedStore.getState().articles; // item(2), item(1)
+    const order: string[] = [];
+    const slow = deferred();
+    vi.mocked(api.markAsUnread).mockImplementation(async () => { order.push('non lu'); await slow.promise; order.push('non lu ✓'); });
+    vi.mocked(api.markAsRead).mockImplementation(async () => { order.push('lot lu'); });
+    // Identifiants décimaux de `stream/items/ids`, quand les lignes portent la forme greader.
+    vi.mocked(api.itemIdsNewerThanEntry).mockResolvedValue(['2']);
+    const p1 = useFeedStore.getState().toggleRead({ ...recent, read: true });
+    const p2 = useFeedStore.getState().markReadRelative(older, 'above');
+    await settled();
+    expect(order).toEqual(['non lu']);
+    slow.resolve();
+    await p1; await p2;
+    expect(order).toEqual(['non lu', 'non lu ✓', 'lot lu']);
+  });
+
+  it('plage « au-dessus » : un lot dont aucun article n’est en vol n’attend pas', async () => {
+    const { api, useFeedStore } = await load();
+    const [recent, older] = useFeedStore.getState().articles;
+    const order: string[] = [];
+    vi.mocked(api.markAsUnread).mockImplementation(async () => { order.push('autre'); await new Promise(() => {}); });
+    vi.mocked(api.markAsRead).mockImplementation(async () => { order.push('lot lu'); });
+    vi.mocked(api.itemIdsNewerThanEntry).mockResolvedValue(['2']);
+    void useFeedStore.getState().toggleRead({ ...older, read: true }); // en vol, hors du lot
+    await useFeedStore.getState().markReadRelative(older, 'above');
+    expect(order).toEqual(['autre', 'lot lu']);
+    expect(recent.id).toBeTruthy();
+  });
+
+  it('retour en arrière de « tout lu » : le lot « non lu » attend l’écriture « lu » en vol d’un article qu’il contient', async () => {
+    const { api, useFeedStore } = await load();
+    const { useUiStore } = await import('./uiStore');
+    useUiStore.setState({ toasts: [] } as never);
+    const a = useFeedStore.getState().articles[0]; // item(2)
+    const order: string[] = [];
+    const slow = deferred();
+    vi.mocked(api.markAsRead).mockImplementation(async () => { order.push('lu'); await slow.promise; order.push('lu ✓'); });
+    vi.mocked(api.markAsUnread).mockImplementation(async () => { order.push('lot non lu'); });
+    vi.mocked(api.getUnreadItemIds).mockResolvedValue({ ids: ['2', '1'], complete: true } as never);
+    const p1 = useFeedStore.getState().toggleRead(a);
+    await useFeedStore.getState().markAllAsRead();
+    const undo = useUiStore.getState().toasts.at(-1)!.action!.run();
+    await settled();
+    expect(order).toEqual(['lu']);
+    slow.resolve();
+    await p1; await undo;
+    expect(order).toEqual(['lu', 'lu ✓', 'lot non lu']);
+  });
+});

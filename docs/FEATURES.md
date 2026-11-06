@@ -6312,10 +6312,12 @@ mises en file et rejouées au retour.
   comparé à la file courante).
 - **Les écritures d'un même article partent en série** (M-12, second round
   1.9.0, `src/lib/writeSerial.ts`, `inOrder` dans `feedStore.ts`, tests
-  `feedStore.writeOrder.test.ts`). Lu / non lu (ouverture comprise), favori et
-  « À lire plus tard » : une écriture attend que la précédente sur le même
-  article et le même attribut, dans la même portée, soit réglée — réussie ou
-  échouée — avant de partir. « Lu » puis « non lu » aussitôt partaient en
+  `feedStore.writeOrder.test.ts`). Lu / non lu (ouverture comprise), favori,
+  « À lire plus tard » et, depuis la relecture du second round, les
+  étiquettes ordinaires (la clé porte l'étiquette : deux étiquettes d'un même
+  article ne s'attendent pas) : une écriture attend que la précédente sur le
+  même article et le même attribut, dans la même portée, soit réglée —
+  réussie ou échouée — avant de partir. « Lu » puis « non lu » aussitôt partaient en
   parallèle : sur un réseau lent, FreshRSS recevait parfois le second avant le
   premier et gardait « lu » quand l'écran disait « non lu », jusqu'au
   rechargement (1 geste sur 23 en rafale). La première écriture d'une clé part
@@ -6327,9 +6329,25 @@ mises en file et rejouées au retour.
   ⚠️ Deux gestes directs ne se croisent donc plus : les trois cas « ancien qui
   réussit / échoue tard » ci-dessus ne se produisent plus entre gestes directs
   (leurs tests les rejouent dans l'ordre réel), et la garde du rejeu sur
-  `settledGestures` reste comme filet. **Non couverts** : les étiquettes
-  (`toggleLabel`, hors du périmètre décidé) et un envoi du rejeu qui croise un
-  geste direct sur le même article (le rejeu ne passe pas par `inOrder`).
+  `settledGestures` reste comme filet.
+  **Le rejeu de la file et les écritures groupées passent par la même
+  série** (relecture du second round 1.9.0) :
+  - **le rejeu** envoie chaque action sous la clé du geste direct : un « non
+    lu » touché pendant l'envoi rejoué de « lu » attend son règlement. Après
+    son attente, l'action est revue : remplacée en file, ou dépassée par un
+    geste direct confirmé entre-temps (`settledGestures`), elle ne part pas —
+    sinon elle écrasait la dernière intention ;
+  - **les lots** du marquage de plage « au-dessus » (`markAsRead(lot)`) et du
+    retour en arrière de « tout lu » (`restoreUnread`) attendent les
+    écritures lu / non lu en vol de leurs articles (`writeSerial.many`), et
+    une écriture d'un de ces articles attend la fin du lot. Un lot dont aucun
+    article n'est en vol part aussitôt. La clé nomme l'article par son numéro
+    d'entrée décimal (`entryIdUsec`) : les lots portent la forme décimale de
+    `stream/items/ids`, les lignes la forme greader. Le contexte (serveur,
+    session) est revu après l'attente.
+  **Non couverts** : « tout marquer comme lu » et le marquage « en dessous »,
+  qui envoient une borne (`mark-all-as-read`) et non une liste d'articles —
+  rien ne dit lesquels sont concernés avant la réponse.
 - **Actions sans portée (avant 1.8.0) : elles adoptent la première portée
   active au rejeu** (`adoptUnscopedActions`), et sont comptées dans le
   bandeau dès avant (`pendingHere`). Le cas courant est un seul compte, et

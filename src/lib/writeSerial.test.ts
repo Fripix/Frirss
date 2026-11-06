@@ -57,3 +57,50 @@ describe('createWriteSerial (M-12)', () => {
     expect(calls).toEqual(['x']);
   });
 });
+
+describe('createWriteSerial — écriture groupée sur plusieurs clés (R2-3)', () => {
+  it('un lot attend que les écritures en vol de ses clés soient réglées', async () => {
+    const serial = createWriteSerial();
+    const calls: string[] = [];
+    const first = deferred();
+    const p1 = serial('a', async () => { calls.push('a'); await first.promise; calls.push('a ✓'); });
+    const lot = serial.many(['a', 'b', 'c'], async () => { calls.push('lot'); });
+    await flush();
+    expect(calls).toEqual(['a']);
+    first.resolve();
+    await p1; await lot;
+    expect(calls).toEqual(['a', 'a ✓', 'lot']);
+  });
+
+  it('un lot dont aucune clé n’est en vol part tout de suite, dans le même tour', () => {
+    const serial = createWriteSerial();
+    const calls: string[] = [];
+    const hang = deferred();
+    void serial('z', async () => { await hang.promise; });
+    void serial.many(['a', 'b'], async () => { calls.push('lot'); });
+    expect(calls).toEqual(['lot']);
+    hang.resolve();
+  });
+
+  it('une écriture d’une clé du lot attend la fin du lot', async () => {
+    const serial = createWriteSerial();
+    const calls: string[] = [];
+    const lotDone = deferred();
+    const lot = serial.many(['a', 'b'], async () => { calls.push('lot'); await lotDone.promise; calls.push('lot ✓'); });
+    const p = serial('b', async () => { calls.push('b'); });
+    await flush();
+    expect(calls).toEqual(['lot']);
+    lotDone.resolve();
+    await lot; await p;
+    expect(calls).toEqual(['lot', 'lot ✓', 'b']);
+  });
+
+  it('les clés du lot se libèrent une fois le lot réglé', async () => {
+    const serial = createWriteSerial();
+    await serial.many(['a', 'b'], async () => {});
+    await flush();
+    const calls: string[] = [];
+    void serial('a', async () => { calls.push('a'); });
+    expect(calls).toEqual(['a']);
+  });
+});

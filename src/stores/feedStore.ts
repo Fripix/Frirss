@@ -1136,11 +1136,23 @@ const settledGestures = new Map<string, number>();
 /**
  * Les écritures d'un même attribut d'un même article partent dans l'ordre des
  * gestes (M-12, `src/lib/writeSerial.ts`) : la clé est celle de la file hors
- * ligne, portée comprise.
+ * ligne, portée comprise — étiquette comprise pour une étiquette ordinaire.
+ *
+ * L'article y est nommé par son numéro d'entrée décimal (`entryIdUsec`) : les
+ * écritures groupées (marquage de plage, retour en arrière de « tout lu »)
+ * portent la forme décimale de `stream/items/ids`, les lignes la forme
+ * greader. Dans le même espace, un lot attend les écritures en vol des
+ * articles qu'il contient (`writeSerial.many`, relecture R2), et le rejeu de
+ * la file passe par la même clé que le geste direct.
  */
 const writeSerial = createWriteSerial();
-const inOrder = <T>(g: Gesture, articleId: string, type: QueuedActionType, write: () => Promise<T>): Promise<T> =>
-  writeSerial(`${g.scope}|${actionKey(articleId, type)}`, write);
+const serialKey = (scope: string, articleId: string, type: QueuedActionType, labelId?: string): string =>
+  `${scope}|${actionKey(entryIdUsec(articleId) ?? articleId, type, labelId)}`;
+const inOrder = <T>(g: Gesture, articleId: string, type: QueuedActionType, write: () => Promise<T>, labelId?: string): Promise<T> =>
+  writeSerial(serialKey(g.scope, articleId, type, labelId), write);
+/** Un lot « lu »/« non lu » : il part après les écritures « lu » en vol de ses articles. */
+const readBatchInOrder = <T>(scope: string, ids: readonly string[], write: () => Promise<T>): Promise<T> =>
+  writeSerial.many(ids.map((id) => serialKey(scope, id, 'read')), write);
 
 function writeFieldOf(type: QueuedActionType, labelId?: string): WriteField {
   if (type === 'read') return 'read';
@@ -2871,7 +2883,16 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
               // session fermée ; rien à défaire, l'écran n'est plus le sien.
               if (!memeContexte()) return;
               const lot = ids.slice(i, i + 100);
-              await markAsRead(lot);
+              // Après les écritures en vol de ses articles (relecture R2) : un
+              // « non lu » touché juste avant arrivait sinon après le lot, et
+              // l'article restait non lu chez FreshRSS. Le contexte est revu
+              // après l'attente, qui peut avoir duré.
+              const parti = await readBatchInOrder(offlineScope(), lot, async () => {
+                if (!memeContexte()) return false;
+                await markAsRead(lot);
+                return true;
+              });
+              if (!parti) return;
               lot.forEach((id) => confirmed.add(versEspaceCommun(id)));
               set({ bulkWork: { done: i + lot.length, total: ids.length } });
             }
@@ -3085,7 +3106,9 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     patchSearchCorpus(article.id, (a) => ({ labels: withLabel(a.labels, labelId, !hasLabel) }));
     const g = gesture();
     try {
-      await setArticleLabel(article.id, labelId, !hasLabel);
+      // En série par article ET par étiquette (relecture R2), comme « À lire
+      // plus tard » : une autre étiquette du même article n'attend pas.
+      await inOrder(g, article.id, 'label', () => setArticleLabel(article.id, labelId, !hasLabel), labelId);
       await settleAction(set, g, article, 'label', !hasLabel, labelId).catch(() => {});
       // Refresh labels list in case a new label was created
       get().loadLabels();
@@ -3660,15 +3683,30 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       const current = actionQueue.find((a) => a.key === action.key);
       if (!current || current.at !== action.at) continue;
       try {
-        if (action.type === 'read') {
-          await (action.value ? markAsRead(action.articleId) : markAsUnread(action.articleId));
-        } else if (action.type === 'star') {
-          await (action.value ? markAsStarred(action.articleId) : removeStarred(action.articleId));
-        } else if (action.type === 'readLater') {
-          await setArticleLabel(action.articleId, READ_LATER_LABEL, action.value);
-        } else if (action.type === 'label' && action.labelId) {
-          await setArticleLabel(action.articleId, action.labelId, action.value);
-        }
+        // Sous la clé du geste direct (relecture R2) : un « non lu » touché
+        // pendant l'envoi rejoué de « lu » partait en parallèle, et FreshRSS
+        // pouvait recevoir le « lu » en dernier. L'attente peut être celle
+        // d'un geste direct plus récent : revu à son tour, l'envoi n'écrase
+        // pas ce que ce geste a confirmé (`settledGestures`, posé dès son
+        // règlement) ou remplacé en file.
+        let outdated = false;
+        await writeSerial(serialKey(scope, action.articleId, action.type, action.labelId), async () => {
+          const now = actionQueue.find((a) => a.key === action.key);
+          if (!now || now.at !== action.at || (settledGestures.get(action.key) ?? 0) > (action.seq ?? 0)) {
+            outdated = true;
+            return;
+          }
+          if (action.type === 'read') {
+            await (action.value ? markAsRead(action.articleId) : markAsUnread(action.articleId));
+          } else if (action.type === 'star') {
+            await (action.value ? markAsStarred(action.articleId) : removeStarred(action.articleId));
+          } else if (action.type === 'readLater') {
+            await setArticleLabel(action.articleId, READ_LATER_LABEL, action.value);
+          } else if (action.type === 'label' && action.labelId) {
+            await setArticleLabel(action.articleId, action.labelId, action.value);
+          }
+        });
+        if (outdated) continue;
         // La bascule a eu lieu PENDANT l'envoi : rien ne dit quel serveur
         // l'a reçue. Gardée — renvoyer le même état est sans danger.
         if (!memeContexte()) { stopped = true; remaining.push(action); }
@@ -3925,21 +3963,30 @@ async function restoreUnread(ids: readonly string[], toastId: number): Promise<v
     for (let i = 0; i < total; i += UNDO_BATCH) {
       if (!memeContexte()) break;
       const lot = ids.slice(i, i + UNDO_BATCH) as string[];
-      try {
-        await markAsUnread(lot);
-      } catch {
-        // Une seule reprise, comme les écritures d'article : un 504 vient
-        // d'une base occupée, pas d'une demande invalide — elle passe souvent
-        // au second essai.
+      // Après les écritures « lu » en vol de ses articles (relecture R2),
+      // reprise comprise : un « lu » parti juste avant arrivait sinon après
+      // le lot. Le contexte est revu après l'attente.
+      const parti = await readBatchInOrder(scope, lot, async () => {
+        if (!memeContexte()) return 'stop' as const;
         try {
           await markAsUnread(lot);
         } catch {
-          // Ce lot est perdu, les suivants ne le sont pas : s'arrêter ici
-          // laisserait la liste à moitié rendue SANS le dire, ce qui est
-          // exactement ce qui est arrivé le 2026-09-30.
-          continue;
+          // Une seule reprise, comme les écritures d'article : un 504 vient
+          // d'une base occupée, pas d'une demande invalide — elle passe souvent
+          // au second essai.
+          try {
+            await markAsUnread(lot);
+          } catch {
+            // Ce lot est perdu, les suivants ne le sont pas : s'arrêter ici
+            // laisserait la liste à moitié rendue SANS le dire, ce qui est
+            // exactement ce qui est arrivé le 2026-09-30.
+            return 'lost' as const;
+          }
         }
-      }
+        return 'sent' as const;
+      });
+      if (parti === 'stop') break;
+      if (parti === 'lost') continue;
       rendus += lot.length;
       useFeedStore.setState({ bulkWork: { done: rendus, total } });
       ui.updateToast(toastId, {

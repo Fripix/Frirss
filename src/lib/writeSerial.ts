@@ -13,11 +13,22 @@
  * ne change pour un geste isolé. Deux clés différentes ne s'attendent jamais.
  * Chaque écriture rend son propre résultat ou sa propre erreur : la logique de
  * chaque geste (file hors ligne, retour arrière sur refus) reste la sienne.
+ *
+ * `serial.many` (relecture du second round) : une écriture groupée — un lot
+ * de `markAsRead`/`markAsUnread` — attend les écritures en vol de TOUTES ses
+ * clés, et chacune d'elles attend à son tour la fin du lot. Un lot dont
+ * aucune clé n'est en vol part dans le même tour, comme une écriture seule.
  */
-export function createWriteSerial() {
+export interface WriteSerial {
+  <T>(key: string, write: () => Promise<T>): Promise<T>;
+  many<T>(keys: readonly string[], write: () => Promise<T>): Promise<T>;
+}
+
+export function createWriteSerial(): WriteSerial {
   const tails = new Map<string, Promise<void>>();
-  return function serial<T>(key: string, write: () => Promise<T>): Promise<T> {
-    const previous = tails.get(key);
+  function enqueue<T>(keys: readonly string[], write: () => Promise<T>): Promise<T> {
+    const unique = [...new Set(keys)];
+    const previous = unique.map((k) => tails.get(k)).filter((p): p is Promise<void> => !!p);
     const start = (): Promise<T> => {
       try {
         return Promise.resolve(write());
@@ -25,12 +36,19 @@ export function createWriteSerial() {
         return Promise.reject(err);
       }
     };
-    const run = previous ? previous.then(start) : start();
+    // Les queues ne rejettent jamais (voir `tail`) : `Promise.all` attend
+    // simplement la dernière d'entre elles.
+    const run = previous.length === 0 ? start()
+      : previous.length === 1 ? previous[0].then(start)
+        : Promise.all(previous).then(start);
     const tail = run.then(() => {}, () => {});
-    tails.set(key, tail);
+    for (const key of unique) tails.set(key, tail);
     void tail.then(() => {
-      if (tails.get(key) === tail) tails.delete(key);
+      for (const key of unique) if (tails.get(key) === tail) tails.delete(key);
     });
     return run;
-  };
+  }
+  const serial = (<T>(key: string, write: () => Promise<T>) => enqueue([key], write)) as WriteSerial;
+  serial.many = (keys, write) => enqueue(keys, write);
+  return serial;
 }
