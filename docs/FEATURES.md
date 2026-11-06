@@ -8160,16 +8160,35 @@ qu'elle rend (voir *Extraction du contenu complet*).
     `server/markupBounds.ts`) : profondeur au-delà de `EXTRACT_MAX_DEPTH` (256,
     `<html>` compte pour 1) ou plus de `EXTRACT_MAX_ELEMENTS` balises ouvrantes
     (60 000). Un balayage linéaire du HTML qui rejoue la pile de htmlparser2,
-    l'analyseur de linkedom : éléments vides, fermetures implicites (`<p>`,
-    `<li>`, `<td>`…), fermeture qui remonte au même nom, `<x/>` qui ne ferme
-    qu'en SVG/MathML, contenu de `script`/`style`/`title`/`textarea`/`xmp`,
-    commentaires et attributs ignorés. ~4 ms pour 2 Mo. ⚠️ **L'analyse HTML
+    l'analyseur de linkedom : éléments vides (comptés au niveau où ils sont
+    posés), fermetures implicites (`<p>`, `<li>`, `<td>`…), fermeture qui
+    remonte au même nom (`</p>` et `</br>` orphelins créent un élément),
+    `<x/>` qui ne ferme qu'en SVG/MathML, contenu de
+    `script`/`style`/`title`/`textarea`/`xmp`, commentaires et attributs
+    ignorés. ~4 ms pour 2 Mo. Il peut surestimer la profondeur, **jamais la
+    sous-estimer** : une forme qu'il lirait autrement qu'htmlparser2 cacherait
+    tout ce qui la suit (C-01, quatrième round). `<div =" >` en était une —
+    htmlparser2 y lit un nom d'attribut qui commence par `=` et ferme la
+    balise au `>`, le balayage lisait une valeur jusqu'au `"` suivant —,
+    `<!--->` une autre (un commentaire déjà fermé, dont le balayage cherchait
+    la fin plus loin) : 390 000 `<div>` derrière l'une d'elles passaient le
+    refus rapide, et l'analyse HTML occupait le worker jusqu'à son délai. Les
+    attributs suivent désormais la machine d'états d'htmlparser2 (le premier
+    caractère d'un nom est pris tel quel), et commentaires, déclarations
+    (`<!>` avale son `>`) et fins de texte brut finissent où il les finit —
+    y compris ses comparaisons `c | 0x20`, qui prennent `\x1c` pour `<` et
+    `\x0f` pour `/` dans `</script`. Un test différentiel
+    (`server/test/markupBounds.test.ts`) confronte le balayage à l'arbre réel
+    sur 76 formes étranges ; 28 000 cas tirés au hasard sont tombés juste
+    (2026-11-06). ⚠️ **L'analyse HTML
     n'est pas bon marché sur une page piégée** : la première version mesurait
     l'arbre APRÈS `parseHTML`, or linkedom est lui-même quadratique en
     profondeur (sa pile insère en tête) — 50 000 `<div>` imbriqués coûtaient
     1,2 s avant le refus, 390 000 `<div>` jamais fermés (2 Mo) 42 s, bornés
-    seulement par le délai du worker (relecture 1.9.0). Sur les 44 pages du
-    corpus, l'estimation et l'arbre réel diffèrent d'un niveau au plus.
+    seulement par le délai du worker (relecture 1.9.0). Sur les 275 pages du
+    corpus (2026-11-06), l'estimation et l'arbre réel coïncident exactement,
+    profondeur et nombre d'éléments ; avant C-01, elle les sous-estimait sur
+    44 d'entre elles (d'un niveau, ou de 58 éléments au plus).
     L'arbre est encore mesuré après `parseHTML` (`assertTreeBounded`), comme
     filet. Calibrage (2026-11-06) sur 38 pages réelles de la campagne et deux
     longues pages Wikipédia (2 et 3 Mo) : profondeur maximale relevée 34,

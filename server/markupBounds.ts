@@ -9,19 +9,34 @@
  * (2 Mo) 42 s, bornés seulement par le délai du worker. Ce balayage-ci est
  * linéaire : quelques millisecondes pour 2 Mo, piège ou non.
  *
- * Il rejoue, à grands traits, ce que fait htmlparser2 10 (l'analyseur de
- * linkedom) de sa pile, pour estimer la profondeur de l'arbre qui SERAIT
- * construit, sans fausse alerte sur une page réelle :
- * - les éléments vides (`<br>`, `<img>`…) ne s'ouvrent pas ;
+ * Il rejoue ce que fait htmlparser2 10 (l'analyseur de linkedom) de sa pile,
+ * pour connaître la profondeur de l'arbre qui SERAIT construit. Il peut la
+ * surestimer (un refus prudent), jamais la sous-estimer : une forme que
+ * htmlparser2 lit autrement que lui serait une porte dérobée — tout ce qui la
+ * suit échapperait au comptage (C-01, quatrième round : `<div =" >` et
+ * `<!--->`). `server/test/markupBounds.test.ts` le confronte à l'arbre réel
+ * sur une liste de formes étranges. Ce qu'il rejoue :
+ * - les éléments vides (`<br>`, `<img>`…) ne s'ouvrent pas, mais comptent,
+ *   au niveau où ils sont posés ;
  * - une ouverture ferme ce que htmlparser2 ferme implicitement (`<p>` ferme
  *   `<p>`, `<li>` ferme `<li>`, `<td>` ferme `<td>`… — `OPEN_IMPLIES_CLOSE`) ;
  * - une fermeture remonte jusqu'à l'élément du même nom, s'il est ouvert, et
- *   ferme tout ce qui est au-dessus ; sinon elle est ignorée ;
+ *   ferme tout ce qui est au-dessus ; sinon elle est ignorée — sauf `</p>` et
+ *   `</br>` orphelins, qui créent un élément ;
  * - `<x/>` ne ferme qu'en SVG et MathML ; ailleurs, `<div/>` OUVRE un `<div>`,
  *   comme dans htmlparser2 ;
- * - le contenu de `script`, `style`, `title`, `textarea`, `xmp` (texte brut),
- *   les commentaires, déclarations et attributs ne sont pas lus comme des
- *   balises.
+ * - les attributs suivent la machine d'états d'htmlparser2 : le premier
+ *   caractère d'un nom est pris tel quel, même `=` ou un guillemet — dans
+ *   `<div =" >`, `="` est un NOM, et la balise se ferme au `>` ;
+ * - commentaires et déclarations finissent où htmlparser2 les finit :
+ *   `<!-->` et `<!--->` sont des commentaires déjà fermés, le caractère qui
+ *   suit `<!` (ou `<!-`) est avalé sans être lu (`<!>` ne se ferme qu'au `>`
+ *   suivant) ; `--!>` ne ferme pas un commentaire ;
+ * - le contenu de `script`, `style`, `title`, `textarea`, `xmp` (texte brut)
+ *   n'est pas lu comme des balises, jusqu'à la fermeture qu'htmlparser2
+ *   reconnaît : `</nom` suivi d'un blanc ou de `>` — et ses comparaisons
+ *   « insensibles à la casse » (`c | 0x20`) prennent aussi `\x1c` pour `<` et
+ *   `\x0f` pour `/` (`rawTextEnd`).
  * La pile ne dépasse jamais `maxDepth + 1` (le balayage s'arrête avant) : la
  * recherche d'une fermeture coûte au plus `maxDepth` pas.
  *
@@ -32,7 +47,7 @@
 export interface MarkupLimits {
   /** Profondeur d'imbrication maximale acceptée (`<html>` compte pour 1). */
   maxDepth: number;
-  /** Nombre maximal de balises ouvrantes. */
+  /** Nombre maximal d'éléments. */
   maxElements: number;
 }
 
@@ -75,42 +90,64 @@ export function markupTooComplex(html: string, limits: MarkupLimits): 'depth' | 
   let elements = 0;
   let i = 0;
 
+  /** Un élément créé sans rester ouvert (vide, auto-fermé, `</p>` ou `</br>` orphelin), posé au sommet de la pile. */
+  const leaf = (): 'depth' | 'elements' | null => {
+    if (++elements > limits.maxElements) return 'elements';
+    return stack.length + 1 > limits.maxDepth ? 'depth' : null;
+  };
+  /** `</nom>` : ce qu'en fait le `onclosetag` d'htmlparser2. */
+  const close = (name: string): 'depth' | 'elements' | null => {
+    if ((FOREIGN.has(name) || HTML_INTEGRATION.has(name)) && foreign.length) foreign.pop();
+    if (VOID.has(name)) return name === 'br' ? leaf() : null;
+    const pos = stack.lastIndexOf(name);
+    if (pos !== -1) stack.length = pos;
+    else if (name === 'p') return leaf();
+    return null;
+  };
+
   while (i < n) {
     const lt = html.indexOf('<', i);
     if (lt === -1 || lt + 1 >= n) break;
     const c = html[lt + 1];
 
-    // ── Commentaires, déclarations, CDATA, instructions ──
-    if (c === '!' || c === '?') {
+    // ── Commentaires, déclarations, CDATA ──
+    if (c === '!') {
+      let end: number;
       if (html.startsWith('<!--', lt)) {
-        if (html[lt + 4] === '>') { i = lt + 5; continue; }
-        const end = html.indexOf('-->', lt + 4);
+        // `<!--` vaut déjà `--` lu : `<!-->` et `<!--->` sont fermés.
+        end = html.indexOf('-->', lt + 2);
         if (end === -1) break;
         i = end + 3;
       } else if (html.startsWith('<![CDATA[', lt)) {
-        const end = html.indexOf(']]>', lt + 9);
+        end = html.indexOf(']]>', lt + 9);
         if (end === -1) break;
         i = end + 3;
       } else {
-        const end = html.indexOf('>', lt + 2);
+        // Déclaration : le caractère après `<!` — après `<!-` s'il n'est pas
+        // un second `-` — est avalé sans être lu, `>` compris.
+        end = html.indexOf('>', html[lt + 2] === '-' ? lt + 4 : lt + 3);
         if (end === -1) break;
         i = end + 1;
       }
       continue;
     }
+    // ── Instruction de traitement ──
+    if (c === '?') {
+      const end = html.indexOf('>', lt + 2);
+      if (end === -1) break;
+      i = end + 1;
+      continue;
+    }
 
-    // ── Fermeture ──
+    // ── Fermeture ── (blancs tolérés après `</`, nom jusqu'à un blanc ou `>`)
     if (c === '/') {
       let j = lt + 2;
+      while (j < n && isSpace(html[j])) j++;
       if (j < n && isAlpha(html[j])) {
         const start = j;
         while (j < n && !isSpace(html[j]) && html[j] !== '>') j++;
-        const name = html.slice(start, j).toLowerCase();
-        if ((FOREIGN.has(name) || HTML_INTEGRATION.has(name)) && foreign.length) foreign.pop();
-        if (!VOID.has(name)) {
-          const pos = stack.lastIndexOf(name);
-          if (pos !== -1) stack.length = pos;
-        }
+        const over = close(html.slice(start, j).toLowerCase());
+        if (over) return over;
       }
       const end = html.indexOf('>', j);
       if (end === -1) break;
@@ -121,7 +158,7 @@ export function markupTooComplex(html: string, limits: MarkupLimits): 'depth' | 
     // ── Texte : un `<` qui n'ouvre rien ──
     if (!isAlpha(c)) { i = lt + 1; continue; }
 
-    // ── Ouverture : nom, puis attributs jusqu'au `>` (guillemets respectés) ──
+    // ── Ouverture : nom, puis attributs jusqu'au `>` ──
     let j = lt + 1;
     while (j < n && !endsName(html[j])) j++;
     const name = html.slice(lt + 1, j).toLowerCase();
@@ -130,61 +167,99 @@ export function markupTooComplex(html: string, limits: MarkupLimits): 'depth' | 
     while (j < n) {
       const ch = html[j];
       if (ch === '>') { closed = true; j++; break; }
+      if (isSpace(ch)) { j++; continue; }
       if (ch === '/') {
-        // htmlparser2 tolère des blancs entre `/` et `>`.
+        // htmlparser2 tolère des blancs entre `/` et `>` ; tout autre
+        // caractère est relu comme le début d'un attribut.
         j++;
         while (j < n && isSpace(html[j])) j++;
-        if (html[j] === '>') { selfClosing = true; closed = true; j++; break; }
+        if (j < n && html[j] === '>') { selfClosing = true; closed = true; j++; break; }
         continue;
       }
-      if (ch === '=') {
+      // Nom d'attribut : son PREMIER caractère est pris tel quel, même `=` ou
+      // un guillemet ; il finit sur `=`, un blanc, `/` ou `>`.
+      j++;
+      while (j < n && html[j] !== '=' && !endsName(html[j])) j++;
+      while (j < n && isSpace(html[j])) j++;
+      if (j < n && html[j] === '=') {
         j++;
         while (j < n && isSpace(html[j])) j++;
         const q = html[j];
         if (q === '"' || q === "'") {
-          const close = html.indexOf(q, j + 1);
-          if (close === -1) { j = n; break; }
-          j = close + 1;
+          const end = html.indexOf(q, j + 1);
+          if (end === -1) { j = n; break; }
+          j = end + 1;
         } else {
           while (j < n && !isSpace(html[j]) && html[j] !== '>') j++;
         }
-        continue;
       }
-      j++;
     }
     if (!closed) break;
 
-    if (++elements > limits.maxElements) return 'elements';
     const impliesClose = OPEN_IMPLIES_CLOSE.get(name);
     if (impliesClose) {
       while (stack.length && impliesClose.has(stack[stack.length - 1])) stack.pop();
     }
-    if (!VOID.has(name)) {
+    if (VOID.has(name)) {
+      const over = leaf();
+      if (over) return over;
+    } else {
+      if (++elements > limits.maxElements) return 'elements';
       stack.push(name);
       if (FOREIGN.has(name)) foreign.push(true);
       else if (HTML_INTEGRATION.has(name)) foreign.push(false);
-      if (selfClosing && foreign[foreign.length - 1]) {
-        stack.pop();
-      } else if (stack.length > limits.maxDepth) {
-        return 'depth';
-      }
+      if (stack.length > limits.maxDepth) return 'depth';
+      if (selfClosing && foreign[foreign.length - 1]) stack.pop();
     }
     i = j;
 
-    // ── Texte brut : rien n'est une balise jusqu'à `</nom` ──
+    // ── Texte brut : rien n'est une balise jusqu'à sa fermeture ──
     if (RAW_TEXT.has(name) && !selfClosing) {
-      const end = indexOfCaseless(html, `</${name}`, i);
+      const end = rawTextEnd(html, name, i);
       if (end === -1) break;
-      i = end;
+      const over = close(name);
+      if (over) return over;
+      const gt = html.indexOf('>', end);
+      if (gt === -1) break;
+      i = gt + 1;
     }
   }
   return null;
 }
 
-/** `indexOf` insensible à la casse pour un motif ASCII en minuscules, linéaire. */
-function indexOfCaseless(text: string, lowerNeedle: string, from: number): number {
-  const re = new RegExp(lowerNeedle.replace(/[.*+?^${}()|[\]\\/-]/g, '\\$&'), 'gi');
-  re.lastIndex = from;
-  const m = re.exec(text);
-  return m ? m.index : -1;
+/**
+ * Où se ferme un texte brut ouvert juste avant `from` : la position du blanc
+ * ou du `>` qui suit `</nom`, ou -1. Rejoue `stateInSpecialTag` d'htmlparser2,
+ * en une passe : sa comparaison `(c | 0x20) === attendu` prend aussi `\x1c`
+ * pour `<` et `\x0f` pour `/` ; hors de `title`, il saute d'un bond au `<`
+ * suivant quand rien n'est en cours (et ne voit alors pas `\x1c`).
+ */
+function rawTextEnd(html: string, name: string, from: number): number {
+  const sequence = `</${name}`;
+  const jumps = name !== 'title';
+  const n = html.length;
+  let k = 0;
+  let i = from;
+  while (i < n) {
+    const c = html.charCodeAt(i);
+    if (k === sequence.length) {
+      if (c === 0x3e || c === 0x20 || c === 0x0a || c === 0x09 || c === 0x0d || c === 0x0c) return i;
+      k = 0;
+    }
+    if ((c | 0x20) === sequence.charCodeAt(k)) {
+      k++;
+    } else if (k === 0) {
+      if (jumps) {
+        const lt = html.indexOf('<', i + 1);
+        if (lt === -1) return -1;
+        i = lt + 1;
+        k = 1;
+        continue;
+      }
+    } else {
+      k = c === 0x3c ? 1 : 0;
+    }
+    i++;
+  }
+  return -1;
 }
