@@ -450,8 +450,11 @@ html {
   padding: 0.15em 0.4em;
   border-radius: 3px;
   /* Un nom de fichier ou une commande en ligne, sans espace, sortait de la
-     colonne à 320 px (M-11) : il se coupe où il faut. */
-  overflow-wrap: anywhere;
+     colonne à 320 px (M-11) : il se coupe où il faut. `break-word` et non
+     `anywhere` (relecture R2-7) : `anywhere` réduit la largeur min-content,
+     et un tableau qui contient du code se tassait dans la colonne, son code
+     cassé sur cinq lignes, au lieu de défiler dans `.article-scroll-x`. */
+  overflow-wrap: break-word;
 }
 
 .article-content pre code {
@@ -509,6 +512,16 @@ html {
 .article-content th {
   background: var(--code-bg);
   font-weight: 600;
+}
+
+/* Une option ou un nom de fonction dans un tableau tient sur une ligne :
+   c'est le tableau qui défile dans `.article-scroll-x` (relecture R2-7).
+   Le texte se coupe après chaque trait d'union, `overflow-wrap` n'y peut
+   rien : `--experimental-network-imports` occupait quatre lignes d'une
+   colonne tassée à 288 px. */
+.article-content td code,
+.article-content th code {
+  white-space: nowrap;
 }
 
 /* Preferences: highlight overlay animation.

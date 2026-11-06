@@ -3132,8 +3132,21 @@ libellés disaient « plein écran » jusqu'en 1.8.0) au double-clic. Contenu bi
   (`table { width: 100% }` sans enveloppe) — à 320 px, 398 px de tableau dans
   288. Chaque tableau extérieur est enveloppé d'un bloc qui défile de côté ;
   le tableau garde au moins la largeur de la colonne. Le `<code>` en ligne
-  se coupe n'importe où (`overflow-wrap: anywhere`), pas celui d'un `<pre>`,
-  qui défile.
+  d'un paragraphe se coupe quand il déborderait (`overflow-wrap: break-word`),
+  pas celui d'un `<pre>`, qui défile. Dans une cellule de tableau, il ne se
+  coupe pas (`white-space: nowrap`) : c'est le tableau qui défile
+  (`inlineCodeWrap.test.ts`).
+  ⚠️ **Pas `overflow-wrap: anywhere`** (première version de M-11, relecture
+  du second round) : `anywhere` réduit la largeur min-content, et un tableau
+  qui contient du code se tassait dans la colonne au lieu de défiler.
+  `break-word` seul ne suffit pas non plus pour une option de ligne de
+  commande : le texte se coupe toujours après un trait d'union. Mesuré dans
+  Chrome sans interface contre la feuille construite, colonne de 288 px,
+  tableau `Option | Description` avec `--experimental-network-imports` :
+  `anywhere`, pas de défilement et code sur 5 lignes ; `break-word`, pas de
+  défilement et 4 lignes ; avec `nowrap` en cellule, l'enveloppe défile
+  (400 px dans 288) et le code tient sur une ligne. Un petit tableau ne
+  défile pas, et le code d'un paragraphe reste dans la colonne.
 - **Quand le fantôme s'efface** : câblé dans `ReadingPane.tsx`. On regarde les
   **trois premières** images du corps ; si elles sont déjà `complete` — ou si
   l'article venait du cache d'extraits — le fondu part tout de suite, sinon on
