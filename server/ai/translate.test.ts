@@ -1,7 +1,8 @@
 // server/ai/translate.test.ts
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import db, { setSetting } from '../db.js';
-import { usageToday } from './store.js';
+import { createHash } from 'node:crypto';
+import { aiCacheKey, aiCacheSet, usageToday } from './store.js';
 import { translate, translateDeadlineMs, TRANSLATE_DEADLINE_MAX_MS } from './translate.js';
 import { inflightSize } from './inflight.js';
 import { SUMMARY_DEADLINE_MS } from './summarize.js';
@@ -251,6 +252,31 @@ describe('translate — « déjà dans la langue cible » vraisemblable (M-16)',
     await expect(translate(req('fa-echo'), { call })).rejects.toMatchObject({ kind: 'technical', message: 'segments' });
     expect(call).toHaveBeenCalledTimes(2);
     expect(cacheCount()).toBe(0);
+  });
+  // R3-03 (campagne 1.9.0, troisième round) : la garde ci-dessus ne jouait
+  // qu'à l'écriture. Une entrée « déjà en français » écrite avant elle (SQLite,
+  // sans expiration) restait servie indéfiniment.
+  const legacySame = async (articleId: string) => {
+    const contentHash = createHash('sha1').update(JSON.stringify(['summary', [FA]])).digest('hex').slice(0, 16);
+    await aiCacheSet(aiCacheKey({ articleId, op: 'translate', providerId: 1, model: 'm', lang: 'fr', contentHash }), { text: JSON.stringify({ same: true, segments: [] }), lang: 'fr' });
+  };
+  it('une entrée « déjà en français » d’un texte persan, mise en cache avant la garde, est ignorée et réécrite', async () => {
+    await legacySame('fa-legacy');
+    const call = vi.fn().mockResolvedValue(answer('lang: fa\n<seg n="0">Cet article porte sur l’avenir de l’IA en Iran.</seg>'));
+    const r = await translate(req('fa-legacy'), { call });
+    expect(call).toHaveBeenCalledTimes(1);
+    expect(r).toMatchObject({ same: false, segments: ['Cet article porte sur l’avenir de l’IA en Iran.'], fromCache: false });
+    expect(cacheCount()).toBe(1);
+    expect((db.prepare('SELECT text FROM ai_cache').get() as { text: string }).text).toContain('"same":false');
+    const again = await translate(req('fa-legacy'), { call });
+    expect(again).toMatchObject({ same: false, fromCache: true });
+    expect(call).toHaveBeenCalledTimes(1);
+  });
+  it('un rejeu sur le cache seul ne sert pas cette entrée refusée', async () => {
+    await legacySame('fa-legacy-replay');
+    const call = vi.fn();
+    await expect(translate({ ...req('fa-legacy-replay'), cacheOnly: true }, { call })).rejects.toMatchObject({ kind: 'technical', message: 'not_cached' });
+    expect(call).not.toHaveBeenCalled();
   });
   it('un texte vraiment français reste « déjà en français », mis en cache', async () => {
     const call = vi.fn().mockResolvedValue(answer('lang: fr\nsame'));

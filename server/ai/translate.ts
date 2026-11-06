@@ -66,6 +66,15 @@ function decodeCached(v: AiCacheValue, count: number): Pick<Translated, 'same' |
   throw new AiError('technical', 'segments');
 }
 
+/** L'entrée de cache dit-elle « déjà dans la cible » ? Illisible : non (elle échouera au décodage). */
+function cachedSame(v: AiCacheValue): boolean {
+  try {
+    return (JSON.parse(v.text) as { same?: unknown }).same === true;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Spec §17.3. **Un lot = un appel** (le client découpe en lots) : une unité de
  * plafond, une entrée de cache, une échéance proportionnelle au lot
@@ -142,6 +151,11 @@ export async function translate(req: TranslateRequest, deps: { call?: typeof cal
         return { lang: parsed.lang, same: parsed.same, segments: parsed.segments ?? [], model: result.model };
       },
       onSuccess: async (_cand, r) => ({ text: JSON.stringify({ same: r.same, segments: r.segments }), lang: r.lang }),
+      // La garde d'écriture, relue à la lecture (R3-03) : un « déjà dans la
+      // cible » mis en cache avant elle, sur un lot dont l'écriture ne peut
+      // pas être celle de la cible (un texte persan « déjà en français »), est
+      // ignoré, puis remplacé par la nouvelle réponse.
+      acceptCached: (cached) => sameFits || !cachedSame(cached),
     });
     const { cand, fellBackFrom } = out;
     const named = { providerId: cand.provider.id, providerName: cand.provider.name, fellBackFrom };

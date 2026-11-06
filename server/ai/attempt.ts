@@ -50,6 +50,14 @@ export interface Attempt<T> {
   cacheOnly?: boolean;
   /** Ce qu'il faut mettre en cache pour ce résultat ; `null` = rien. */
   onSuccess?: (cand: Availability, result: T) => Promise<AiCacheValue | null>;
+  /**
+   * L'entrée de cache passe-t-elle encore la garde d'écriture ? Une entrée
+   * refusée est traitée comme absente : l'appel part (sauf rejeu
+   * `cacheOnly`, qui rend alors « not_cached ») et son résultat la remplace
+   * sous la même clé. Le cache SQLite n'expire pas : sans cette relecture,
+   * une entrée écrite avant une garde restait servie indéfiniment (R3-03).
+   */
+  acceptCached?: (cached: AiCacheValue) => boolean;
 }
 
 /**
@@ -77,6 +85,7 @@ export async function runWithFallback<T>(a: Attempt<T>): Promise<{ result: T | A
     if (!a.skipCacheRead) {
       try { cached = await aiCacheGet(key); } catch { /* cache illisible = absence */ }
     }
+    if (cached && a.acceptCached && !a.acceptCached(cached)) cached = null;
     if (cached) return { result: cached, cand, fromCache: true, fellBackFrom };
     // Rejeu : rien d'autre que le cache, ni échéance ni réservation ni appel.
     if (a.cacheOnly) continue;

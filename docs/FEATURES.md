@@ -3849,6 +3849,12 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   est fausse), sauf s'ils recopient la source (écho : inexploitable). Limite
   assumée : la garde juge l'écriture, pas la langue — un texte espagnol
   annoncé français, ou du japonais tout en kanji annoncé chinois, passe.
+  **La garde est relue à la lecture du cache** (troisième round, R3-03,
+  `acceptCached` de `runWithFallback`) : un « déjà dans la cible » écrit
+  avant elle — la table `ai_cache` de SQLite n'expire pas, elle n'est purgée
+  qu'au-delà de 10 000 lignes — restait servi indéfiniment. Une entrée
+  refusée est traitée comme absente : l'appel part, et sa réponse la
+  remplace sous la même clé ; un rejeu `cacheOnly` rend `not_cached`.
   Cache : une entrée par lot, clé `op: translate` +
   fournisseur + modèle + **langue cible** + article + sha1 (16 hex) du scope et
   des segments du lot ; la valeur (`AiCacheValue`) porte le lot en JSON dans
