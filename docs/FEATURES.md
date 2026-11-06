@@ -5156,12 +5156,14 @@ serveur de développement en 1.4.4.)*
   ligne, favoris épinglés, revalidation) avalent l'échec : l'article garde le
   contenu du flux, ou son extrait d'une version antérieure (M-03), et un
   refus passager (503 `busy`, 502 `crashed`, 504 `timedOut`) est repris au
-  passage suivant, rien n'ayant été mis en cache. ⚠️ Coût assumé : une préparation hors ligne
-  lancée pendant que d'autres comptes saturent la file laisse ces articles
-  sans article complet jusqu'au passage suivant, là où le repli les
-  extrayait — en gelant l'onglet sur les pages lentes. Ce repli n'est pas du
-  code hérité : c'est ce qui tient quand le serveur n'a pas la route ou ne
-  répond pas.
+  passage suivant, rien n'ayant été mis en cache. **La préparation hors
+  ligne reprend elle-même ses refus pour occupation** (503 `busy`, limites
+  restantes du second round) : dans le même passage, en fin de passage,
+  après une attente courte et croissante, deux fois au plus — voir *Onglet
+  Hors ligne*. Au-delà (file encore pleine après trois essais, ou un autre
+  refus passager), l'article attend la préparation suivante. Ce repli n'est
+  pas du code hérité : c'est ce qui tient quand le serveur n'a pas la route
+  ou ne répond pas.
   ⚠️ **Le repli ne lit qu'une page, et bornée** (`readPageText`,
   `FALLBACK_MAX_HTML_BYTES` = 2 Mo, le plafond de la route) : un type annoncé
   qui n'est pas `text/html`/XHTML est refusé sans lire le corps, un type absent
@@ -6123,6 +6125,26 @@ images consultés restent lisibles sans réseau.
   (`OfflineTab.test.tsx`, `feedStore.prepareOffline.extract.test.ts`). Elle
   suit le rythme du moment : les articles déjà extraits passent vite, donc
   l'estimation peut s'allonger en route.
+  **Les articles refusés parce que l'extracteur du serveur était occupé
+  sont redemandés dans le même passage** (limites restantes du second round,
+  `src/lib/prepBusyRetry.ts`, `feedStore.prepareOffline.extract.test.ts`).
+  Un 503 `busy` (`ExtractorBusyError` : la file du serveur, cinq analyses de
+  10 s au plus, était pleine — d'autres comptes, ou d'autres appareils)
+  laissait l'article sans article complet jusqu'à la préparation suivante.
+  Les refusés sont mis de côté et redemandés **en fin de passage**, après
+  une attente courte et croissante (`PREP_BUSY_RETRY_DELAYS_MS`, 5 s puis
+  10 s), **deux fois au plus** ; seul ce refus-là est repris (un délai
+  d'analyse, un plantage, une page refusée attendent la préparation
+  suivante, ou ne sont plus demandés). Un article mis de côté **n'est pas
+  compté comme fait** tant que sa reprise n'est pas réglée : la barre ne
+  touche pas son bout et la durée restante le compte dans ce qui reste.
+  « Annuler », une coupure ou un changement de serveur interrompent
+  l'attente dans le quart de seconde (`waitUnless`) — une annulation pendant
+  l'attente se dit annulée, sans retrait final. Les images de l'extrait
+  obtenu entrent dans le même budget — global, et par article pour les deux
+  passages réunis —, sans compter deux fois celles déjà préparées pour
+  l'article au premier passage ; un appareil plein ne
+  redemande rien (l'article est compté fait).
 - **Ce qui est gardé pour le hors ligne est rangé par compte et par serveur**
   (1.8.0, `offlineScope` dans `feedStore.ts`, `feedStore.scope.test.ts`) :
   `viewKey` et `viewIdentity` commencent par `user@serveur`, donc le cache

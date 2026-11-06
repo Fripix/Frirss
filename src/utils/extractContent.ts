@@ -208,7 +208,8 @@ export class ExtractTimeoutError extends Error {
 /**
  * La file d'analyse du serveur est pleine (503 portant `busy`). Échec
  * PASSAGER : pas retenu, « Réessayer » possible, le passage suivant reprend
- * l'article. Sans repli : l'onglet referait l'analyse que le serveur refuse,
+ * l'article — la préparation hors ligne le redemande même dans son propre
+ * passage (`src/lib/prepBusyRetry.ts`). Sans repli : l'onglet referait l'analyse que le serveur refuse,
  * sans borne de durée — 14 s de gel mesurées sur une page lente (N-2,
  * vérification 1.9.0).
  */

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 /*
  * Préparation hors ligne : ce qu'elle extrait (L-05), et comment on l'arrête
@@ -40,6 +40,8 @@ vi.mock('../i18n', () => ({ default: { t: (k: string) => k } }));
 import { getStreamContents } from '../api/feeds';
 import { useFeedStore } from './feedStore';
 import { useUiStore } from './uiStore';
+import { ExtractorBusyError, ExtractTimeoutError } from '../utils/extractContent';
+import { PREP_BUSY_RETRY_DELAYS_MS } from '../lib/prepBusyRetry';
 
 const now = Math.floor(Date.now() / 1000);
 let seq = 0;
@@ -194,5 +196,88 @@ describe('M-03 — extrait d’une version antérieure, réextraction en échec'
     } finally {
       vi.mocked(dbGet).mockImplementation(() => Promise.resolve(undefined));
     }
+  });
+});
+
+// Limites restantes du second round : un article refusé par l'extracteur du
+// serveur parce que sa file était pleine (503 `busy`) restait sans article
+// complet jusqu'à la préparation suivante. Il est redemandé en fin de passage,
+// après une attente courte et croissante, deux fois au plus.
+describe('préparation : articles refusés pour occupation, redemandés en fin de passage', () => {
+  beforeEach(() => {
+    useUiStore.setState({ autoExtractDefault: true, feedSettings: {} } as never);
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+  });
+  afterEach(() => { vi.useRealTimers(); });
+
+  /** Le premier article demandé est refusé `times` fois, les autres jamais. */
+  const busyFirst = (times: number) => {
+    const calls: Array<{ url: string; at: number }> = [];
+    extract.fn.mockImplementation(async (url: string) => {
+      calls.push({ url, at: Date.now() });
+      if (url === calls[0].url && calls.filter((c) => c.url === url).length <= times) throw new ExtractorBusyError();
+      return extracted(url);
+    });
+    return calls;
+  };
+
+  it('un article refusé est redemandé après les autres, et son extrait est gardé', async () => {
+    const calls = busyFirst(1);
+    const run = useFeedStore.getState().prepareOffline();
+    await vi.advanceTimersByTimeAsync(PREP_BUSY_RETRY_DELAYS_MS[0]);
+    await run;
+    expect(calls).toHaveLength(7);
+    expect(calls[6].url).toBe(calls[0].url);
+    const { dbPut } = await import('../lib/extractStore');
+    expect(JSON.stringify(vi.mocked(dbPut).mock.calls)).toContain(calls[0].url);
+    const prep = useFeedStore.getState().offlinePrep!;
+    expect(prep.done).toBe(6);
+    expect(prep.total).toBe(6);
+    expect(prep.cancelled).toBeFalsy();
+  });
+
+  it('deux nouvelles tentatives au plus, après une attente croissante', async () => {
+    const calls = busyFirst(Infinity);
+    const run = useFeedStore.getState().prepareOffline();
+    await vi.advanceTimersByTimeAsync(PREP_BUSY_RETRY_DELAYS_MS[0] + PREP_BUSY_RETRY_DELAYS_MS[1] + 1_000);
+    await run;
+    const tries = calls.filter((c) => c.url === calls[0].url);
+    expect(tries).toHaveLength(3);
+    expect(tries[1].at - tries[0].at).toBeGreaterThanOrEqual(PREP_BUSY_RETRY_DELAYS_MS[0]);
+    expect(tries[2].at - tries[1].at).toBeGreaterThanOrEqual(PREP_BUSY_RETRY_DELAYS_MS[1]);
+    expect(useFeedStore.getState().offlinePrep!.done).toBe(6);
+  });
+
+  it('pendant l’attente, l’article refusé compte comme restant (estimation), et « Annuler » arrête aussitôt', async () => {
+    const calls = busyFirst(1);
+    const run = useFeedStore.getState().prepareOffline();
+    await vi.advanceTimersByTimeAsync(1_000);
+    const waiting = useFeedStore.getState().offlinePrep!;
+    expect(waiting.running).toBe(true);
+    expect(waiting.done).toBe(5);
+    expect(waiting.total).toBe(6);
+    useFeedStore.getState().cancelOfflinePrep();
+    await vi.advanceTimersByTimeAsync(250);
+    await run;
+    expect(calls).toHaveLength(6);
+    const prep = useFeedStore.getState().offlinePrep!;
+    expect(prep.running).toBe(false);
+    expect(prep.cancelled).toBe(true);
+    expect(prep.done).toBe(5);
+    const { pruneImages } = await import('../lib/imageCache');
+    expect(pruneImages).not.toHaveBeenCalled();
+  });
+
+  it('un autre échec passager n’est pas redemandé dans le passage', async () => {
+    let first: string | null = null;
+    extract.fn.mockImplementation(async (url: string) => {
+      first ??= url;
+      if (url === first) throw new ExtractTimeoutError();
+      return extracted(url);
+    });
+    const run = useFeedStore.getState().prepareOffline();
+    await vi.advanceTimersByTimeAsync(30_000);
+    await run;
+    expect(extract.fn).toHaveBeenCalledTimes(6);
   });
 });

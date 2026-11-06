@@ -53,6 +53,7 @@ import {
   type QueuedAction, type QueuedActionType,
 } from '../lib/actionQueue';
 import { articleImageUrls, imageBudget, prioritizeForOffline } from '../lib/offlineImages';
+import { PREP_BUSY_RETRY_DELAYS_MS, waitUnless } from '../lib/prepBusyRetry';
 import { getStorageEstimate } from '../lib/storageEstimate';
 import { cacheImages, pruneImages } from '../lib/imageCache';
 import { nextPhase, shouldTriggerRealRefresh, POLL_INTERVAL_MS, type RefreshPhase } from '../lib/refreshPolling';
@@ -1883,13 +1884,56 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       const startedAt = Date.now();
       set({ offlinePrep: { running: true, phase: 'articles', done: 0, total: ordered.length, startedAt } });
       const { extractFullContent } = await import('../utils/extractContent');
+      // Par le nom que pose la classe (`ExtractorBusyError`) : la reconnaître
+      // ne demande pas d'importer la classe elle-même.
+      const refusedForBusy = (err: unknown) => err instanceof Error && err.name === 'ExtractorBusyError';
       let done = 0;
+      const total = ordered.length;
+      const publish = () => set({ offlinePrep: { running: true, phase: 'articles', done, total, imagesFound, imagesStored, startedAt } });
+      const offline = () => typeof navigator !== 'undefined' && navigator.onLine === false;
+
+      const sweepImages = async (urls: string[]) => {
+        imagesFound += urls.length;
+        // Device full: nothing is downloaded any more, but the images already
+        // prepared are still looked up — kept and counted in the budget — or
+        // the final sweep, the only one that frees space, would drop them.
+        const res = await cacheImages(urls, { scope, ...(deviceFull ? { noFetch: true } : {}) });
+        imagesStored += res.stored;
+        imagesFailed += res.failed;
+        imagesError ??= res.error;
+        // Each image weighs once in the budget, even when several articles
+        // share it (a logo, an avatar): counted per article, it reached the
+        // budget early, and the sweep dropped the later articles' images.
+        for (const url of res.kept) {
+          if (keptImages.has(url)) continue;
+          keptImages.add(url);
+          imagesBytes += res.sizes?.[url] ?? 0;
+        }
+        if (res.error?.startsWith('open:')) interrupted = true;
+        // Device full: every later image would fail too, after a wasted
+        // download. The run goes on, downloads and new extracts off.
+        if (res.full) deviceFull = true;
+        // Count the bytes actually held — stored now or kept from an earlier
+        // run, or the cache would outgrow the budget over successive runs. The
+        // previous guard watched the browser's storage estimate, which pads
+        // opaque entries so wildly that it was unusable; proxied responses
+        // give us the real size.
+        if (imagesBytes >= budget.bytes) budgetReached = true;
+      };
+
+      // Refusés par l'extracteur du serveur parce que sa file était pleine
+      // (`ExtractorBusyError`) : redemandés en fin de passage (voir plus bas),
+      // avec les images déjà préparées pour chacun. Un tel article n'est pas
+      // encore « fait » : il compte dans ce qui reste, donc l'estimation de
+      // durée et la barre restent justes pendant la reprise.
+      let busy: Array<{ article: Article; seen: Set<string> }> = [];
       for (const a of ordered) {
-        if (typeof navigator !== 'undefined' && navigator.onLine === false) { interrupted = true; break; }
+        if (offline()) { interrupted = true; break; }
         if (scopeLeft()) { interrupted = true; break; }
         if (prepCancelRequested) { interrupted = true; stoppedOnCancel = true; break; }
 
         let extracted: string | null = peekExtract(a.id)?.content ?? null;
+        let refusedBusy = false;
         if (a.url && !extracted) {
           const stored = await getExtract(a.id);
           extracted = stored?.content ?? null;
@@ -1905,7 +1949,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
               const content = await extractFullContent(a.url);
               await putExtract(a.id, content);
               extracted = content.content;
-            } catch { /* keep the RSS content */ }
+            } catch (err) { refusedBusy = refusedForBusy(err); /* keep the RSS content */ }
           }
           // Un extrait d'une version antérieure, que la réextraction n'a pas
           // remplacé, reste celui que l'article ouvre (hors ligne, et en ligne
@@ -1917,40 +1961,57 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
           if (!extracted && wantsFull) extracted = (await getOutdatedExtract(a.id))?.content ?? null;
         }
 
+        let urls: string[] = [];
         if (!budgetReached) {
-          const urls = articleImageUrls(a.content, extracted, budget.perArticle);
-          imagesFound += urls.length;
-          // Device full: nothing is downloaded any more, but the images already
-          // prepared are still looked up — kept and counted in the budget — or
-          // the final sweep, the only one that frees space, would drop them.
-          const res = await cacheImages(urls, { scope, ...(deviceFull ? { noFetch: true } : {}) });
-          imagesStored += res.stored;
-          imagesFailed += res.failed;
-          imagesError ??= res.error;
-          // Each image weighs once in the budget, even when several articles
-          // share it (a logo, an avatar): counted per article, it reached the
-          // budget early, and the sweep dropped the later articles' images.
-          for (const url of res.kept) {
-            if (keptImages.has(url)) continue;
-            keptImages.add(url);
-            imagesBytes += res.sizes?.[url] ?? 0;
-          }
-          if (res.error?.startsWith('open:')) interrupted = true;
-          // Device full: every later image would fail too, after a wasted
-          // download. The run goes on, downloads and new extracts off.
-          if (res.full) deviceFull = true;
-          // Count the bytes actually held — stored now or kept from an earlier
-          // run, or the cache would outgrow the budget over successive runs. The
-          // previous guard watched the browser's storage estimate, which pads
-          // opaque entries so wildly that it was unusable; proxied responses
-          // give us the real size.
-          if (imagesBytes >= budget.bytes) budgetReached = true;
+          urls = articleImageUrls(a.content, extracted, budget.perArticle);
+          await sweepImages(urls);
         }
 
+        if (refusedBusy) { busy.push({ article: a, seen: new Set(urls) }); continue; }
         done++;
-        if (done % 5 === 0 || done === ordered.length) {
-          set({ offlinePrep: { running: true, phase: 'articles', done, total: ordered.length, imagesFound, imagesStored, startedAt } });
+        if (done % 5 === 0 || done === total) publish();
+      }
+
+      // Reprise des refusés pour occupation (limites restantes du second
+      // round) : la file du serveur se libère en quelques secondes, et sans
+      // reprise l'article restait sans article complet jusqu'à la préparation
+      // suivante. Après une attente courte et croissante, deux fois au plus
+      // (`PREP_BUSY_RETRY_DELAYS_MS`). « Annuler », une coupure ou un
+      // changement de serveur interrompent l'attente dans le quart de seconde
+      // (`waitUnless`) ; les images de l'extrait obtenu entrent dans le même
+      // budget, sans compter deux fois celles déjà préparées pour l'article.
+      for (let round = 0; round < PREP_BUSY_RETRY_DELAYS_MS.length && busy.length && !interrupted; round++) {
+        publish();
+        const waited = await waitUnless(PREP_BUSY_RETRY_DELAYS_MS[round], () => prepCancelRequested || scopeLeft() || offline());
+        if (!waited) {
+          interrupted = true;
+          if (prepCancelRequested) stoppedOnCancel = true;
+          break;
         }
+        const lastRound = round === PREP_BUSY_RETRY_DELAYS_MS.length - 1;
+        const again: typeof busy = [];
+        for (const entry of busy) {
+          if (offline()) { interrupted = true; break; }
+          if (scopeLeft()) { interrupted = true; break; }
+          if (prepCancelRequested) { interrupted = true; stoppedOnCancel = true; break; }
+          const { article: a, seen } = entry;
+          if (!deviceFull && a.url) {
+            try {
+              const content = await extractFullContent(a.url);
+              await putExtract(a.id, content);
+              if (!budgetReached) {
+                // Le plafond par article vaut pour les deux passages réunis.
+                const fresh = articleImageUrls(a.content, content.content, budget.perArticle).filter((u) => !seen.has(u));
+                await sweepImages(fresh.slice(0, Math.max(0, budget.perArticle - seen.size)));
+              }
+            } catch (err) {
+              if (!lastRound && refusedForBusy(err)) { again.push(entry); continue; }
+            }
+          }
+          done++;
+          if (done % 5 === 0 || done === total) publish();
+        }
+        busy = again;
       }
       // Nothing else evicts prepared images. Only a run that saw the whole list
       // may decide what is no longer wanted: not one cut short by the network or
