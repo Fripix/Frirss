@@ -1076,9 +1076,18 @@ non réassignables : Échap, double-clic (mode Focus), clic prolongé (ranger).
 - **Aide-mémoire sur `?`** (1.4.5) : fenêtre listant **tous** les raccourcis
   configurables avec les touches **réellement configurées**, plus les gestes
   intégrés dans une section à part — les mélanger laisserait croire qu'on peut
-  les réassigner. Les libellés sont ceux de la section « Gestes et touches
-  intégrés » des Préférences : les mêmes gestes, donc les mêmes chaînes, sinon
-  les deux écrans divergent. `?` est traité **avant** les raccourcis
+  les réassigner. **L'aide et la section « Gestes et touches intégrés » de
+  Préférences → Général lisent la même liste** (`src/lib/builtInGestures.ts`,
+  1.9.0) : Échap → Quitter le mode Focus, Échap → Retour à la grille,
+  Double-clic, Clic prolongé, **⌘K / Ctrl+K → Palette de commandes** (la
+  touche du clavier, `isAppleKeyboard`) et **`?` → Raccourcis clavier** —
+  libellés de la barre des raccourcis (`palette.title`,
+  `preferences.shortcuts.helpTitle`). Deux listes tenues à part avaient
+  divergé (A4) : l'aide n'avait pas « Retour à la grille », Préférences pas
+  `?`, et ⌘K n'était dans aucune ; `gestureHelp` (« Afficher cette
+  fenêtre ») a disparu avec la liste de l'aide. Test :
+  `builtInGestures.parity.test.tsx` (mêmes paires, même ordre).
+  `?` est traité **avant** les raccourcis
   configurables, sans quoi on pourrait le masquer en l'attribuant à une action.
   Échap y est capté en phase de capture, pour passer avant le gestionnaire
   global qui s'en sert pour quitter le mode Focus. `?` la referme aussi, par

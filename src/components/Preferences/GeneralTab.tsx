@@ -2,6 +2,7 @@ import RandomViewSettings from './RandomViewSettings';
 import { useState, useCallback, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { keyLabel } from '../../lib/keyLabel';
+import { builtInGestures } from '../../lib/builtInGestures';
 import AccountSection from './AccountSection';
 import { loadLanguage } from '../../i18n';
 import { useUiStore, shortcutActions } from '../../stores/uiStore';
@@ -423,23 +424,19 @@ export default function GeneralTab() {
         </div>
 
         {/* Built-in gestures / keys — not remappable, listed for discoverability. */}
-        <div className="pt-2 space-y-1">
+        <div className="pt-2 space-y-1" data-builtin-gestures>
           <h3
             className="text-[11px] font-bold uppercase tracking-widest pb-1"
             style={{ color: 'var(--list-summary)' }}
           >
             {t('preferences.shortcuts.builtInTitle')}
           </h3>
-          {[
-            { keyLabel: formatKey('Escape'), label: t('preferences.shortcuts.escExitFocus') },
-            { keyLabel: formatKey('Escape'), label: t('preferences.shortcuts.escBackToGrid') },
-            { keyLabel: t('preferences.shortcuts.keyDoubleClick'), label: t('preferences.shortcuts.doubleClickFocus') },
-            { keyLabel: t('preferences.shortcuts.keyHold'), label: t('preferences.shortcuts.holdToFile') },
-          ].map(({ keyLabel, label }) => (
+          {/* La liste même de l'aide « ? » (A4). */}
+          {builtInGestures(t).map(({ key: keyLabel, label }) => (
             // items-start (not center): the label can wrap to two lines in
             // several locales, and centering would leave the badge sitting
             // off to the side instead of level with the first line.
-            <div key={label} className="flex items-start justify-between gap-3 py-1.5 px-2 rounded-md">
+            <div key={label} data-gesture-key={keyLabel} data-gesture-label={label} className="flex items-start justify-between gap-3 py-1.5 px-2 rounded-md">
               <span className="text-xs flex-1 min-w-0 leading-relaxed" style={{ color: 'var(--reading-text)' }}>
                 {label}
               </span>

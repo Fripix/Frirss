@@ -8,6 +8,7 @@ import { useBackLayer } from '../hooks/useAndroidBack';
 import { useThemeStore } from '../stores/themeStore';
 import { useAiStore, aiUsable } from '../stores/aiStore';
 import { keyLabel } from '../lib/keyLabel';
+import { builtInGestures } from '../lib/builtInGestures';
 
 
 /**
@@ -66,15 +67,9 @@ export default function ShortcutHelp() {
     // Une action sans touche (`''`) n'a rien à montrer : elle se règle dans les Préférences.
     .filter((a) => !!shortcuts[a]);
 
-  // Libellés repris de la section « Gestes et touches intégrés » des
-  // Préférences : les mêmes gestes, donc les mêmes chaînes. En dupliquer des
-  // variantes aurait laissé les deux écrans diverger.
-  const gestures: Array<[string, string]> = [
-    [t('preferences.shortcuts.keyEscape'), t('preferences.shortcuts.escExitFocus')],
-    [t('preferences.shortcuts.keyDoubleClick'), t('preferences.shortcuts.doubleClickFocus')],
-    [t('preferences.shortcuts.keyHold'), t('preferences.shortcuts.holdToFile')],
-    ['?', t('preferences.shortcuts.gestureHelp')],
-  ];
+  // La liste même de la section « Gestes et touches intégrés » des
+  // Préférences : deux listes tenues à part avaient divergé (A4).
+  const gestures = builtInGestures(t);
 
   return createPortal(
     <div
@@ -121,9 +116,9 @@ export default function ShortcutHelp() {
           </ul>
 
           <h3>{t('preferences.shortcuts.builtInTitle')}</h3>
-          <ul className="shortcut-help__list">
-            {gestures.map(([key, label]) => (
-              <li key={label}>
+          <ul className="shortcut-help__list" data-builtin-gestures>
+            {gestures.map(({ key, label }) => (
+              <li key={label} data-gesture-key={key} data-gesture-label={label}>
                 <kbd>{key}</kbd>
                 <span>{label}</span>
               </li>
