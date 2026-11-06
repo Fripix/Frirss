@@ -5273,7 +5273,12 @@ serveur de développement en 1.4.4.)*
   nouvelle tentative revient à la même place** (`inlineRetryFor`), annoncé
   (`role="alert"`, texte `readingPane.extractError`) et toujours suivi de
   « Réessayer » — il partait en bandeau rouge tout en haut, loin du clic
-  (relecture 1.9.0). Sous
+  (relecture 1.9.0). **La ligne revenue est ramenée à l'écran** (second
+  round, M-06) : démontée pendant la tentative, elle reprenait la place que
+  la hauteur du contenu lui donnait — au téléphone, souvent dans les 52 px
+  couverts par la barre du bas, et seul un lecteur d'écran annonçait l'échec.
+  Le volet défile au plus juste (`revealScrollTop`) pour que son bas tombe au
+  ras du haut de `.reading-bottombar` (du bas du volet sans barre). Sous
   l'article et pas au-dessus : rien ne saute pendant la lecture, sur aucun
   format. Une extraction demandée par le lecteur garde le bandeau rouge
   (`readingPane.extractError`) : il l'a demandée, l'échec doit se voir.

@@ -153,6 +153,40 @@ describe('ReadingPane — échec d’une extraction', () => {
     expect(container.contains(document.activeElement)).toBe(true);
   });
 
+  // M-06 (second round) : au téléphone, la ligne démontée pendant la
+  // tentative revenait dans les 52 px que couvre la barre du bas — rien de
+  // visible, seul un lecteur d'écran annonçait l'échec.
+  it('téléphone : après un « Réessayer » qui échoue, l’erreur est amenée au-dessus de la barre du bas', async () => {
+    const width = window.innerWidth;
+    window.innerWidth = 375;
+    const proto = HTMLElement.prototype;
+    const original = proto.getBoundingClientRect;
+    const rect = (top: number, bottom: number) => ({ top, bottom, left: 0, right: 375, width: 375, height: bottom - top, x: 0, y: top, toJSON: () => ({}) }) as DOMRect;
+    let scroller: HTMLElement | null = null;
+    proto.getBoundingClientRect = function (this: HTMLElement) {
+      if (this === scroller) return rect(0, 600);
+      if (this.classList.contains('reading-bottombar')) return rect(548, 600);
+      const scrolled = scroller?.scrollTop ?? 0;
+      if (this.getAttribute('role') === 'alert') return rect(560 - scrolled, 580 - scrolled);
+      return rect(0, 10);
+    };
+    try {
+      useUiStore.setState({ autoExtractDefault: true } as never);
+      extractMock.fn.mockRejectedValue(new Error('NO_CONTENT'));
+      const { container, getByRole } = await open(article('m6'));
+      await act(async () => { await new Promise((r) => setTimeout(r, 150)); });
+      scroller = container.querySelector<HTMLElement>('.overflow-y-auto[tabindex="-1"]');
+      expect(scroller).not.toBeNull();
+      await act(async () => { getByRole('button', { name: 'readingPane.retry' }).click(); await new Promise((r) => setTimeout(r, 0)); });
+      expect(container.querySelector('[role="alert"]')).not.toBeNull();
+      // Au plus juste : le bas de la ligne au ras de la barre (580 − 548).
+      expect(scroller!.scrollTop).toBe(32);
+    } finally {
+      proto.getBoundingClientRect = original;
+      window.innerWidth = width;
+    }
+  });
+
   // M-03 (second round) : un favori épinglé dont la page ne s'extrait plus
   // s'ouvrait complet hors ligne, mais en ligne sur l'erreur et le contenu du
   // flux — l'extrait d'une version antérieure n'était pas servi en ligne, et

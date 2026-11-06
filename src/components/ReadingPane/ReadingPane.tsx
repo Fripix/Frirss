@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo, useCallback, type ReactNode, type Ref, type CSSProperties, type FormEvent, type MouseEvent as ReactMouseEvent } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback, type ReactNode, type Ref, type CSSProperties, type FormEvent, type MouseEvent as ReactMouseEvent } from 'react';
 import { effectiveAutoExtract } from '../../lib/effectiveAutoExtract';
 import { isExtractableUrl, worthAutoExtracting } from '../../lib/extractFailures';
 import { useTranslation } from 'react-i18next';
@@ -16,6 +16,7 @@ import type { Article } from '../../types';
 import { articleTitle } from '../../lib/articleTitle';
 import type { ExtractedContent } from '../../utils/extractContent';
 import { peekExtract, getExtract, getOutdatedExtract, putExtract, revalidateIfStale } from '../../lib/extractCache';
+import { revealScrollTop } from '../../lib/listScroll';
 import { isFocusToggleTarget } from '../../lib/readingFocus';
 import { focusSidebar } from '../../lib/focusSidebar';
 import { extractYouTubeId, facadeMarkup, youtubeThumbnail } from '../../lib/youtube';
@@ -922,6 +923,31 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
       }
     }
   }, [selectedArticle, t]);
+
+  // « Réessayer » de la ligne discrète a échoué : la ligne, démontée pendant
+  // la tentative, revient où la hauteur du contenu la met — au téléphone,
+  // souvent dans les 52 px que couvre la barre du bas, où seul un lecteur
+  // d'écran l'annonçait (M-06). Elle est ramenée au-dessus de la barre, au
+  // plus juste, comme une ligne de la liste vers la sélection.
+  const inlineErrorRef = useRef<HTMLParagraphElement>(null);
+  const inlineRetryFailedFor = extractError && !extractErrorAuto && inlineRetryFor && inlineRetryFor === extractFor ? inlineRetryFor : null;
+  useLayoutEffect(() => {
+    if (!inlineRetryFailedFor) return;
+    const line = inlineErrorRef.current;
+    const box = scrollContainerRef.current;
+    if (!line || !box) return;
+    const view = box.getBoundingClientRect();
+    const bar = contentWrapperRef.current?.parentElement?.querySelector<HTMLElement>('.reading-bottombar');
+    const rowBox = line.getBoundingClientRect();
+    const next = revealScrollTop({
+      scrollTop: box.scrollTop,
+      viewTop: view.top,
+      viewBottom: bar ? Math.min(view.bottom, bar.getBoundingClientRect().top) : view.bottom,
+      rowTop: rowBox.top,
+      rowBottom: rowBox.bottom,
+    });
+    if (next !== null) box.scrollTop = next;
+  }, [inlineRetryFailedFor]);
 
   // `regenerate` : « Régénérer » — même fournisseur, sans le cache du serveur,
   // dans une demande partagée à part (`summaryRequestKey`).
@@ -2257,6 +2283,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
               ICI, annoncé (`role="alert"`), avec de quoi insister encore. */}
           {extractError && (extractErrorAuto || inlineRetryFor === article.id) && extractFor === article.id && (
             <p
+              ref={inlineErrorRef}
               className="mt-8 text-xs flex flex-wrap items-baseline gap-x-2"
               style={{ color: 'var(--reading-meta)' }}
               role={extractErrorAuto ? undefined : 'alert'}
