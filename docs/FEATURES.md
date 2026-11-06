@@ -5731,6 +5731,15 @@ lui-même.** La chaîne tient en trois temps, et le cache n'en fait pas partie.
    étiquette renommée ailleurs ne suit pas le nouveau nom (seul un renommage
    fait ici la suit, `followRenamedView`). La liste ne se recharge jamais
    d'elle-même.
+   Depuis la relecture du second round (`feedStore.silentStructure.test.ts`) :
+   **la première page n'attend que les compteurs**, plus les deux requêtes de
+   structure en série — elles tournent à côté, et `silentRefresh` ne rend la
+   main qu'une fois tout terminé. **Une mutation locale de la structure
+   terminée pendant la relecture la périme** (`structureGeneration` : se
+   désabonner, renommer ou déplacer un flux, en ajouter un, renommer ou
+   supprimer une étiquette ou une catégorie) : la réponse, lue avant, n'est
+   pas écrite — elle ramenait le flux désabonné, ou l'ancien nom de
+   l'étiquette. Le retour suivant relit.
    **La relecture garde les pages déjà chargées** (1.9.0, issue #30,
    `src/lib/refreshMerge.ts`) : le serveur ne renvoie que la première page,
    qui remplace le haut de la liste ; la queue chargée au défilement est

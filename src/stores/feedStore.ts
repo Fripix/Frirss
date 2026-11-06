@@ -976,8 +976,9 @@ export interface FeedState {
    */
   bulkWork: { done: number; total: number | null } | null;
   markReadRelative: (article: Article, direction: 'above' | 'below') => Promise<void>;
-  /** `newCountsOnly` : les comptes ne sont redemandés que si une étiquette n'en a pas (relecture d'onglet). */
-  loadLabels: (opts?: { newCountsOnly?: boolean }) => Promise<void>;
+  /** `newCountsOnly` : les comptes ne sont redemandés que si une étiquette n'en a pas (relecture d'onglet).
+   *  `stale` : revu après la lecture ; vrai, la réponse n'est pas écrite (une mutation locale l'a périmée). */
+  loadLabels: (opts?: { newCountsOnly?: boolean; stale?: () => boolean }) => Promise<void>;
   toggleReadLater: (article: Article) => Promise<void>;
   toggleArticleLabel: (article: Article, labelId: string) => Promise<void>;
   renameLabel: (oldLabelId: string, newName: string) => Promise<boolean>;
@@ -1150,6 +1151,15 @@ const serialKey = (scope: string, articleId: string, type: QueuedActionType, lab
   `${scope}|${actionKey(entryIdUsec(articleId) ?? articleId, type, labelId)}`;
 const inOrder = <T>(g: Gesture, articleId: string, type: QueuedActionType, write: () => Promise<T>, labelId?: string): Promise<T> =>
   writeSerial(serialKey(g.scope, articleId, type, labelId), write);
+/**
+ * Génération de la structure (abonnements, catégories, étiquettes), relecture
+ * R2-4 : chaque mutation locale terminée (désabonnement, renommage, suppression,
+ * déplacement, ajout) l'incrémente. Une relecture du retour sur l'onglet
+ * (`rereadStructure`) partie avant ne s'écrit pas : sa réponse, lue avant la
+ * mutation, ramenait le flux désabonné ou l'ancien nom de l'étiquette.
+ */
+let structureGeneration = 0;
+const structureChanged = () => { structureGeneration++; };
 /** Un lot « lu »/« non lu » : il part après les écritures « lu » en vol de ses articles. */
 const readBatchInOrder = <T>(scope: string, ids: readonly string[], write: () => Promise<T>): Promise<T> =>
   writeSerial.many(ids.map((id) => serialKey(scope, id, 'read')), write);
@@ -2954,7 +2964,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     const scope = offlineScope(); // la réponse d'un serveur quitté n'a rien à dire ici
     try {
       const tags = await getTagList();
-      if (offlineScope() !== scope) return;
+      if (offlineScope() !== scope || opts?.stale?.()) return;
       const { subscriptions } = get();
       // Collect all category IDs used by subscriptions
       const categoryIds = new Set<string>();
@@ -3152,6 +3162,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     if (!name || takenBy(name, nameOwners(get()), oldLabelId)) return false;
     try {
       await renameTag(oldLabelId, newLabelId);
+      structureChanged(); // une relecture en vol ne l'écrase pas (R2-4)
       // Le « OK » ne prouve rien : la liste relue dit si le nom a changé.
       // Une relecture impossible (liste inchangée) laisse foi à la réponse.
       const before = get().labels;
@@ -3187,6 +3198,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   deleteLabel: async (labelId) => {
     try {
       await deleteTag(labelId);
+      structureChanged(); // une relecture en vol ne l'écrase pas (R2-4)
       // Remove from all articles locally
       set((state) => {
         const removeLabel = (a: Article): Article => {
@@ -3225,6 +3237,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     if (takenBy(name, nameOwners(get()), categoryId)) return false;
     try {
       await renameTag(categoryId, newId);
+      structureChanged(); // une relecture en vol ne l'écrase pas (R2-4)
       const before = get().subscriptions;
       await get().loadSubscriptions();
       const subs = get().subscriptions;
@@ -3242,6 +3255,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   deleteCategory: async (categoryId) => {
     try {
       await deleteTag(categoryId);
+      structureChanged(); // une relecture en vol ne l'écrase pas (R2-4)
       // Les flux ne sont PAS supprimés : ils se retrouvent sans catégorie.
       await get().loadSubscriptions();
       leaveDeletedView(get, categoryId);
@@ -3263,6 +3277,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       // recharge derrière plutôt que de le supposer : si le serveur en décidait
       // autrement, l'interface montrerait la réalité et non une promesse.
       await editFeed(feedId, undefined, `user/-/label/${name}`, name);
+      structureChanged(); // une relecture en vol ne l'écrase pas (R2-4)
       await get().loadSubscriptions();
       return true;
     } catch {
@@ -3273,6 +3288,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   renameFeed: async (feedId, newTitle) => {
     try {
       await editFeed(feedId, newTitle);
+      structureChanged(); // une relecture en vol ne l'écrase pas (R2-4)
       set((state) => ({
         subscriptions: state.subscriptions.map((s) =>
           s.id === feedId ? { ...s, title: newTitle } : s
@@ -3291,6 +3307,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   addFeed: async (feedUrl, title, categoryId, categoryLabel) => {
     try {
       await subscribeFeed(feedUrl, title, categoryId, categoryLabel);
+      structureChanged(); // une relecture en vol ne l'écrase pas (R2-4)
       await get().loadSubscriptions();
       return true;
     } catch {
@@ -3307,6 +3324,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     const subsBefore = get().subscriptions;
     try {
       await unsubscribeFeed(feedId);
+      structureChanged(); // une relecture en vol ne l'écrase pas (R2-4)
       // Le désabonnement a bien eu lieu sur l'ancien serveur : l'état affiché
       // (celui du nouveau) n'est pas touché, mais ce qui est gardé hors ligne
       // pour l'ANCIEN l'est, sous sa portée et sa clé — sans quoi, de retour
@@ -3435,81 +3453,90 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   silentRefresh: async () => {
     // Pas pendant un relevé : son sondage passe ici toutes les 3 s, et il
     // relit tout lui-même à la fin (`loadSubscriptions`).
-    await Promise.all([get().syncCounts(), get().refreshPhase === 'running' ? null : rereadStructure()]);
-    // Une recherche affiche sa propre liste (`searchResults` filtrés par le
-    // balayage), sous un en-tête qui l'annonce toujours — `viewKey` l'ignore
-    // (flux + filtre seulement). Un retour d'onglet ou un tirer-pour-
-    // rafraîchir mobile déclenchent ce chemin PENDANT une recherche déjà
-    // terminée aussi bien qu'au démarrage : le flux nu remplaçait alors les
-    // résultats sous l'en-tête « Recherche : … » (I1, revue finale). Ce
-    // chemin complète donc la recherche par le haut au lieu de recharger la
-    // vue nue — il renonçait sans rien faire, et le tirer-pour-rafraîchir
-    // tournait à vide. Revérifié après l'attente réseau : une recherche a pu
-    // démarrer pendant le vol.
-    if (get().searchQuery) {
-      await topUpSearch();
-      return;
-    }
-    // Un tirage ne se relit pas : la liste changerait sous les yeux, sans geste.
-    if (get().randomView) return;
-    // Silently reload current article list (no loading spinner)
-    const { selectedFeed, filter } = get();
-    // La vue affichée au moment de la requête — comme `loadArticles` avec
-    // `sameView()`. Sans ce garde-fou (M2, revue finale), un résultat qui
-    // arrive après un changement de vue écrirait `articles` et remettrait
-    // `newInView` à zéro pour une vue qui n'est plus à l'écran.
-    const key = viewKey(selectedFeed, filter);
-    const since = localWrites.mark();
-    // Une relecture, comme celle de `loadArticles` : `revalidating` refuse la
-    // suite pendant le vol et, à sa retombée, la liste rejoue une fois la
-    // décision du bas (`ArticleList`). Sans lui, une page de suite en vol
-    // pendant un retour d'onglet était jetée (la relecture remplace la suite)
-    // et rien ne la redemandait : liste figée en bas (M-02). Le drapeau n'est
-    // pris que s'il est libre — un `loadArticles` déjà en vol le relèvera lui-
-    // même — et n'est rendu que sur la même vue : une autre vue a son propre
-    // chargement, qui le possède désormais.
-    const owns = !get().revalidating;
-    if (owns) set({ revalidating: true });
+    // La liste n'attend que les compteurs (relecture R2-5) : abonnements puis
+    // étiquettes, deux requêtes en série, la retardaient d'autant à chaque
+    // retour sur l'onglet. La structure se relit en parallèle, et
+    // `silentRefresh` ne rend la main qu'une fois les deux terminées.
+    const structure = get().refreshPhase === 'running' ? null : rereadStructure();
     try {
-      const result = await fetchArticleStream(filter, selectedFeed, PAGE_SIZE, null);
-      if (!result) return;
-      if (viewKey(get().selectedFeed, get().filter) !== key || get().searchQuery || get().randomView) return;
-      const newArticles = reconcile(result.items.map(normalizeArticle), filter, since);
-      rebuiltViews.delete(key); // une vraie réponse : la liste affichée n'est plus construite
-      // Merge: keep selectedArticle in sync if it still exists
-      set((state) => {
-        const selectedId = state.selectedArticle?.id;
-        const updatedSelected = selectedId
-          ? newArticles.find((a) => a.id === selectedId) || state.selectedArticle
-          : null;
+      await get().syncCounts();
+      // Une recherche affiche sa propre liste (`searchResults` filtrés par le
+      // balayage), sous un en-tête qui l'annonce toujours — `viewKey` l'ignore
+      // (flux + filtre seulement). Un retour d'onglet ou un tirer-pour-
+      // rafraîchir mobile déclenchent ce chemin PENDANT une recherche déjà
+      // terminée aussi bien qu'au démarrage : le flux nu remplaçait alors les
+      // résultats sous l'en-tête « Recherche : … » (I1, revue finale). Ce
+      // chemin complète donc la recherche par le haut au lieu de recharger la
+      // vue nue — il renonçait sans rien faire, et le tirer-pour-rafraîchir
+      // tournait à vide. Revérifié après l'attente réseau : une recherche a pu
+      // démarrer pendant le vol.
+      if (get().searchQuery) {
+        await topUpSearch();
+        return;
+      }
+      // Un tirage ne se relit pas : la liste changerait sous les yeux, sans geste.
+      if (get().randomView) return;
+      // Silently reload current article list (no loading spinner)
+      const { selectedFeed, filter } = get();
+      // La vue affichée au moment de la requête — comme `loadArticles` avec
+      // `sameView()`. Sans ce garde-fou (M2, revue finale), un résultat qui
+      // arrive après un changement de vue écrirait `articles` et remettrait
+      // `newInView` à zéro pour une vue qui n'est plus à l'écran.
+      const key = viewKey(selectedFeed, filter);
+      const since = localWrites.mark();
+      // Une relecture, comme celle de `loadArticles` : `revalidating` refuse la
+      // suite pendant le vol et, à sa retombée, la liste rejoue une fois la
+      // décision du bas (`ArticleList`). Sans lui, une page de suite en vol
+      // pendant un retour d'onglet était jetée (la relecture remplace la suite)
+      // et rien ne la redemandait : liste figée en bas (M-02). Le drapeau n'est
+      // pris que s'il est libre — un `loadArticles` déjà en vol le relèvera lui-
+      // même — et n'est rendu que sur la même vue : une autre vue a son propre
+      // chargement, qui le possède désormais.
+      const owns = !get().revalidating;
+      if (owns) set({ revalidating: true });
+      try {
+        const result = await fetchArticleStream(filter, selectedFeed, PAGE_SIZE, null);
+        if (!result) return;
+        if (viewKey(get().selectedFeed, get().filter) !== key || get().searchQuery || get().randomView) return;
+        const newArticles = reconcile(result.items.map(normalizeArticle), filter, since);
+        rebuiltViews.delete(key); // une vraie réponse : la liste affichée n'est plus construite
+        // Merge: keep selectedArticle in sync if it still exists
+        set((state) => {
+          const selectedId = state.selectedArticle?.id;
+          const updatedSelected = selectedId
+            ? newArticles.find((a) => a.id === selectedId) || state.selectedArticle
+            : null;
 
-        // Don't let the article you're currently reading vanish from under you:
-        // in unread-only mode a background refresh drops it (it's now read), so
-        // re-insert it. It falls away on the next refresh once you've moved to
-        // another article. Sa place vient de ses voisins, pas de son ancien
-        // rang : les lignes lues au-dessus de lui partent avec la relecture, et
-        // l'ancien index le posait si bas que ↓ sautait les non-lus qui le
-        // suivaient (L-02, `keepOpenRow`).
-        // Les pages chargées au défilement restent (#30) : seule la première
-        // est relue, la queue est recousue dessous (`mergeRefreshedPage`).
-        const merged = mergeRefreshedPage(state.articles, state.continuation, newArticles, result.continuation, viewOrder(selectedFeed));
-        let articles = merged.articles;
-        if (updatedSelected && !articles.some((a) => a.id === updatedSelected.id)) {
-          articles = keepOpenRow(state.articles, articles, { ...updatedSelected, read: true });
-        }
+          // Don't let the article you're currently reading vanish from under you:
+          // in unread-only mode a background refresh drops it (it's now read), so
+          // re-insert it. It falls away on the next refresh once you've moved to
+          // another article. Sa place vient de ses voisins, pas de son ancien
+          // rang : les lignes lues au-dessus de lui partent avec la relecture, et
+          // l'ancien index le posait si bas que ↓ sautait les non-lus qui le
+          // suivaient (L-02, `keepOpenRow`).
+          // Les pages chargées au défilement restent (#30) : seule la première
+          // est relue, la queue est recousue dessous (`mergeRefreshedPage`).
+          const merged = mergeRefreshedPage(state.articles, state.continuation, newArticles, result.continuation, viewOrder(selectedFeed));
+          let articles = merged.articles;
+          if (updatedSelected && !articles.some((a) => a.id === updatedSelected.id)) {
+            articles = keepOpenRow(state.articles, articles, { ...updatedSelected, read: true });
+          }
 
-        return {
-          articles,
-          continuation: merged.continuation,
-          selectedArticle: updatedSelected,
-          // La liste vient d'être rechargée : plus rien de nouveau à signaler.
-          newInView: 0,
-          // … et plus d'échec à afficher, même si elle revient vide.
-          listFailed: false,
-        };
-      });
-    } catch { /* ignore */ } finally {
-      if (owns && viewKey(get().selectedFeed, get().filter) === key && !get().randomView) set({ revalidating: false });
+          return {
+            articles,
+            continuation: merged.continuation,
+            selectedArticle: updatedSelected,
+            // La liste vient d'être rechargée : plus rien de nouveau à signaler.
+            newInView: 0,
+            // … et plus d'échec à afficher, même si elle revient vide.
+            listFailed: false,
+          };
+        });
+      } catch { /* ignore */ } finally {
+        if (owns && viewKey(get().selectedFeed, get().filter) === key && !get().randomView) set({ revalidating: false });
+      }
+    } finally {
+      await structure;
     }
   },
 
@@ -4215,19 +4242,26 @@ function categoryIdsOf(subs: Subscription[]): string[] {
  * Ni compteurs (le relevé voisin s'en charge) ni indicateur de chargement :
  * rien ne doit bouger sous les yeux, sauf ce qui a changé. Hors ligne ou en
  * échec, la barre latérale garde ce qu'elle montre.
+ *
+ * Une mutation locale de la structure terminée pendant la requête la périme
+ * (`structureGeneration`, relecture R2-4) : sa réponse, lue avant, ramenait
+ * le flux désabonné ou l'ancien nom de l'étiquette. Elle n'est alors pas
+ * écrite — ni abonnements ni étiquettes ; le retour suivant relira.
  */
 async function rereadStructure(): Promise<void> {
   const scope = offlineScope();
+  const generation = structureGeneration;
+  const stale = () => structureGeneration !== generation;
   try {
     const subs = await getSubscriptionList();
-    if (offlineScope() !== scope) return;
+    if (offlineScope() !== scope || stale()) return;
     const subscriptions = withPublicIcons(subs);
     useFeedStore.setState({ subscriptions, categoryIds: categoryIdsOf(subscriptions) });
     subsPut(storedKey('subscriptions'), subscriptions).catch(() => {});
   } catch {
     return; // les étiquettes se rangent selon les catégories : sans elles, rien
   }
-  await useFeedStore.getState().loadLabels({ newCountsOnly: true });
+  await useFeedStore.getState().loadLabels({ newCountsOnly: true, stale });
 }
 
 /**

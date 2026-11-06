@@ -103,6 +103,54 @@ describe('silentRefresh relit abonnements et étiquettes (M-13)', () => {
     expect(api.getTagList).not.toHaveBeenCalled();
   });
 
+  // Relecture du second round (R2-5) : la liste attendait les deux requêtes
+  // de structure, en série, avant d'être relue.
+  it('la liste est relue sans attendre abonnements et étiquettes', async () => {
+    const { api, useFeedStore } = await load();
+    let release!: (v: unknown) => void;
+    vi.mocked(api.getSubscriptionList).mockImplementationOnce(() => new Promise((r) => { release = r; }) as never);
+    const p = useFeedStore.getState().silentRefresh();
+    await settled();
+    expect(api.getStreamContents, 'la liste part pendant la relecture de structure').toHaveBeenCalled();
+    release([sub('Après')]);
+    await p;
+    expect(useFeedStore.getState().subscriptions.map((s) => s.title), 'silentRefresh rend la main structure comprise').toEqual(['Après']);
+  });
+
+  // R2-4 : une relecture en vol ne ramène pas l'état d'avant une mutation
+  // locale terminée pendant la requête.
+  it('un flux désabonné pendant la relecture n’y réapparaît pas', async () => {
+    const { api, useFeedStore } = await load();
+    const two = [sub('Un'), { ...sub('Deux'), id: 'feed/2' }];
+    useFeedStore.setState({ subscriptions: two as never });
+    let release!: (v: unknown) => void;
+    vi.mocked(api.getSubscriptionList).mockImplementationOnce(() => new Promise((r) => { release = r; }) as never);
+    vi.mocked(api.unsubscribeFeed).mockResolvedValue(undefined as never);
+    const p = useFeedStore.getState().silentRefresh();
+    await settled();
+    expect(await useFeedStore.getState().removeFeed('feed/2')).toBe(true);
+    expect(useFeedStore.getState().subscriptions.map((s) => s.id)).toEqual(['feed/1']);
+    release(two); // lue avant le désabonnement
+    await p; await settled();
+    expect(useFeedStore.getState().subscriptions.map((s) => s.id)).toEqual(['feed/1']);
+  });
+
+  it('une étiquette renommée pendant la relecture ne reprend pas son ancien nom', async () => {
+    const { api, useFeedStore } = await load();
+    let release!: (v: unknown) => void;
+    vi.mocked(api.getTagList).mockImplementationOnce(() => new Promise((r) => { release = r; }) as never);
+    const p = useFeedStore.getState().silentRefresh();
+    await settled();
+    expect(api.getTagList).toHaveBeenCalledTimes(1); // celle de la relecture, en vol
+    vi.mocked(api.renameTag).mockResolvedValue(undefined as never);
+    vi.mocked(api.getTagList).mockResolvedValue([{ id: CAT, type: 'folder' }, { id: NEW, type: 'tag' }] as never);
+    expect(await useFeedStore.getState().renameLabel(OLD, 'Nouveau')).toBe(true);
+    expect(useFeedStore.getState().labels.map((l) => l.id)).toEqual([NEW]);
+    release([{ id: CAT, type: 'folder' }, { id: OLD, type: 'tag' }]); // lue avant le renommage
+    await p; await settled();
+    expect(useFeedStore.getState().labels.map((l) => l.id)).toEqual([NEW]);
+  });
+
   it('hors ligne, les abonnements affichés restent', async () => {
     const { api, useFeedStore } = await load();
     vi.mocked(api.getSubscriptionList).mockRejectedValue(new Error('réseau'));
