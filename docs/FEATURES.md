@@ -1688,7 +1688,8 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
       existant (`useUiStore.pushToast`, `tone: 'error'`) et le message déjà
       traduit `sidebar.loadError`, plutôt que d'en inventer un nouveau.
       `continuation` n'est pas touché : le bouton reste actionnable pour
-      retenter.
+      retenter. Seulement si la vue est encore celle de la demande (voir
+      *Une page appartient à la vue qui l'a demandée*).
     - **Page qui n'ajoute aucune ligne visible.** Les favoris d'un flux sont
       filtrés côté client (voir plus haut) : une page de 50 éléments peut
       légitimement n'en rendre aucun. Sur un flux de 500 articles dont
@@ -1724,6 +1725,17 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
     `sameView()` de `loadArticles`, qui l'avait depuis toujours ;
     `viewIdentity` couvre en plus la recherche, qui change la liste à l'écran
     sans changer la clé de cache.
+    **L'échec aussi** (R3T3-2, troisième round 1.9.0,
+    `feedStore.loadMoreStale.test.ts`) : le `catch` a la même garde. Il
+    affichait « Erreur de chargement » sur une vue saine quand la page de
+    l'ancienne vue échouait après une bascule de flux ou de serveur.
+    **`loadingMore` n'est rendu que par la dernière demande**
+    (`loadMoreTicket`) : `resetAndReload` le remet à faux, la nouvelle vue
+    lance sa propre suite, et le règlement tardif de l'ancienne — échec ou
+    réussite — le faisait retomber sous elle (un second clic partait alors
+    en double). Une bascule de flux, elle, ne le remet pas : l'ancienne
+    demande reste la dernière et rend la main, sans quoi la nouvelle vue ne
+    pourrait plus paginer.
   - **Écarté** : réglage optionnel, bandeau « Annuler » (il ne rattrapait pas
     le cas invoqué), uniformisation des hauteurs de ligne. Détail et raisons
     dans `docs/superpowers/specs/2026-09-01-mark-read-removes-row-design.md`.

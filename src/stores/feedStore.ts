@@ -534,6 +534,8 @@ function persistCurrentView(get: () => FeedState): void {
 // qui n'existe plus. Ni le flux ni le filtre n'ont changé, `viewIdentity` ne le
 // voit pas.
 let listGeneration = 0;
+/** Numéro de la dernière demande de page de suite (`loadMore`, R3T3-2). */
+let loadMoreTicket = 0;
 
 // Les écritures locales récentes : une réponse partie avant l'une d'elles est
 // recalée à son arrivée (`src/lib/localWrites.ts`). Le rang de départ se prend
@@ -2247,6 +2249,14 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     const view = viewIdentity(get());
     const generation = listGeneration;
     const since = localWrites.mark();
+    // `loadingMore` n'est rendu que par la DERNIÈRE demande (R3T3-2, troisième
+    // round 1.9.0) : après une bascule de serveur (`resetAndReload` le remet à
+    // faux), la nouvelle vue lance sa propre suite, et le règlement tardif de
+    // l'ancienne le faisait retomber sous elle. Une bascule de flux ne le remet
+    // pas : là, l'ancienne demande est la dernière, et c'est elle qui rend la main.
+    const ticket = ++loadMoreTicket;
+    const release = () => { if (ticket === loadMoreTicket) set({ loadingMore: false }); };
+    const stale = () => viewIdentity(get()) !== view || generation !== listGeneration || get().randomView || get().continuation !== continuation;
     set({ loadingMore: true });
 
     try {
@@ -2262,7 +2272,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       // nouvelle, elle laissait un trou où des non-lus devenaient inatteignables,
       // et ce trou partait au cache. Une queue recousue garde sa suite : la
       // page reste valable.
-      if (viewIdentity(get()) !== view || generation !== listGeneration || get().randomView || get().continuation !== continuation) { set({ loadingMore: false }); return; }
+      if (stale()) { release(); return; }
       if (!result) { set({ loadingMore: false }); return; }
 
       const page = reconcile(result.items.map(normalizeArticle), filter, since);
@@ -2288,6 +2298,10 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         await pushI18nToast('toast.loadMoreEmpty');
       }
     } catch {
+      // Même garde que la réussite (R3T3-2) : l'échec d'une page d'une vue
+      // quittée ne dit rien sur la vue affichée, saine — « Erreur de
+      // chargement » s'y affichait après une bascule de flux ou de serveur.
+      if (stale()) { release(); return; }
       set({ loadingMore: false });
       // Le `catch` se contentait de remettre `loadingMore` à faux : sur un
       // échec réseau/serveur, le bouton reprenait son état de départ sans un
