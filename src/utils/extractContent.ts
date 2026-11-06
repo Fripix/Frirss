@@ -337,6 +337,8 @@ export function extractFullContent(url: string, opts: { retry?: boolean } = {}):
 // est écrit là-bas. Toute modification de l'une va avec l'autre, et avec
 // `EXTRACT_VERSION`.
 const MAIN_CONTAINER_MIN_SHARE = 0.5;
+/** Seconde passe retenue seulement si elle rend 1,5 fois plus de texte (N-1). */
+const MAIN_CONTAINER_MIN_GAIN = 1.5;
 // `linkDensityModifier` existe dans Readability 0.6.0 mais pas dans ses types.
 const MAIN_CONTAINER_OPTIONS = { charThreshold: 500, linkDensityModifier: 0.5 };
 
@@ -360,6 +362,10 @@ function mainContainerTextLength(doc: Document): number | null {
 
 function keptTooLittle(kept: string, mainLength: number): boolean {
   return normalizedLength(kept) < mainLength * MAIN_CONTAINER_MIN_SHARE;
+}
+
+function recoveredMore(second: string, first: string): boolean {
+  return normalizedLength(second) >= normalizedLength(first) * MAIN_CONTAINER_MIN_GAIN;
 }
 
 function keepOnlyMainContainer(doc: Document): boolean {
@@ -623,7 +629,7 @@ async function extractOnce(url: string): Promise<ExtractedContent> {
     try {
       if (keepOnlyMainContainer(retry)) {
         const again = new Readability(retry, MAIN_CONTAINER_OPTIONS).parse();
-        if (again?.content && normalizedLength(again.textContent || '') > normalizedLength(result.textContent || '')) {
+        if (again?.content && recoveredMore(again.textContent || '', result.textContent || '')) {
           result = { ...result, content: again.content, length: again.length };
         }
       }

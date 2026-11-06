@@ -5255,8 +5255,30 @@ serveur de développement en 1.4.4.)*
   **moins de la moitié du texte** (`MAIN_CONTAINER_MIN_SHARE`), une seconde
   passe est faite sur **ce conteneur seul**, avec une tolérance de liens
   relevée (`linkDensityModifier` 0,5 — option de Readability 0.6.0 absente de
-  ses types). Retenue seulement si elle rend plus de texte ; seul le corps est
-  repris, le titre, l'auteur et le chapeau restent ceux de la passe normale.
+  ses types). Retenue seulement si elle rend **au moins 1,5 fois plus de
+  texte** que la première (`MAIN_CONTAINER_MIN_GAIN`, N-1 de la vérification
+  1.9.0) ; seul le corps est repris, le titre, l'auteur et le chapeau restent
+  ceux de la passe normale.
+  ⚠️ **La part de moitié ne prouve pas qu'il manque quelque chose.** Sur
+  Numerama, l'`<article>` réunit en-tête, résumé, barre latérale, pied et
+  scripts (leur texte compte dans `textContent`) : la première passe y a déjà
+  tout l'article et n'en garde pourtant que 36 à 49 %. La seconde passe se
+  déclenchait, et sa tolérance de liens réadmettait ce que la première
+  écartait à raison — un encart produit (`div.product-block`, « Il n'y a pas
+  d'offres pour le moment ») au milieu du texte, une ligne promotionnelle
+  faite d'un lien (« ToujoursPlus, la newsletter tech », « suivez Numerama
+  sur Google ») en fin d'article. Elle était retenue dès qu'elle rendait UN
+  caractère de plus : ici 3 à 4 %, ces blocs seuls. Mesuré sur les 79 pages
+  des deux corpus de la campagne (2026-11-06) : elle se déclenche sur 18, le
+  CERT-FR y gagne ×3,1 et ×3,7 (le corps retrouvé), Numerama ×1,03 à ×1,04,
+  toutes les autres ×1,00. Avec le seuil de 1,5, six articles Numerama
+  changent — ils perdent exactement ces blocs et redeviennent identiques à
+  la 1.8.0 ; aucune autre page ne bouge, le CERT-FR garde son corps complet.
+  Test : « n'adopte pas une seconde passe qui ne rend guère plus de texte
+  (structure Numerama) », serveur et repli, sur
+  `src/test/pressStructureFixture.html` (l'arbre d'un article réel, chaque
+  lettre remplacée par une lettre d'un texte inventé, ponctuation et
+  longueurs gardées, scripts de l'article compris).
   Elle ne ramasse rien hors du conteneur, mais ⚠️ **le conteneur n'est pas que
   l'article** : le `<main>` de The Verge porte aussi le rail (lettre
   d'information et ses mentions légales), un conteneur de blog le fil
@@ -5316,8 +5338,10 @@ serveur de développement en 1.4.4.)*
 - **Version de l'extraction** (1.9.0, A-2 — `server/extractVersion.ts` et
   `src/lib/extractVersion.ts`, même valeur vérifiée par
   `server/test/cache.test.ts`). À monter à chaque changement du résultat de
-  l'extraction pour une même page. **3** depuis le retrait des blocs étrangers
-  (M-04) : les extraits v2 qui les contenaient sont refaits. Les extraits gardés avant le seuil à 500 et
+  l'extraction pour une même page. **4** depuis le gain minimal de la seconde
+  passe (N-1) : les extraits v3 qui portaient un encart produit ou une ligne
+  promotionnelle sont refaits ; 3 avait accompagné le retrait des blocs
+  étrangers (M-04). Les extraits gardés avant le seuil à 500 et
   la seconde passe (l'avis tronqué) restaient servis : 24 h par Redis, 30 jours
   dans le navigateur, **sans limite** pour un article épinglé.
   - **Serveur** : la version entre dans la clé Redis (`extractKey`), une

@@ -10,6 +10,8 @@
  *   hachées retirés, CHAQUE texte remplacé par un texte inventé de même
  *   longueur, réduit au `<main>`. Écrite à la main, la page ne reproduisait
  *   pas le défaut : la seconde passe dépend du poids exact de chaque bloc.
+ * - `pressStructureFixture.html` (`pressPageHtml()`) : l'arbre d'un article
+ *   de Numerama, fait de la même façon (N-1, vérification 1.9.0).
  *
  * Partagées par les tests de la route serveur et ceux du repli navigateur, qui
  * doivent juger les mêmes pages.
@@ -18,10 +20,27 @@
 // `?raw` (Vite) plutôt que `fs` : sous jsdom, `import.meta.url` n'est pas une
 // URL `file:`, et la fixture sert aux deux environnements de test.
 import newsStructureHtml from './newsStructureFixture.html?raw';
+import pressStructureHtml from './pressStructureFixture.html?raw';
 
 /** L'article de type « The Verge » (voir l'en-tête). */
 export function newsPageHtml(): string {
   return newsStructureHtml;
+}
+
+/**
+ * L'arbre d'un article de Numerama (N-1, vérification 1.9.0), fait comme
+ * `newsPageHtml()` : `<main>` seul, classes et ids gardés, styles et images
+ * neutralisés, CHAQUE lettre remplacée par une lettre d'un texte inventé —
+ * ponctuation, blancs et longueurs gardés, scripts et gabarits de l'article
+ * compris (leur texte compte dans la mesure du conteneur). L'`<article>` porte
+ * en-tête, résumé, barre latérale et pied en plus du corps : Readability n'en
+ * garde que 37 %, la seconde passe se déclenche (A-1) et sa tolérance de liens
+ * réadmet un encart produit (`div.product-block`) et une ligne promotionnelle
+ * (`.promotional-quote-separator + [data-nosnippet] p`, la dernière du
+ * corps) que la première passe écartait.
+ */
+export function pressPageHtml(): string {
+  return pressStructureHtml;
 }
 
 /** Phrase repérable dans le billet court de type « Schneier ». */

@@ -324,7 +324,7 @@ export function extractArticle(url: string, html: string): ExtractedArticle | nu
     const retry = clean(load());
     if (keepOnlyMainContainer(retry)) {
       const again = new Readability(retry as never, MAIN_CONTAINER_OPTIONS).parse();
-      if (again?.content && normalizedLength(again.textContent || '') > normalizedLength(parsed.textContent || '')) {
+      if (again?.content && recoveredMore(again.textContent || '', parsed.textContent || '')) {
         content = again.content;
         length = again.length || 0;
       }
@@ -353,11 +353,23 @@ export function extractArticle(url: string, html: string): ExtractedArticle | nu
 // contenu — un `<article>` unique, sinon un `[role=main]` ou un `<main>`
 // unique — et que Readability en garde moins de la moitié du texte, une seconde
 // passe est faite sur CE conteneur seul, en tolérant davantage de liens. Elle
-// ne ramasse rien hors du conteneur, et n'est retenue que si elle rend plus de
-// texte. ⚠️ Le conteneur n'est pas que l'article : pied, rail, formulaire et
+// ne ramasse rien hors du conteneur, et n'est retenue que si elle rend
+// nettement plus de texte (voir plus bas). ⚠️ Le conteneur n'est pas que l'article : pied, rail, formulaire et
 // blocs « Related » y vivent souvent — d'où le nettoyage qui précède toute
 // passe (M-04, plus bas). Le titre, l'auteur et le chapeau restent
 // ceux de la passe normale, qui voit toute la page.
+//
+// ⚠️ La part de moitié ne prouve pas qu'il manque quelque chose : le conteneur
+// porte souvent bien plus que le corps. Sur Numerama, l'`<article>` réunit
+// en-tête, résumé, barre latérale, pied et scripts (dont `textContent` compte
+// le texte) ; la première passe y a déjà tout l'article et n'en garde pourtant
+// que 36 à 49 %. La seconde passe se déclenche, et sa tolérance de liens
+// réadmet ce que la première écartait à raison : un encart produit, des
+// lignes promotionnelles faites d'un lien (N-1, vérification 1.9.0). Elle
+// n'est donc retenue que si elle rend NETTEMENT plus de texte
+// (`MAIN_CONTAINER_MIN_GAIN`) — ce qu'elle fait quand elle retrouve un corps
+// écarté (CERT-FR : 3,1 et 3,7 fois plus), pas quand elle ne fait que
+// réadmettre quelques blocs de liens (Numerama : 1,03 à 1,04).
 //
 // Même règle dans le repli du navigateur (`src/utils/extractContent.ts`) ;
 // toute modification de l'une va avec l'autre, et avec `EXTRACT_VERSION`.
@@ -373,6 +385,16 @@ export const MAIN_CONTAINER_MIN_SHARE = 0.5;
  * conteneur que la page désigne.
  */
 export const MAIN_CONTAINER_LINK_DENSITY_MODIFIER = 0.5;
+
+/**
+ * Gain minimal pour retenir la seconde passe : son texte doit valoir au moins
+ * 1,5 fois celui de la première. Mesuré sur les 79 pages des corpus de la
+ * campagne (2026-11-06) : la seconde passe ne se déclenche que sur 18 d’entre
+ * elles ; le CERT-FR y gagne ×3,1 et ×3,7 (le corps retrouvé), Numerama ×1,03 à
+ * ×1,04 (des blocs de liens réadmis), toutes les autres ×1,00. Le seuil laisse
+ * une large marge des deux côtés.
+ */
+export const MAIN_CONTAINER_MIN_GAIN = 1.5;
 
 // `linkDensityModifier` existe dans Readability 0.6.0 (constructeur) mais pas
 // dans ses déclarations de types : un objet non littéral échappe au contrôle
@@ -405,6 +427,11 @@ function mainContainerTextLength(doc: ParsedDocument): number | null {
 
 function keptTooLittle(kept: string, mainLength: number): boolean {
   return normalizedLength(kept) < mainLength * MAIN_CONTAINER_MIN_SHARE;
+}
+
+/** La seconde passe a-t-elle retrouvé un corps, et pas seulement quelques blocs ? */
+function recoveredMore(second: string, first: string): boolean {
+  return normalizedLength(second) >= normalizedLength(first) * MAIN_CONTAINER_MIN_GAIN;
 }
 
 /** Vide `<body>` de tout sauf le conteneur principal. `false` s'il n'y en a pas. */

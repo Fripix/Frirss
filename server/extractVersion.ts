@@ -18,5 +18,8 @@
  * 3 : 1.9.0 — blocs étrangers (pied, rail, formulaires, fil d'Ariane,
  *     commentaires, « Related », crédits) retirés avant toute passe (M-04) :
  *     les extraits v2 pollués sont refaits.
+ * 4 : 1.9.0 — la seconde passe n'est retenue que si elle rend 1,5 fois plus
+ *     de texte (N-1) : les extraits v3 qui portaient un encart produit ou une
+ *     ligne promotionnelle (Numerama) sont refaits.
  */
-export const EXTRACT_VERSION = 3;
+export const EXTRACT_VERSION = 4;

@@ -15,7 +15,7 @@ import {
   SERVER_EXTRACT_TIMEOUT_MS,
 } from './extractContent';
 import { advisoryPageHtml, ADVISORY_BODY_MARKER } from '../test/advisoryPageFixture';
-import { blogPageHtml, BLOG_BODY_MARKER, newsPageHtml } from '../test/boilerplatePageFixtures';
+import { blogPageHtml, BLOG_BODY_MARKER, newsPageHtml, pressPageHtml } from '../test/boilerplatePageFixtures';
 
 const serverAnswer = {
   title: 'Titre serveur', content: '<p>corps serveur</p>',
@@ -204,6 +204,29 @@ describe('extractFullContent — repli local : conteneur principal', () => {
     expect(out.content).toContain('EX-2026-1008');
     expect(out.content).not.toContain('mentions légales');
     expect(out.title).toBe('Avis d’exemple');
+  });
+
+  // N-1 (vérification 1.9.0) : même règle que le serveur — la seconde passe
+  // n'est adoptée que si elle rend nettement plus de texte.
+  it('n’adopte pas une seconde passe qui ne rend guère plus de texte (structure Numerama)', async () => {
+    const html = pressPageHtml();
+    const page = new DOMParser().parseFromString(html, 'text/html');
+    const norm = (s: string | null) => (s || '').replace(/\s+/g, ' ').trim();
+    const promo = norm(page.querySelector('.promotional-quote-separator + [data-nosnippet] p')!.textContent);
+    const product = norm(page.querySelector('.product-block')!.textContent);
+    const paragraphs = Array.from(page.querySelectorAll('.article-content > p'), (p) => norm(p.textContent));
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo) => {
+      if (String(input).startsWith('/api/extract')) return new Response('', { status: 404 });
+      return htmlPage(html);
+    }));
+
+    const out = await extractFullContent('https://example.com/presse');
+    const text = norm(new DOMParser().parseFromString(out.content, 'text/html').body.textContent);
+
+    expect(text).toContain(paragraphs[0]);
+    expect(text).toContain(paragraphs[paragraphs.length - 1]);
+    expect(text).not.toContain(promo);
+    expect(text).not.toContain(product.slice(0, 40));
   });
 });
 

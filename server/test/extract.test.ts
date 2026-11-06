@@ -4,7 +4,7 @@ import {
   extractArticle, EXTRACT_MAX_PENDING, ExtractorBusyError, extractPending, stripBoilerplate, withExtractSlot,
 } from '../extract.js';
 import { advisoryPageHtml, ADVISORY_BODY_MARKER } from '../../src/test/advisoryPageFixture.js';
-import { blogPageHtml, BLOG_BODY_MARKER, newsPageHtml } from '../../src/test/boilerplatePageFixtures.js';
+import { blogPageHtml, BLOG_BODY_MARKER, newsPageHtml, pressPageHtml } from '../../src/test/boilerplatePageFixtures.js';
 
 const page = `<!doctype html><html><head><title>Titre de la page</title></head>
 <body><article><h1>Un vrai titre</h1>
@@ -84,6 +84,28 @@ describe('extractArticle', () => {
     expect(out!.content).not.toContain('Accueil');
     // Les métadonnées de la passe normale sont gardées.
     expect(out!.title).toBe('Avis d’exemple');
+  });
+
+  // N-1 (vérification 1.9.0) : sur Numerama, l'`<article>` porte bien plus
+  // que le corps (en-tête, résumé, barre latérale, pied, scripts) : la
+  // première passe a déjà tout l'article mais n'en garde que 37 %, la seconde
+  // se déclenche et sa tolérance de liens réadmet un encart produit et une
+  // ligne promotionnelle. Elle rendait 4 % de texte en plus — que cela.
+  it('n’adopte pas une seconde passe qui ne rend guère plus de texte (structure Numerama)', () => {
+    const html = pressPageHtml();
+    const { document } = parseHTML(html);
+    const norm = (s: string | null) => (s || '').replace(/\s+/g, ' ').trim();
+    const promo = norm((document.querySelector('.promotional-quote-separator + [data-nosnippet] p') as Element).textContent);
+    const product = norm((document.querySelector('.product-block') as Element).textContent);
+    const paragraphs = Array.from(document.querySelectorAll('.article-content > p'), (p) => norm((p as Element).textContent));
+
+    const out = extractArticle('https://example.com/presse', html);
+    const text = norm(parseHTML(`<html><body>${out!.content}</body></html>`).document.body.textContent);
+
+    expect(text).toContain(paragraphs[0]);
+    expect(text).toContain(paragraphs[paragraphs.length - 1]);
+    expect(text).not.toContain(promo);
+    expect(text).not.toContain(product.slice(0, 40));
   });
 
   it('laisse intact un article que Readability a déjà bien extrait', () => {
