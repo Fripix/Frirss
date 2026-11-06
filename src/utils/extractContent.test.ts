@@ -339,6 +339,15 @@ describe('extractFullContent — repli local : blocs étrangers (M-04)', () => {
     expect(proxyCalls).toHaveBeenCalledTimes(1);
   });
 
+  // A4-02 (quatrième round) : un gros avis, pas sa seule liste de références (voir le serveur).
+  it('garde tout un gros avis, pas sa seule liste de références (structure CERT-FR)', async () => {
+    fallbackOn(advisoryPageHtml(200));
+    const out = await extractFullContent('https://example.com/gros-avis');
+    const text = textOf(out.content);
+    for (const piece of [ADVISORY_BODY_MARKER, 'Gestion du document', 'Risques', 'Systèmes affectés', 'Solutions', 'Gestion détaillée du document']) expect(text, piece).toContain(piece);
+    expect((text.match(/Référence d’exemple/g) || []).length).toBe(200);
+  });
+
   it('garde le conteneur principal complet du CERT-FR', async () => {
     fallbackOn(advisoryPageHtml());
     const out = await extractFullContent('https://example.com/avis-m04');

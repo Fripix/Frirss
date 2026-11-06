@@ -88,6 +88,23 @@ describe('extractArticle', () => {
     expect(out!.title).toBe('Avis d’exemple');
   });
 
+  // A4-02 (quatrième round) : un gros avis (des centaines de références,
+  // chacune un `<li>` à paragraphe) — chaque paragraphe nourrit le score de la
+  // liste, qui l'emporte seule : Risques, Systèmes affectés, Résumé,
+  // Solutions et la gestion du document disparaissaient. La seconde passe ne
+  // se déclenchait pas : la liste fait 94 % du texte de l'`<article>`.
+  it('garde tout un gros avis, pas sa seule liste de références (structure CERT-FR)', () => {
+    const out = extractArticle('https://example.com/avis', advisoryPageHtml(200))!;
+    const norm = (s: string | null) => (s || '').replace(/\s+/g, ' ').trim();
+    const text = norm(parseHTML(`<html><body>${out.content}</body></html>`).document.body.textContent);
+    for (const piece of [ADVISORY_BODY_MARKER, 'Gestion du document', 'Risques', 'Systèmes affectés', 'Résumé', 'Solutions', 'Gestion détaillée du document']) expect(text, piece).toContain(piece);
+    expect((text.match(/Référence d’exemple/g) || []).length).toBe(200);
+    // À sa place : après les solutions, avant la gestion détaillée.
+    expect(text.indexOf('Solutions')).toBeLessThan(text.indexOf('Référence d’exemple EX-2026-1000'));
+    expect(text.indexOf('Référence d’exemple EX-2026-1199')).toBeLessThan(text.indexOf('Gestion détaillée du document'));
+    expect(out.title).toBe('Avis d’exemple');
+  });
+
   // N-1 (vérification 1.9.0) : sur Numerama, l'`<article>` porte bien plus
   // que le corps (en-tête, résumé, barre latérale, pied, scripts) : la
   // première passe a déjà tout l'article mais n'en garde que 37 %, la seconde

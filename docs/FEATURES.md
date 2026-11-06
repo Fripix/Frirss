@@ -5425,6 +5425,34 @@ serveur de développement en 1.4.4.)*
   d'articles*, dans le même tour de file.
   ⚠️ **Changer l'une ou l'autre passe, c'est monter `EXTRACT_VERSION`** (voir
   ci-dessous), sinon les extraits déjà gardés restent servis.
+- **Une liste n'est pas un article** (quatrième round, A4-02 — `onlyAList`,
+  `aroundTheList`, `server/extract.ts`, copiées dans le repli de
+  `extractContent.ts` ; tests : « garde tout un gros avis, pas sa seule liste
+  de références (structure CERT-FR) », sur `advisoryPageHtml(200)`). Un gros
+  avis du CERT-FR (SUSE, Ubuntu, IBM : des centaines de références, chacune
+  un `<li>` qui contient un `<p>`) ne rendait que sa liste de références —
+  100 000 caractères — sans Risques, Systèmes affectés, Résumé, Solutions ni
+  la gestion du document. Chaque paragraphe nourrit le score de sa liste, qui
+  l'emporte de loin (499 contre 176 pour la colonne qui la contient) ; et la
+  seconde passe ne voyait rien, la liste faisant 94 % du texte de
+  l'`<article>`. Défaut présent depuis la 1.8.0 ; les petits avis (une
+  dizaine de références) n'étaient pas touchés. Règle : quand le résultat
+  n'est qu'une liste (90 % de son texte au moins, dix entrées au moins), le
+  conteneur principal de la page (même règle que la seconde passe : un
+  `<article>` unique, sinon `[role=main]` ou `<main>`) est relu avec, à la
+  place de la liste, un paragraphe repère ; si Readability garde le repère,
+  la liste y est remise, **à sa place**. Sinon — pas de conteneur, repère
+  écarté — le premier résultat reste : la règle n'ôte jamais rien. Mesuré
+  (2026-11-06) sur 275 pages : seuls les deux gros avis changent (SUSE
+  100 641 → 106 967 caractères, IBM 49 043 → 53 155), avec les huit
+  intertitres des petits avis ; aucune autre page ne bouge. Sans la règle du
+  conteneur, la page d'accueil des Numériques (une liste de liens) gagnait le
+  reste de l'accueil. ⚠️ La garde de l'extraction automatique
+  (`extractWorthShowing`) laissait passer la seule liste : le résumé du flux
+  n'en partage presque aucun mot (« SUSE », « sécurité »), mais une liste de références faite
+  d'adresses et d'identifiants passe pour « une autre langue », nettement
+  plus longue que le flux. Laissée telle quelle : l'extrait complet partage
+  désormais son résumé avec le flux.
 - **Blocs étrangers retirés avant toute passe** (1.9.0, M-04 — `stripBoilerplate`,
   `server/extract.ts`, copiée dans le repli de `extractContent.ts` ; tests :
   `server/test/extract.test.ts` › « blocs étrangers (M-04) » et

@@ -400,6 +400,55 @@ function keepOnlyMainContainer(doc: Document): boolean {
   return true;
 }
 
+// ── Une liste n'est pas un article (A4-02) ───────────────────────────
+// Copie de `onlyAList` / `aroundTheList` (`server/extract.ts`, qui dit
+// pourquoi : un gros avis du CERT-FR réduit à sa liste de références).
+const ONLY_A_LIST_SHARE = 0.9;
+const ONLY_A_LIST_MIN_ITEMS = 10;
+
+interface OnlyList { html: string; text: string; first: string; items: number }
+
+const squeezed = (text: string | null) => (text || '').replace(/\s+/g, '');
+
+function onlyAList(content: string): OnlyList | null {
+  const doc = new DOMParser().parseFromString(content, 'text/html');
+  try {
+    const total = normalizedLength(doc.body.textContent || '');
+    let best: Element | null = null;
+    let bestLength = 0;
+    for (const list of Array.from(doc.body.querySelectorAll('ul, ol'))) {
+      const length = normalizedLength(list.textContent || '');
+      if (length > bestLength) { best = list; bestLength = length; }
+    }
+    if (!best || !total || bestLength < total * ONLY_A_LIST_SHARE) return null;
+    const items = Array.from(best.children).filter((child) => child.tagName === 'LI');
+    if (items.length < ONLY_A_LIST_MIN_ITEMS) return null;
+    return { html: best.outerHTML, text: best.textContent || '', first: squeezed(items[0].textContent), items: items.length };
+  } finally {
+    releaseDocument(doc);
+  }
+}
+
+function aroundTheList(doc: Document, list: OnlyList): { content: string; length: number; textContent: string } | null {
+  const source = Array.from(doc.querySelectorAll('ul, ol')).find((candidate) => {
+    const items = Array.from(candidate.children).filter((child) => child.tagName === 'LI');
+    return items.length >= list.items && squeezed(items[0].textContent) === list.first;
+  });
+  if (!source) return null;
+  const token = `frirss-list-${Math.random().toString(36).slice(2)}`;
+  const marker = doc.createElement('p');
+  marker.textContent = token;
+  source.replaceWith(marker);
+  const again = new Readability(doc, { charThreshold: 500 }).parse();
+  const placed = new RegExp(`<p[^>]*>\\s*${token}\\s*</p>`);
+  if (!again?.content || !placed.test(again.content)) return null;
+  return {
+    content: again.content.replace(placed, () => list.html),
+    length: (again.length || 0) - token.length + list.text.length,
+    textContent: (again.textContent || '').replace(token, list.text),
+  };
+}
+
 // ── Images paresseuses (A1) ──────────────────────────────────────────
 // Copie de `resolveLazyImages` (`server/extract.ts`, qui dit pourquoi : cadres
 // blancs de Numerama, boutons d'agrandissement de Zoomit). Ici elle compte
@@ -987,6 +1036,20 @@ async function extractOnce(url: string): Promise<ExtractedContent> {
     result = new Readability(doc, { charThreshold: 500 }).parse();
   } finally {
     releaseDocument(doc);
+  }
+
+  // A4-02 : une liste n'est pas un article. Si Readability n'a gardé qu'elle,
+  // le conteneur principal est relu sans elle, puis elle y est remise à sa
+  // place (voir le serveur).
+  const list = result?.content ? onlyAList(result.content) : null;
+  if (result && list) {
+    const retry = load();
+    try {
+      const around = keepOnlyMainContainer(retry) ? aroundTheList(retry, list) : null;
+      if (around) result = { ...result, ...around };
+    } finally {
+      releaseDocument(retry);
+    }
   }
 
   // A-1 : même seconde passe que la route serveur (`server/extract.ts`, qui

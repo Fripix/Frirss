@@ -20,8 +20,8 @@
 /** Phrase repérable dans le corps (deuxième section) — absente du fragment. */
 export const ADVISORY_BODY_MARKER = 'Le composant Exemplaire traite mal';
 
-export function advisoryPageHtml(): string {
-  const refs = Array.from({ length: 9 }, (_, i) => `
+export function advisoryPageHtml(references = 9): string {
+  const refs = Array.from({ length: references }, (_, i) => `
           <li><p>Référence d’exemple EX-2026-${1000 + i}</p>
             <a class="fr-link" href="https://vendor.example.com/advisories/kb/article?number=EX-2026-${1000 + i}&amp;lang=fr">https://vendor.example.com/advisories/kb/article?number=EX-2026-${1000 + i}&amp;lang=fr</a></li>`).join('');
   return `<!doctype html><html lang="fr"><head><title>Avis d’exemple</title></head><body>

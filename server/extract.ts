@@ -424,11 +424,20 @@ export function extractArticle(url: string, html: string): ExtractedArticle | nu
 
   let content = parsed.content;
   let length = parsed.length || 0;
-  if (mainLength != null && keptTooLittle(parsed.textContent || '', mainLength)) {
+  let textContent = parsed.textContent || '';
+  // Une liste n'est pas un article (A4-02) : si Readability n'a gardé qu'elle,
+  // l'article est relu sans elle, puis elle y est remise à sa place.
+  const list = onlyAList(content);
+  if (list) {
+    const retry = clean(load()!);
+    const around = keepOnlyMainContainer(retry) ? aroundTheList(retry, list) : null;
+    if (around) ({ content, length, textContent } = around);
+  }
+  if (mainLength != null && keptTooLittle(textContent, mainLength)) {
     const retry = clean(load()!);
     if (keepOnlyMainContainer(retry)) {
       const again = new Readability(retry as never, MAIN_CONTAINER_OPTIONS).parse();
-      if (again?.content && recoveredMore(again.textContent || '', parsed.textContent || '')) {
+      if (again?.content && recoveredMore(again.textContent || '', textContent)) {
         content = again.content;
         length = again.length || 0;
       }
@@ -544,6 +553,72 @@ function keepOnlyMainContainer(doc: ParsedDocument): boolean {
   if (!container || !doc.body) return false;
   doc.body.replaceChildren(container);
   return true;
+}
+
+// ── Une liste n'est pas un article (A4-02, quatrième round) ──────────
+// Un gros avis du CERT-FR (SUSE, Ubuntu, IBM) porte des centaines de
+// références, chacune un `<li>` qui contient un `<p>` : chaque paragraphe
+// nourrit le score de sa liste, qui l'emporte de loin sur tout le reste (499
+// contre 176 pour la colonne qui la contient). Readability ne rendait qu'elle
+// — 100 000 caractères de références —, et Risques, Systèmes affectés,
+// Résumé, Solutions et la gestion du document disparaissaient. La seconde
+// passe (A-1) ne voyait rien : la liste fait 94 % du texte de l'`<article>`.
+// Défaut présent depuis la 1.8.0.
+//
+// Règle générale : quand le résultat n'est qu'une liste (au moins
+// `ONLY_A_LIST_SHARE` de son texte, `ONLY_A_LIST_MIN_ITEMS` entrées), la page
+// est relue avec, à la place de cette liste, un paragraphe repère. Si
+// Readability garde ce repère, la liste y est remise, à sa place ; sinon le
+// premier résultat reste. Rien n'est donc jamais perdu : le résultat contient
+// toujours la liste entière.
+//
+// Même règle dans le repli du navigateur (`src/utils/extractContent.ts`).
+
+/** Part du texte du résultat au-delà de laquelle il n'est qu'une liste. */
+const ONLY_A_LIST_SHARE = 0.9;
+/** Une liste plus courte n'écrase le score de rien. */
+const ONLY_A_LIST_MIN_ITEMS = 10;
+
+/** La liste qui fait tout le résultat de Readability : son HTML, son texte, sa première entrée. */
+interface OnlyList { html: string; text: string; first: string; items: number }
+
+const squeezed = (text: string | null) => (text || '').replace(/\s+/g, '');
+
+function onlyAList(content: string): OnlyList | null {
+  const { document } = parseHTML(`<!doctype html><html><head></head><body>${content}</body></html>`);
+  const total = normalizedLength(document.body.textContent || '');
+  let best: Element | null = null;
+  let bestLength = 0;
+  for (const list of Array.from(document.body.querySelectorAll('ul, ol')) as Element[]) {
+    const length = normalizedLength(list.textContent || '');
+    if (length > bestLength) { best = list; bestLength = length; }
+  }
+  if (!best || !total || bestLength < total * ONLY_A_LIST_SHARE) return null;
+  const items = Array.from(best.children).filter((child) => child.tagName === 'LI');
+  if (items.length < ONLY_A_LIST_MIN_ITEMS) return null;
+  return { html: best.outerHTML, text: best.textContent || '', first: squeezed(items[0].textContent), items: items.length };
+}
+
+/** Relit `doc` sans la liste, puis l'y remet : le nouveau résultat, ou `null`. */
+function aroundTheList(doc: ParsedDocument, list: OnlyList): { content: string; length: number; textContent: string } | null {
+  const source = (Array.from(doc.querySelectorAll('ul, ol')) as unknown as Element[]).find((candidate) => {
+    const items = Array.from(candidate.children).filter((child) => child.tagName === 'LI');
+    return items.length >= list.items && squeezed(items[0].textContent) === list.first;
+  });
+  if (!source) return null;
+  const token = `frirss-list-${Math.random().toString(36).slice(2)}`;
+  const marker = doc.createElement('p');
+  marker.textContent = token;
+  source.replaceWith(marker as unknown as Element);
+  const again = new Readability(doc as never, { charThreshold: READABILITY_CHAR_THRESHOLD }).parse();
+  const placed = new RegExp(`<p[^>]*>\\s*${token}\\s*</p>`);
+  if (!again?.content || !placed.test(again.content)) return null;
+  const textContent = (again.textContent || '').replace(token, list.text);
+  return {
+    content: again.content.replace(placed, () => list.html),
+    length: (again.length || 0) - token.length + list.text.length,
+    textContent,
+  };
 }
 
 // ── Images paresseuses (A1) ──────────────────────────────────────────
