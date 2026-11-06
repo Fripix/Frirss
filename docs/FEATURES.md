@@ -5938,6 +5938,18 @@ Délai réel entre la publication et le bandeau : la période du cron FreshRSS
     pas avec un nouveau résultat, qui restait invisible, boutons cliquables, et
     il fallait le neutraliser classe par classe (`--held` oublié sous mouvement
     réduit) ;
+  - **le registre des relèves vit en mémoire** (`server/refreshJobs.ts`) :
+    FriRSS redémarré pendant une relève répond ensuite `{job:null}` au
+    sondage. C'est une réponse **définitive** — la tâche n'existe plus, elle
+    ne reviendra pas — et le client la traite comme telle depuis 1.9.0
+    (R3T3-1, `nextPhase(null)`) : il cesse de sonder aussitôt, relit
+    abonnements et liste, rend le bouton et conclut **« Relève inachevée »**,
+    comme au plafond. Avant, `{job:null}` était confondu avec un échec réseau :
+    « Relève en cours… » et Rafraîchir restaient bloqués jusqu'au plafond de
+    10 minutes, un sondage toutes les 3 s (~900 requêtes FreshRSS). **Une
+    demande d'état qui échoue** (réseau, 5xx) reste, elle, **passagère** :
+    le sondage continue jusqu'au plafond. Le bouton « Tester » du jeton
+    (borné à ~30 s) n'est pas concerné ;
   - le jeton maître donne aussi accès en **lecture** à tous les articles et à la
     liste d'abonnements. L'interface le dit avant la saisie ;
   - **`startJob` lance son travail SANS l'attendre** — voulu en production,

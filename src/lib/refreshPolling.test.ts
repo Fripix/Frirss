@@ -51,3 +51,17 @@ describe('nextPhase — FreshRSS continue la relève', () => {
     expect(nextPhase('failed', 0, 1000, true)).toBe('failed');
   });
 });
+
+// R3T3-1 : FriRSS redémarré pendant une relève. Son registre des relèves vit
+// en mémoire : le serveur répond `{job:null}`, la tâche n'existe plus. Lu
+// comme un échec réseau, il laissait « Relève en cours… » et Rafraîchir
+// bloqués jusqu'au plafond de 10 minutes, un sondage toutes les 3 s.
+describe('nextPhase — la tâche n’existe plus (`{job:null}`)', () => {
+  it('conclut aussitôt en relève inachevée, sans attendre le plafond', () => {
+    expect(nextPhase(null, T0, T0 + 3_000)).toBe('timeout');
+  });
+
+  it('un échec réseau (statut inconnu) reste passager : on continue de sonder', () => {
+    expect(nextPhase(undefined, T0, T0 + 3_000)).toBe('running');
+  });
+});

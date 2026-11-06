@@ -14,9 +14,17 @@ export const POLL_CAP_MS = 10 * 60 * 1000;
  * Past the cap we return 'timeout', never 'done': claiming a refresh finished
  * when we simply stopped watching is exactly the dishonesty this feature exists
  * to remove.
+ *
+ * `job` distingue deux silences (R3T3-1) :
+ * - `null` : le serveur a répondu `{job:null}`, la tâche n'existe plus — le
+ *   registre des relèves vit en mémoire, FriRSS a redémarré. Réponse
+ *   définitive : conclure tout de suite en relève inachevée, plutôt que de
+ *   sonder dix minutes une tâche qui ne reviendra pas ;
+ * - `undefined` : la demande d'état a échoué (réseau, 5xx). Passager : on
+ *   continue de sonder jusqu'au plafond.
  */
 export function nextPhase(
-  job: 'running' | 'done' | 'failed' | undefined,
+  job: 'running' | 'done' | 'failed' | null | undefined,
   startedAt: number,
   now: number,
   continuing = false,
@@ -26,6 +34,7 @@ export function nextPhase(
   // des nouveaux articles, à la relecture des compteurs.
   if (job === 'done') return continuing ? 'continuing' : 'done';
   if (job === 'failed') return 'failed';
+  if (job === null) return 'timeout';
   if (now - startedAt >= POLL_CAP_MS) return 'timeout';
   return 'running';
 }

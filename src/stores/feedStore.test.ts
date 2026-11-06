@@ -1062,6 +1062,46 @@ describe('feedStore.refresh — routing between the read-only sync and the real 
     expect(useFeedStore.getState().refreshPhase).toBe('done');
   });
 
+  // R3T3-1 : FriRSS redémarré pendant la relève, son registre en mémoire est
+  // vide. `{job:null}` est une réponse définitive, pas un échec réseau.
+  it('R3T3-1 — a job the server no longer knows ({job:null}) stops the polling at once, frees the button and reloads', async () => {
+    useFeedStore.setState({ hasRefreshToken: true });
+    vi.mocked(backendApi.startActualize).mockResolvedValueOnce({ status: 'running', startedAt: Date.now() });
+    vi.mocked(backendApi.getActualizeStatus).mockResolvedValue(null);
+
+    vi.useFakeTimers();
+    const p = useFeedStore.getState().refresh();
+    await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS * 5);
+    // Sans le correctif, la boucle sonde encore : on la libère pour que le
+    // test échoue sur ses attentes, pas sur un délai dépassé.
+    const polls = vi.mocked(backendApi.getActualizeStatus).mock.calls.length;
+    vi.mocked(backendApi.getActualizeStatus).mockResolvedValue({ status: 'done', startedAt: Date.now() });
+    await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS);
+    await p;
+
+    expect(polls).toBe(1);
+    expect(useFeedStore.getState().refreshPhase).toBe('timeout');
+    expect(loadSubscriptions).toHaveBeenCalledTimes(1);
+    expect(loadArticles).toHaveBeenCalledTimes(1);
+    vi.mocked(backendApi.getActualizeStatus).mockReset();
+  });
+
+  it('R3T3-1 — a failed status request stays transient: polling goes on', async () => {
+    useFeedStore.setState({ hasRefreshToken: true });
+    vi.mocked(backendApi.startActualize).mockResolvedValueOnce({ status: 'running', startedAt: Date.now() });
+    vi.mocked(backendApi.getActualizeStatus)
+      .mockRejectedValueOnce(new Error('Network Error'))
+      .mockResolvedValueOnce({ status: 'done', startedAt: Date.now() });
+
+    vi.useFakeTimers();
+    const p = useFeedStore.getState().refresh();
+    await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS * 2);
+    await p;
+
+    expect(backendApi.getActualizeStatus).toHaveBeenCalledTimes(2);
+    expect(useFeedStore.getState().refreshPhase).toBe('done');
+  });
+
   it('a poll tick falls back to syncCounts (not silentRefresh) once the user has paged past page 1, leaving their list alone', async () => {
     const pagedArticles = Array.from({ length: 51 }, (_, i) => ({ ...baseArticle, id: `a${i}` }));
     const syncCounts = vi.fn(() => Promise.resolve());

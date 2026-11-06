@@ -3723,9 +3723,16 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         await get().syncCounts();
       }
       if (!stillActive()) return;
-      const status = await getActualizeStatus(Number(serverId)).catch(() => null);
+      // `{job:null}` (la tâche n'existe plus : FriRSS a redémarré, R3T3-1) et
+      // une demande en échec (passagère) ne disent pas la même chose : le
+      // premier conclut, la seconde laisse sonder. Confondus, la relève
+      // restait « en cours » jusqu'au plafond de dix minutes.
+      const status = await getActualizeStatus(Number(serverId)).then(
+        (job): ActualizeJob | null => job,
+        () => undefined,
+      );
       if (!stillActive()) return;
-      phase = nextPhase(status?.status, startedAt, Date.now(), !!status?.continuing);
+      phase = nextPhase(status === null ? null : status?.status, startedAt, Date.now(), !!status?.continuing);
       set({
         refreshPhase: phase,
         refreshResult: {
