@@ -5672,10 +5672,16 @@ serveur de développement en 1.4.4.)*
   en 422 en 25 s, chacun suivi d'un repli `/api/proxy` — ~10 Mo. Trois
   mesures, toutes dans `extractFullContent`, donc valables pour les six
   consommateurs :
-  - **une URL YouTube n'est jamais envoyée** (`isExtractableUrl`, sur
-    `extractYouTubeId`) : `NotExtractableError` sans réseau, même demandée par
-    le lecteur. Le volet ne lance pas d'extraction automatique sur une vidéo,
-    ne l'attend pas (pas de squelette) et n'affiche aucun échec ;
+  - **une URL YouTube n'est jamais envoyée** (`isExtractableUrl`) :
+    `NotExtractableError` sans réseau, même demandée par le lecteur. Le volet
+    ne lance pas d'extraction automatique sur une vidéo, ne l'attend pas (pas
+    de squelette) et n'affiche aucun échec. ⚠️ La décision tient à l'**hôte**
+    (`youtube.com` et ses sous-domaines, `youtube-nocookie.com`, `youtu.be`),
+    puis à `extractYouTubeId` : celui-ci trouve une adresse YouTube n'importe
+    où dans la chaîne, et une redirection `…?to=https://www.youtube.com/watch?v=…`
+    ou un chemin contenant `youtu.be/…` passaient pour des vidéos, refusées
+    même au réessai (D-02, 1.9.0). Une page YouTube sans vidéo (chaîne) et
+    une adresse illisible restent extractibles ;
   - **un échec qui tient à la PAGE est retenu pour la session** (pas une page,
     trop grosse, trop complexe — le 422 `tooComplex` du serveur, M-01, ou le refus du repli lui-même —, rien de lisible (le 422 `Not extractable` du serveur, ou le repli), refus **4xx** du site ou du repli hors 408
     et 429 — `isPageRefusal`) : les extractions automatiques et les files de
