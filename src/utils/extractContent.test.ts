@@ -6,6 +6,7 @@ import {
   RateLimitedError,
   NotExtractableError,
   PageTooComplexError,
+  ExtractTimeoutError,
   UpstreamRefusedError,
   forgetExtractFailures,
   FALLBACK_EXTRACT_TIMEOUT_MS,
@@ -235,6 +236,40 @@ describe('extractFullContent — repli local : blocs étrangers (M-04)', () => {
     for (const junk of ['Accueil', 'Commentaires', 'Powered by', 'S’abonner aux commentaires', 'Laisser un commentaire', 'Billet précédent']) {
       expect(text).not.toContain(junk);
     }
+  });
+
+  // Relecture 1.9.0 (R1-2) : `share` retirait tout bloc dont la classe
+  // contenait le mot, même une analyse de « share of voice » que Readability
+  // gardait. (Le tableau `share-table` du serveur, Readability l'écarte
+  // lui-même sous jsdom : seul le nettoyage est en cause ici.)
+  it('garde une longue analyse dont la classe contient « share »', async () => {
+    const para = (s: string) => `<p>${`${s} `.repeat(12)}</p>`;
+    fallbackOn(`<html><head><title>Market</title></head><body><article><h1>Market</h1>${
+      para('The market for phones changed a lot this quarter according to analysts.')
+    }<div class="share-of-voice-analysis">${
+      para('SHAREDIV analysis paragraph that is a genuine part of the article body.')
+    }</div>${para('Conclusion sentence closing the article with a summary of the findings.')}${
+      para('Another paragraph so that the analysis weighs less than half of the page.')
+    }</article></body></html>`);
+    const text = textOf((await extractFullContent('https://example.com/market')).content);
+    expect(text).toContain('SHAREDIV');
+  });
+
+  // Relecture 1.9.0 (R1-3) : le repli n'avait aucune borne de profondeur.
+  // Readability coûte le cube de la profondeur : une page piégée que le
+  // serveur n'a pas pu refuser (route absente, file pleine) gelait l'onglet.
+  it('refuse une page piégée sans l’analyser, et la retient pour la session', async () => {
+    const proxyCalls = vi.fn();
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo) => {
+      if (String(input).startsWith('/api/extract')) return new Response('', { status: 503 });
+      proxyCalls();
+      return htmlPage(`<html><body>${'<div>'.repeat(2000)}<p>court</p>${'</div>'.repeat(2000)}</body></html>`);
+    }));
+    const started = performance.now();
+    await expect(extractFullContent('https://example.com/piege-repli')).rejects.toBeInstanceOf(PageTooComplexError);
+    expect(performance.now() - started).toBeLessThan(1000);
+    await expect(extractFullContent('https://example.com/piege-repli')).rejects.toBeInstanceOf(NotExtractableError);
+    expect(proxyCalls).toHaveBeenCalledTimes(1);
   });
 
   it('garde le conteneur principal complet du CERT-FR', async () => {
@@ -691,5 +726,37 @@ describe('extractFullContent — mémoire des échecs (L-03)', () => {
     // Retenue : l'automatique ne la redemande pas.
     await expect(extractFullContent('https://example.com/piege')).rejects.toBeInstanceOf(NotExtractableError);
     expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  // Relecture 1.9.0 (R1-4) : le délai du worker du serveur était un
+  // `tooComplex`, donc une page ordinaire analysée sur un serveur chargé
+  // était perdue pour la session. Un délai est un échec ordinaire (on peut
+  // réessayer), mais toujours sans repli : l'onglet paierait la même analyse.
+  it('ne retient pas un délai d’analyse du serveur, et ne se replie pas pour autant', async () => {
+    const proxy = vi.fn();
+    const fetchSpy = vi.fn(async (input: RequestInfo) => {
+      if (String(input).startsWith('/api/extract')) {
+        return new Response(JSON.stringify({ error: 'Extraction timed out', timedOut: true }), { status: 504 });
+      }
+      proxy();
+      return htmlPage(pageHtml);
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+
+    await expect(extractFullContent('https://example.com/lente')).rejects.toBeInstanceOf(ExtractTimeoutError);
+    expect(proxy).not.toHaveBeenCalled();
+
+    // Pas retenue : l'automatique la redemande.
+    await expect(extractFullContent('https://example.com/lente')).rejects.toBeInstanceOf(ExtractTimeoutError);
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it('se replie toujours sur un 504 ordinaire (site trop lent pour le serveur)', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo) => {
+      if (String(input).startsWith('/api/extract')) return new Response(JSON.stringify({ error: 'Upstream timeout' }), { status: 504 });
+      return htmlPage(pageHtml);
+    }));
+    const out = await extractFullContent('https://example.com/site-lent');
+    expect(out.content).toContain('paragraphe');
   });
 });

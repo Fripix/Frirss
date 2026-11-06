@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { Worker } from 'node:worker_threads';
 import { parseHTML } from 'linkedom';
 import { Readability } from '@mozilla/readability';
+import { markupTooComplex } from './markupBounds.js';
 
 export interface ExtractedArticle {
   title: string;
@@ -91,9 +92,17 @@ export async function withExtractSlot<T>(run: () => T | Promise<T>): Promise<T> 
 }
 
 // ── Refus rapide d'une page trop complexe (M-01) ─────────────────────
-// Mesuré juste après `parseHTML`, avant toute passe Readability : un parcours
-// itératif de l'arbre, qui s'arrête au premier dépassement. Son coût est celui
-// de l'analyse HTML (~7 ms pour 5000 niveaux), pas celui de Readability.
+// Deux mesures, aux mêmes seuils :
+// - sur le TEXTE, AVANT `parseHTML` (`markupTooComplex`, `markupBounds.ts`) :
+//   un balayage linéaire qui estime la pile de htmlparser2. C'est le vrai
+//   refus rapide. L'analyse HTML n'est PAS bon marché sur une page piégée :
+//   linkedom est quadratique en profondeur (50 000 `<div>` imbriqués coûtaient
+//   1,2 s, 390 000 `<div>` jamais fermés 42 s, avant que l'arbre ne soit
+//   mesuré — relecture 1.9.0) ; le balayage, lui, coûte ~4 ms pour 2 Mo ;
+// - sur l'ARBRE, juste après `parseHTML` (`assertTreeBounded`) : un filet,
+//   si l'estimation du texte et l'arbre réel venaient à diverger. Son coût
+//   est celui d'un parcours de l'arbre, une fois celui-ci construit.
+// Sur le corpus réel, l'estimation et l'arbre diffèrent d'un niveau au plus.
 //
 // Calibrage (2026-11-06, 38 pages réelles du corpus de la campagne — Ars,
 // CERT-FR, Cloudflare, go.dev, Krebs, Next, Numerama, Schneier, The Verge… —
@@ -114,15 +123,29 @@ export const EXTRACT_MAX_ELEMENTS = 60_000;
 
 /**
  * La page est refusée pour sa complexité : imbrication (`depth`), nombre
- * d'éléments (`elements`), délai du worker dépassé (`timeout`) ou mémoire du
- * worker épuisée (`memory`). Échec DÉFINITIF : la route le dit, le serveur le
- * garde quelques minutes, et le client ne se replie pas sur son propre
- * extracteur.
+ * d'éléments (`elements`) ou mémoire du worker épuisée (`memory`). Échec
+ * DÉFINITIF : la route le dit, le serveur le garde quelques minutes, et le
+ * client ne se replie pas sur son propre extracteur.
  */
 export class PageTooComplexError extends Error {
-  constructor(readonly reason: 'depth' | 'elements' | 'timeout' | 'memory') {
+  constructor(readonly reason: 'depth' | 'elements' | 'memory') {
     super(`Page too complex (${reason})`);
     this.name = 'PageTooComplexError';
+  }
+}
+
+/**
+ * L'analyse a dépassé `EXTRACT_WORKER_TIMEOUT_MS`. PAS un refus pour
+ * complexité (relecture 1.9.0) : un serveur chargé — cinq analyses à la fois,
+ * une machine lente — peut dépasser le délai sur une page ordinaire. Ni gardé
+ * par le serveur, ni retenu par le client, qui peut réessayer ; mais le client
+ * ne se replie pas sur son propre extracteur, qui paierait la même analyse
+ * dans l'onglet.
+ */
+export class ExtractTimeoutError extends Error {
+  constructor() {
+    super('Extraction timed out');
+    this.name = 'ExtractTimeoutError';
   }
 }
 
@@ -147,8 +170,10 @@ function assertTreeBounded(doc: ParsedDocument): void {
 
 /**
  * Délai accordé à une analyse. Une vraie page de 2 Mo s'analyse en moins d'une
- * seconde (0,57 s pour la plus lourde du corpus) ; au-delà de 10 s, ce n'est
- * plus une page, c'est un piège. Le client abandonne de toute façon à 20 s.
+ * seconde (0,57 s pour la plus lourde du corpus) ; au-delà de 10 s, c'est le
+ * plus souvent un piège — mais pas forcément : un serveur chargé peut le
+ * dépasser sur une page ordinaire, d'où `ExtractTimeoutError`, un échec qui
+ * n'est pas gardé. Le client abandonne de toute façon à 20 s.
  */
 export const EXTRACT_WORKER_TIMEOUT_MS = 10_000;
 
@@ -187,7 +212,7 @@ export type WorkerReply =
  * La boucle principale ne fait qu'attendre un message : un piège qui coûterait
  * des minutes n'immobilise plus que son worker, et ce worker est terminé
  * (`terminate()` interrompt aussi une boucle JavaScript synchrone) à
- * l'échéance. Un dépassement est rendu comme `PageTooComplexError('timeout')`.
+ * l'échéance. Un dépassement est rendu comme `ExtractTimeoutError`.
  *
  * Un worker par analyse, pas de réserve : démarrer un worker coûte quelques
  * dizaines de millisecondes, négligeables devant la récupération de la page,
@@ -210,7 +235,7 @@ export function extractInWorker(url: string, html: string, timeoutMs = EXTRACT_W
       // Le résultat est en main : le worker n'a plus rien à faire.
       void worker.terminate();
     };
-    const timer = setTimeout(() => settle(() => reject(new PageTooComplexError('timeout'))), timeoutMs);
+    const timer = setTimeout(() => settle(() => reject(new ExtractTimeoutError())), timeoutMs);
     worker.once('message', (reply: WorkerReply) => settle(() => {
       if (reply.ok) resolve(reply.article);
       else if (reply.tooComplex) reject(new PageTooComplexError(reply.tooComplex));
@@ -258,8 +283,9 @@ export const READABILITY_CHAR_THRESHOLD = 500;
  * `null` quand Readability ne trouve pas d'article : l'appelant doit alors
  * laisser la main au navigateur plutôt que de renvoyer un corps vide.
  *
- * Lève `PageTooComplexError` quand l'arbre dépasse `EXTRACT_MAX_DEPTH` ou
- * `EXTRACT_MAX_ELEMENTS` — vérifié avant toute passe Readability (M-01).
+ * Lève `PageTooComplexError` quand la page dépasse `EXTRACT_MAX_DEPTH` ou
+ * `EXTRACT_MAX_ELEMENTS` — vérifié sur le texte avant l'analyse HTML, puis sur
+ * l'arbre avant toute passe Readability (M-01).
  * Synchrone : la route ne l'appelle qu'à travers `extractInWorker`.
  */
 export function extractArticle(url: string, html: string): ExtractedArticle | null {
@@ -280,8 +306,11 @@ export function extractArticle(url: string, html: string): ExtractedArticle | nu
     return doc;
   };
 
+  // Le refus rapide d'abord, sur le texte : l'analyse HTML d'une page piégée
+  // coûte déjà le carré de sa profondeur, Readability le cube.
+  const tooComplex = markupTooComplex(html, { maxDepth: EXTRACT_MAX_DEPTH, maxElements: EXTRACT_MAX_ELEMENTS });
+  if (tooComplex) throw new PageTooComplexError(tooComplex);
   const document = load();
-  // Le refus rapide d'abord : c'est Readability qui coûte, pas l'analyse HTML.
   assertTreeBounded(document);
   clean(document);
   // Mesuré AVANT Readability, qui modifie le document qu'il lit.
@@ -410,7 +439,14 @@ function keepOnlyMainContainer(doc: ParsedDocument): boolean {
 // - un bloc dont la classe ou l'id contient l'un des mots de
 //   `BOILERPLATE_TOKENS` (découpés sur tout ce qui n'est pas lettre ou
 //   chiffre : `duet--cta--newsletter`, `comment-respond`) — jamais un titre ni
-//   un élément de texte (`<h2 id="related-work">` est un titre d'article) ;
+//   un élément de texte (`<h2 id="related-work">` est un titre d'article).
+//   Pour `share`, `sharing` et `newsletter` (`SHORT_BLOCK_TOKENS`), seulement
+//   si le bloc est court (moins de `READABILITY_CHAR_THRESHOLD` caractères
+//   lisibles) : c'est la règle de Readability lui-même pour les blocs
+//   « share ». Sans elle, un `<table class="share-table">` (parts de marché)
+//   ou une `div.share-of-voice-analysis` sortaient de l'article alors que
+//   Readability les gardait (relecture 1.9.0). Boutons de partage et encarts
+//   d'abonnement, eux, sont courts ;
 // - un court bloc qui commence par « Powered by ».
 // Deux gardes :
 // - un bloc qui porte la moitié du texte de la racine ou plus n'est jamais
@@ -431,8 +467,10 @@ function keepOnlyMainContainer(doc: ParsedDocument): boolean {
 const BOILERPLATE_TAGS = new Set(['footer', 'nav', 'form']);
 const BOILERPLATE_ROLES = new Set(['navigation', 'contentinfo']);
 const BOILERPLATE_TOKENS = new Set([
-  'related', 'comment', 'comments', 'breadcrumb', 'breadcrumbs', 'share', 'sharing', 'footer', 'newsletter',
+  'related', 'comment', 'comments', 'breadcrumb', 'breadcrumbs', 'footer',
 ]);
+/** Mots qui ne désignent un bloc étranger que s'il est court (règle « share » de Readability). */
+const SHORT_BLOCK_TOKENS = new Set(['share', 'sharing', 'newsletter']);
 /** Jamais jugés sur leur nom : titres et éléments de texte. */
 const NAMED_EXEMPT = new Set([
   'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'a', 'span', 'b', 'i', 'em', 'strong', 'code', 'small', 'sup', 'sub',
@@ -448,8 +486,10 @@ function isBoilerplate(el: Element, insideArticle: boolean): boolean {
   if (BOILERPLATE_TAGS.has(tag) || BOILERPLATE_ROLES.has(role)) return true;
   if (!insideArticle && (tag === 'aside' || role === 'complementary')) return true;
   if (!NAMED_EXEMPT.has(tag)) {
-    const names = `${el.getAttribute('class') || ''} ${el.getAttribute('id') || ''}`.toLowerCase();
-    if (names.split(/[^a-z0-9]+/).some((token) => BOILERPLATE_TOKENS.has(token))) return true;
+    const tokens = `${el.getAttribute('class') || ''} ${el.getAttribute('id') || ''}`.toLowerCase().split(/[^a-z0-9]+/);
+    if (tokens.some((token) => BOILERPLATE_TOKENS.has(token))) return true;
+    if (tokens.some((token) => SHORT_BLOCK_TOKENS.has(token))
+      && visibleTextLength(el, READABILITY_CHAR_THRESHOLD) < READABILITY_CHAR_THRESHOLD) return true;
   }
   // Seulement sur un bloc presque feuille : lire `textContent` de chaque
   // élément d'un arbre profond coûterait le carré de sa taille.
@@ -475,11 +515,12 @@ function carriesByline(el: Element): boolean {
  *  de The Verge, ~100 Ko) fausserait la garde de la moitié du texte. */
 const INVISIBLE = new Set(['script', 'style', 'template', 'noscript']);
 
-/** Longueur du texte lisible de `root`, blancs réduits — sans script ni style. */
-function visibleTextLength(root: Element): number {
+/** Longueur du texte lisible de `root`, blancs réduits — sans script ni style.
+ *  Arrêtée dès qu'elle atteint `stopAt` : la question est alors « assez court ? ». */
+function visibleTextLength(root: Element, stopAt = Infinity): number {
   let length = 0;
   const stack: Node[] = [root];
-  while (stack.length) {
+  while (stack.length && length < stopAt) {
     const node = stack.pop()!;
     if (node.nodeType === 3) {
       length += (node.textContent || '').replace(/\s+/g, ' ').length;

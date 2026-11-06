@@ -3,6 +3,7 @@ import { useAuthStore } from '../stores/authStore';
 import { dropNonVideoIframes } from '../lib/youtube';
 import { absolutizeUrls } from './absolutizeUrls';
 import { purifyToString, releaseDocument } from '../lib/parsedDocument';
+import { markupTooComplex } from '../lib/markupBounds';
 import {
   extractFailedBefore, forgetExtractFailure, isExtractableUrl, isPageRefusal, rememberExtractFailure,
 } from '../lib/extractFailures';
@@ -151,6 +152,10 @@ export class RateLimitedError extends Error {
  */
 export const FALLBACK_MAX_HTML_BYTES = 2_000_000;
 
+/** Bornes de forme du repli : celles de la route serveur (`EXTRACT_MAX_DEPTH`,
+ *  `EXTRACT_MAX_ELEMENTS`, `server/extract.ts`, qui dit leur calibrage). */
+export const FALLBACK_MARKUP_LIMITS = { maxDepth: 256, maxElements: 60_000 } as const;
+
 /** Les types qu'on lit comme une page — ceux de la route serveur. */
 const HTML_TYPES = /^(text\/html|application\/xhtml\+xml)\b/i;
 
@@ -179,13 +184,24 @@ export class UpstreamRefusedError extends Error {
 }
 
 /**
- * Le serveur a refusé la page pour sa COMPLEXITÉ (M-01) : imbrication ou
- * nombre d'éléments au-delà de ses seuils, délai ou mémoire de son worker
- * dépassés — une page piégée. Échec définitif : pas de repli (l'onglet
+ * La page est refusée pour sa COMPLEXITÉ (M-01) : imbrication ou nombre
+ * d'éléments au-delà des seuils, ou mémoire du worker du serveur épuisée — une
+ * page piégée. Refusée par le serveur, ou par le repli lui-même avant toute
+ * analyse (`markupTooComplex`). Échec définitif : pas de repli (l'onglet
  * relirait la même page), et la page est retenue pour la session.
  */
 export class PageTooComplexError extends Error {
   constructor() { super('PAGE_TOO_COMPLEX'); this.name = 'PageTooComplexError'; }
+}
+
+/**
+ * L'analyse du serveur a dépassé son délai (504 portant `timedOut`). Pas une
+ * page piégée (relecture 1.9.0) : un serveur chargé peut dépasser le délai sur
+ * une page ordinaire. Échec ordinaire — pas retenu, « Réessayer » possible —,
+ * mais sans repli : l'onglet paierait la même analyse.
+ */
+export class ExtractTimeoutError extends Error {
+  constructor() { super('EXTRACT_TIMEOUT'); this.name = 'ExtractTimeoutError'; }
 }
 
 /** Le repli a reçu une réponse en erreur de `/api/proxy`. */
@@ -360,8 +376,11 @@ function keepOnlyMainContainer(doc: Document): boolean {
 const BOILERPLATE_TAGS = new Set(['footer', 'nav', 'form']);
 const BOILERPLATE_ROLES = new Set(['navigation', 'contentinfo']);
 const BOILERPLATE_TOKENS = new Set([
-  'related', 'comment', 'comments', 'breadcrumb', 'breadcrumbs', 'share', 'sharing', 'footer', 'newsletter',
+  'related', 'comment', 'comments', 'breadcrumb', 'breadcrumbs', 'footer',
 ]);
+/** Seulement sur un bloc court : la règle « share » de Readability (relecture 1.9.0). */
+const SHORT_BLOCK_TOKENS = new Set(['share', 'sharing', 'newsletter']);
+const SHORT_BLOCK_MAX = 500;
 const NAMED_EXEMPT = new Set([
   'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'a', 'span', 'b', 'i', 'em', 'strong', 'code', 'small', 'sup', 'sub',
   'time', 'abbr', 'label', 'img', 'figcaption',
@@ -377,8 +396,10 @@ function isBoilerplate(el: Element, insideArticle: boolean): boolean {
   if (BOILERPLATE_TAGS.has(tag) || BOILERPLATE_ROLES.has(role)) return true;
   if (!insideArticle && (tag === 'aside' || role === 'complementary')) return true;
   if (!NAMED_EXEMPT.has(tag)) {
-    const names = `${el.getAttribute('class') || ''} ${el.getAttribute('id') || ''}`.toLowerCase();
-    if (names.split(/[^a-z0-9]+/).some((token) => BOILERPLATE_TOKENS.has(token))) return true;
+    const tokens = `${el.getAttribute('class') || ''} ${el.getAttribute('id') || ''}`.toLowerCase().split(/[^a-z0-9]+/);
+    if (tokens.some((token) => BOILERPLATE_TOKENS.has(token))) return true;
+    if (tokens.some((token) => SHORT_BLOCK_TOKENS.has(token))
+      && visibleTextLength(el, SHORT_BLOCK_MAX) < SHORT_BLOCK_MAX) return true;
   }
   if (el.childElementCount <= 3 && Array.from(el.children).every((child) => child.childElementCount === 0)) {
     const text = (el.textContent || '').replace(/\s+/g, ' ').trim();
@@ -391,10 +412,10 @@ function carriesByline(el: Element): boolean {
   return el.matches(BYLINE_SIGNALS) || !!el.querySelector(BYLINE_SIGNALS);
 }
 
-function visibleTextLength(root: Element): number {
+function visibleTextLength(root: Element, stopAt = Infinity): number {
   let length = 0;
   const stack: Node[] = [root];
-  while (stack.length) {
+  while (stack.length && length < stopAt) {
     const node = stack.pop()!;
     if (node.nodeType === Node.TEXT_NODE) {
       length += (node.textContent || '').replace(/\s+/g, ' ').length;
@@ -431,7 +452,8 @@ async function extractOnce(url: string): Promise<ExtractedContent> {
   // (422) ou échouer à la joindre (502, 504). Sauf un 415 (la cible n'est pas
   // une page) ou un 413 (plus de 2 Mo, le plafond du repli aussi) : le repli
   // relirait la même réponse pour échouer (`NotAPageError`). Ni un 422 portant
-  // `tooComplex` : la page est piégée, l'onglet la relirait (M-01).
+  // `tooComplex` : la page est piégée, l'onglet la relirait (M-01) ; ni un 504
+  // portant `timedOut` : l'analyse a dépassé son délai, l'onglet la paierait.
   //
   // Ce repli ne couvre PAS l'absence de Redis : sans cache, la route extrait
   // quand même et répond 200 — elle ne garde simplement rien, et le prochain
@@ -464,6 +486,15 @@ async function extractOnce(url: string): Promise<ExtractedContent> {
     if (served.status === 422) {
       const body = (await served.json().catch(() => null)) as { tooComplex?: unknown } | null;
       if (body?.tooComplex === true) throw new PageTooComplexError();
+      return null;
+    }
+    // 504 portant `timedOut` : l'analyse du serveur a dépassé son délai.
+    // Pas de repli (l'onglet paierait la même analyse), pas de mémoire non
+    // plus : un serveur chargé peut le dépasser sur une page ordinaire. Un
+    // 504 sans lui (site trop lent pour le serveur) garde le repli.
+    if (served.status === 504) {
+      const body = (await served.json().catch(() => null)) as { timedOut?: unknown } | null;
+      if (body?.timedOut === true) throw new ExtractTimeoutError();
       return null;
     }
     if (served.status === 502) {
@@ -515,7 +546,8 @@ async function extractOnce(url: string): Promise<ExtractedContent> {
     }
     if (served && !('limited' in served)) return served;
   } catch (err) {
-    if (err instanceof NotAPageError || err instanceof UpstreamRefusedError || err instanceof PageTooComplexError) throw err;
+    if (err instanceof NotAPageError || err instanceof UpstreamRefusedError || err instanceof PageTooComplexError
+      || err instanceof ExtractTimeoutError) throw err;
     /* repli */
   }
 
@@ -544,6 +576,13 @@ async function extractOnce(url: string): Promise<ExtractedContent> {
     // encore la file.
     return await readPageText(response, FALLBACK_MAX_HTML_BYTES);
   });
+
+  // Page piégée : refusée sur son texte, avant toute analyse — les seuils du
+  // serveur (`EXTRACT_MAX_DEPTH`, `EXTRACT_MAX_ELEMENTS`, `server/extract.ts`).
+  // Readability coûte le cube de la profondeur : sans cette borne, une page
+  // que le serveur n'a pas pu refuser (route absente, file pleine, 422
+  // ordinaire) gelait l'onglet (relecture 1.9.0). Retenue pour la session.
+  if (markupTooComplex(html, FALLBACK_MARKUP_LIMITS)) throw new PageTooComplexError();
 
   // Parse into a DOM document that Readability can work with. Rendre les URLs
   // absolues AVANT Readability, qui résout sinon contre `doc.baseURI` —

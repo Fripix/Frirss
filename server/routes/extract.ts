@@ -3,7 +3,7 @@ import { requireAuth } from '../middleware/auth.js';
 import { assertTargetSafe, fetchUpstream, finishError, proxyRateLimiter, UnresolvedTargetError } from './proxy.js';
 import { cacheEnabled, cacheGet, cacheSet, extractKey } from '../cache.js';
 import { decodeBody } from '../charset.js';
-import { extractInWorker, ExtractorBusyError, PageTooComplexError, withExtractSlot } from '../extract.js';
+import { extractInWorker, ExtractorBusyError, ExtractTimeoutError, PageTooComplexError, withExtractSlot } from '../extract.js';
 
 const router = Router();
 
@@ -161,13 +161,15 @@ const IN_FLIGHT_MAX = 64;
 
 /**
  * Échecs d'ANALYSE gardés par URL (M-01) : une page piégée (refusée pour sa
- * complexité, ou arrêtée par le délai du worker) et une page sans article
+ * complexité) et une page sans article
  * lisible. Sans cette mémoire, chaque ouverture de l'article — et chaque
  * appareil, chaque préparation hors ligne — retéléchargeait la page et relançait
  * un worker pour jusqu'à 10 s de calcul.
  *
  * Seuls ces échecs-là y entrent : ils tiennent à la page, et ils ont coûté une
- * analyse. Une panne réseau, un délai amont, un refus du site, une file pleine
+ * analyse. Une panne réseau, un délai amont, un refus du site, une file pleine,
+ * un délai du worker dépassé (un serveur chargé peut le dépasser sur une page
+ * ordinaire — relecture 1.9.0)
  * ne disent rien de la page et ne sont jamais gardés.
  *
  * Bornée dans le temps (`EXTRACT_FAILURE_TTL_MS`) — une page corrigée par son
@@ -273,8 +275,13 @@ async function produce(url: string, key: string | null): Promise<Outcome> {
     article = await withExtractSlot(() => extractInWorker(url, html));
   } catch (err) {
     if (err instanceof ExtractorBusyError) return json(503, { error: 'Extractor busy' });
-    // Page piégée (trop imbriquée, trop d'éléments, délai ou mémoire du
-    // worker dépassés) : échec DÉFINITIF. `tooComplex` dit au client de ne
+    // Délai du worker dépassé : PAS une page piégée (relecture 1.9.0) — un
+    // serveur chargé peut le dépasser sur une page ordinaire. Ni gardé ici,
+    // ni retenu par le client, qui peut réessayer ; `timedOut` lui dit
+    // seulement de ne pas se replier (l'onglet paierait la même analyse).
+    if (err instanceof ExtractTimeoutError) return json(504, { error: 'Extraction timed out', timedOut: true });
+    // Page piégée (trop imbriquée, trop d'éléments, mémoire du worker
+    // épuisée) : échec DÉFINITIF. `tooComplex` dit au client de ne
     // pas se replier — son extracteur relirait la même page — et de la
     // retenir pour la session.
     if (err instanceof PageTooComplexError) {

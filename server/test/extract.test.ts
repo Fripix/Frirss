@@ -165,6 +165,26 @@ describe('stripBoilerplate', () => {
     expect(text).toContain('Une incise de l’article');
   });
 
+  // Relecture 1.9.0 (R1-2) : `share` et `newsletter` retiraient tout bloc dont
+  // la classe contenait le mot — un tableau de parts de marché, une analyse
+  // de « share of voice » — que Readability gardait. Il n'écarte lui-même un
+  // bloc « share » que s'il est court (moins de 500 caractères).
+  it('garde un tableau de parts de marché et une analyse dont la classe contient « share » ou « newsletter »', () => {
+    const rows = Array.from({ length: 15 }, (_, i) => `<tr><td>Company number ${i} shareholders</td><td>${(i * 3.1).toFixed(1)} percent of the market</td></tr>`).join('');
+    const analysis = 'SHAREDIV analysis paragraph that is a genuine part of the article body. '.repeat(12);
+    const issue = 'NEWSLETTERISSUE this week we look back at what happened in the market. '.repeat(10);
+    const text = strip(`<article><p>${long}</p><table class="share-table">${rows}</table><div class="share-of-voice-analysis"><p>${analysis}</p></div><section class="newsletter-issue"><p>${issue}</p></section><p>${long}</p><p>${long}</p><p>${long}</p><p>${long}</p></article>`);
+    expect(text).toContain('Company number 7 shareholders');
+    expect(text).toContain('SHAREDIV');
+    expect(text).toContain('NEWSLETTERISSUE');
+  });
+
+  it('retire toujours les boutons de partage et l’encart d’abonnement, qui sont courts', () => {
+    const text = strip(`<article><p>${long}</p><div class="share-buttons"><a href="/x">Partager sur Mastodon</a><a href="/y">Copier le lien</a></div><div class="post-newsletter"><p>Inscrivez-vous à notre lettre</p></div><p>${long}</p></article>`);
+    expect(text).not.toContain('Partager sur Mastodon');
+    expect(text).not.toContain('Inscrivez-vous');
+  });
+
   it('ne retire jamais un bloc qui porte la moitié du texte, quel que soit son nom', () => {
     // Une page ASP.NET enveloppe tout dans un `<form>`.
     expect(strip(`<form id="aspnetForm"><p>${long}</p><p>${long}</p></form><nav>Menu</nav>`)).toContain(long);

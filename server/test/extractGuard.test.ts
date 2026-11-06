@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  extractArticle, extractInWorker, EXTRACT_MAX_DEPTH, EXTRACT_MAX_ELEMENTS, PageTooComplexError,
+  extractArticle, extractInWorker, EXTRACT_MAX_DEPTH, EXTRACT_MAX_ELEMENTS, ExtractTimeoutError, PageTooComplexError,
 } from '../extract.js';
 
 // ── M-01 (campagne 1.9.0, second round) ──────────────────────────────
@@ -33,6 +33,17 @@ describe('extractArticle — refus rapide d’une page trop complexe', () => {
     const started = performance.now();
     expect(() => extractArticle('https://example.com/piege', nested(1000))).toThrow(PageTooComplexError);
     expect(performance.now() - started).toBeLessThan(1000);
+  });
+
+  // Relecture 1.9.0 (R1-3) : le refus se mesurait APRÈS `parseHTML`, lui-même
+  // quadratique en profondeur — 390 000 `<div>` jamais fermés (2 Mo) coûtaient
+  // 42 s avant le refus, 50 000 niveaux 1,2 s.
+  it('refuse sans même l’analyser une page de 390 000 `<div>` jamais fermés, et 50 000 niveaux', () => {
+    const started = performance.now();
+    const unclosed = `<html><body>${'<div>'.repeat(390_000)}</body></html>`;
+    expect(() => extractArticle('https://example.com/piege', unclosed)).toThrow(PageTooComplexError);
+    expect(() => extractArticle('https://example.com/piege', nested(50_000))).toThrow(PageTooComplexError);
+    expect(performance.now() - started).toBeLessThan(300);
   });
 
   it('refuse une page qui dépasse le nombre d’éléments, même plate', () => {
@@ -70,8 +81,9 @@ describe('extractInWorker — l’analyse hors de la boucle principale', () => {
     try {
       const err = await extractInWorker('https://example.com/large', wideAndDeep(), 1500).catch((e: unknown) => e);
       const elapsed = performance.now() - started;
-      expect(err).toBeInstanceOf(PageTooComplexError);
-      expect((err as PageTooComplexError).reason).toBe('timeout');
+      // Un délai n'est pas une page piégée (relecture 1.9.0) : un serveur
+      // chargé peut le dépasser sur une page ordinaire.
+      expect(err).toBeInstanceOf(ExtractTimeoutError);
       // Le délai tient, démarrage du worker compris : bien avant les ~2 s
       // d'analyse, et sans attendre qu'elle finisse.
       expect(elapsed).toBeLessThan(2500);

@@ -5121,7 +5121,11 @@ serveur de développement en 1.4.4.)*
   502 sans ce champ, site injoignable, se replie toujours), **et sauf un 422
   qui porte `tooComplex`** (1.9.0, M-01 : page piégée, refusée par le serveur
   pour sa complexité — `PageTooComplexError`, pas de repli, l'onglet relirait
-  la même page ; un 422 sans ce champ, rien de lisible, se replie toujours) — page récupérée par `/api/proxy` (**JWT requis**,
+  la même page ; un 422 sans ce champ, rien de lisible, se replie toujours),
+  **et sauf un 504 qui porte `timedOut`** (relecture 1.9.0 : l'analyse du
+  serveur a dépassé son délai — `ExtractTimeoutError`, pas de repli, l'onglet
+  paierait la même analyse, mais pas de mémoire non plus : « Réessayer » reste
+  utile ; un 504 sans ce champ se replie toujours) — page récupérée par `/api/proxy` (**JWT requis**,
   même garde anti-SSRF) puis Readability dans le navigateur. Ce repli n'est pas
   du code hérité : c'est ce qui tient quand le serveur n'a pas la route, ne sait
   pas lire la page, ou ne répond pas.
@@ -5134,6 +5138,14 @@ serveur de développement en 1.4.4.)*
   d'environ 50 Mo/s (tas JS stable) et Android le tuait au même article à
   chaque préparation hors ligne — vu sur l'émulateur, et très probablement le
   « navigateur d'Oya figé » de la même campagne.
+  ⚠️ **Le repli refuse aussi une page piégée, avant de l'analyser**
+  (`markupTooComplex` de `src/lib/markupBounds.ts`, copie conforme de celui
+  du serveur, mêmes seuils — `FALLBACK_MARKUP_LIMITS`) :
+  `PageTooComplexError`, retenue pour la session. Il n'avait aucune borne de
+  profondeur (relecture 1.9.0) : une page que le serveur n'a pas pu refuser
+  (route absente, file pleine, 422 ordinaire) passait à Readability, dont le
+  coût croît comme le cube de la profondeur — l'onglet gelait, et jsdom levait
+  même un `RangeError` à 2000 niveaux.
   ⚠️ **Les URLs relatives du repli sont rendues absolues À LA MAIN**
   (`src/utils/absolutizeUrls.ts`, 1.5.0), avant Readability, contre l'URL de
   l'article — ou contre le `<base>` que la page distante porte elle-même.
@@ -5274,9 +5286,14 @@ serveur de développement en 1.4.4.)*
   suivantes. Ils sortent donc du document **avant toute passe** : `footer`,
   `nav`, `form`, rôles `navigation` et `contentinfo` ; `aside` et rôle
   `complementary` **hors d'un `<article>`** seulement ; un bloc dont la classe
-  ou l'id contient `related`, `comment(s)`, `breadcrumb(s)`, `share`,
-  `sharing`, `footer` ou `newsletter` (jamais un titre ni un élément de
-  texte : `<h2 id="related-work">` reste) ; un court bloc qui commence par
+  ou l'id contient `related`, `comment(s)`, `breadcrumb(s)` ou `footer`
+  (jamais un titre ni un élément de texte : `<h2 id="related-work">` reste) ;
+  un bloc nommé `share`, `sharing` ou `newsletter` **s'il est court** (moins
+  de 500 caractères lisibles — la règle « share » de Readability lui-même :
+  un `<table class="share-table">` de parts de marché ou une
+  `div.share-of-voice-analysis` sortaient de l'article alors que Readability
+  les gardait, relecture 1.9.0 ; boutons de partage et encarts d'abonnement
+  sont courts) ; un court bloc qui commence par
   « Powered by ». Gardes : un bloc qui porte la moitié du texte lisible ou plus
   n'est jamais retiré (une page entière dans un `<form>` ASP.NET), ni un bloc
   qui porte l'auteur (mêmes signaux que Readability, qui lit l'auteur avant
@@ -5293,7 +5310,9 @@ serveur de développement en 1.4.4.)*
   débarrassés de leurs blocs étrangers ; aucune autre ne perd ni ne gagne un
   caractère, aucune image, aucun auteur ni titre ne bouge, le CERT-FR garde son
   corps complet. Le bloc « Related » au milieu du texte n'apparaissait plus sur
-  les articles du jour : un test direct du nettoyage le couvre.
+  les articles du jour : un test direct du nettoyage le couvre. Le
+  resserrement de `share`/`newsletter` ne change aucune de ces pages
+  (comparaison avant/après, 2026-11-06).
 - **Version de l'extraction** (1.9.0, A-2 — `server/extractVersion.ts` et
   `src/lib/extractVersion.ts`, même valeur vérifiée par
   `server/test/cache.test.ts`). À monter à chaque changement du résultat de
@@ -5341,10 +5360,10 @@ serveur de développement en 1.4.4.)*
     le lecteur. Le volet ne lance pas d'extraction automatique sur une vidéo,
     ne l'attend pas (pas de squelette) et n'affiche aucun échec ;
   - **un échec qui tient à la PAGE est retenu pour la session** (pas une page,
-    trop grosse, trop complexe — le 422 `tooComplex` du serveur, M-01 —, rien de lisible, refus **4xx** du site ou du repli hors 408
+    trop grosse, trop complexe — le 422 `tooComplex` du serveur, M-01, ou le refus du repli lui-même —, rien de lisible, refus **4xx** du site ou du repli hors 408
     et 429 — `isPageRefusal`) : les extractions automatiques et les files de
     fond ne la redemandent plus (`worthAutoExtracting`). Une cadence dépassée,
-    un délai, une panne réseau ou un **5xx**, du site comme du proxy, ne sont
+    un délai (dont celui de l'analyse du serveur, `timedOut`), une panne réseau ou un **5xx**, du site comme du proxy, ne sont
     PAS retenus : ils ne disent rien de la page (un 503 passager excluait
     sinon la page de l'automatique jusqu'au rechargement — relecture 1.9.0).
     Ni un **401/403 de `/api/proxy`** : il peut venir de FriRSS lui-même
@@ -7617,11 +7636,22 @@ qu'elle rend (voir *Extraction du contenu complet*).
   proxy de tous les comptes —, et l'auteur d'un flux auquel on est abonné
   pouvait le déclencher (extraction automatique, préparation hors ligne). Trois
   couches, depuis :
-  - **Refus rapide** juste après l'analyse HTML, avant toute passe Readability :
-    profondeur au-delà de `EXTRACT_MAX_DEPTH` (256, `<html>` compte pour 1) ou
-    plus de `EXTRACT_MAX_ELEMENTS` éléments (60 000). Parcours itératif, qui
-    s'arrête au premier dépassement : le piège de 5000 niveaux est refusé en
-    ~50 ms. Calibrage (2026-11-06) sur 38 pages réelles de la campagne et deux
+  - **Refus rapide sur le texte, avant l'analyse HTML** (`markupTooComplex`,
+    `server/markupBounds.ts`) : profondeur au-delà de `EXTRACT_MAX_DEPTH` (256,
+    `<html>` compte pour 1) ou plus de `EXTRACT_MAX_ELEMENTS` balises ouvrantes
+    (60 000). Un balayage linéaire du HTML qui rejoue la pile de htmlparser2,
+    l'analyseur de linkedom : éléments vides, fermetures implicites (`<p>`,
+    `<li>`, `<td>`…), fermeture qui remonte au même nom, `<x/>` qui ne ferme
+    qu'en SVG/MathML, contenu de `script`/`style`/`title`/`textarea`/`xmp`,
+    commentaires et attributs ignorés. ~4 ms pour 2 Mo. ⚠️ **L'analyse HTML
+    n'est pas bon marché sur une page piégée** : la première version mesurait
+    l'arbre APRÈS `parseHTML`, or linkedom est lui-même quadratique en
+    profondeur (sa pile insère en tête) — 50 000 `<div>` imbriqués coûtaient
+    1,2 s avant le refus, 390 000 `<div>` jamais fermés (2 Mo) 42 s, bornés
+    seulement par le délai du worker (relecture 1.9.0). Sur les 44 pages du
+    corpus, l'estimation et l'arbre réel diffèrent d'un niveau au plus.
+    L'arbre est encore mesuré après `parseHTML` (`assertTreeBounded`), comme
+    filet. Calibrage (2026-11-06) sur 38 pages réelles de la campagne et deux
     longues pages Wikipédia (2 et 3 Mo) : profondeur maximale relevée 34,
     éléments 21 828. Coût au seuil d'une page faite pour coûter : 256 niveaux
     seuls ~0,17 s, 60 000 éléments à 16 niveaux ~0,9 s.
@@ -7636,14 +7666,22 @@ qu'elle rend (voir *Extraction du contenu complet*).
     plus, en mémoire du processus) : une page refusée pour sa complexité et une
     page sans article lisible sont rendues sans être ni retéléchargées ni
     réanalysées. Seuls ces échecs-là — ils tiennent à la page et ont coûté une
-    analyse ; une panne réseau, un refus du site ou une file pleine ne sont
-    jamais gardés.
-  Le refus se dit `422 { error: 'Page too complex', tooComplex: true }` (délai et
-  mémoire du worker compris) : le client le traite comme un **échec définitif**
-  — pas de repli sur son propre extracteur, page retenue pour la session
-  (`PageTooComplexError`, `src/utils/extractContent.ts`) ; « Article complet »
-  peut toujours la redemander, et le serveur répond alors depuis sa mémoire
-  d'échecs.
+    analyse ; une panne réseau, un refus du site, une file pleine ou un délai
+    du worker dépassé ne sont jamais gardés.
+  Le refus se dit `422 { error: 'Page too complex', tooComplex: true }`
+  (profondeur, éléments, mémoire du worker) : le client le traite comme un
+  **échec définitif** — pas de repli sur son propre extracteur, page retenue
+  pour la session (`PageTooComplexError`, `src/utils/extractContent.ts`) ;
+  « Article complet » peut toujours la redemander, et le serveur répond alors
+  depuis sa mémoire d'échecs.
+  **Un délai du worker dépassé n'est PAS un refus** (relecture 1.9.0) : un
+  serveur chargé (cinq analyses, machine lente) peut dépasser 10 s sur une
+  page ordinaire, que la première version perdait alors pour la session. Il se
+  dit `504 { error: 'Extraction timed out', timedOut: true }`
+  (`ExtractTimeoutError` des deux côtés) : ni gardé par le serveur, ni retenu
+  par le client — échec ordinaire, « Réessayer » possible, l'automatique la
+  redemandera —, mais **sans repli** : l'onglet paierait la même analyse. Un
+  504 sans `timedOut` (site trop lent pour le serveur) se replie toujours.
   **File : cinq analyses au plus** (`EXTRACT_MAX_PENDING`). Le compteur est pris
   à l'ARRIVÉE, tenu pendant le travail du worker et rendu au départ : il borne
   donc la file ET le nombre de workers vivants (cinq, chacun ≤ 10 s et 256 Mo).
@@ -7809,7 +7847,9 @@ qu'elle rend (voir *Extraction du contenu complet*).
   (`EXTRACT_MAX_PENDING`) : même code, deux corps distincts, et le client se
   replie dans les deux cas. Et un 422 à deux corps : `Not extractable` (rien de
   lisible, le client se replie) et `Page too complex` avec `tooComplex: true`
-  (M-01, page piégée : le client ne se replie pas). Le corps ne nomme jamais la cible, et la ligne de
+  (M-01, page piégée : le client ne se replie pas). Et un 504 propre, `Extraction
+  timed out` avec `timedOut: true` : le délai du worker, distinct du 504 d'un
+  délai amont (le client ne se replie que sur ce dernier). Le corps ne nomme jamais la cible, et la ligne de
   journal passe par `redactUrl` dans **toutes** les branches — la branche 503
   écrivait la cible en clair jusqu'au 2026-09-04, alors que le préchargement
   d'images y fait passer des URL de CDN signées par leur requête.
