@@ -373,6 +373,19 @@ describe('extractFullContent — repli local : blocs étrangers (M-04)', () => {
     expect(text).toContain('Paragraphe 20');
     for (const junk of ['PUB DU SITE', 'DEMOREPLI', 'jamais revendues', 'commission', 'COLONNE']) expect(text).not.toContain(junk);
   });
+
+  // B-02 (quatrième round) : chaque formulaire de lettre d'information
+  // relisait tout le texte de son billet (voir le serveur) : 3,4 s ici dans
+  // jsdom, 0,23 s depuis — Readability compris.
+  it('ne relit pas tout le billet pour chaque formulaire de lettre d’information', async () => {
+    const paragraph = `<p>${'Lorem ipsum dolor sit amet, consectetur adipiscing elit. '.repeat(40)}</p>`;
+    fallbackOn(`<html><head><title>Article</title></head><body><article><h1>Article</h1>${paragraph.repeat(200)}${'<div class="newsletter"><input></div>'.repeat(2000)}</article></body></html>`);
+    const started = performance.now();
+    const { content } = await extractFullContent('https://example.com/formulaires');
+    expect(performance.now() - started).toBeLessThan(1500);
+    expect(content).toContain('Lorem ipsum');
+    expect(content).not.toContain('<input');
+  });
 });
 
 // ── Corps réparti en plusieurs blocs (campagne 1.9.0, troisième round) ──

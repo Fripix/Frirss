@@ -5474,6 +5474,15 @@ serveur de développement en 1.4.4.)*
   ni « formulaire » ; un bloc `newsletter` à champ de saisie qui porte la
   moitié du texte de son billet ou plus reste (une lettre publiée comme
   billet : seul le conteneur de son formulaire sort).
+  ⚠️ **Coût de cette garde** (quatrième round, B-02) : chaque bloc
+  `newsletter` à champ de saisie relisait tout le texte de son billet —
+  4 000 formulaires au pied d'un billet de 1 Mo coûtaient 11,4 s, 3,4 s dans
+  le repli (jsdom). Le texte d'un billet est désormais mesuré une fois par
+  nettoyage, puis tenu à jour à chaque retrait (sauf d'un bloc rangé sous un
+  `noscript`, `template`, `script` ou `style`, dont le texte n'y comptait
+  pas) : chaque bloc le voit tel qu'il reste, comme quand il le relisait.
+  Celui du bloc s'arrête à la moitié du billet. 11,4 s → 57 ms ; aucune des
+  275 pages du corpus ne change (2026-11-06).
   ⚠️ **Pièges trouvés en le mesurant** : un `aside` DANS l'article (fenêtres
   « Suivre » du chapeau de The Verge) ne doit pas sortir — son retrait
   changeait le poids du chapeau et Readability perdait l'image d'en-tête ;

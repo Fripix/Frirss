@@ -672,7 +672,10 @@ const POWERED_BY = /^powered by\b/i;
 /** Un crédit est court : au-delà, c'est une phrase d'article. */
 const POWERED_BY_MAX_LENGTH = 120;
 
-function isBoilerplate(el: Element, insideArticle: boolean): boolean {
+/** Texte lisible d'un billet, mesuré une fois par nettoyage (voir `stripBoilerplate`). */
+type PostLength = (post: Element) => number;
+
+function isBoilerplate(el: Element, insideArticle: boolean, postLength: PostLength): boolean {
   const tag = el.tagName.toLowerCase();
   const role = (el.getAttribute('role') || '').toLowerCase();
   if (BOILERPLATE_TAGS.has(tag) || BOILERPLATE_ROLES.has(role)) return true;
@@ -684,7 +687,7 @@ function isBoilerplate(el: Element, insideArticle: boolean): boolean {
     // Ni le billet ni le conteneur principal ne sont jugés « courts » ou
     // « formulaire » : ce sont eux qu'on extrait.
     if (!isPostContainer(tag, role)) {
-      if (tokens.includes('newsletter') && el.querySelector(FORM_CONTROLS) && !carriesMostOfItsPost(el)) return true;
+      if (tokens.includes('newsletter') && el.querySelector(FORM_CONTROLS) && !carriesMostOfItsPost(el, postLength)) return true;
       if (tokens.some((token) => SHORT_BLOCK_TOKENS.has(token))
         && visibleTextLength(el, READABILITY_CHAR_THRESHOLD) < READABILITY_CHAR_THRESHOLD) return true;
     }
@@ -719,11 +722,17 @@ function isPostContainer(tag: string, role: string): boolean {
  * principal) ? Alors c'est le corps — une lettre d'information publiée comme
  * billet, dont le formulaire d'abonnement n'est qu'une partie — et la règle
  * « newsletter + champ » ne vise que le conteneur du formulaire.
+ *
+ * Le texte du billet n'est PAS relu à chaque bloc (B-02, quatrième round) :
+ * 4 000 formulaires au pied d'un billet de 1 Mo coûtaient 11,4 s, chacun
+ * relisant le billet entier. `postLength` le mesure une fois ; celui du bloc
+ * s'arrête à la moitié du billet, seule question posée.
  */
-function carriesMostOfItsPost(el: Element): boolean {
+function carriesMostOfItsPost(el: Element, postLength: PostLength): boolean {
   const post = el.parentElement?.closest('article, main, [role="main"]');
   if (!post) return false;
-  return visibleTextLength(el) >= visibleTextLength(post) * MAIN_CONTAINER_MIN_SHARE;
+  const half = postLength(post) * MAIN_CONTAINER_MIN_SHARE;
+  return visibleTextLength(el, half) >= half;
 }
 
 /** Une `<figcaption>` voisine : la légende qui dit déjà ce que dit le repli. */
@@ -768,15 +777,41 @@ function visibleTextLength(root: Element, stopAt = Infinity): number {
 /** Retire de `root` (jamais `root` lui-même) les blocs étrangers à l'article. */
 export function stripBoilerplate(root: Element): void {
   const total = visibleTextLength(root);
+  // Texte des billets déjà mesurés (B-02), tenu à jour à chaque retrait :
+  // un billet se mesure tel qu'il reste, comme quand chaque bloc le relisait.
+  const posts = new Map<Element, number>();
+  const postLength: PostLength = (post) => {
+    let length = posts.get(post);
+    if (length === undefined) posts.set(post, length = visibleTextLength(post));
+    return length;
+  };
   const stack: Array<[Element, boolean]> = Array.from(root.children, (child) => [child, false]);
   while (stack.length) {
     const [el, insideArticle] = stack.pop()!;
-    if (isBoilerplate(el, insideArticle) && visibleTextLength(el) < total * MAIN_CONTAINER_MIN_SHARE && !carriesByline(el)) {
-      el.remove();
-      continue;
+    if (isBoilerplate(el, insideArticle, postLength)) {
+      const length = visibleTextLength(el);
+      if (length < total * MAIN_CONTAINER_MIN_SHARE && !carriesByline(el)) {
+        if (posts.size) forgetText(posts, el, length);
+        el.remove();
+        continue;
+      }
     }
     const inArticle = insideArticle || el.tagName.toLowerCase() === 'article';
     for (let child = el.firstElementChild; child; child = child.nextElementSibling) stack.push([child, inArticle]);
+  }
+}
+
+/**
+ * `el`, de texte lisible `length`, va être retiré : les billets mesurés qui le
+ * contiennent perdent ce texte — sauf au-dessus d'un élément dont le texte
+ * n'est pas lu (`INVISIBLE`), où il n'avait jamais compté.
+ */
+function forgetText(posts: Map<Element, number>, el: Element, length: number): void {
+  let unread = false;
+  for (let ancestor = el.parentElement; ancestor; ancestor = ancestor.parentElement) {
+    if (INVISIBLE.has(ancestor.tagName.toLowerCase())) unread = true;
+    const measured = posts.get(ancestor);
+    if (measured !== undefined && !unread) posts.set(ancestor, measured - length);
   }
 }
 

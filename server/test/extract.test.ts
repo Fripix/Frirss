@@ -326,6 +326,40 @@ describe('stripBoilerplate', () => {
     expect(text).toContain(long);
   });
 
+  // B-02 (quatrième round) : chaque bloc « newsletter » à champ de saisie
+  // relisait tout le texte de son billet — 4 000 blocs au pied d'un billet de
+  // 1 Mo coûtaient 11,4 s.
+  it('ne relit pas tout le billet pour chaque formulaire de lettre d’information', () => {
+    const { document } = parseHTML(`<html><body><article>${'<p>Lorem ipsum dolor sit amet consectetur.</p>'.repeat(15_000)}${'<div class="newsletter"><input></div>'.repeat(3000)}</article></body></html>`);
+    const started = performance.now();
+    stripBoilerplate(document.documentElement as unknown as Element);
+    expect(performance.now() - started).toBeLessThan(1000);
+    expect(document.querySelectorAll('.newsletter')).toHaveLength(0);
+  });
+
+  it('mesure le billet tel qu’il reste après les retraits déjà faits', () => {
+    // Le dernier formulaire, jugé le premier, sort ; le premier porte alors
+    // plus de la moitié de ce qui reste du billet (600 sur 800) : c'est le
+    // corps d'une lettre, il reste. Mesuré avant le retrait (1 450), il sortait.
+    const words = (n: number, word: string) => `${word} `.repeat(n / (word.length + 1));
+    const text = strip(`<article><div class="newsletter-issue"><p>${words(600, 'LETTRE')}</p><input type="email"></div><p>${words(200, 'autre')}</p><div class="newsletter-form"><p>${words(650, 'formulaire')}</p><input type="email"></div></article>`);
+    expect(text).toContain('LETTRE');
+    expect(text).not.toContain('formulaire');
+  });
+
+  it('un retrait dans un `noscript` ne change pas la mesure du billet, où il ne comptait pas', () => {
+    // Le formulaire « LETTRE » (600) porte moins de la moitié du billet
+    // (1 300) : il sort. Ôter du billet les 400 caractères du bloc retiré dans
+    // le `noscript`, qui n'y étaient pas comptés, le faisait passer pour le corps.
+    const words = (n: number, word: string) => `${word} `.repeat(n / (word.length + 1));
+    const { document } = parseHTML(`<html><body><article><div class="newsletter-issue"><p>${words(600, 'LETTRE')}</p><input type="email"></div><p>${words(700, 'texte')}</p><noscript><div class="share-box"><p>${words(400, 'partage')}</p></div></noscript><div class="newsletter-form"><p>${words(100, 'abonnement')}</p><input type="email"></div></article></body></html>`);
+    stripBoilerplate(document.documentElement as unknown as Element);
+    const text = document.body.textContent || '';
+    expect(text).toContain('texte');
+    expect(text).not.toContain('partage');
+    expect(text).not.toContain('LETTRE');
+  });
+
   it('retire le texte de repli d’une démo CodePen que sa légende répète', () => {
     // Smashing Magazine : le repli (« See the Pen … ») et la légende disent la
     // même chose ; le script de CodePen ne tournera jamais dans l'extrait.

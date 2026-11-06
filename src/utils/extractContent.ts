@@ -501,7 +501,10 @@ const POWERED_BY_MAX_LENGTH = 120;
 const BYLINE_SIGNALS = '[rel~="author"], [itemprop*="author"], [class*="byline"], [id*="byline"], [class*="author"], [id*="author"], [class*="dateline"], [class*="writtenby"]';
 const INVISIBLE = new Set(['script', 'style', 'template', 'noscript']);
 
-function isBoilerplate(el: Element, insideArticle: boolean): boolean {
+/** Texte lisible d'un billet, mesuré une fois par nettoyage (B-02, voir le serveur). */
+type PostLength = (post: Element) => number;
+
+function isBoilerplate(el: Element, insideArticle: boolean, postLength: PostLength): boolean {
   const tag = el.tagName.toLowerCase();
   const role = (el.getAttribute('role') || '').toLowerCase();
   if (BOILERPLATE_TAGS.has(tag) || BOILERPLATE_ROLES.has(role)) return true;
@@ -511,7 +514,7 @@ function isBoilerplate(el: Element, insideArticle: boolean): boolean {
     const tokens = `${withoutTaxonomy(el.getAttribute('class'))} ${el.getAttribute('id') || ''}`.toLowerCase().split(/[^a-z0-9]+/);
     if (tokens.some((token) => BOILERPLATE_TOKENS.has(token))) return true;
     if (!isPostContainer(tag, role)) {
-      if (tokens.includes('newsletter') && el.querySelector(FORM_CONTROLS) && !carriesMostOfItsPost(el)) return true;
+      if (tokens.includes('newsletter') && el.querySelector(FORM_CONTROLS) && !carriesMostOfItsPost(el, postLength)) return true;
       if (tokens.some((token) => SHORT_BLOCK_TOKENS.has(token))
         && visibleTextLength(el, SHORT_BLOCK_MAX) < SHORT_BLOCK_MAX) return true;
     }
@@ -534,11 +537,13 @@ function isPostContainer(tag: string, role: string): boolean {
   return tag === 'article' || tag === 'main' || role === 'main';
 }
 
-/** Moitié du texte de son billet ou plus : le corps d'une lettre publiée comme billet. */
-function carriesMostOfItsPost(el: Element): boolean {
+/** Moitié du texte de son billet ou plus : le corps d'une lettre publiée comme billet.
+ *  Le billet n'est pas relu à chaque bloc (B-02) : `postLength` le mesure une fois. */
+function carriesMostOfItsPost(el: Element, postLength: PostLength): boolean {
   const post = el.parentElement?.closest('article, main, [role="main"]');
   if (!post) return false;
-  return visibleTextLength(el) >= visibleTextLength(post) * MAIN_CONTAINER_MIN_SHARE;
+  const half = postLength(post) * MAIN_CONTAINER_MIN_SHARE;
+  return visibleTextLength(el, half) >= half;
 }
 
 function hasCaptionSibling(el: Element): boolean {
@@ -569,15 +574,36 @@ function visibleTextLength(root: Element, stopAt = Infinity): number {
 /** Retire de `root` (jamais `root` lui-même) les blocs étrangers à l'article. */
 function stripBoilerplate(root: Element): void {
   const total = visibleTextLength(root);
+  // Billets déjà mesurés, tenus à jour à chaque retrait (B-02, voir le serveur).
+  const posts = new Map<Element, number>();
+  const postLength: PostLength = (post) => {
+    let length = posts.get(post);
+    if (length === undefined) posts.set(post, length = visibleTextLength(post));
+    return length;
+  };
   const stack: Array<[Element, boolean]> = Array.from(root.children, (child) => [child, false]);
   while (stack.length) {
     const [el, insideArticle] = stack.pop()!;
-    if (isBoilerplate(el, insideArticle) && visibleTextLength(el) < total * MAIN_CONTAINER_MIN_SHARE && !carriesByline(el)) {
-      el.remove();
-      continue;
+    if (isBoilerplate(el, insideArticle, postLength)) {
+      const length = visibleTextLength(el);
+      if (length < total * MAIN_CONTAINER_MIN_SHARE && !carriesByline(el)) {
+        if (posts.size) forgetText(posts, el, length);
+        el.remove();
+        continue;
+      }
     }
     const inArticle = insideArticle || el.tagName.toLowerCase() === 'article';
     for (let child = el.firstElementChild; child; child = child.nextElementSibling) stack.push([child, inArticle]);
+  }
+}
+
+/** Les billets mesurés qui contiennent `el` perdent son texte — sauf sous un élément dont le texte n'est pas lu. */
+function forgetText(posts: Map<Element, number>, el: Element, length: number): void {
+  let unread = false;
+  for (let ancestor = el.parentElement; ancestor; ancestor = ancestor.parentElement) {
+    if (INVISIBLE.has(ancestor.tagName.toLowerCase())) unread = true;
+    const measured = posts.get(ancestor);
+    if (measured !== undefined && !unread) posts.set(ancestor, measured - length);
   }
 }
 
