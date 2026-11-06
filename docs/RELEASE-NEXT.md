@@ -150,6 +150,30 @@ la release publiée.
   « lu/non lu » encore en route avant de partir.
 - **Préparation hors ligne** : un article refusé parce que le serveur est
   occupé est redemandé en fin de passage.
+- **Changer de serveur pendant une écriture** : un geste qui attendait son
+  tour (après « Tout lu », par exemple) ou une action hors ligne rejouée ne
+  part plus vers le nouveau serveur ; il attend le retour du sien.
+- **Relève** : si FriRSS redémarre pendant une relève, elle se conclut
+  aussitôt au lieu de bloquer le bouton dix minutes.
+- **Article complet** : les images chargées « à la demande » (Numerama,
+  Frandroid…) et celles enveloppées dans un bouton de zoom (Zoomit) sont
+  gardées ; publicités, mentions d'affiliation, formulaires d'abonnement,
+  replis CodePen en double et colonnes latérales sont retirés ; un extrait
+  qui ne contient presque rien du texte du flux n'est plus montré
+  automatiquement (billet court remplacé par l'habillage du site).
+- **Ajouter un flux** : la nouvelle catégorie suit les mêmes règles que dans
+  les Préférences (pas de « / », pas le nom d'une étiquette, une catégorie
+  existante est réutilisée), et un flux déjà suivi est signalé.
+- **Préparation hors ligne** : elle dit quand elle attend le serveur, et son
+  bilan distingue les articles prêts avec leur article complet.
+- **Divers** : « Erreur de chargement » ne s'affiche plus sur une vue qu'on
+  vient de quitter ; un flux renommé renomme sa source sur les cartes déjà
+  chargées ; le bouton « Enregistrer » du thème et la légende IA tiennent à
+  320 px dans toutes les langues ; l'échec d'« Article complet » est annoncé
+  et propose « Réessayer » ; l'aide « ? » et les Préférences listent les
+  mêmes gestes, ⌘K / Ctrl+K compris ; le libellé « Ajouter un flux » du tiroir
+  est dans son bouton ; un « Déjà en français » mis en cache avant la mise à
+  jour est revérifié.
 - **Aperçus des cartes** : les entités HTML sont décodées (« &amp; »
   s'affiche « & »).
 - **Résumés IA** : un résumé en arabe ou en persan s'affiche de droite à
@@ -167,6 +191,7 @@ la release publiée.
   (deux utilisateurs FreshRSS) ne partagent plus leurs listes en cache ; la
   liste d'un serveur supprimé ou changé d'identité est purgée.
 - **nginx** : la page 404 porte les mêmes en-têtes de sécurité que le reste.
+- **Image plus légère** : les tests compilés du serveur ne sont plus livrés.
 - **Le jeton d'écriture de FreshRSS ne quitte plus le serveur.** Le proxy signe
   lui-même les écritures ; le navigateur ne pouvait plus en tirer, avec sa
   session FriRSS, un accès à FreshRSS qui survivait à la déconnexion.
