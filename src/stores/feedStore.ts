@@ -23,6 +23,8 @@ import {
 } from '../api/feeds';
 import { entryIdUsec, exclusiveOlderThanEntryId, isOlderEntry } from '../lib/entryId';
 import { articleHaystack, parseQuery, matchesTerms } from '../lib/searchMatch';
+import { previewText } from '../lib/articlePreview';
+import { createWriteSerial } from '../lib/writeSerial';
 import { scanErrorKind } from '../lib/scanError';
 import {
   createCorpus, addPage, corpusIsUsable, corpusMatches, matchPage, newerEntries, prependEntries,
@@ -974,7 +976,8 @@ export interface FeedState {
    */
   bulkWork: { done: number; total: number | null } | null;
   markReadRelative: (article: Article, direction: 'above' | 'below') => Promise<void>;
-  loadLabels: () => Promise<void>;
+  /** `newCountsOnly` : les comptes ne sont redemandés que si une étiquette n'en a pas (relecture d'onglet). */
+  loadLabels: (opts?: { newCountsOnly?: boolean }) => Promise<void>;
   toggleReadLater: (article: Article) => Promise<void>;
   toggleArticleLabel: (article: Article, labelId: string) => Promise<void>;
   renameLabel: (oldLabelId: string, newName: string) => Promise<boolean>;
@@ -1130,6 +1133,14 @@ let gestureSeq = 0;
 const gesture = (): Gesture => ({ scope: offlineScope(), seq: ++gestureSeq });
 /** Clé d'action → numéro du dernier geste confirmé en direct par le serveur. */
 const settledGestures = new Map<string, number>();
+/**
+ * Les écritures d'un même attribut d'un même article partent dans l'ordre des
+ * gestes (M-12, `src/lib/writeSerial.ts`) : la clé est celle de la file hors
+ * ligne, portée comprise.
+ */
+const writeSerial = createWriteSerial();
+const inOrder = <T>(g: Gesture, articleId: string, type: QueuedActionType, write: () => Promise<T>): Promise<T> =>
+  writeSerial(`${g.scope}|${actionKey(articleId, type)}`, write);
 
 function writeFieldOf(type: QueuedActionType, labelId?: string): WriteField {
   if (type === 'read') return 'read';
@@ -1259,6 +1270,10 @@ async function enqueueAction(
   // resté en vol jusqu'au délai d'attente, est dépassé.
   if ((settledGestures.get(key) ?? 0) > g.seq) { localWrites.touch(scope, articleId, field); return; }
   await loadQueue();
+  // Revu après l'attente : les écritures d'un article partant en série
+  // (M-12), le geste suivant part dès que celle-ci a échoué, et il a pu être
+  // confirmé pendant la lecture de la file.
+  if ((settledGestures.get(key) ?? 0) > g.seq) { localWrites.touch(scope, articleId, field); return; }
   actionQueue = mergeAction(actionQueue, {
     key, articleId, type, value, labelId, at: Date.now(), attempts: 0, scope, seq: g.seq, sourceId: article.sourceId,
   });
@@ -1481,7 +1496,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     readWritesInFlight++; // Important 1 — voir la garde en tête de fichier
     const g = gesture();
     // Le règlement de la file ne doit jamais passer pour un échec de l'écriture.
-    markAsRead(article.id).then(() => { settleAction(set, g, article, 'read', true).catch(() => {}); }).catch((err) => {
+    inOrder(g, article.id, 'read', () => markAsRead(article.id)).then(() => { settleAction(set, g, article, 'read', true).catch(() => {}); }).catch((err) => {
       // No network: keep it read and replay later. Only a refusal is reverted.
       if (isNetworkFailure(err)) {
         enqueueAction(set, g, article, 'read', true);
@@ -1541,37 +1556,12 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       // sont que des différences entre deux serveurs. Avant `applyZeroFloor` :
       // les planchers zéro sont eux aussi ceux du nouveau serveur.
       if (String(useAuthStore.getState().activeServerId) !== String(reading.serverId)) return;
-      const serverUrl = useAuthStore.getState().serverUrl.replace(/\/$/, '');
-      // Normalize favicon URLs — FreshRSS often returns internal Docker IPs
-      // (e.g. http://10.0.0.10/f.php?h=abc) instead of the public URL.
-      // We extract the path+query and prepend the user's serverUrl.
-      const normalizedSubs = subs.map((sub) => {
-        let iconUrl = sub.iconUrl;
-        if (iconUrl) {
-          try {
-            const parsed = new URL(iconUrl, serverUrl);
-            // Rewrite to use the public server URL (keeps path + query)
-            iconUrl = `${serverUrl}${parsed.pathname}${parsed.search}`;
-          } catch {
-            // If URL parsing fails, try simple prepend for relative paths
-            if (!iconUrl.startsWith('http')) {
-              iconUrl = `${serverUrl}${iconUrl.startsWith('/') ? '' : '/'}${iconUrl}`;
-            }
-          }
-        }
-        return { ...sub, iconUrl };
-      });
+      const normalizedSubs = withPublicIcons(subs);
       const countMap: Record<string, number> = {};
       counts.forEach((c) => {
         countMap[c.id] = c.count;
       });
-      // Collect category IDs (to distinguish from user labels)
-      const catIds: string[] = [];
-      normalizedSubs.forEach((sub) => {
-        sub.categories?.forEach((c) => {
-          if (c.id && !catIds.includes(c.id)) catIds.push(c.id);
-        });
-      });
+      const catIds = categoryIdsOf(normalizedSubs);
       const next = applyZeroFloor(countMap);
       // Arrivées depuis le dernier relevé (voir `arrivalsInView`). Un flux que
       // le store ne connaissait pas (on vient de l'ajouter) apporte tout son
@@ -2201,11 +2191,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       // bouge plus d'ici là. Voir la garde en tête de fichier.
       readWritesInFlight++;
       try {
-        if (newRead) {
-          await markAsRead(article.id);
-        } else {
-          await markAsUnread(article.id);
-        }
+        await inOrder(g, article.id, 'read', () => (newRead ? markAsRead(article.id) : markAsUnread(article.id)));
       } finally {
         readWritesInFlight--;
         bumpCountsEpoch(); // règlement (succès ou échec)
@@ -2335,11 +2321,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     try {
       specialWritesInFlight++;
       try {
-        if (newStarred) {
-          await markAsStarred(article.id);
-        } else {
-          await removeStarred(article.id);
-        }
+        await inOrder(g, article.id, 'star', () => (newStarred ? markAsStarred(article.id) : removeStarred(article.id)));
       } finally {
         specialWritesInFlight--;
         specialEpoch++; // règlement (succès ou échec)
@@ -2938,7 +2920,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   },
 
   // Labels / tags — exclude categories (which are used for feeds)
-  loadLabels: async () => {
+  loadLabels: async (opts) => {
     const scope = offlineScope(); // la réponse d'un serveur quitté n'a rien à dire ici
     try {
       const tags = await getTagList();
@@ -2955,9 +2937,13 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       // sans que FreshRSS n'enregistre rien (L-13).
       const labels = userLabels(tags, [...categoryIds], READ_LATER_LABEL);
       const folderIds = tags.filter((t) => t.type === 'folder' && t.id).map((t) => t.id);
+      const known = get().labelCounts;
       set({ labels, folderIds });
       // Article counts per label (background, only if the user shows them).
-      if (useUiStore.getState().showLabelCounts) get().loadLabelCounts();
+      // La relecture du retour sur l'onglet ne les redemande que pour une
+      // étiquette nouvelle : sinon, une requête par étiquette à chaque retour.
+      const wanted = !opts?.newCountsOnly || labels.some((l) => !(l.id in known));
+      if (wanted && useUiStore.getState().showLabelCounts) get().loadLabelCounts();
     } catch { /* ignore */ }
   },
 
@@ -3017,7 +3003,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     try {
       specialWritesInFlight++;
       try {
-        await setArticleLabel(article.id, READ_LATER_LABEL, !hasLabel);
+        await inOrder(g, article.id, 'readLater', () => setArticleLabel(article.id, READ_LATER_LABEL, !hasLabel));
       } finally {
         specialWritesInFlight--;
         specialEpoch++; // règlement (succès ou échec)
@@ -3415,7 +3401,9 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   // Full sync — refresh counters + reload current article list
   // Used when tab regains visibility (cross-device scenario)
   silentRefresh: async () => {
-    await get().syncCounts();
+    // Pas pendant un relevé : son sondage passe ici toutes les 3 s, et il
+    // relit tout lui-même à la fin (`loadSubscriptions`).
+    await Promise.all([get().syncCounts(), get().refreshPhase === 'running' ? null : rereadStructure()]);
     // Une recherche affiche sa propre liste (`searchResults` filtrés par le
     // balayage), sous un en-tête qui l'annonce toujours — `viewKey` l'ignore
     // (flux + filtre seulement). Un retour d'onglet ou un tirer-pour-
@@ -3440,6 +3428,16 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     // `newInView` à zéro pour une vue qui n'est plus à l'écran.
     const key = viewKey(selectedFeed, filter);
     const since = localWrites.mark();
+    // Une relecture, comme celle de `loadArticles` : `revalidating` refuse la
+    // suite pendant le vol et, à sa retombée, la liste rejoue une fois la
+    // décision du bas (`ArticleList`). Sans lui, une page de suite en vol
+    // pendant un retour d'onglet était jetée (la relecture remplace la suite)
+    // et rien ne la redemandait : liste figée en bas (M-02). Le drapeau n'est
+    // pris que s'il est libre — un `loadArticles` déjà en vol le relèvera lui-
+    // même — et n'est rendu que sur la même vue : une autre vue a son propre
+    // chargement, qui le possède désormais.
+    const owns = !get().revalidating;
+    if (owns) set({ revalidating: true });
     try {
       const result = await fetchArticleStream(filter, selectedFeed, PAGE_SIZE, null);
       if (!result) return;
@@ -3478,7 +3476,9 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
           listFailed: false,
         };
       });
-    } catch { /* ignore */ }
+    } catch { /* ignore */ } finally {
+      if (owns && viewKey(get().selectedFeed, get().filter) === key && !get().randomView) set({ revalidating: false });
+    }
   },
 
   loadNewArticles: async () => {
@@ -4115,6 +4115,66 @@ async function drawRandomList(): Promise<void> {
 }
 
 /**
+ * Normalize favicon URLs — FreshRSS often returns internal Docker IPs
+ * (e.g. http://10.0.0.10/f.php?h=abc) instead of the public URL.
+ * We extract the path+query and prepend the user's serverUrl. Partagé par le
+ * chargement des abonnements et la relecture du retour sur l'onglet (M-13).
+ */
+function withPublicIcons(subs: Subscription[]): Subscription[] {
+  const serverUrl = useAuthStore.getState().serverUrl.replace(/\/$/, '');
+  return subs.map((sub) => {
+    let iconUrl = sub.iconUrl;
+    if (iconUrl) {
+      try {
+        const parsed = new URL(iconUrl, serverUrl);
+        // Rewrite to use the public server URL (keeps path + query)
+        iconUrl = `${serverUrl}${parsed.pathname}${parsed.search}`;
+      } catch {
+        // If URL parsing fails, try simple prepend for relative paths
+        if (!iconUrl.startsWith('http')) {
+          iconUrl = `${serverUrl}${iconUrl.startsWith('/') ? '' : '/'}${iconUrl}`;
+        }
+      }
+    }
+    return { ...sub, iconUrl };
+  });
+}
+
+/** Collect category IDs (to distinguish from user labels). */
+function categoryIdsOf(subs: Subscription[]): string[] {
+  const catIds: string[] = [];
+  subs.forEach((sub) => {
+    sub.categories?.forEach((c) => {
+      if (c.id && !catIds.includes(c.id)) catIds.push(c.id);
+    });
+  });
+  return catIds;
+}
+
+/**
+ * La relecture du retour sur l'onglet relit aussi les abonnements et les
+ * étiquettes, une requête chacun (M-13, second round 1.9.0). Seul le démarrage
+ * et « Rafraîchir » les relisaient : une étiquette renommée sur un autre
+ * appareil gardait ici son ancien nom, et la reposer recréait l'ancienne.
+ * Ni compteurs (le relevé voisin s'en charge) ni indicateur de chargement :
+ * rien ne doit bouger sous les yeux, sauf ce qui a changé. Hors ligne ou en
+ * échec, la barre latérale garde ce qu'elle montre.
+ */
+async function rereadStructure(): Promise<void> {
+  const scope = offlineScope();
+  try {
+    const subs = await getSubscriptionList();
+    if (offlineScope() !== scope) return;
+    const subscriptions = withPublicIcons(subs);
+    useFeedStore.setState({ subscriptions, categoryIds: categoryIdsOf(subscriptions) });
+    subsPut(storedKey('subscriptions'), subscriptions).catch(() => {});
+  } catch {
+    return; // les étiquettes se rangent selon les catégories : sans elles, rien
+  }
+  await useFeedStore.getState().loadLabels({ newCountsOnly: true });
+}
+
+/**
  * Entre dans un tirage ou en sort, liste comprise. Une page en vol appartient à la
  * liste qui s'en va : `loadMore` la jette sur `listGeneration`.
  */
@@ -4267,8 +4327,7 @@ export function normalizeArticle(item: GReaderItem): Article {
   return {
     id: item.id,
     title: fromFreshrssTitle(item.title),
-    summary:
-      item.summary?.content?.replace(/<[^<>]*>/g, '').slice(0, 200) || '',
+    summary: previewText(item.summary?.content),
     content: item.content?.content || item.summary?.content || '',
     author: item.author || '',
     url: item.canonical?.[0]?.href || item.alternate?.[0]?.href || '',

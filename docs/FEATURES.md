@@ -1190,6 +1190,16 @@ lignes, barre verticale pour les non-lus. Scroll infini paginé. En-têtes de
 groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grille.
 
 - **Où** : `src/components/ArticleList/`
+- **L'aperçu d'une carte est du texte** (`src/lib/articlePreview.ts`, appelé
+  par `normalizeArticle`) : les 200 premiers caractères du résumé du flux,
+  balises retirées puis entités décodées par `decodeEntities`, le décodeur de
+  la recherche. Jusqu'au second round 1.9.0, les entités restaient brutes
+  (« `Health &amp; Bioscience` », M-14). Le décodage vient après le retrait
+  (`&lt;b&gt;` reste du texte) et ne lit que les 1 600 premiers caractères du
+  texte : le résumé porte souvent l'article entier, et le balayage de la
+  recherche normalise des milliers d'articles. Les balises s'effacent sans
+  espace, comme avant (`<b>mot</b>.` ne devient pas « mot . »). Une liste
+  déjà rangée hors ligne garde ses entités brutes jusqu'à sa relecture.
 - **Une longue liste se monte par tranches** (1.8.0, `src/lib/listWindow.ts`,
   `ArticleList.window.test.tsx`). 50 lignes (`ROW_SLICE`), puis 50 de plus à
   l'approche du bas. Le store garde toute la liste : « article suivant », « Tout
@@ -1235,6 +1245,14 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
     toujours une seule par relecture, et la page qu'elle demande ne la réarme
     pas (`ArticleList.scroll.test.tsx` › « …pendant le chargement de la
     suite… »).
+    ⚠️ **Les deux relectures posent `revalidating`** : `loadArticles` et
+    `silentRefresh` (retour sur l'onglet, tirer-pour-rafraîchir, relevé en
+    cours). Jusqu'au second round 1.9.0, `silentRefresh` ne le posait pas : la
+    marque ci-dessus n'était jamais armée sur le chemin même qu'elle visait,
+    la page en vol était jetée et rien ne la redemandait (M-02).
+    `silentRefresh` ne prend le drapeau que s'il est libre (un `loadArticles`
+    déjà en vol le relèvera lui-même) et ne le rend que sur la même vue.
+    Pendant ce vol, « Charger la suite » de l'état vide attend lui aussi.
   - **↓/↑ font défiler la liste jusqu'à la ligne choisie** (1.9.0, L-15,
     `src/lib/listScroll.ts`). Toute sélection, en fait (palette, balayage,
     volet) : la ligne vient au bord le plus proche, au plus juste, sous une
@@ -1690,7 +1708,9 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
       champ `revalidating` du store couvre cette fenêtre ; `canLoadMore`
       (`listPagination.ts`) bloque à la fois le clic (bouton grisé, même
       libellé « Chargement… » que `loadingMore`) et l'action `loadMore`
-      elle-même (garde-fou côté store, en plus de l'UI).
+      elle-même (garde-fou côté store, en plus de l'UI). La relecture du
+      retour sur l'onglet (`silentRefresh`) couvre la même fenêtre depuis le
+      second round 1.9.0 (M-02).
   - **Une page appartient à la vue qui l'a demandée (1.4.8).** `loadMore`
     capturait le flux et le filtre avant sa requête puis écrivait le résultat
     sur l'état d'APRÈS : changer de flux pendant l'aller-retour abîmait deux
@@ -5510,7 +5530,11 @@ noms créés par l'utilisateur vivent dans les préférences synchronisées
 - **La vue affichée suit** (1.9.0) : renommer l'étiquette ouverte fait passer
   la vue sous son nouveau nom et la recharge ; la supprimer (Préférences ou
   croix de la barre latérale) ramène à l'accueil, au même filtre. La liste
-  restait sur l'ancienne, qui paraissait vide.
+  restait sur l'ancienne, qui paraissait vide. Ceci vaut pour un renommage
+  fait ici : un renommage fait sur un autre appareil arrive au retour sur
+  l'onglet (M-13, voir « Ce qui tient les articles à jour »), dans la barre
+  latérale et les menus, mais la vue ouverte sur l'ancien nom n'est pas
+  déplacée.
 - **Sélecteur de couleur** (`LabelColorPicker`, `LabelsTab.tsx`) : rendu par
   portail sous `<body>` depuis la 1.9.0 (`role="dialog"` nommé « Choisir la
   couleur : <étiquette> ») ; à l'ouverture le focus entre sur la nuance
@@ -5606,8 +5630,20 @@ lui-même.** La chaîne tient en trois temps, et le cache n'en fait pas partie.
 2. **FriRSS constate**, toutes les **60 secondes** (`App.tsx`, valeur en dur,
    pas un réglage) : `syncCounts()` relit les compteurs de non-lus, et les
    hausses des flux de la vue affichée alimentent le bandeau « nouveaux
-   articles ». Un retour sur l'onglet ajoute un `silentRefresh()` complet. La
-   liste ne se recharge jamais d'elle-même.
+   articles ». Un retour sur l'onglet ajoute un `silentRefresh()` : compteurs,
+   première page de la vue, et — depuis le second round 1.9.0 (M-13) —
+   abonnements et étiquettes, une requête chacun (`rereadStructure`). Avant,
+   seuls le démarrage et « Rafraîchir » les relisaient : une étiquette
+   renommée sur un autre appareil gardait ici son ancien nom, et la reposer
+   recréait l'ancienne. Les comptes d'étiquettes ne sont redemandés que pour
+   une étiquette nouvelle (`loadLabels({ newCountsOnly })`), sans quoi chaque
+   retour coûtait une requête par étiquette. Le sondage d'un relevé en cours
+   passe par `silentRefresh` toutes les 3 s : il ne relit ni l'un ni l'autre
+   (`loadSubscriptions` le fait à la fin du relevé). Le tirer-pour-rafraîchir
+   mobile, qui passe par le même chemin, relit aussi. Une vue ouverte sur une
+   étiquette renommée ailleurs ne suit pas le nouveau nom (seul un renommage
+   fait ici la suit, `followRenamedView`). La liste ne se recharge jamais
+   d'elle-même.
    **La relecture garde les pages déjà chargées** (1.9.0, issue #30,
    `src/lib/refreshMerge.ts`) : le serveur ne renvoie que la première page,
    qui remplace le haut de la liste ; la queue chargée au défilement est
@@ -6180,6 +6216,26 @@ mises en file et rejouées au retour.
 
   Le rejeu saute enfin une action remplacée ou réglée depuis son départ (`at`
   comparé à la file courante).
+- **Les écritures d'un même article partent en série** (M-12, second round
+  1.9.0, `src/lib/writeSerial.ts`, `inOrder` dans `feedStore.ts`, tests
+  `feedStore.writeOrder.test.ts`). Lu / non lu (ouverture comprise), favori et
+  « À lire plus tard » : une écriture attend que la précédente sur le même
+  article et le même attribut, dans la même portée, soit réglée — réussie ou
+  échouée — avant de partir. « Lu » puis « non lu » aussitôt partaient en
+  parallèle : sur un réseau lent, FreshRSS recevait parfois le second avant le
+  premier et gardait « lu » quand l'écran disait « non lu », jusqu'au
+  rechargement (1 geste sur 23 en rafale). La première écriture d'une clé part
+  dans le même tour ; deux articles différents ne s'attendent jamais. Chaque
+  geste garde sa propre suite (file hors ligne, retour arrière sur refus). Le
+  geste suivant partant dès que le précédent a échoué, `enqueueAction` revoit
+  `settledGestures` après la lecture de la file : le suivant a pu être
+  confirmé pendant ce temps.
+  ⚠️ Deux gestes directs ne se croisent donc plus : les trois cas « ancien qui
+  réussit / échoue tard » ci-dessus ne se produisent plus entre gestes directs
+  (leurs tests les rejouent dans l'ordre réel), et la garde du rejeu sur
+  `settledGestures` reste comme filet. **Non couverts** : les étiquettes
+  (`toggleLabel`, hors du périmètre décidé) et un envoi du rejeu qui croise un
+  geste direct sur le même article (le rejeu ne passe pas par `inOrder`).
 - **Actions sans portée (avant 1.8.0) : elles adoptent la première portée
   active au rejeu** (`adoptUnscopedActions`), et sont comptées dans le
   bandeau dès avant (`pendingHere`). Le cas courant est un seul compte, et

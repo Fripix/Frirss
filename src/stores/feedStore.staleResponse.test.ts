@@ -386,3 +386,34 @@ describe('loadMore en vol pendant une relecture qui remplace tout', () => {
     expect(idb.lists.get('7@1|feed/1:all')?.articles.some((a) => a.id === hex(8))).toBe(false);
   });
 });
+
+describe('silentRefresh est une relecture (M-02)', () => {
+  it('pose `revalidating` pendant sa requête et le relève à la fin, même en échec', async () => {
+    const env = await load();
+    const { api, useFeedStore } = env;
+    const live = await loadedThenHanging(env);
+    const p = useFeedStore.getState().silentRefresh();
+    await settled();
+    expect(useFeedStore.getState().revalidating).toBe(true);
+    live.reject(new Error('réseau'));
+    await p;
+    expect(useFeedStore.getState().revalidating).toBe(false);
+    vi.mocked(api.getStreamContents).mockResolvedValue(page(item(3)) as never);
+    await useFeedStore.getState().silentRefresh();
+    expect(useFeedStore.getState().revalidating).toBe(false);
+  });
+
+  it('ne relève pas le drapeau d’un `loadArticles` déjà en vol', async () => {
+    const env = await load();
+    const { api, useFeedStore } = env;
+    const first = await loadedThenHanging(env);
+    const p = useFeedStore.getState().loadArticles();
+    vi.mocked(api.getStreamContents).mockResolvedValue(page(item(2), item(1)) as never);
+    await useFeedStore.getState().silentRefresh();
+    // La requête de `loadArticles` est toujours en vol : la suite reste refusée.
+    expect(useFeedStore.getState().revalidating).toBe(true);
+    first.resolve(page(item(2), item(1)));
+    await p;
+    expect(useFeedStore.getState().revalidating).toBe(false);
+  });
+});

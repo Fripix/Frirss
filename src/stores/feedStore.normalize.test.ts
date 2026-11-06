@@ -20,4 +20,17 @@ describe('normalizeArticle', () => {
     expect(normalizeArticle({ id: 'x', title: '' } as never).title).toBe('');
     expect(normalizeArticle({ id: 'x' } as never).title).toBe('');
   });
+
+  // M-14 (second round 1.9.0) : l'aperçu des cartes retirait les balises sans
+  // décoder les entités — « Health &amp; Bioscience » s'affichait tel quel.
+  // Même décodeur que l'extrait de recherche (`decodeEntities`).
+  it('l’aperçu décode les entités HTML du résumé', () => {
+    const a = normalizeArticle({ id: 'x', summary: { content: '<p>Health &amp; Bioscience, AT&amp;T&#8217;s &eacute;t&eacute;</p>' } } as never);
+    expect(a.summary).toBe('Health & Bioscience, AT&T’s été');
+  });
+
+  it('une entité de balise reste du texte', () => {
+    const a = normalizeArticle({ id: 'x', summary: { content: '<p>Vec&lt;String&gt; en <b>Rust</b>.</p>' } } as never);
+    expect(a.summary).toBe('Vec<String> en Rust.');
+  });
 });

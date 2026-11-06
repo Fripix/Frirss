@@ -300,6 +300,9 @@ describe('une liste exacte périmée ne masque plus la préparation', () => {
       expect(read(PREPARED, a.id)).toBe(false);
     });
 
+    // Depuis M-12 (second round 1.9.0), le geste récent attend que l'ancien
+    // soit réglé avant de partir : les deux cas ci-dessous gardent leur but
+    // dans cet ordre-là.
     it('un geste ancien qui échoue tard ne couvre pas le plus récent', async () => {
       const env = await prepared();
       const a = await onHome(env);
@@ -309,9 +312,10 @@ describe('une liste exacte périmée ne masque plus la préparation', () => {
       const first = env.useFeedStore.getState().toggleRead(a);
       await settled();
       const now = env.useFeedStore.getState().articles.find((x) => x.id === a.id)!;
-      await env.useFeedStore.getState().toggleRead(now);
+      const second = env.useFeedStore.getState().toggleRead(now);
       slow.reject(netErr());
       await first;
+      await second;
       await settled();
       expect((idb.queue[0] as { value: boolean }).value).toBe(false);
       expect(read(PREPARED, a.id)).toBe(false);
@@ -395,10 +399,11 @@ describe('une liste exacte périmée ne masque plus la préparation', () => {
       const first = env.useFeedStore.getState().toggleRead(a);
       await settled();
       const now = env.useFeedStore.getState().articles.find((x) => x.id === a.id)!;
-      await env.useFeedStore.getState().toggleRead(now);
+      const second = env.useFeedStore.getState().toggleRead(now);
       await settled();
       slow.resolve();
       await first;
+      await second;
       await settled();
       expect(read(PREPARED, a.id)).toBe(false);
     });

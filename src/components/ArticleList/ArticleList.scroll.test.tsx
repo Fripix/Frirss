@@ -33,6 +33,10 @@ vi.mock('../../api/backend', () => ({ startActualize: vi.fn(), getActualizeStatu
 import ArticleList from './ArticleList';
 import { useFeedStore } from '../../stores/feedStore';
 import { useUiStore } from '../../stores/uiStore';
+import * as feedsApi from '../../api/feeds';
+
+// D'autres cas remplacent `loadMore` par un espion : le vrai est gardé ici.
+const realLoadMore = useFeedStore.getState().loadMore;
 
 const rows = (n: number, prefix = 'a'): Article[] => Array.from({ length: n }, (_, i) => ({
   id: `${prefix}${i}`, title: `Article ${i}`, summary: 'S', source: 'Src', sourceId: 'feed/1', content: '', author: '',
@@ -218,6 +222,37 @@ describe('la position de défilement appartient à la vue (L-09)', () => {
     act(() => useFeedStore.setState({ revalidating: false, continuation: 'c2' }));
     act(() => useFeedStore.setState({ loadingMore: false }));
     expect(loadMore).not.toHaveBeenCalled();
+  });
+
+  // M-02 (second round 1.9.0) : le même retour d'onglet, de bout en bout,
+  // avec le vrai store. `silentRefresh` (chemin du retour sur l'onglet et du
+  // tirer-pour-rafraîchir) ne posait pas `revalidating` : la marque ci-dessus
+  // n'était jamais armée, `loadMore` jetait sa page et rien ne la redemandait.
+  it('retour sur l’onglet pendant le chargement de la suite : la page jetée est redemandée avec la nouvelle suite (M-02)', async () => {
+    const raw = (n: number, prefix: string) => Array.from({ length: n }, (_, i) => ({
+      id: `${prefix}${i}`, title: `T${i}`, published: 1_700_000_000 - i,
+      origin: { streamId: 'feed/1', title: 'F' }, categories: [], alternate: [{ href: `https://example.com/${prefix}${i}` }],
+    }));
+    let release!: (v: unknown) => void;
+    const inFlight = new Promise((r) => { release = r; });
+    const stream = vi.mocked(feedsApi.getStreamContents);
+    stream.mockReset();
+    stream.mockImplementationOnce(() => inFlight as never);
+    useFeedStore.setState({ articles: rows(50), continuation: 'c', loadMore: realLoadMore } as never);
+    render(<ArticleList />);
+    scroller().scrollTop = contentHeight() - metrics.clientHeight;
+    fireEvent.scroll(scroller());
+    expect(useFeedStore.getState().loadingMore).toBe(true);
+    // Retour sur l'onglet : la première page relue n'a rien en commun avec la
+    // liste affichée, elle la remplace avec sa propre suite.
+    stream.mockResolvedValueOnce({ items: raw(50, 'n'), continuation: 'c-new' } as never);
+    stream.mockResolvedValue({ items: [], continuation: null } as never);
+    await act(async () => { await useFeedStore.getState().silentRefresh(); });
+    expect(useFeedStore.getState().continuation).toBe('c-new');
+    // La page de l'ancienne suite arrive : jetée (REG-120)…
+    await act(async () => { release({ items: raw(50, 'o'), continuation: 'c-older' }); await new Promise((r) => setTimeout(r, 0)); });
+    // … et redemandée avec la suite de la nouvelle première page.
+    expect(stream.mock.calls.map((c) => c[2])).toEqual(['c', null, 'c-new']);
   });
 
   it('la relecture finie loin du bas ne charge rien', () => {

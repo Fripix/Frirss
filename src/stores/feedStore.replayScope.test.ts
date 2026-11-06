@@ -256,7 +256,11 @@ describe('attente de la portée, puis retour (M4)', () => {
     expect(api.markAsRead, 'le dernier geste n’est pas écrasé').not.toHaveBeenCalled();
   });
 
-  it('un geste ancien qui échoue APRÈS un geste plus récent réussi n’entre pas en file', async () => {
+  // Les écritures d'un même article partent en série depuis M-12 (second
+  // round 1.9.0) : le geste plus récent attend que l'ancien soit réglé. Ces
+  // cas gardent leur but — la dernière intention reste la seule en file —
+  // dans l'ordre où ils se produisent désormais.
+  it('un geste ancien qui échoue pendant qu’un plus récent attend son tour n’entre pas en file', async () => {
     const { api, useFeedStore, useAuthStore } = await load();
     useAuthStore.setState({ backendToken: 'jwt', backendUser: { id: 7 } as never, activeServerId: '1', serverUrl: 'https://a.example', isAuthenticated: true });
     useFeedStore.setState({ articles: [article('a')], selectedFeed: null, filter: 'all', searchQuery: '' });
@@ -265,16 +269,19 @@ describe('attente de la portée, puis retour (M4)', () => {
     const slow = useFeedStore.getState().toggleRead(article('a'));
     await flush();
     vi.mocked(api.markAsUnread).mockResolvedValue(undefined as never);
-    await useFeedStore.getState().toggleRead(article('a', true));
+    const recent = useFeedStore.getState().toggleRead(article('a', true));
+    await flush();
+    expect(api.markAsUnread, 'le geste récent attend son tour').not.toHaveBeenCalled();
     fail();
     await slow;
+    await recent;
     expect(idb.queue.length).toBe(0);
   });
 
   // N1 (régression du premier tour) : `settleAction` retirait toute action de
   // même clé, y compris celle d'un geste PLUS RÉCENT que celui qui venait de
   // réussir. Le serveur gardait « lu », l'écran « non lu », rien n'était rejoué.
-  it('un geste ancien qui réussit tard ne retire pas de la file le geste plus récent (N1)', async () => {
+  it('un geste ancien qui réussit tard ne retire pas de la file le geste plus récent (N1, en série)', async () => {
     const { api, useFeedStore, useAuthStore } = await load();
     useAuthStore.setState({ backendToken: 'jwt', backendUser: { id: 7 } as never, activeServerId: '1', serverUrl: 'https://a.example', isAuthenticated: true });
     useFeedStore.setState({ articles: [article('a')], selectedFeed: null, filter: 'all', searchQuery: '' });
@@ -283,15 +290,17 @@ describe('attente de la portée, puis retour (M4)', () => {
     const p1 = useFeedStore.getState().toggleRead(article('a', false)); // geste 1 : lu, lent
     await flush();
     vi.mocked(api.markAsUnread).mockRejectedValueOnce(Object.assign(new Error('502'), { response: { status: 502 } }));
-    await useFeedStore.getState().toggleRead(article('a', true)); // geste 2 : non lu, 502 → en file
-    expect(idb.queue.map((x) => x.value)).toEqual([false]);
+    const p2 = useFeedStore.getState().toggleRead(article('a', true)); // geste 2 : non lu, attend son tour
+    await flush();
+    expect(api.markAsUnread, 'le geste récent attend son tour').not.toHaveBeenCalled();
     slow.resolve();
     await p1;
+    await p2; // 502 → en file
     expect(idb.queue.map((x) => x.value), 'le geste le plus récent reste en file').toEqual([false]);
   });
 
   // N2 : `mergeAction` remplaçait sans comparer l'ordre des gestes.
-  it('un geste ancien qui échoue tard n’écrase pas en file le geste plus récent (N2)', async () => {
+  it('un geste ancien qui échoue tard n’écrase pas en file le geste plus récent (N2, en série)', async () => {
     const { api, useFeedStore, useAuthStore } = await load();
     useAuthStore.setState({ backendToken: 'jwt', backendUser: { id: 7 } as never, activeServerId: '1', serverUrl: 'https://a.example', isAuthenticated: true });
     useFeedStore.setState({ articles: [article('a')], selectedFeed: null, filter: 'all', searchQuery: '' });
@@ -300,9 +309,12 @@ describe('attente de la portée, puis retour (M4)', () => {
     const p1 = useFeedStore.getState().toggleRead(article('a', false)); // geste 1 : lu
     await flush();
     vi.mocked(api.markAsUnread).mockRejectedValueOnce(Object.assign(new Error('503'), { response: { status: 503 } }));
-    await useFeedStore.getState().toggleRead(article('a', true)); // geste 2 : non lu, échec rapide
+    const p2 = useFeedStore.getState().toggleRead(article('a', true)); // geste 2 : non lu, attend son tour
+    await flush();
+    expect(api.markAsUnread, 'le geste récent attend son tour').not.toHaveBeenCalled();
     fail(); // geste 1 : échec tardif
     await p1;
+    await p2; // geste 2 : échec rapide
     expect(idb.queue.map((x) => x.value)).toEqual([false]);
   });
 
@@ -505,7 +517,11 @@ describe('rejeu : bords (rev-off3)', () => {
   // R4 : le rejeu est un quatrième sens. Un envoi réussi n'inscrivait rien
   // dans `settledGestures` : un geste plus ancien encore en vol entrait en
   // file après lui, et le rejeu suivant écrasait la dernière intention.
-  it('un envoi réussi du rejeu règle les gestes plus anciens encore en vol (R4)', async () => {
+  // Depuis M-12 (second round 1.9.0), le geste 2 attend que le geste 1 soit
+  // réglé : il ne peut plus être en file pendant que le 1 est en vol. Le cas
+  // garde son but dans l'ordre où il se produit désormais : deux échecs, et
+  // le rejeu n'envoie que la dernière intention.
+  it('après deux gestes échoués, le rejeu n’envoie que la dernière intention (R4, en série)', async () => {
     const { api, useFeedStore, useAuthStore } = await load();
     login(useAuthStore);
     await quiet();
@@ -515,14 +531,19 @@ describe('rejeu : bords (rev-off3)', () => {
     const p1 = useFeedStore.getState().toggleRead(article('a')); // geste 1 : lu, en vol
     await flush();
     vi.mocked(api.markAsUnread).mockRejectedValueOnce(netErr());
-    await useFeedStore.getState().toggleRead(article('a', true)); // geste 2 : non lu → file
-    expect(idb.queue.map((x) => x.value)).toEqual([false]);
+    const p2 = useFeedStore.getState().toggleRead(article('a', true)); // geste 2 : non lu, attend son tour
+    await flush();
+    expect(api.markAsUnread, 'le geste récent attend son tour').not.toHaveBeenCalled();
+    fail(); // geste 1 : délai dépassé
+    await p1;
+    await p2; // geste 2 : échec réseau
+    expect(idb.queue.map((x) => x.value), 'seule la dernière intention est en file').toEqual([false]);
+    vi.mocked(api.markAsRead).mockClear();
     vi.mocked(api.markAsUnread).mockResolvedValue(undefined as never);
     await useFeedStore.getState().replayQueue(); // retour du réseau
     expect(idb.queue.length).toBe(0);
-    fail(); // geste 1 : délai dépassé
-    await p1;
-    expect(idb.queue.map((x) => x.value), 'le geste dépassé n’entre pas en file').toEqual([]);
+    expect(api.markAsRead, 'le geste dépassé n’est pas rejoué').not.toHaveBeenCalled();
+    expect(api.markAsUnread).toHaveBeenCalledTimes(2);
   });
 
   // R6 : `queueLoaded` ne passait à vrai qu'après l'attente ; deux premiers
