@@ -60,7 +60,14 @@ export function mergeRefreshedPage<T extends { id: string }>(
     tail = beyond;
   }
   if (tail.length === 0) return replace;
-  return { articles: [...page, ...tail], continuation: shownContinuation };
+  // Une liste finie, du plus ancien au plus récent : ce qui est arrivé depuis
+  // vient APRÈS la queue, et l'ancienne suite (aucune) le rendait
+  // inatteignable — la liste se disait terminée (D-01, 1.9.0). La suite de la
+  // page repasse par la queue (`appendPage` n'en redouble rien, `loadMore`
+  // enchaîne les pages sans neuf) puis atteint les nouveaux. Du plus récent
+  // au plus ancien, les nouveaux sont dans la page : la liste reste finie.
+  const continuation = shownContinuation ?? (order === 'oldest' ? pageContinuation : null);
+  return { articles: [...page, ...tail], continuation };
 }
 
 /**

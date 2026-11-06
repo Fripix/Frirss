@@ -537,6 +537,15 @@ function persistCurrentView(get: () => FeedState): void {
 let listGeneration = 0;
 /** Numéro de la dernière demande de page de suite (`loadMore`, R3T3-2). */
 let loadMoreTicket = 0;
+/**
+ * Pages de suite enchaînées d'affilée sans rien apporter de neuf (D-01). Une
+ * relecture d'une liste finie, du plus ancien au plus récent, rend la suite de
+ * sa première page : elle repasse par la queue déjà chargée avant d'atteindre
+ * les articles arrivés depuis. Le plafond protège d'un serveur dont la suite
+ * tournerait en rond.
+ */
+let duplicatePageHops = 0;
+const MAX_DUPLICATE_PAGE_HOPS = 40;
 
 // Les écritures locales récentes : une réponse partie avant l'une d'elles est
 // recalée à son arrivée (`src/lib/localWrites.ts`). Le rang de départ se prend
@@ -2286,10 +2295,12 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       if (!result) { set({ loadingMore: false }); return; }
 
       const page = reconcile(result.items.map(normalizeArticle), filter, since);
+      let added = 0;
       set((state) => {
         // Sans doublon : la relecture a pu rendre en tête des articles que
         // cette page apporte aussi (L-01).
         const articles = appendPage(state.articles, page);
+        added = articles.length - state.articles.length;
         const key = viewKey(selectedFeed, filter);
         memSet(key, { articles, continuation: result.continuation });
         listPut(key, articles, result.continuation).catch(() => {}); // persist extended list
@@ -2298,6 +2309,19 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       // Même vue qu'à l'ouverture : ces articles s'ajoutent au travail en
       // cours au lieu de l'annuler (voir `src/lib/warmSchedule.ts`).
       warmExtracts(get().articles, viewIdentity(get())); // background: extract newly loaded pages for offline
+
+      // Une page entière d'articles déjà là, avec une suite qui avance : la
+      // liste n'a pas grandi, donc aucun `scroll` ne redemandera la suivante,
+      // et le lecteur resterait en bas devant rien (D-01 : la suite d'une
+      // relecture repasse par la queue déjà chargée). La suivante est demandée
+      // tout de suite. Une page vide (favoris filtrés côté client) n'en est pas
+      // une : elle garde son message, plus bas.
+      if (page.length > 0 && added === 0 && result.continuation && result.continuation !== continuation
+        && duplicatePageHops < MAX_DUPLICATE_PAGE_HOPS) {
+        duplicatePageHops++;
+        try { await get().loadMore(); } finally { duplicatePageHops--; }
+        return;
+      }
 
       // Le clic a-t-il changé quoi que ce soit à l'écran ? Les favoris d'un
       // flux sont filtrés CÔTÉ CLIENT (voir `fetchArticleStream` ci-dessus) :

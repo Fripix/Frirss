@@ -6182,7 +6182,18 @@ lui-même.** La chaîne tient en trois temps, et le cache n'en fait pas partie.
    `entryIdUsec`, dans le sens de la vue) : seul ce qui le suit reste, et
    s'il ne reste rien la page remplace tout avec sa propre suite. Sans id
    lisible, la page remplace tout. `loadMore` n'ajoute jamais un article déjà
-   présent (`appendPage`). **Une page suivante en vol pendant une relecture
+   présent (`appendPage`). ⚠️ **Une liste finie, du plus ancien au plus
+   récent** (aucune suite) : ce qui est arrivé depuis vient APRÈS la queue, et
+   garder l'ancienne suite (aucune) laissait la liste se dire terminée, les
+   nouveaux inatteignables (D-01, 1.9.0). La queue reçoit alors la suite de la
+   page, qui repasse par les articles déjà chargés avant d'atteindre les
+   nouveaux ; une page qui n'apporte rien de neuf alors que sa suite avance est
+   suivie aussitôt de la suivante (`loadMore`, au plus 40 d'affilée), sinon la
+   liste, qui n'a pas grandi, restait en bas sans rien demander. Coût assumé :
+   arrivé en bas, une page par 50 articles de queue, même sans nouveauté. Du
+   plus récent au plus ancien, les nouveaux sont dans la page : la liste reste
+   finie. Le compteur de nouveautés (`newInView`) retombe à zéro dans les deux
+   sens. **Une page suivante en vol pendant une relecture
    qui remplace tout est jetée** : `loadMore` compare la suite d'avant sa
    requête à celle de l'arrivée. Elle prolongeait l'ancienne liste ; ajoutée
    sous la nouvelle première page, elle laissait un trou (des non-lus

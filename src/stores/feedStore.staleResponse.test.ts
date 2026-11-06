@@ -388,6 +388,62 @@ describe('loadMore en vol pendant une relecture qui remplace tout', () => {
   });
 });
 
+describe('relecture d’une liste finie, du plus ancien au plus récent (D-01)', () => {
+  it('les articles arrivés depuis restent atteignables : la suite traverse la queue déjà là', async () => {
+    const env = await load();
+    const { api, useFeedStore } = env;
+    const { useUiStore } = await import('./uiStore');
+    useUiStore.setState({ articleOrder: 'oldest' } as never);
+    // Un FreshRSS en miniature : pages de deux, suite = rang du prochain article.
+    const stream = [1, 2, 3, 4];
+    const served: (string | null)[] = [];
+    vi.mocked(api.getStreamContents).mockImplementation((async (_id: string, _n: number, cont: string | null, _x: unknown, opts?: { cacheOnly?: boolean }) => {
+      if (opts?.cacheOnly) return null;
+      served.push(cont);
+      const from = cont ? Number(cont.slice(3)) : 0;
+      const next = from + 2 < stream.length ? `at-${from + 2}` : null;
+      return { items: stream.slice(from, from + 2).map((n) => item(n)), continuation: next };
+    }) as never);
+    useFeedStore.getState().selectView(feed1, 'all');
+    await settled();
+    await useFeedStore.getState().loadMore();
+    expect(useFeedStore.getState().articles.map((a) => a.id)).toEqual([1, 2, 3, 4].map(hex));
+    expect(useFeedStore.getState().continuation, 'liste finie').toBeNull();
+    // Retour d'onglet : un cinquième article est arrivé, la première page relue porte une suite.
+    stream.push(5);
+    await useFeedStore.getState().silentRefresh();
+    let s = useFeedStore.getState();
+    expect(s.articles.map((a) => a.id), 'la position reste (#30)').toEqual([1, 2, 3, 4].map(hex));
+    expect(s.continuation, 'la liste ne se dit plus finie').toBe('at-2');
+    // La suite repasse d'abord par la queue déjà chargée : une page sans rien de
+    // neuf ne doit pas laisser la liste en bas sans rien charger.
+    served.length = 0;
+    await useFeedStore.getState().loadMore();
+    await settled();
+    s = useFeedStore.getState();
+    expect(s.articles.map((a) => a.id)).toEqual([1, 2, 3, 4, 5].map(hex));
+    expect(s.continuation).toBeNull();
+    expect(s.loadingMore).toBe(false);
+    expect(served, 'une page par suite, sans rejouer la même').toEqual(['at-2', 'at-4']);
+  });
+
+  it('une suite qui tourne en rond sur des articles déjà là s’arrête d’elle-même', async () => {
+    const env = await load();
+    const { api, useFeedStore } = env;
+    vi.mocked(api.getStreamContents).mockResolvedValue({ items: [item(2), item(1)], continuation: 'a' } as never);
+    useFeedStore.getState().selectView(feed1, 'all');
+    await settled();
+    let calls = 0;
+    vi.mocked(api.getStreamContents).mockImplementation((async (_id: string, _n: number, cont: string | null) => {
+      calls++;
+      return { items: [item(2), item(1)], continuation: cont === 'a' ? 'b' : 'a' };
+    }) as never);
+    await useFeedStore.getState().loadMore();
+    expect(calls).toBeLessThanOrEqual(41);
+    expect(useFeedStore.getState().loadingMore).toBe(false);
+  });
+});
+
 describe('silentRefresh est une relecture (M-02)', () => {
   it('pose `revalidating` pendant sa requête et le relève à la fin, même en échec', async () => {
     const env = await load();

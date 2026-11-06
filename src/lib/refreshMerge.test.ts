@@ -63,6 +63,27 @@ describe('mergeRefreshedPage — un article entré dans la vue termine la page',
   });
 });
 
+describe('mergeRefreshedPage — une liste finie relue alors que la vue a grandi (D-01)', () => {
+  // 70 articles chargés, liste finie (aucune suite). Le serveur en a reçu
+  // cinq de plus : sa première page porte désormais une suite.
+  const shown = rows(span(1000, 1069));
+  const page = rows(span(1000, 1049));
+
+  it('plus anciens d’abord : la position reste et la suite de la page rend les nouveaux atteignables', () => {
+    const merged = mergeRefreshedPage(shown, null, page, 'after-1049', 'oldest');
+    expect(ids(merged.articles)).toEqual(ids(shown));
+    expect(merged.continuation, 'les nouveaux viennent après la queue : la liste ne se dit plus finie').toBe('after-1049');
+  });
+
+  it('plus récents d’abord : les nouveaux sont dans la page, la liste reste finie', () => {
+    const shownNew = rows(span(1069, 1000));
+    const pageNew = rows([...span(1074, 1070), ...span(1069, 1025)]);
+    const merged = mergeRefreshedPage(shownNew, null, pageNew, 'after-1025', 'newest');
+    expect(ids(merged.articles)).toEqual(ids(rows(span(1074, 1000))));
+    expect(merged.continuation).toBeNull();
+  });
+});
+
 describe('appendPage', () => {
   it('n’ajoute pas un article déjà dans la liste', () => {
     const list = rows(span(100, 51));
