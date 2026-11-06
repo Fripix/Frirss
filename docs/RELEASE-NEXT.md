@@ -21,7 +21,7 @@ la release publiée.
 - **Un format d'image portrait pour la grille.** Préférences → Apparence →
   Tailles propose maintenant 3:4 à côté de 16:9, 4:3 et 1:1 (issue #26).
 - **Les non-lus des Favoris et d'À lire plus tard.** Préférences → Étiquettes
-  propose deux réglages indépendants : le total d'aujourd'hui (activé par
+  propose deux réglages indépendants : le total, comme jusqu'ici (activé par
   défaut, pastille inchangée) et le nombre de non-lus, avec la pastille des
   flux (désactivé par défaut). Les deux peuvent s'afficher ensemble. En réponse
   à l'issue #29, qui le demandait pour les étiquettes : celles-ci gardent leur
@@ -32,8 +32,10 @@ la release publiée.
   raccourcis. Rien ne se perd : chaque bouton masqué reste dans la palette de
   commandes (Ctrl/⌘ K), qui gagne au passage les filtres, « Tout lu », les
   options d'affichage, la densité, les actions de l'article (étiquettes
-  comprises) et l'affichage de la barre latérale. Tablette et téléphone ne
-  changent pas.
+  comprises) et l'affichage de la barre latérale. Masquer Favori ou À lire
+  plus tard dans le volet retire aussi leur appui long. Sur tous les écrans,
+  le même onglet permet aussi d'afficher ou de masquer la barre des serveurs ;
+  le reste ne change pas sur tablette et téléphone.
 - **Annuler la préparation hors ligne, et savoir combien de temps il reste.**
   L'onglet Hors ligne propose « Annuler » pendant la préparation et affiche
   une estimation de la durée restante, d'après le rythme observé.
@@ -59,7 +61,9 @@ la release publiée.
   que sa première page : la position retombait près du haut. Seul le haut
   est désormais relu, les articles déjà chargés restent, sans doublon ni
   désordre quand le bas de la liste a été lu ailleurs ; une page en route
-  pendant une relecture complète ne crée plus de trou dans la liste.
+  pendant une relecture complète ne crée plus de trou dans la liste, une page
+  de suite en cours de chargement n'est plus perdue, et les étiquettes et
+  abonnements modifiés sur un autre appareil sont relus.
 - **↓ ne saute plus les non-lus après un retour sur l'onglet.** L'article
   ouvert reprend sa place parmi ses voisins (défaut présent depuis 1.2.0).
 - **La liste suit le clavier et garde sa position par vue.** ↓/↑ font défiler
@@ -73,17 +77,31 @@ la release publiée.
   plus sollicité une deuxième fois. Les avis du CERT-FR ne se réduisent plus
   à un fragment (« Solutions » ou l'en-tête du document) : quand la page
   désigne son contenu principal et que l'extraction n'en garde qu'une petite
-  part, une seconde passe le reprend ; les extraits mis en cache avant la
-  mise à jour sont refaits une fois ; un extrait bien plus court que le contenu du
-  flux n'est pas montré automatiquement (« Article complet » demandé à la
-  main le montre quand même, et le résumé IA porte sur le texte affiché). Un
-  échec d'extraction automatique s'annonce discrètement sous l'article, avec
-  « Réessayer », au lieu d'un bandeau rouge ; un refus passager du site n'est
-  pas retenu.
-- **La préparation hors ligne respecte le réglage « Article complet »** :
-  un flux réglé sur « Non » n'est plus extrait.
+  part, une seconde passe le reprend. Les images chargées « à la demande »
+  (Numerama, Frandroid…) et celles enveloppées dans un bouton de zoom
+  (Zoomit) sont gardées ; publicités, mentions d'affiliation, formulaires
+  d'abonnement et replis CodePen en double sont retirés ; le corps d'un
+  article réparti en plusieurs blocs (Ars Technica) est gardé en entier,
+  chapeau compris. Un extrait bien plus court que le contenu du flux, ou qui
+  n'en contient presque rien, n'est pas montré automatiquement (« Article
+  complet » demandé à la main le montre quand même, et le résumé IA porte sur
+  le texte affiché). Un échec d'extraction automatique s'annonce discrètement
+  sous l'article, avec « Réessayer », au lieu d'un bandeau rouge ; un refus
+  passager du site n'est pas retenu. Les extraits mis en cache avant la mise
+  à jour sont refaits une fois ; si la nouvelle extraction échoue, l'ancien
+  extrait reste affiché (favoris épinglés compris, avec leurs images).
+- **La préparation hors ligne suit le réglage « Article complet ».** Elle
+  n'extrait plus que les articles qui s'ouvriraient en article complet : avec
+  « Article complet par défaut » éteint (le réglage d'origine), seuls les flux
+  réglés sur « Oui » le sont, là où elle extrayait tout jusqu'ici. Favoris et
+  À lire plus tard restent extraits. Un article refusé parce que le serveur
+  est occupé est redemandé en fin de passage ; la préparation dit quand elle
+  attend le serveur, et son bilan distingue les articles prêts avec leur
+  article complet.
 - **Vidéos YouTube affichées une seule fois** (iframe dans l'article, ou
-  vignette du flux sous la façade).
+  vignette du flux sous la façade). Un lien vers YouTube au milieu d'une
+  phrase reste un lien et garde son texte : il devenait un bouton « Ouvrir sur
+  YouTube » qui effaçait les mots de la phrase.
 - **Hors ligne, rien de silencieux.** Relancée sans réseau, l'app annonce
   toujours ses actions en attente ; « Tout lu » hors ligne ou en échec le dit.
 - **Étiquettes et catégories : les noms déjà pris sont refusés avec une
@@ -91,7 +109,8 @@ la release publiée.
   existant), au lieu d'échouer en silence ou d'annoncer un faux succès ; une
   catégorie vide de FreshRSS n'est plus proposée comme étiquette ; renommer
   ou supprimer l'étiquette ou la catégorie affichée met la vue à jour ;
-  renommer une étiquette enfant la garde dans son groupe.
+  renommer une étiquette enfant la garde dans son groupe ; un nom de
+  catégorie avec « / » dit pourquoi il est refusé.
 - **Palette** : une faute de frappe suivie d'Entrée ne crée plus d'étiquette ;
   Échap et les flèches marchent quel que soit le focus ; la commande
   Aléatoire dit si elle entre dans le tirage ou en sort.
@@ -111,63 +130,36 @@ la release publiée.
   pastilles de couleur nommés ; palette à la structure valide ; aide-mémoire
   défilable au clavier sous Safari ; chevron de catégorie plus large au
   doigt ; repères `main` et titres de page.
-- **Langues** : en anglais (et en espagnol, néerlandais, polonais, chinois),
-  la densité ne s'appelle plus comme la disposition ; pluriels ukrainiens et
-  polonais corrigés.
+- **Langues** : le menu de densité porte le même nom que dans les
+  Préférences, dans toutes les langues (en anglais, espagnol, néerlandais,
+  polonais, ukrainien et chinois, il s'appelait comme la disposition) ;
+  pluriels ukrainiens et polonais corrigés.
 - **Connexion** : l'écran de connexion dit quand le serveur a fermé la
   session.
-- **Une page piégée ne peut plus geler FriRSS** (défaut présent depuis 1.4.10).
-  Une page web aux éléments imbriqués sur des milliers de niveaux occupait
-  le serveur de quelques secondes à plusieurs minutes, pour tous les comptes,
-  dès qu'on demandait son article complet (y compris par l'extraction
-  automatique ou la préparation hors ligne). Une telle page est maintenant
-  refusée en quelques millisecondes, l'analyse tourne à l'écart du serveur
-  avec un délai de 10 secondes, et un échec est retenu quelques minutes.
-  Quand le serveur refuse une page ou est occupé, l'app ne refait plus
-  l'extraction elle-même (elle pouvait geler l'onglet).
-- **Article complet plus propre** : mentions légales, fil d'Ariane, blocs
-  « Related », commentaires et « Powered by » ne s'invitent plus dans
-  l'article extrait (ni, sur certains sites, les encarts promotionnels en fin
-  d'article). Les extraits déjà en cache sont refaits une fois. Si la
-  nouvelle extraction échoue, l'ancien extrait reste affiché (favoris
-  épinglés compris, avec leurs images).
 - **Tableaux larges** : ils défilent de côté au lieu d'être coupés, et le
   balayage de l'article laisse faire un tableau ou un bloc de code qui
   défile ; un long `code` en ligne se coupe.
 - **Densité Compacte** : le titre garde toujours de la place (il disparaissait
-  dans une colonne étroite, et la ligne débordait au téléphone) ; la source se
-  tronque la première. Masquer des boutons de ligne ou la source dans les
-  réglages rend de la place au titre.
+  dans une colonne étroite, et la ligne débordait au téléphone) : la source
+  ne prend plus qu'un tiers de la place au plus, le titre au moins les deux
+  tiers, et chacun se tronque. Masquer des boutons de ligne ou la source dans
+  les réglages rend de la place au titre.
 - **Android : le bouton retour ferme la feuille, le menu ou la confirmation
   ouverte**, et rien d'autre (il fermait l'app ou l'onglet).
-- **Retour sur l'onglet** : une page de suite en cours de chargement n'est
-  plus perdue, et les étiquettes et abonnements modifiés sur un autre appareil
-  sont relus.
-- **« Lu » puis « non lu » en rafale** : les écritures d'un même article
-  partent dans l'ordre ; FreshRSS et l'écran ne divergent plus sur un réseau
-  lent.
+- **Gestes en rafale** : les écritures d'un même article (lu, favori, À lire
+  plus tard, étiquettes, actions hors ligne rejouées) partent dans l'ordre ;
+  FreshRSS et l'écran ne divergent plus sur un réseau lent.
 - **« Tout lu » et « marquer lus en dessous »** attendent les écritures
   « lu/non lu » encore en route avant de partir.
-- **Préparation hors ligne** : un article refusé parce que le serveur est
-  occupé est redemandé en fin de passage.
 - **Changer de serveur pendant une écriture** : un geste qui attendait son
   tour (après « Tout lu », par exemple) ou une action hors ligne rejouée ne
   part plus vers le nouveau serveur ; il attend le retour du sien.
 - **Relève** : si FriRSS redémarre pendant une relève, elle se conclut
-  aussitôt au lieu de bloquer le bouton dix minutes.
-- **Article complet** : les images chargées « à la demande » (Numerama,
-  Frandroid…) et celles enveloppées dans un bouton de zoom (Zoomit) sont
-  gardées ; publicités, mentions d'affiliation, formulaires d'abonnement,
-  replis CodePen en double et colonnes latérales sont retirés ; un extrait
-  qui ne contient presque rien du texte du flux n'est plus montré
-  automatiquement (billet court remplacé par l'habillage du site) ; le corps
-  d'un article réparti en plusieurs blocs (Ars Technica) est gardé en entier,
-  chapeau compris.
+  aussitôt en « Relève inachevée » et relit la liste, au lieu de bloquer le
+  bouton dix minutes.
 - **Ajouter un flux** : la nouvelle catégorie suit les mêmes règles que dans
   les Préférences (pas de « / », pas le nom d'une étiquette, une catégorie
   existante est réutilisée), et un flux déjà suivi est signalé.
-- **Préparation hors ligne** : elle dit quand elle attend le serveur, et son
-  bilan distingue les articles prêts avec leur article complet.
 - **Divers** : « Erreur de chargement » ne s'affiche plus sur une vue qu'on
   vient de quitter ; un flux renommé renomme sa source sur les cartes déjà
   chargées ; le bouton « Enregistrer » du thème et la légende IA tiennent à
@@ -182,21 +174,36 @@ la release publiée.
   gauche ; « Traduire » ne répond plus « Déjà en français » à un texte qui ne
   l'est manifestement pas ; le markdown que certains modèles ajoutent est
   nettoyé.
-- **Focus** : fermer un article ramène sa carte à l'écran avant de la
-  focaliser ; « Résumer », « Préparer » et « Annuler » rendent le focus au
-  bon endroit ; au téléphone, l'erreur d'un « Réessayer » reste visible
-  au-dessus de la barre du bas.
+- **Focus** : « Résumer », « Préparer » et « Annuler » rendent le focus au
+  bon endroit, comme « Oublier cette recherche », « Nouveau tirage » et
+  « Réessayer » sur l'écran vide ; un bouton qui disparaît au clic passe le
+  focus ; le piège à focus ignore les éléments hors de l'ordre de tabulation
+  et tient Tab au-dessus d'une boîte restée dessous.
 
-## Sous le capot
+## Sécurité
 
+- **Le jeton d'écriture de FreshRSS ne quitte plus le serveur.** Le proxy
+  signe lui-même les écritures. Avant, le navigateur recevait l'équivalent du
+  jeton FreshRSS complet, qu'une session FriRSS suffisait à obtenir et qui
+  restait valable après la déconnexion. Les adresses détournées (segments
+  `..` encodés) qui permettaient encore de le lire sont refusées.
+- **Une page piégée ne peut plus geler FriRSS** (défaut présent depuis 1.4.10).
+  Une page web aux éléments imbriqués sur des milliers de niveaux occupait
+  le serveur de quelques secondes à plusieurs minutes, pour tous les comptes,
+  dès qu'on demandait son article complet (y compris par l'extraction
+  automatique ou la préparation hors ligne). Une telle page est maintenant
+  refusée en quelques millisecondes, l'analyse tourne à l'écart du serveur
+  avec un délai de 10 secondes, et un échec est retenu quelques minutes.
+  Quand le serveur refuse une page ou est occupé, l'app ne refait plus
+  l'extraction elle-même (elle pouvait geler l'onglet).
 - **Cache Redis indexé par serveur** : deux serveurs à la même adresse
   (deux utilisateurs FreshRSS) ne partagent plus leurs listes en cache ; la
   liste d'un serveur supprimé ou changé d'identité est purgée.
+
+## Sous le capot
+
 - **nginx** : la page 404 porte les mêmes en-têtes de sécurité que le reste.
 - **Image plus légère** : les tests compilés du serveur ne sont plus livrés.
-- **Le jeton d'écriture de FreshRSS ne quitte plus le serveur.** Le proxy signe
-  lui-même les écritures ; le navigateur ne pouvait plus en tirer, avec sa
-  session FriRSS, un accès à FreshRSS qui survivait à la déconnexion.
 - **Sauvegardes** : la date et la version sont authentifiées (format v2) ;
   les anciennes sauvegardes s'ouvrent toujours, l'aperçu écrit la date en
   toutes lettres. ⚠️ Une sauvegarde 1.9.0 ne se restaure pas sur une version
