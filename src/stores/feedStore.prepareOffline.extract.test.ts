@@ -147,3 +147,29 @@ describe('Annuler une préparation (idée 1.9.0)', () => {
     expect(new Set(seen).size).toBe(1);
   });
 });
+
+// M-03 (second round) : l'extrait d'une version antérieure n'était plus lu par
+// la préparation ; sa réextraction échouait, et ses images, absentes de la
+// liste gardée, partaient au balayage final — alors que l'extrait, lui, reste
+// servi hors ligne.
+describe('M-03 — extrait d’une version antérieure, réextraction en échec', () => {
+  it('ses images sont préparées et gardées comme celles d’un extrait courant', async () => {
+    useUiStore.setState({ autoExtractDefault: true, feedSettings: {} } as never);
+    useFeedStore.setState({ subscriptions: [{ id: 'feed/9', title: 'Épinglé' } as never] });
+    const { imageBudget } = await import('../lib/offlineImages');
+    vi.mocked(imageBudget).mockReturnValueOnce({ bytes: 1e9, perArticle: 10 });
+    const { cacheImages } = await import('../lib/imageCache');
+    vi.mocked(cacheImages).mockImplementation(async (urls: string[]) => ({ stored: urls.length, bytes: 0, reusedBytes: 0, kept: urls, sizes: {}, failed: 0 }) as never);
+    const { dbGet } = await import('../lib/extractStore');
+    const old = { title: '', content: '<p>texte</p><img src="https://img.example.com/ancien.jpg">', excerpt: '', byline: '', siteName: '', length: 5, cachedAt: Date.now(), pinned: true };
+    vi.mocked(dbGet).mockImplementation(async (id: string) => ({ ...old, id }) as never);
+    extract.fn.mockRejectedValue(new Error('NO_CONTENT'));
+    try {
+      await useFeedStore.getState().prepareOffline();
+      const urls = vi.mocked(cacheImages).mock.calls.flatMap(([u]) => u as string[]);
+      expect(urls).toContain('https://img.example.com/ancien.jpg');
+    } finally {
+      vi.mocked(dbGet).mockImplementation(() => Promise.resolve(undefined));
+    }
+  });
+});

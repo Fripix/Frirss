@@ -42,6 +42,7 @@ vi.mock('../../i18n', () => ({ default: { t: (k: string) => k } }));
 import ReadingPane from './ReadingPane';
 import { useFeedStore } from '../../stores/feedStore';
 import { useUiStore } from '../../stores/uiStore';
+import { dbGet } from '../../lib/extractStore';
 
 const BODY_SELECTOR = '.reading-body-enter';
 
@@ -150,6 +151,27 @@ describe('ReadingPane — échec d’une extraction', () => {
     expect(alert?.querySelector('button')?.textContent).toBe('readingPane.retry');
     expect(container.querySelectorAll('[style*="danger-light"]')).toHaveLength(0);
     expect(container.contains(document.activeElement)).toBe(true);
+  });
+
+  // M-03 (second round) : un favori épinglé dont la page ne s'extrait plus
+  // s'ouvrait complet hors ligne, mais en ligne sur l'erreur et le contenu du
+  // flux — l'extrait d'une version antérieure n'était pas servi en ligne, et
+  // l'échec de la réextraction ne s'y repliait pas.
+  it('réextraction en échec : l’extrait d’une version antérieure est servi, sans erreur', async () => {
+    useUiStore.setState({ autoExtractDefault: true } as never);
+    const old = { id: 'p1', title: '', content: '<p>ancien article complet</p>', excerpt: '', byline: '', siteName: '', length: 24, cachedAt: Date.now(), pinned: true };
+    vi.mocked(dbGet).mockImplementation(async (id: string) => (id === 'p1' ? old : undefined) as never);
+    extractMock.fn.mockRejectedValue(new Error('NO_CONTENT'));
+    try {
+      const { container } = await open(article('p1'));
+      await act(async () => { await new Promise((r) => setTimeout(r, 150)); });
+      expect(extractMock.fn).toHaveBeenCalled();
+      expect(container.querySelector(BODY_SELECTOR)?.textContent).toContain('ancien article complet');
+      expect(container.textContent).not.toContain('readingPane.extractError');
+      expect(container.textContent).not.toContain('readingPane.extractUnavailable');
+    } finally {
+      vi.mocked(dbGet).mockImplementation(() => Promise.resolve(undefined));
+    }
   });
 
   it('demandée par le lecteur : le bandeau d’erreur, comme avant', async () => {

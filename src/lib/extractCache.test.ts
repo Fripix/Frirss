@@ -18,7 +18,7 @@ vi.mock('./extractStore', async (importActual) => {
 const extractFullContent = vi.fn();
 vi.mock('../utils/extractContent', () => ({ extractFullContent: (url: string) => extractFullContent(url) }));
 
-const { revalidateIfStale, getExtract, putExtract, peekExtract, hydrateExtractCache } = await import('./extractCache');
+const { revalidateIfStale, getExtract, getOutdatedExtract, putExtract, peekExtract, hydrateExtractCache } = await import('./extractCache');
 const { EXTRACT_VERSION } = await import('./extractVersion');
 
 const body = { title: 'T', content: '<p>fragment</p>', excerpt: '', byline: '', siteName: '', length: 8 };
@@ -66,5 +66,27 @@ describe('extractCache — version de l’extraction', () => {
     await revalidateIfStale('a6', 'https://example.com/a6');
     expect(extractFullContent).toHaveBeenCalledWith('https://example.com/a6');
     expect(rows.get('a6')?.extractVersion).toBe(EXTRACT_VERSION);
+  });
+});
+
+// M-03 (campagne 1.9.0, second round) : un favori épinglé dont la page ne
+// s'extrait plus perdait son article complet en ligne — l'extrait d'une
+// version antérieure n'était plus servi, et l'échec de la réextraction ne s'y
+// repliait pas. Le repli vaut pour toute version antérieure, quel qu'en soit
+// le numéro.
+describe('extractCache — repli sur un extrait d’une version antérieure (M-03)', () => {
+  it('rend, en ligne, l’extrait d’une version antérieure, sans tampon ou tamponné, sans le promouvoir en mémoire', async () => {
+    rows.set('o1', outdated('o1', true));
+    rows.set('o2', { ...outdated('o2'), content: '<p>v précédente</p>', extractVersion: EXTRACT_VERSION - 1 });
+    expect((await getOutdatedExtract('o1'))?.content).toBe('<p>fragment</p>');
+    expect((await getOutdatedExtract('o2'))?.content).toBe('<p>v précédente</p>');
+    expect(peekExtract('o1')).toBeUndefined();
+    expect(peekExtract('o2')).toBeUndefined();
+  });
+
+  it('ne rend rien pour un extrait courant (getExtract le sert) ni pour un article jamais extrait', async () => {
+    rows.set('o3', { ...outdated('o3'), extractVersion: EXTRACT_VERSION });
+    expect(await getOutdatedExtract('o3')).toBeUndefined();
+    expect(await getOutdatedExtract('absent')).toBeUndefined();
   });
 });

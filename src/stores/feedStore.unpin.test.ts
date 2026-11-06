@@ -10,6 +10,7 @@ vi.mock('../lib/offlineStore', () => ({
 vi.mock('../lib/extractCache', () => ({
   peekExtract: vi.fn(() => ({ content: 'x' })), getExtract: vi.fn(async () => undefined), putExtract: vi.fn(async () => {}),
   pinExtract: vi.fn(async () => {}), unpinExtractsExcept: vi.fn(async () => {}),
+  getOutdatedExtract: vi.fn(async () => undefined),
 }));
 vi.mock('../api/feeds', async () => {
   const actual = await vi.importActual<typeof import('../api/feeds')>('../api/feeds');

@@ -54,7 +54,8 @@ export function peekExtract(id: string): ExtractedContent | undefined {
  * extracts again, and `putExtract` replaces it keeping its pin. It is NOT
  * deleted meanwhile — offline, it is still served (an older extract beats no
  * article), but never promoted into memory, whence it would be served again
- * once back online.
+ * once back online. Online, if extracting again fails, the caller falls back
+ * to it through `getOutdatedExtract` (M-03).
  */
 export async function getExtract(id: string): Promise<ExtractedContent | undefined> {
   const inMem = mem.get(id);
@@ -65,6 +66,18 @@ export async function getExtract(id: string): Promise<ExtractedContent | undefin
   const content = toContent(rec);
   memSet(id, content);
   return content;
+}
+
+/**
+ * The extract an EARLIER extraction left in IndexedDB — whatever its version,
+ * as long as it is not the current one — or nothing. Never promoted into
+ * memory. The fallback when extracting again fails online (M-03): a pinned
+ * favorite whose page no longer extracts keeps the article it opens offline,
+ * instead of an error over the feed's content.
+ */
+export async function getOutdatedExtract(id: string): Promise<ExtractedContent | undefined> {
+  const rec = await dbGet(id);
+  return rec && !isCurrent(rec) ? toContent(rec) : undefined;
 }
 
 /** Write-through: memory + IndexedDB. Preserves an existing pin and the

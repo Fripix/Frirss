@@ -5218,6 +5218,18 @@ serveur de développement en 1.4.4.)*
     jamais promu en mémoire, d'où il serait resservi une fois en ligne
     (`src/lib/extractCache.test.ts`). Pas de purge : elle aurait vidé d'un
     coup la lecture hors ligne des Favoris et d'À lire plus tard.
+  - **Réextraction en échec, en ligne : l'ancien extrait est servi** (second
+    round 1.9.0, M-03, `getOutdatedExtract`). Toute version autre que la
+    courante, quel qu'en soit le numéro. Sans ce repli, un favori épinglé
+    dont la page ne s'extrait plus s'ouvrait complet hors ligne mais, en
+    ligne, sur l'erreur et le contenu du flux. Le volet le montre sans
+    message d'échec (`ReadingPane.extract.test.tsx`) ; la préparation hors
+    ligne en lit les images, qui sinon partaient au balayage final
+    (`feedStore.prepareOffline.extract.test.ts`), et le réchauffage des
+    épinglés le réépingle pour la portée. Il n'est toujours pas promu en
+    mémoire : l'ouverture suivante repasse par l'extraction (que la mémoire
+    des échecs de la session refuse sans réseau, en automatique), puis par
+    le même repli.
   - Conséquence assumée : à la première ouverture après une montée de
     version, chaque article déjà extrait est réextrait (le réchauffage des
     épinglés au démarrage le fait aussi), sous la cadence partagée.

@@ -42,7 +42,7 @@ import { effectiveAutoExtract } from '../lib/effectiveAutoExtract';
 import { worthAutoExtracting } from '../lib/extractFailures';
 import { homeStreamId, mainStreamFeedIds, READING_LIST_STREAM } from '../lib/mainStream';
 import type { HomeEntry } from '../lib/unreadScope';
-import { peekExtract, getExtract, putExtract, pinExtract, unpinExtractsExcept } from '../lib/extractCache';
+import { peekExtract, getExtract, getOutdatedExtract, putExtract, pinExtract, unpinExtractsExcept } from '../lib/extractCache';
 import { listGet, listPut, listsPatch, listEvictOlderThan, listsWithoutSource, subsGet, subsPut, queueGet, queuePut, clearOfflineViews } from '../lib/offlineStore';
 import { computeRefreshDelta } from '../lib/refreshDelta';
 import { countNewInView, viewFeedIds } from '../lib/newArticles';
@@ -1741,7 +1741,11 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         try {
           const content = await extractFullContent(a.url);
           await putExtract(a.id, content, { pinned: true, scope });
-        } catch { /* ignore */ }
+        } catch {
+          // Réextraction en échec : l'extrait d'une version antérieure reste
+          // celui du favori, épinglé comme l'aurait été le nouveau (M-03).
+          if (await getOutdatedExtract(a.id).catch(() => undefined)) pinExtract(a.id, scope).catch(() => {});
+        }
       }
     } catch { /* ignore */ }
   },
@@ -1865,6 +1869,11 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
               extracted = content.content;
             } catch { /* keep the RSS content */ }
           }
+          // Un extrait d'une version antérieure, que la réextraction n'a pas
+          // remplacé, reste celui que l'article ouvre (hors ligne, et en ligne
+          // en repli) : ses images sont préparées et gardées, sinon le
+          // balayage final les retire (M-03).
+          if (!extracted) extracted = (await getOutdatedExtract(a.id))?.content ?? null;
         }
 
         if (!budgetReached) {

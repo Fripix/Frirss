@@ -15,7 +15,7 @@ import { readProgressPercent } from '../../lib/readProgress';
 import type { Article } from '../../types';
 import { articleTitle } from '../../lib/articleTitle';
 import type { ExtractedContent } from '../../utils/extractContent';
-import { peekExtract, getExtract, putExtract, revalidateIfStale } from '../../lib/extractCache';
+import { peekExtract, getExtract, getOutdatedExtract, putExtract, revalidateIfStale } from '../../lib/extractCache';
 import { isFocusToggleTarget } from '../../lib/readingFocus';
 import { focusSidebar } from '../../lib/focusSidebar';
 import { extractYouTubeId, facadeMarkup, youtubeThumbnail } from '../../lib/youtube';
@@ -897,7 +897,18 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
       setExtractedContent(result);
       setExtractFor(id);
     } catch {
-      if (stillCurrent()) {
+      // Un extrait d'une version antérieure n'est pas servi en ligne (on
+      // réextrait) ; si la réextraction échoue, il reste l'article complet
+      // qu'on avait — celui que le hors-ligne sert — plutôt que l'erreur sur
+      // le contenu du flux (M-03).
+      const older = await getOutdatedExtract(id).catch(() => undefined);
+      if (older) {
+        if (stillCurrent()) {
+          lastExtractedId.current = id;
+          setExtractedContent(older);
+          setExtractFor(id);
+        }
+      } else if (stillCurrent()) {
         setExtractFor(id);
         setExtractErrorAuto(auto);
         setExtractError(t('readingPane.extractError'));

@@ -36,6 +36,7 @@ vi.mock('../i18n', () => ({ default: { t: (k: string) => k } }));
 vi.mock('../lib/extractCache', () => ({
   peekExtract: vi.fn(() => undefined), getExtract: vi.fn(async () => undefined), putExtract: vi.fn(async () => {}),
   pinExtract: vi.fn(async () => {}), unpinExtractsExcept: vi.fn(async () => {}),
+  getOutdatedExtract: vi.fn(async () => undefined),
 }));
 vi.mock('../utils/extractContent', () => ({ extractFullContent: vi.fn(async () => { throw new Error('no'); }) }));
 
