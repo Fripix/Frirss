@@ -377,6 +377,30 @@ describe('stripBoilerplate', () => {
     expect(text).toContain(long);
   });
 
+  // A4-03 (quatrième round) : parasites vus en direct, structures reproduites.
+  it('retire le voile de consentement d’un contenu intégré, même long (Numerama)', () => {
+    const consent = 'Ce contenu est bloqué car vous n’avez pas accepté les cookies et autres traceurs. Pour pouvoir le visualiser, vous devez accepter l’usage étant opéré par le service. '.repeat(4);
+    const text = strip(`<article>${body}<div class="embed-wrapper"><iframe data-src="https://video.example.com/embed/x"></iframe><div class="embed-consent-overlay is-dark"><div class="embed-consent-overlay-text"><p>${consent}</p><button>J’accepte</button></div></div></div>${body}</article>`);
+    expect(text).not.toContain('Ce contenu est bloqué');
+    expect(text).toContain(long);
+  });
+
+  it('retire un encart publicitaire dont tous les liens sont payants, pas un paragraphe qui en porte un (BleepingComputer)', () => {
+    const paid = 'https://vendor.example.com/lp/scan?utm_source=display_network&amp;utm_medium=paid_display&amp;utm_campaign=x';
+    const text = strip(`<article>${body}<p>PARAGRAPHE L’éditeur propose un <a href="${paid}">essai gratuit</a> que nous avons testé pour cet article, avec des résultats mitigés.</p><div class="article-callout"><div class="article-media"><a href="${paid}"><img src="/ad.jpg" alt="article image"></a></div><div class="article-body"><h2><a href="${paid}">Uncover threats your defenses may miss</a></h2><p>PUBLICITE Our agents analyze intent, context and behavior to uncover phishing.</p><a href="${paid}">Start your free scan</a></div></div></article>`);
+    expect(text).not.toContain('PUBLICITE');
+    expect(text).not.toContain('Start your free scan');
+    expect(text).toContain('PARAGRAPHE');
+  });
+
+  it('retire le bouton « retour en haut », pas un lien vers une section de l’article (tech-wd)', () => {
+    const text = strip(`<article>${body}<p><a href="#partie-2">SECTION Aller à la partie 2</a></p><a class="top-story" href="/une">UNE de la semaine</a><a id="go-to-top" class="go-to-top-button" href="#go-to-tie-body"><span class="screen-reader-text">زر الذهاب إلى الأعلى</span></a><a class="back-to-top" href="#">Retour en haut</a></article>`);
+    expect(text).not.toContain('زر الذهاب');
+    expect(text).not.toContain('Retour en haut');
+    expect(text).toContain('SECTION');
+    expect(text).toContain('UNE de la semaine');
+  });
+
   // B-02 (quatrième round) : chaque bloc « newsletter » à champ de saisie
   // relisait tout le texte de son billet — 4 000 blocs au pied d'un billet de
   // 1 Mo coûtaient 11,4 s.

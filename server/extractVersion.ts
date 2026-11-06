@@ -37,10 +37,14 @@
  *     réparti est tout ou rien par `<article>`, et jamais d'une cellule de
  *     tableau à l'autre : les extraits v6 de Clubic réduits à un morceau du
  *     milieu (chapeau, moitié du texte et images perdus) sont refaits.
- * 8 : 1.9.0 (quatrième round, B-01) — un bloc invisible pour Readability
+ * 8 : 1.9.0 (quatrième round) — un bloc invisible pour Readability
  *     (`noscript`, `[hidden]`, `aria-hidden`, `display:none`…) n'entre plus
- *     dans la réunion du corps réparti : les extraits v7 vides (corps versé
- *     dans une accroche cachée) ou doublés (doublon caché versé dans le corps)
- *     sont refaits.
+ *     dans la réunion du corps réparti (B-01 : extraits v7 vides ou doublés) ;
+ *     intertitres, images légendées et contenus intégrés entre deux blocs ne
+ *     coupent plus la réunion (A4-01 : Clubic réduit à son dernier bloc) ;
+ *     une liste seule est remise dans son article (A4-02 : gros avis du
+ *     CERT-FR réduits à leurs références) ; voile de consentement, encart
+ *     payant et bouton « retour en haut » retirés (A4-03). Rien n'ayant été
+ *     déployé entre ces correctifs, une seule montée.
  */
 export const EXTRACT_VERSION = 8;

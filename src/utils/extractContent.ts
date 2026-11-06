@@ -532,7 +532,11 @@ const BOILERPLATE_TAGS = new Set(['footer', 'nav', 'form']);
 const BOILERPLATE_ROLES = new Set(['navigation', 'contentinfo']);
 const BOILERPLATE_TOKENS = new Set([
   'related', 'comment', 'comments', 'breadcrumb', 'breadcrumbs', 'footer',
+  // Voile de consentement d'un contenu intégré (A4-03, voir le serveur).
+  'consent',
 ]);
+/** Un lien payant (A4-03, voir le serveur). */
+const PAID_LINK = /[?&]utm_medium=paid/i;
 /** Seulement sur un bloc court : la règle « share » de Readability (relecture 1.9.0), étendue en A3. */
 const SHORT_BLOCK_TOKENS = new Set([
   'share', 'sharing', 'newsletter',
@@ -553,19 +557,22 @@ const INVISIBLE = new Set(['script', 'style', 'template', 'noscript']);
 /** Texte lisible d'un billet, mesuré une fois par nettoyage (B-02, voir le serveur). */
 type PostLength = (post: Element) => number;
 
-function isBoilerplate(el: Element, insideArticle: boolean, postLength: PostLength): boolean {
+function isBoilerplate(el: Element, insideArticle: boolean, postLength: PostLength, paid: Set<Node>): boolean {
   const tag = el.tagName.toLowerCase();
   const role = (el.getAttribute('role') || '').toLowerCase();
   if (BOILERPLATE_TAGS.has(tag) || BOILERPLATE_ROLES.has(role)) return true;
   if (!insideArticle && (tag === 'aside' || role === 'complementary' || (el.getAttribute('id') || '').toLowerCase() === 'secondary')) return true;
   if (el.hasAttribute('data-slug-hash') && hasCaptionSibling(el)) return true;
+  const tokens = `${withoutTaxonomy(el.getAttribute('class'))} ${el.getAttribute('id') || ''}`.toLowerCase().split(/[^a-z0-9]+/);
+  // Bouton « retour en haut » (A4-03, voir le serveur).
+  if (tag === 'a' && (el.getAttribute('href') || '').startsWith('#') && tokens.includes('top')) return true;
   if (!NAMED_EXEMPT.has(tag)) {
-    const tokens = `${withoutTaxonomy(el.getAttribute('class'))} ${el.getAttribute('id') || ''}`.toLowerCase().split(/[^a-z0-9]+/);
     if (tokens.some((token) => BOILERPLATE_TOKENS.has(token))) return true;
     if (!isPostContainer(tag, role)) {
       if (tokens.includes('newsletter') && el.querySelector(FORM_CONTROLS) && !carriesMostOfItsPost(el, postLength)) return true;
       if (tokens.some((token) => SHORT_BLOCK_TOKENS.has(token))
         && visibleTextLength(el, SHORT_BLOCK_MAX) < SHORT_BLOCK_MAX) return true;
+      if (paid.has(el) && isPaidPromotion(el)) return true;
     }
   }
   if (el.childElementCount <= 3 && Array.from(el.children).every((child) => child.childElementCount === 0)) {
@@ -573,6 +580,14 @@ function isBoilerplate(el: Element, insideArticle: boolean, postLength: PostLeng
     if (text.length <= POWERED_BY_MAX_LENGTH && POWERED_BY.test(text)) return true;
   }
   return false;
+}
+
+/** Encart publicitaire : court, tous ses liens payants, l'un sur une image (A4-03, voir le serveur). */
+function isPaidPromotion(el: Element): boolean {
+  if (visibleTextLength(el, SHORT_BLOCK_MAX) >= SHORT_BLOCK_MAX) return false;
+  const links = Array.from(el.querySelectorAll('a[href]'));
+  return links.every((link) => PAID_LINK.test(link.getAttribute('href') || ''))
+    && links.some((link) => link.querySelector('img'));
 }
 
 /** Repli d'une démo CodePen : retiré seulement quand une légende le répète (A3). */
@@ -630,10 +645,16 @@ function stripBoilerplate(root: Element): void {
     if (length === undefined) posts.set(post, length = visibleTextLength(post));
     return length;
   };
+  // Seuls les ancêtres d'un lien payant peuvent être un encart publicitaire (A4-03).
+  const paid = new Set<Node>();
+  for (const link of Array.from(root.querySelectorAll('a[href*="utm_medium"]'))) {
+    if (!PAID_LINK.test(link.getAttribute('href') || '')) continue;
+    for (let up: Node | null = link; up && up !== root && !paid.has(up); up = up.parentNode) paid.add(up);
+  }
   const stack: Array<[Element, boolean]> = Array.from(root.children, (child) => [child, false]);
   while (stack.length) {
     const [el, insideArticle] = stack.pop()!;
-    if (isBoilerplate(el, insideArticle, postLength)) {
+    if (isBoilerplate(el, insideArticle, postLength, paid)) {
       const length = visibleTextLength(el);
       if (length < total * MAIN_CONTAINER_MIN_SHARE && !carriesByline(el)) {
         if (posts.size) forgetText(posts, el, length);

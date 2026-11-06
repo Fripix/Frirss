@@ -805,7 +805,11 @@ const BOILERPLATE_TAGS = new Set(['footer', 'nav', 'form']);
 const BOILERPLATE_ROLES = new Set(['navigation', 'contentinfo']);
 const BOILERPLATE_TOKENS = new Set([
   'related', 'comment', 'comments', 'breadcrumb', 'breadcrumbs', 'footer',
+  // Le voile de consentement d'un contenu intégré (A4-03 : Numerama).
+  'consent',
 ]);
+/** Un lien payant : la campagne qui l'a acheté le dit dans son adresse (A4-03). */
+const PAID_LINK = /[?&]utm_medium=paid/i;
 /** Mots qui ne désignent un bloc étranger que s'il est court (règle « share » de Readability). */
 const SHORT_BLOCK_TOKENS = new Set([
   'share', 'sharing', 'newsletter',
@@ -825,14 +829,17 @@ const POWERED_BY_MAX_LENGTH = 120;
 /** Texte lisible d'un billet, mesuré une fois par nettoyage (voir `stripBoilerplate`). */
 type PostLength = (post: Element) => number;
 
-function isBoilerplate(el: Element, insideArticle: boolean, postLength: PostLength): boolean {
+function isBoilerplate(el: Element, insideArticle: boolean, postLength: PostLength, paid: Set<Node>): boolean {
   const tag = el.tagName.toLowerCase();
   const role = (el.getAttribute('role') || '').toLowerCase();
   if (BOILERPLATE_TAGS.has(tag) || BOILERPLATE_ROLES.has(role)) return true;
   if (!insideArticle && (tag === 'aside' || role === 'complementary' || (el.getAttribute('id') || '').toLowerCase() === 'secondary')) return true;
   if (el.hasAttribute('data-slug-hash') && hasCaptionSibling(el)) return true;
+  const tokens = `${withoutTaxonomy(el.getAttribute('class'))} ${el.getAttribute('id') || ''}`.toLowerCase().split(/[^a-z0-9]+/);
+  // Le bouton « retour en haut » : un lien vers la page même, nommé `top`
+  // (A4-03 : tech-wd, dont seul le libellé pour lecteur d'écran se lisait).
+  if (tag === 'a' && (el.getAttribute('href') || '').startsWith('#') && tokens.includes('top')) return true;
   if (!NAMED_EXEMPT.has(tag)) {
-    const tokens = `${withoutTaxonomy(el.getAttribute('class'))} ${el.getAttribute('id') || ''}`.toLowerCase().split(/[^a-z0-9]+/);
     if (tokens.some((token) => BOILERPLATE_TOKENS.has(token))) return true;
     // Ni le billet ni le conteneur principal ne sont jugés « courts » ou
     // « formulaire » : ce sont eux qu'on extrait.
@@ -840,6 +847,7 @@ function isBoilerplate(el: Element, insideArticle: boolean, postLength: PostLeng
       if (tokens.includes('newsletter') && el.querySelector(FORM_CONTROLS) && !carriesMostOfItsPost(el, postLength)) return true;
       if (tokens.some((token) => SHORT_BLOCK_TOKENS.has(token))
         && visibleTextLength(el, READABILITY_CHAR_THRESHOLD) < READABILITY_CHAR_THRESHOLD) return true;
+      if (paid.has(el) && isPaidPromotion(el)) return true;
     }
   }
   // Seulement sur un bloc presque feuille : lire `textContent` de chaque
@@ -860,6 +868,20 @@ function isBoilerplate(el: Element, insideArticle: boolean, postLength: PostLeng
  */
 function withoutTaxonomy(className: string | null): string {
   return (className || '').split(/\s+/).filter((name) => !/^(tag|category)-/i.test(name)).join(' ');
+}
+
+/**
+ * Un encart publicitaire (A4-03 : BleepingComputer, `div.article-callout`,
+ * nom que portent aussi de vrais encadrés) : un court bloc dont TOUS les liens
+ * sont payants (`PAID_LINK`) et dont l'un enveloppe une image — le visuel de
+ * la réclame. Un paragraphe d'article qui cite un lien payant n'a pas
+ * d'image en lien : il reste.
+ */
+function isPaidPromotion(el: Element): boolean {
+  if (visibleTextLength(el, READABILITY_CHAR_THRESHOLD) >= READABILITY_CHAR_THRESHOLD) return false;
+  const links = Array.from(el.querySelectorAll('a[href]')) as Element[];
+  return links.every((link) => PAID_LINK.test(link.getAttribute('href') || ''))
+    && links.some((link) => link.querySelector('img'));
 }
 
 /** Le billet lui-même ou le conteneur principal de la page. */
@@ -935,10 +957,17 @@ export function stripBoilerplate(root: Element): void {
     if (length === undefined) posts.set(post, length = visibleTextLength(post));
     return length;
   };
+  // Seuls les ancêtres d'un lien payant peuvent être un encart publicitaire
+  // (A4-03) : sans cela, chaque élément relirait tous ses liens.
+  const paid = new Set<Node>();
+  for (const link of Array.from(root.querySelectorAll('a[href*="utm_medium"]')) as Element[]) {
+    if (!PAID_LINK.test(link.getAttribute('href') || '')) continue;
+    for (let up: Node | null = link; up && up !== root && !paid.has(up); up = up.parentNode) paid.add(up);
+  }
   const stack: Array<[Element, boolean]> = Array.from(root.children, (child) => [child, false]);
   while (stack.length) {
     const [el, insideArticle] = stack.pop()!;
-    if (isBoilerplate(el, insideArticle, postLength)) {
+    if (isBoilerplate(el, insideArticle, postLength, paid)) {
       const length = visibleTextLength(el);
       if (length < total * MAIN_CONTAINER_MIN_SHARE && !carriesByline(el)) {
         if (posts.size) forgetText(posts, el, length);

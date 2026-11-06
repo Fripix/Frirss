@@ -383,6 +383,20 @@ describe('extractFullContent — repli local : blocs étrangers (M-04)', () => {
     for (const junk of ['PUB DU SITE', 'DEMOREPLI', 'jamais revendues', 'commission', 'COLONNE']) expect(text).not.toContain(junk);
   });
 
+  // A4-03 (quatrième round) : mêmes parasites que le serveur.
+  it('retire voile de consentement, encart publicitaire payant et bouton « retour en haut »', async () => {
+    const para = (i: number) => `<p>Paragraphe ${i} de l’article, qui raconte longuement ce qui s’est passé, avec des détails et des chiffres pour peser.</p>`;
+    const body = (from: number) => Array.from({ length: 5 }, (_, i) => para(from + i)).join('');
+    const paid = 'https://vendor.example.com/lp/scan?utm_medium=paid_display&amp;utm_campaign=x';
+    fallbackOn(`<html><head><title>Article</title></head><body><article><h1>Article</h1>${body(1)}
+      <div class="embed"><div class="embed-consent-overlay"><p>VOILE Ce contenu est bloqué car vous n’avez pas accepté les cookies.</p></div></div>${body(6)}
+      <div class="article-callout"><a href="${paid}"><img src="/ad.jpg"></a><p>REGIE Our agents uncover phishing.</p><a href="${paid}">Start your free scan</a></div>
+      ${body(11)}<a id="go-to-top" class="go-to-top-button" href="#haut"><span>HAUTDEPAGE</span></a></article></body></html>`);
+    const text = textOf((await extractFullContent('https://example.com/parasites')).content);
+    expect(text).toContain('Paragraphe 15');
+    for (const junk of ['VOILE', 'REGIE', 'HAUTDEPAGE']) expect(text).not.toContain(junk);
+  });
+
   // B-02 (quatrième round) : chaque formulaire de lettre d'information
   // relisait tout le texte de son billet (voir le serveur) : 3,4 s ici dans
   // jsdom, 0,23 s depuis — Readability compris.

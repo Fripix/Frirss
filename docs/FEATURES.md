@@ -5537,11 +5537,38 @@ serveur de développement en 1.4.4.)*
   bord : un article d'Ars Technica coupé en deux blocs par une publicité
   était rendu entier par la seconde passe, mais avec la notice de l'auteur et
   « 48 Comments » en plus — corrigé par la réunion du corps réparti en blocs
-  (ci-dessous). **Restent** (pas de signal sûr dans le balisage) : l'encart
-  sponsorisé de BleepingComputer (`div.article-callout`, nom porté aussi par
-  de vrais encadrés), « Follow topics and authors » de The Verge (classes
-  hachées), les invitations à suivre de 01net et des Numériques (paragraphes
-  sans classe), le rappel d'abonnement de Developpez (`#nagging`).
+  (ci-dessous). **Quatrième round (A4-03)**, trois règles de plus, mêmes
+  gardes : le mot `consent` rejoint les blocs toujours retirés — le voile
+  « Ce contenu est bloqué car vous n'avez pas accepté les cookies… » posé
+  sur chaque vidéo ou message intégré de Numerama (~1 000
+  caractères par contenu intégré, `div.embed-consent-overlay`) ; un court
+  bloc (moins de 500 caractères lisibles) dont **tous** les liens sont
+  payants (`utm_medium=paid…` dans l'adresse) et dont l'un enveloppe une
+  image est un encart publicitaire — celui de BleepingComputer en fin
+  d'article (`div.article-callout`, nom que portent aussi de vrais encadrés :
+  c'est le lien payant qui signe, pas le nom) ; un paragraphe d'article qui
+  cite un lien payant, sans image en lien, reste ; seuls les ancêtres d'un
+  lien payant sont examinés. Et le bouton « retour en haut » : un lien vers
+  la page même (`href` en `#…`) dont la classe ou l'id contient `top`
+  (tech-wd : son libellé pour lecteur d'écran, « زر الذهاب إلى الأعلى », se
+  lisait en fin d'article) ; un lien vers une section de l'article n'est pas
+  visé. Mesuré (2026-11-06) sur 275 pages : 14 changent, chacune par le
+  retrait du seul bloc visé (9 pages de Numerama perdent un ou
+  deux voiles, 3 de BleepingComputer l'encart, 2 de tech-wd le bouton) ;
+  aucune phrase d'article n'est perdue.
+  **Restent** (pas de signal sûr dans le balisage) : « Follow topics and
+  authors », la signature, la date, « Photo: » et la notice de l'auteur de
+  The Verge, son chapeau et son image d'en-tête doublés (classes hachées ; la
+  notice et le bloc « Follow » portent `author`, que la garde de l'auteur
+  protège), la notice de l'auteur de TechCrunch et son « View Bio »
+  (`wp-block-tc23-author-card-bio` : même garde), chez Numerama et
+  Frandroid la boîte de liens d'un sujet (`#embedded-tag-*` : « Regardez le
+  monde depuis l'Espace », « Le meilleur des Bons plans… ») et « Pour aller
+  plus loin » (`div.to-read`) — une liste de liens ou une vignette en lien
+  ne se distinguent pas, par leur seule forme, d'une liste de sources ou
+  d'une image d'article —, l'encart Back Market, les invitations à suivre de
+  01net et des Numériques (paragraphes sans classe), le rappel d'abonnement
+  de Developpez (`#nagging`).
 - **Corps réparti en plusieurs blocs, réuni avant toute passe** (1.9.0,
   troisième round — `joinSplitBody`, `server/extract.ts`, copiée dans le
   repli de `extractContent.ts`, appelée après `stripBoilerplate` ; tests :
@@ -5700,9 +5727,13 @@ serveur de développement en 1.4.4.)*
 - **Version de l'extraction** (1.9.0, A-2 — `server/extractVersion.ts` et
   `src/lib/extractVersion.ts`, même valeur vérifiée par
   `server/test/cache.test.ts`). À monter à chaque changement du résultat de
-  l'extraction pour une même page. **8** depuis que les blocs invisibles pour
-  Readability n'entrent plus dans la réunion du corps réparti (B-01) : les
-  extraits v7 vides ou doublés sont refaits ; 7 avait accompagné la réunion
+  l'extraction pour une même page. **8** depuis le quatrième round, rien
+  n'ayant été déployé entre ses correctifs : blocs invisibles pour
+  Readability écartés de la réunion du corps réparti (B-01 : extraits v7
+  vides ou doublés), intercalaires du corps réunis avec lui (A4-01 : Clubic
+  réduit à son dernier bloc), liste de références remise dans son avis
+  (A4-02 : gros avis du CERT-FR), voile de consentement, encart payant et
+  bouton « retour en haut » retirés (A4-03) ; 7 avait accompagné la réunion
   « tout ou rien » du corps réparti, cellules de tableau comprises (R3V-01 :
   extraits v6 de Clubic réduits à un morceau du milieu) ; 6 avait accompagné
   la réunion du corps réparti en blocs (Ars Technica), les termes de
