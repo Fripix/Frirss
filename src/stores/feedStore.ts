@@ -1146,7 +1146,22 @@ const settledGestures = new Map<string, number>();
  * articles qu'il contient (`writeSerial.many`, relecture R2), et le rejeu de
  * la file passe par la même clé que le geste direct.
  */
-const writeSerial = createWriteSerial();
+const writeSerial = createWriteSerial({ groupOf: (key) => readGroupOfKey(key) });
+/**
+ * Le groupe des écritures « lu » d'une portée : celles qu'une écriture À BORNE
+ * (« tout lu », marquage « en dessous ») attend, et qui l'attendent
+ * (`writeSerial.barrier`, limites restantes du second round). La borne ne
+ * nomme aucun article : rien ne dit lesquels elle touche avant la réponse.
+ * La portée (`compte@serveur`) et le numéro d'article ne portent pas de `|`.
+ */
+const readGroup = (scope: string): string => `${scope}|read`;
+function readGroupOfKey(key: string): string | null {
+  const [scope, id, type, ...rest] = key.split('|');
+  return id !== undefined && type === 'read' && rest.length === 0 ? readGroup(scope) : null;
+}
+/** Une écriture à borne : après les écritures « lu » en vol de la portée. */
+const boundInOrder = <T>(scope: string, write: () => Promise<T>): Promise<T> =>
+  writeSerial.barrier(readGroup(scope), write);
 const serialKey = (scope: string, articleId: string, type: QueuedActionType, labelId?: string): string =>
   `${scope}|${actionKey(entryIdUsec(articleId) ?? articleId, type, labelId)}`;
 const inOrder = <T>(g: Gesture, articleId: string, type: QueuedActionType, write: () => Promise<T>, labelId?: string): Promise<T> =>
@@ -2548,6 +2563,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     // serveur, puis mis son compteur à zéro dans sa vue.
     const serveurDemande = String(useAuthStore.getState().activeServerId ?? '');
     const sessionDemandee = !!useAuthStore.getState().backendToken;
+    const scopeDemandee = offlineScope();
     const memeContexte = () => {
       const auth = useAuthStore.getState();
       return String(auth.activeServerId ?? '') === serveurDemande && !(sessionDemandee && !auth.backendToken);
@@ -2572,8 +2588,17 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     try {
       const avant = await (prepare?.streamId === streamId ? prepare.ids : snapshotUnread(streamId));
       if (!memeContexte()) return;
+      let parti: boolean;
       try {
-        await markAllAsRead(streamId);
+        // Après les écritures « lu » en vol de la portée, et devant celles qui
+        // suivent (limites restantes du second round) : un « non lu » encore
+        // en vol arrivait sinon après la borne, et l'article restait non lu
+        // chez FreshRSS, lu à l'écran. Le contexte est revu après l'attente.
+        parti = await boundInOrder(scopeDemandee, async () => {
+          if (!memeContexte()) return false;
+          await markAllAsRead(streamId);
+          return true;
+        });
       } catch (err) {
         // Échec du marquage lui-même (502, réseau coupé en route) : jusqu'ici
         // avalé sans un mot, et le bouton semblait ne rien faire (L-23). La
@@ -2587,7 +2612,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         // message d'échec mentirait.
         throw err;
       }
-      if (!memeContexte()) return;
+      if (!parti || !memeContexte()) return;
       // Sous le filtre Non lus, la vue se vide : le ✓ retire déjà sa ligne
       // sous ce filtre (issue #10), et des lignes lues qui restent à l'écran
       // laissaient croire que rien ne s'était passé jusqu'au prochain
@@ -2881,7 +2906,16 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       try {
         try {
           if (direction === 'below') {
-            await markAllAsRead(streamId, ts as string);
+            // Une borne, pas une liste : après TOUTES les écritures « lu » en
+            // vol de la portée, et devant celles qui suivent (limites
+            // restantes du second round). Le contexte est revu après
+            // l'attente ; changé, rien ne part et l'écran n'est plus le sien.
+            const parti = await boundInOrder(offlineScope(), async () => {
+              if (!memeContexte()) return false;
+              await markAllAsRead(streamId, ts as string);
+              return true;
+            });
+            if (!parti) return;
             touchedIds.forEach((id) => confirmed.add(versEspaceCommun(id)));
           } else {
             const ids = await itemIdsNewerThanEntry(streamId, article.id);

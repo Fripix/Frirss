@@ -104,3 +104,70 @@ describe('createWriteSerial — écriture groupée sur plusieurs clés (R2-3)', 
     expect(calls).toEqual(['a']);
   });
 });
+
+// Écriture à borne (« tout lu », marquage « en dessous ») : elle ne nomme
+// aucun article, donc elle attend TOUTES les écritures en vol de son groupe,
+// et toute écriture du groupe lancée pendant elle l'attend à son tour.
+describe('createWriteSerial — écriture à borne sur tout un groupe', () => {
+  const groupOf = (key: string) => (key.endsWith('|read') ? key.split('|')[0] : null);
+
+  it('attend toutes les écritures en vol du groupe, et seulement elles', async () => {
+    const serial = createWriteSerial({ groupOf });
+    const calls: string[] = [];
+    const a = deferred();
+    const p1 = serial('s1|a|read', async () => { calls.push('a'); await a.promise; calls.push('a ✓'); });
+    void serial('s1|b|star', async () => { await new Promise(() => {}); }); // autre attribut
+    void serial('s2|c|read', async () => { await new Promise(() => {}); }); // autre portée
+    const borne = serial.barrier('s1', async () => { calls.push('borne'); });
+    await flush();
+    expect(calls).toEqual(['a']);
+    a.resolve();
+    await p1; await borne;
+    expect(calls).toEqual(['a', 'a ✓', 'borne']);
+  });
+
+  it('part dans le même tour quand rien du groupe n’est en vol', () => {
+    const serial = createWriteSerial({ groupOf });
+    const calls: string[] = [];
+    void serial('s2|c|read', async () => { await new Promise(() => {}); });
+    void serial.barrier('s1', async () => { calls.push('borne'); });
+    expect(calls).toEqual(['borne']);
+  });
+
+  it('une écriture du groupe lancée pendant la borne attend son règlement', async () => {
+    const serial = createWriteSerial({ groupOf });
+    const calls: string[] = [];
+    const done = deferred();
+    const borne = serial.barrier('s1', async () => { calls.push('borne'); await done.promise; calls.push('borne ✓'); });
+    const p = serial('s1|a|read', async () => { calls.push('a'); });
+    const lot = serial.many(['s1|b|read', 's1|c|read'], async () => { calls.push('lot'); });
+    const ailleurs = serial('s2|a|read', async () => { calls.push('ailleurs'); });
+    await flush();
+    expect(calls).toEqual(['borne', 'ailleurs']);
+    done.resolve();
+    await borne; await p; await lot; await ailleurs;
+    expect(calls).toEqual(['borne', 'ailleurs', 'borne ✓', 'a', 'lot']);
+  });
+
+  it('deux bornes du même groupe se suivent, et le groupe se libère ensuite', async () => {
+    const serial = createWriteSerial({ groupOf });
+    const calls: string[] = [];
+    const first = deferred();
+    const b1 = serial.barrier('s1', async () => { calls.push('b1'); await first.promise; });
+    const b2 = serial.barrier('s1', async () => { calls.push('b2'); });
+    await flush();
+    expect(calls).toEqual(['b1']);
+    first.resolve();
+    await b1; await b2; await flush();
+    void serial('s1|a|read', async () => { calls.push('a'); });
+    expect(calls).toEqual(['b1', 'b2', 'a']);
+  });
+
+  it('un échec de la borne libère quand même la suite', async () => {
+    const serial = createWriteSerial({ groupOf });
+    const borne = serial.barrier('s1', async () => { throw new Error('refus'); });
+    const p = serial('s1|a|read', async () => 'ok');
+    await expect(borne).rejects.toThrow('refus');
+    await expect(p).resolves.toBe('ok');
+  });
+});

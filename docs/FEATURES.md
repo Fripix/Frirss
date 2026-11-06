@@ -2131,8 +2131,11 @@ FriRSS (voir « Le titre est un vrai lien » plus bas).
   La promesse rendue ne rejette jamais (l'appelant fait `void …`). **« Tout lu » n'entre PAS dans cette file** : il agit sur la vue
   courante au moment où il s'exécute (son état local, sa fermeture de
   recherche), donc le différer l'appliquerait à un autre écran ; il partage
-  seulement la barre. Un « Tout lu » qui passe pendant un marquage de plage en
-  vol n'est donc pas ordonné avec lui.
+  seulement la barre. Ses écritures sont pourtant ordonnées avec celles d'une
+  plage par la mise en série des écritures « lu » (voir *Les écritures d'un même
+  article partent en série*) : la requête « tout lu » attend la borne d'un
+  « en dessous » en vol, et les lots d'un « au-dessus » attendent la sienne ;
+  seul l'état local de chacun s'applique dans l'ordre où ils se règlent.
   *Le corpus ne se compare plus par référence* : le retour en arrière défait
   les identifiants que CE marquage avait fait passer de non lu à lu
   (`corpusModifie`, relevé avant le patch), sur le corpus qui est là au
@@ -6444,8 +6447,9 @@ mises en file et rejouées au retour.
   réussit / échoue tard » ci-dessus ne se produisent plus entre gestes directs
   (leurs tests les rejouent dans l'ordre réel), et la garde du rejeu sur
   `settledGestures` reste comme filet.
-  **Le rejeu de la file et les écritures groupées passent par la même
-  série** (relecture du second round 1.9.0) :
+  **Le rejeu de la file, les écritures groupées et les écritures à borne
+  passent par la même série** (relecture et limites restantes du second
+  round 1.9.0) :
   - **le rejeu** envoie chaque action sous la clé du geste direct : un « non
     lu » touché pendant l'envoi rejoué de « lu » attend son règlement. Après
     son attente, l'action est revue : remplacée en file, ou dépassée par un
@@ -6459,9 +6463,19 @@ mises en file et rejouées au retour.
     d'entrée décimal (`entryIdUsec`) : les lots portent la forme décimale de
     `stream/items/ids`, les lignes la forme greader. Le contexte (serveur,
     session) est revu après l'attente.
-  **Non couverts** : « tout marquer comme lu » et le marquage « en dessous »,
-  qui envoient une borne (`mark-all-as-read`) et non une liste d'articles —
-  rien ne dit lesquels sont concernés avant la réponse.
+  - **les écritures à borne** — « tout marquer comme lu » et le marquage
+    « en dessous », qui envoient une borne (`mark-all-as-read`) et non une
+    liste d'articles : rien ne dit lesquels elles touchent avant la réponse
+    (limites restantes du second round). Elles attendent donc TOUTES les
+    écritures « lu » / « non lu » en vol de la portée — gestes, lots, rejeu,
+    autre borne (`writeSerial.barrier`, groupe `portée|read`, `boundInOrder`
+    dans `feedStore`) —, et toute écriture « lu » de la portée lancée pendant
+    elles attend leur règlement. Rien en vol : elles partent dans le même
+    tour (le ✓ optimiste d'un « en dessous » se voit toujours au clic). Le
+    contexte (serveur, session) est revu après l'attente : changé, rien ne
+    part. Un « non lu » encore en vol arrivait sinon après la borne, et
+    l'article restait non lu chez FreshRSS, lu à l'écran. Les favoris et
+    étiquettes ne sont pas du groupe : une borne ne les attend pas.
 - **Actions sans portée (avant 1.8.0) : elles adoptent la première portée
   active au rejeu** (`adoptUnscopedActions`), et sont comptées dans le
   bandeau dès avant (`pendingHere`). Le cas courant est un seul compte, et

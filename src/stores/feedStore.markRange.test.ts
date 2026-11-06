@@ -718,14 +718,17 @@ describe('markReadRelative — la progression', () => {
   });
 
   it('« tout lu » finishing does not switch off the bar of a range mark still running', async () => {
-    const plage = differe();
-    vi.mocked(markAllAsRead).mockReturnValueOnce(plage.promesse); // la plage, en vol
+    // « Au-dessus », en train de lire ses identifiants : aucune écriture en
+    // vol. Une plage « en dessous » est une borne, que « tout lu » attendrait
+    // (limites restantes du second round) : il ne finirait pas pendant elle.
+    const plage = differe<string[]>();
+    vi.mocked(itemIdsNewerThanEntry).mockReturnValueOnce(plage.promesse);
 
-    const p1 = useFeedStore.getState().markReadRelative(pivot, 'below');
+    const p1 = useFeedStore.getState().markReadRelative(pivot, 'above');
     await useFeedStore.getState().markAllAsRead(); // « tout lu » complet, pendant ce temps
     expect(useFeedStore.getState().bulkWork).not.toBeNull();
 
-    plage.resoudre();
+    plage.resoudre([]);
     await p1;
     expect(useFeedStore.getState().bulkWork).toBeNull();
   });
@@ -902,7 +905,11 @@ describe('markReadRelative — la barre partagée avec le retour en arrière de 
     await flushTout();
     expect(useFeedStore.getState().bulkWork).not.toBeNull();
 
-    await useFeedStore.getState().markReadRelative(pivot, 'below'); // finit pendant la restauration
+    // « Au-dessus » sans rien à marquer : aucune écriture. « En dessous » est
+    // une borne, qui attendrait le lot de restauration en vol (limites
+    // restantes du second round).
+    vi.mocked(itemIdsNewerThanEntry).mockResolvedValueOnce([]);
+    await useFeedStore.getState().markReadRelative(pivot, 'above'); // finit pendant la restauration
     expect(useFeedStore.getState().bulkWork).not.toBeNull();
 
     rendre.resoudre();

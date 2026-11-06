@@ -265,13 +265,120 @@ describe('écritures hors série rattrapées (relecture R2)', () => {
     vi.mocked(api.markAsRead).mockImplementation(async () => { order.push('lu'); await slow.promise; order.push('lu ✓'); });
     vi.mocked(api.markAsUnread).mockImplementation(async () => { order.push('lot non lu'); });
     vi.mocked(api.getUnreadItemIds).mockResolvedValue({ ids: ['2', '1'], complete: true } as never);
-    const p1 = useFeedStore.getState().toggleRead(a);
     await useFeedStore.getState().markAllAsRead();
+    // « Lu » lent touché APRÈS « tout lu » (qui, lui, attend les écritures
+    // « lu » en vol de la portée), juste avant le retour en arrière.
+    const p1 = useFeedStore.getState().toggleRead({ ...a, read: false });
     const undo = useUiStore.getState().toasts.at(-1)!.action!.run();
     await settled();
     expect(order).toEqual(['lu']);
     slow.resolve();
     await p1; await undo;
     expect(order).toEqual(['lu', 'lu ✓', 'lot non lu']);
+  });
+});
+
+// Limites restantes du second round : « tout marquer comme lu » et le
+// marquage « en dessous » envoient une borne (`mark-all-as-read`), pas une
+// liste d'articles. Ils passaient hors série : un « non lu » encore en vol
+// pouvait arriver chez FreshRSS APRÈS la borne et laisser l'article non lu
+// là-bas, lu à l'écran.
+describe('écritures à borne mises en série (« tout lu », « en dessous »)', () => {
+  it('« tout lu » attend le règlement d’un « non lu » en vol', async () => {
+    const { api, useFeedStore } = await load();
+    const a = useFeedStore.getState().articles[0];
+    const order: string[] = [];
+    const slow = deferred();
+    vi.mocked(api.markAsUnread).mockImplementation(async () => { order.push('non lu'); await slow.promise; order.push('non lu ✓'); });
+    vi.mocked(api.markAllAsRead).mockImplementation(async () => { order.push('tout lu'); });
+    const p1 = useFeedStore.getState().toggleRead({ ...a, read: true });
+    const p2 = useFeedStore.getState().markAllAsRead();
+    await settled();
+    expect(order).toEqual(['non lu']);
+    slow.resolve();
+    await p1; await p2;
+    expect(order).toEqual(['non lu', 'non lu ✓', 'tout lu']);
+  });
+
+  it('« tout lu » n’attend pas une écriture d’un autre attribut', async () => {
+    const { api, useFeedStore } = await load();
+    const a = useFeedStore.getState().articles[0];
+    vi.mocked(api.markAsStarred).mockImplementation(async () => { await new Promise(() => {}); });
+    void useFeedStore.getState().toggleStar(a);
+    await useFeedStore.getState().markAllAsRead();
+    expect(api.markAllAsRead).toHaveBeenCalledTimes(1);
+  });
+
+  it('un « lu » lancé pendant « tout lu » attend son règlement', async () => {
+    const { api, useFeedStore } = await load();
+    const a = useFeedStore.getState().articles[0];
+    const order: string[] = [];
+    const slow = deferred();
+    vi.mocked(api.markAllAsRead).mockImplementation(async () => { order.push('tout lu'); await slow.promise; order.push('tout lu ✓'); });
+    vi.mocked(api.markAsUnread).mockImplementation(async () => { order.push('non lu'); });
+    const p1 = useFeedStore.getState().markAllAsRead();
+    await settled();
+    expect(order).toEqual(['tout lu']);
+    const p2 = useFeedStore.getState().toggleRead({ ...a, read: true });
+    await settled();
+    expect(order, 'le geste attend la borne').toEqual(['tout lu']);
+    slow.resolve();
+    await p1; await p2;
+    expect(order).toEqual(['tout lu', 'tout lu ✓', 'non lu']);
+  });
+
+  it('« tout lu » revoit le serveur après l’attente : rien ne part vers un autre serveur', async () => {
+    const { api, useFeedStore } = await load();
+    const { useAuthStore } = await import('./authStore');
+    const a = useFeedStore.getState().articles[0];
+    const slow = deferred();
+    vi.mocked(api.markAsUnread).mockImplementation(async () => { await slow.promise; });
+    const p1 = useFeedStore.getState().toggleRead({ ...a, read: true });
+    const p2 = useFeedStore.getState().markAllAsRead();
+    await settled();
+    useAuthStore.setState({ activeServerId: '2' } as never);
+    slow.resolve();
+    await p1; await p2;
+    expect(api.markAllAsRead).not.toHaveBeenCalled();
+  });
+
+  it('« en dessous » attend le règlement d’un « non lu » en vol', async () => {
+    const { api, useFeedStore } = await load();
+    const [recent, older] = useFeedStore.getState().articles; // item(2), item(1)
+    const order: string[] = [];
+    const slow = deferred();
+    vi.mocked(api.markAsUnread).mockImplementation(async () => { order.push('non lu'); await slow.promise; order.push('non lu ✓'); });
+    vi.mocked(api.markAllAsRead).mockImplementation(async () => { order.push('en dessous'); });
+    const p1 = useFeedStore.getState().toggleRead({ ...older, read: true });
+    const p2 = useFeedStore.getState().markReadRelative(recent, 'below');
+    await settled();
+    expect(order).toEqual(['non lu']);
+    slow.resolve();
+    await p1; await p2;
+    expect(order).toEqual(['non lu', 'non lu ✓', 'en dessous']);
+  });
+
+  it('« en dessous » sans écriture « lu » en vol part au clic', async () => {
+    const { api, useFeedStore } = await load();
+    const [recent] = useFeedStore.getState().articles;
+    void useFeedStore.getState().markReadRelative(recent, 'below');
+    expect(api.markAllAsRead).toHaveBeenCalledTimes(1);
+  });
+
+  it('un « non lu » lancé pendant « en dessous » attend son règlement', async () => {
+    const { api, useFeedStore } = await load();
+    const [recent, older] = useFeedStore.getState().articles;
+    const order: string[] = [];
+    const slow = deferred();
+    vi.mocked(api.markAllAsRead).mockImplementation(async () => { order.push('en dessous'); await slow.promise; order.push('en dessous ✓'); });
+    vi.mocked(api.markAsUnread).mockImplementation(async () => { order.push('non lu'); });
+    const p1 = useFeedStore.getState().markReadRelative(recent, 'below');
+    await settled();
+    const p2 = useFeedStore.getState().toggleRead({ ...older, read: true });
+    await settled();
+    expect(order).toEqual(['en dessous']);
+    slow.resolve();
+    await p1; await p2;
+    expect(order).toEqual(['en dessous', 'en dessous ✓', 'non lu']);
   });
 });
