@@ -562,7 +562,7 @@
     },
     "layout": {
       "title": "Article action icons",
-      "hint": "Choose which icons appear on each article row. Swipes, shortcuts and the reading pane are unaffected; hiding Favorite or Read later, however, also removes the long press that files an article into a category from the list.",
+      "hint": "Choose which icons appear on each article row. Swipes, shortcuts and the reading pane are unaffected; hiding Favorite or Read later, however, also removes the long press that files an article into a category from the list. In the Compact density, every hidden icon gives its room to the title, and so does hiding “Feed name” in the list’s Options.",
       "star": "Favorite",
       "readLater": "Read later",
       "openSource": "Open at source",

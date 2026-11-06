@@ -1707,6 +1707,45 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
   - **Écarté** : réglage optionnel, bandeau « Annuler » (il ne rattrapait pas
     le cas invoqué), uniformisation des hauteurs de ligne. Détail et raisons
     dans `docs/superpowers/specs/2026-09-01-mark-read-removes-row-design.md`.
+- **La ligne compacte ne déborde jamais, et rien ne s'y masque tout seul**
+  (1.9.0, M-10, `ArticleRow` en mode `compact` dans `ArticleList.tsx`). Une
+  seule ligne porte, de gauche à droite : le point de non-lu (6 px), l'icône du
+  flux (14 px), la source, le titre, l'heure, puis les boutons de ligne
+  (4 × 22 px + 3 × 8 px = 112 px). Le point, l'icône, l'heure et les boutons
+  gardent leur taille ; **la source et le titre se partagent le reste, à un
+  contre deux**, depuis une base nulle (`flex: 1 1 0` pour la source, `2 1 0`
+  pour le titre, `min-width: 0` aux deux) : la source n'a jamais plus d'un
+  tiers de cette place, ni plus que son propre texte (`max-width:
+  max-content`), et ce qu'elle ne prend pas revient au titre. Le titre a donc
+  toujours au moins le double de la largeur de la source, et une source courte
+  (« BBC ») reste entière. Écart entre les éléments de la ligne : **8 px**
+  (`gap-2`, 12 px auparavant).
+  - **Avant** : la source avait `min-width: 80px` et `flex-shrink: 0`, comme
+    l'heure et les boutons ; le titre (`flex-1`) était seul à céder. Mesuré au
+    navigateur sur le vrai balisage et la feuille **construite**, tous
+    éléments affichés : titre de **2 à 22 px** dans une liste de 340 px
+    (ordinateur, « Côte à côte »), **0 px** au téléphone à 320 px, et une
+    ligne qui débordait de l'écran — jusqu'à 255 px avec une source longue,
+    ✓ « Marquer lu » compris.
+  - **Après**, même banc : à **320 px**, titre de **46 à 69 px**, source de
+    21 à 35 px ; à **340 px**, titre de **59 à 83 px** ; dans une liste de
+    600 px, une source longue (« Le Monde.fr – Actualités… ») laisse
+    **256 px** au titre, contre 9 px avant. Dans tous les cas, le dernier
+    bouton finit à 16 px du bord (la marge `px-4`) : plus aucun débordement.
+    Le cas le plus serré est un article de moins d'une minute, dont l'heure
+    (« à l'instant », « przed chwilą ») est la plus large.
+  - **Écarté** : un rapport d'un contre trois. Il rendait 9 px au titre à
+    320 px, mais la source n'y gardait qu'une lettre — « BBC » devenait
+    « B… » à 0,25 px près —, doublon de l'icône du flux.
+  - **Gagner de la place reste un réglage**, décision du propriétaire
+    (2026-11-06) : masquer des icônes de ligne (Préférences → Mise en page) ou
+    le « Nom du flux » (Options de la liste). L'aide de la section des icônes
+    (`preferences.layout.hint`) le dit en une phrase, dans les dix langues.
+  - **Test** : `ArticleRow.compact.test.tsx` garde la règle de partage (la
+    source rétrécit, ne dépasse pas son texte, le titre a deux parts contre
+    une, écart de 8 px). jsdom ne calcule pas la mise en page : les largeurs
+    ci-dessus ont été mesurées au navigateur (`getBoundingClientRect()`), à
+    refaire si la ligne change.
 - **Le ✓ est arrivé en mode Compact avec l'issue #10** (2026-09-01). Il
   manquait aux lignes compactes alors qu'il existait dans la ligne normale et
   la vue grille. Ces lignes ayant toutes la même hauteur, le ✓ suivant se
@@ -1718,7 +1757,8 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
   `src/components/ArticleList/ArticleActions.tsx`) remplace les trois copies
   qu'écrivaient la ligne normale, la ligne compacte et la carte de grille.
   La ligne compacte n'avait **aucun conteneur** pour ses boutons : ils étaient
-  enfants directs de la ligne et héritaient donc de son `gap-3`, comme le
+  enfants directs de la ligne et héritaient donc de son `gap-3` (la ligne est
+  passée à `gap-2` en 1.9.0, voir plus haut), comme le
   titre et l'heure — un conteneur dédié leur donne maintenant leur propre
   écartement : **`gap-2`, soit 8 px**. Il avait d'abord été fixé à `gap-1`
   (4 px), et c'était trop peu : `.article-row button` est volontairement

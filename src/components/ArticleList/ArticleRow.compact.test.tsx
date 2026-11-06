@@ -124,6 +124,36 @@ describe('ArticleRow — mode compact', () => {
     expect(link.getAttribute('rel')).toContain('noopener');
   });
 
+  // M-10 : la source avait `min-width: 80px` et `flex-shrink: 0`, le titre
+  // seul cédait la place — 0 à 22 px de titre à 320 et 340 px, et une ligne
+  // qui débordait de l'écran avec le ✓. jsdom ne calcule pas la mise en page :
+  // ce test garde la RÈGLE de partage, la largeur réelle a été mesurée au
+  // navigateur contre la feuille construite (voir docs/FEATURES.md).
+  it('M-10 : la source cède la place la première, le titre garde au moins le double de sa part, et rien ne se masque', () => {
+    const { container } = renderCompact({ source: 'Le Monde.fr - Actualités et Infos en France et dans le monde' });
+    const row = container.querySelector('[data-article-id]') as HTMLElement;
+    const source = row.querySelector('[data-theme="list-source"]') as HTMLElement;
+    const title = row.querySelector('.article-title') as HTMLElement;
+    // Rien ne se masque : la source et les quatre actions restent dans la ligne.
+    expect(source).not.toBeNull();
+    expect(actionsOf(container)?.children.length).toBe(4);
+    // La source rétrécit (plus de largeur plancher ni de `flex-shrink-0`)…
+    expect(source.className).not.toContain('flex-shrink-0');
+    expect(source.style.minWidth).toBe('0px');
+    expect(source.className).toContain('truncate');
+    // … ne prend jamais plus que son texte…
+    expect(source.style.maxWidth).toBe('max-content');
+    // … et partage avec le titre à un contre deux, depuis une base nulle :
+    // la part du titre est toujours au moins le double de celle de la source.
+    expect(source.style.flexBasis).toBe('0px');
+    expect(title.style.flexBasis).toBe('0px');
+    expect(Number(title.style.flexGrow)).toBe(2 * Number(source.style.flexGrow));
+    expect(title.style.minWidth).toBe('0px');
+    // Écart de la ligne : 8 px, pas 12 — cinq écarts, vingt pixels rendus au titre.
+    expect(row.className).toContain('gap-2');
+    expect(row.className).not.toContain('gap-3');
+  });
+
   it('le clic sur le lien neutralise la navigation native : l’ouverture reste celle d’onOpenSource, une seule fois', () => {
     const onOpenSource = vi.fn((e: { stopPropagation: () => void }) => e.stopPropagation());
     const { container } = renderCompact({}, { onOpenSource });

@@ -2146,7 +2146,7 @@ export function ArticleRow({ article, viewMode, showSource, rowActions, favicon,
         {...gestures}
         onClick={onSelect}
         onKeyDown={(e) => e.key === 'Enter' && onSelect()}
-        className={`article-row w-full text-left flex items-center gap-3 px-4 py-2 cursor-pointer ${
+        className={`article-row w-full text-left flex items-center gap-2 px-4 py-2 cursor-pointer ${
           active ? 'article-row-active bg-[var(--list-selected)]' : 'hover:bg-[var(--list-hover)]'
         }`}
         {...(stagger ? { 'data-stagger': '' } : {})}
@@ -2162,20 +2162,34 @@ export function ArticleRow({ article, viewMode, showSource, rowActions, favicon,
         {favicon !== undefined && (
           <FeedFavicon iconUrl={favicon ?? undefined} title={article.source} size={14} />
         )}
+        {/* M-10 — la source et le titre se partagent ce que laissent le
+            point, l'icône, l'heure et les boutons : un tiers au plus pour la
+            source (jamais plus que son texte), le reste au titre. Avant, la
+            source gardait 80 px et ne rétrécissait pas : à 320 px le titre
+            tombait à 0 et la ligne débordait de l'écran avec le ✓. Rien ne
+            se masque ici : masquer la source ou des boutons reste un réglage
+            de l'utilisateur. Mesures : docs/FEATURES.md. */}
         {showSource && (
           <span
-            className="font-medium uppercase flex-shrink-0"
+            className="font-medium uppercase truncate"
             data-theme="list-source"
-            style={{ color: 'var(--list-source)', minWidth: '80px', fontSize: 'var(--fs-list-source)' }}
+            title={article.source}
+            style={{
+              color: 'var(--list-source)', fontSize: 'var(--fs-list-source)',
+              flexGrow: 1, flexShrink: 1, flexBasis: '0px', minWidth: '0px', maxWidth: 'max-content',
+            }}
           >
             {article.source}
           </span>
         )}
         <span
           dir="auto"
-          className={`article-title truncate flex-1 ${article.read ? 'font-normal' : 'font-medium'}`}
+          className={`article-title truncate ${article.read ? 'font-normal' : 'font-medium'}`}
           data-theme={article.read ? 'list-title-read' : 'list-title'}
-          style={{ color: article.read ? 'var(--list-title-read)' : 'var(--list-title)', fontSize: 'var(--fs-list-title)' }}
+          style={{
+            color: article.read ? 'var(--list-title-read)' : 'var(--list-title)', fontSize: 'var(--fs-list-title)',
+            flexGrow: 2, flexShrink: 1, flexBasis: '0px', minWidth: '0px',
+          }}
         >
           <TitleLink url={article.url} onOpenedInBackground={onOpenedInBackground}>
             <Highlighted text={articleTitle(article, t)} terms={searchTerms} />

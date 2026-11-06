@@ -562,7 +562,7 @@
     },
     "layout": {
       "title": "Actiepictogrammen voor artikelen",
-      "hint": "Kies welke pictogrammen op elke artikelregel verschijnen. Veegbewegingen, sneltoetsen en het leespaneel veranderen niet; wie Favoriet of Later lezen verbergt, verliest echter ook het lang indrukken waarmee een artikel vanuit de lijst in een categorie wordt opgeborgen.",
+      "hint": "Kies welke pictogrammen op elke artikelregel verschijnen. Veegbewegingen, sneltoetsen en het leespaneel veranderen niet; wie Favoriet of Later lezen verbergt, verliest echter ook het lang indrukken waarmee een artikel vanuit de lijst in een categorie wordt opgeborgen. In de dichtheid Compact geeft elk verborgen pictogram zijn ruimte aan de titel, net als het verbergen van Feednaam in de Opties van de lijst.",
       "star": "Favoriet",
       "readLater": "Later lezen",
       "openSource": "Bij de bron openen",

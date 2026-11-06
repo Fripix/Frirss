@@ -562,7 +562,7 @@
     },
     "layout": {
       "title": "Icone di azione degli articoli",
-      "hint": "Scegli quali icone appaiono su ogni riga di articolo. Scorrimenti, scorciatoie e riquadro di lettura non cambiano; nascondere «Preferito» o «Leggi più tardi», invece, rimuove anche la pressione prolungata che archivia un articolo in una categoria dall’elenco.",
+      "hint": "Scegli quali icone appaiono su ogni riga di articolo. Scorrimenti, scorciatoie e riquadro di lettura non cambiano; nascondere «Preferito» o «Leggi più tardi», invece, rimuove anche la pressione prolungata che archivia un articolo in una categoria dall’elenco. Nella densità «Compatto», ogni icona nascosta lascia il suo spazio al titolo, così come nascondere «Nome del feed» nelle Opzioni dell’elenco.",
       "star": "Preferito",
       "readLater": "Leggi più tardi",
       "openSource": "Apri alla fonte",

@@ -562,7 +562,7 @@
     },
     "layout": {
       "title": "Aktionssymbole für Artikel",
-      "hint": "Wählen Sie, welche Symbole in jeder Artikelzeile erscheinen. Wischgesten, Tastenkürzel und der Lesebereich bleiben unverändert; wer jedoch „Favorit“ oder „Später lesen“ ausblendet, verliert auch das lange Drücken, mit dem sich ein Artikel aus der Liste in eine Kategorie einordnen lässt.",
+      "hint": "Wählen Sie, welche Symbole in jeder Artikelzeile erscheinen. Wischgesten, Tastenkürzel und der Lesebereich bleiben unverändert; wer jedoch „Favorit“ oder „Später lesen“ ausblendet, verliert auch das lange Drücken, mit dem sich ein Artikel aus der Liste in eine Kategorie einordnen lässt. In der Dichte „Kompakt“ überlässt jedes ausgeblendete Symbol seinen Platz dem Titel, ebenso ein in den Optionen der Liste ausgeblendeter „Feed-Name“.",
       "star": "Favorit",
       "readLater": "Später lesen",
       "openSource": "An der Quelle öffnen",

@@ -562,7 +562,7 @@
     },
     "layout": {
       "title": "Ícones de ação dos artigos",
-      "hint": "Escolha os ícones que aparecem em cada linha de artigo. Os deslizes, os atalhos e o painel de leitura não mudam; ocultar «Favorito» ou «Ler mais tarde», porém, também remove a pressão longa que arquiva um artigo numa categoria a partir da lista.",
+      "hint": "Escolha os ícones que aparecem em cada linha de artigo. Os deslizes, os atalhos e o painel de leitura não mudam; ocultar «Favorito» ou «Ler mais tarde», porém, também remove a pressão longa que arquiva um artigo numa categoria a partir da lista. Na densidade «Compacto», cada ícone oculto cede o seu espaço ao título, tal como ocultar «Nome do feed» nas Opções da lista.",
       "star": "Favorito",
       "readLater": "Ler mais tarde",
       "openSource": "Abrir na origem",

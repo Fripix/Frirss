@@ -562,7 +562,7 @@
     },
     "layout": {
       "title": "Iconos de acción de los artículos",
-      "hint": "Elija qué iconos aparecen en cada fila de artículo. Los deslizamientos, los atajos y el panel de lectura no cambian; en cambio, ocultar «Favorito» o «Leer más tarde» también elimina la pulsación larga que archiva un artículo en una categoría desde la lista.",
+      "hint": "Elija qué iconos aparecen en cada fila de artículo. Los deslizamientos, los atajos y el panel de lectura no cambian; en cambio, ocultar «Favorito» o «Leer más tarde» también elimina la pulsación larga que archiva un artículo en una categoría desde la lista. En la densidad «Compacto», cada icono oculto cede su espacio al título, igual que ocultar «Nombre de la fuente» en las Opciones de la lista.",
       "star": "Favorito",
       "readLater": "Leer más tarde",
       "openSource": "Abrir en el origen",
