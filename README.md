@@ -73,7 +73,7 @@ A note in the interest of honesty: this is a personal project and I'm not a deve
 - **Oldest first, if you prefer** — a global order in *Preferences → General*, overridable per feed from its menu. FreshRSS serves the pages in that order, so it holds across infinite scroll, and *mark everything above / below* follows the order on screen.
 - **A random selection, when you want to rediscover** — the *Random* button in the list toolbar draws articles at random from the view you are in, like FreshRSS's random order, with a *New draw* at the end of the list. How many articles and how old they can be are yours to set in *Preferences → General*. The choice stays, view by view, and can also be made from a feed's menu.
 - **FreshRSS's per-feed visibility is honoured** — a feed set to *show in its category only* (or in its own view only) stays out of *All feeds* and *Unread*, out of their counts, and out of *Mark all as read* from there, while it still shows in its category. The setting lives in FreshRSS; it needs FreshRSS 1.28 or later, and older servers behave as before.
-- **Offline reading.** Articles stay readable without a connection, images included. Favorites and read-later are kept automatically; a one-tap *Prepare offline* sweep covers the last 30 days across every feed.
+- **Offline reading.** Articles stay readable without a connection, images included. Favorites and read-later are kept automatically, full article included; a one-tap *Prepare offline* sweep covers the last 30 days across every feed, fetching the full article where the article would open as one (*Full article by default*, or the feed's own setting), with a time-left estimate and a *Cancel* button.
 - **Favorites, read-later, read/unread**, with all / unread / favorites filters. The unread-only choice is remembered per feed — or, if you prefer, one choice applies to every feed (*Preferences → General → Unread filter*). The sidebar can show the total, the unread count, or both for Favorites and Read later (*Preferences → Tags*).
 - **Ticking an article read clears it from the unread list** — instantly, in every layout including the compact one. Opening an article leaves its row where it is, so you keep your place; only a deliberate tick removes one. If the server refuses the write, the row comes back and says so.
 - **Nothing destructive happens in one click.** Unsubscribing, deleting a tag, a category, a server or a saved theme, clearing your personal AI key, every *Reset* button (shortcuts included) and every admin action on an account ask first, in a dialog that names what will be lost — and a double click can never answer it for you. When the server refuses, the app says so instead of pretending.
@@ -85,7 +85,7 @@ A note in the interest of honesty: this is a personal project and I'm not a deve
 - **New articles announce themselves** — a banner at the top of the list counts what has arrived in the view you are looking at, and loads it in one click. Dismiss it and it comes back on the next arrival. The list never changes under you. Off in *Preferences → General* if you would rather it did not.
 - **Share an article or copy its link** from the reading pane — the system share sheet on mobile, the clipboard elsewhere.
 - **Resume where you left off** — your last feed and filter come back on reopen, or FriRSS always opens on *All feeds* or *Unread* if you say so (*Preferences → General → View at startup*). An unobtrusive offline / back-online indicator sits above the list.
-- **At home on Android** — in the installed app, the back gesture closes what is on top (article, feed drawer, preferences) instead of leaving the app, and the status bar takes the colour of the surface beneath it.
+- **At home on Android** — in the installed app, the back gesture closes what is on top (article, feed drawer, preferences, a sheet, menu or confirmation) instead of leaving the app, and the status bar takes the colour of the surface beneath it.
 
 ### AI summaries and translations (optional)
 FriRSS ships no AI of its own: no model, no service, nothing sent anywhere by default. If you want summaries and translations, connect the model of your choice — a local one or a cloud provider — in *Preferences → AI*. It stays off until an administrator does, and only ever sends the article you are reading to the provider you picked.
@@ -202,24 +202,26 @@ The first launch generates the JWT secret and the token-encryption key and store
 | `CORS_ORIGIN` | Allowed CORS origin(s) — only for split front/back deployments | — |
 
 > Since 1.4.10 the **server** extracts article text: the browser asks
-> `GET /api/extract` first, and falls back to extracting the page itself only
-> when that route is missing (an older backend), cannot make an article of the
-> page, is busy, or cannot reach it — never when the address is not a page at
-> all (a video, a PDF), and never past 2 MB of HTML, the cap on both sides. With `REDIS_URL` set the result is cached by URL rather than
-> by account, so a page is extracted once for the whole instance instead of once
-> per device: a second device, or another user reading the same feed, gets it
-> instantly. Devices asking for the same cold page at the same moment are
-> coalesced onto a single extraction, so the origin site sees one request rather
-> than one per reader. **Without Redis the route still runs** — it simply keeps
-> nothing, so the next device pays for the extraction again. Either way the work
-> now happens on the server rather than on every phone, so budget for it:
-> parsing a page blocks the single Node process that serves the whole instance
-> for tens of milliseconds up to about a second on the largest pages (2 MB,
-> the cap). That work
-> is bounded — one page is parsed at a time and at most five requests may be
-> in flight or waiting, beyond which the server says so and the browser extracts locally —
-> but the bound is a queue, not extra capacity: a busy instance is one where
-> phones do the parsing again.
+> `GET /api/extract` first, and extracts the page itself only when the server
+> could not try — the route is missing (an older backend), or the server cannot
+> reach the site. When the server did get the page and turned it down (nothing
+> readable, a page too complex to parse, an analysis past its time limit, a
+> full queue, a refusal from the site), the browser does not parse it again:
+> it would pay the same cost on the phone. Neither side goes past 2 MB of HTML,
+> and an address that is not a page (a video, a PDF) is never extracted. With
+> `REDIS_URL` set the result is cached by URL rather than by account, so a page
+> is extracted once for the whole instance instead of once per device: a
+> second device, or another user reading the same feed, gets it instantly.
+> Devices asking for the same cold page at the same moment are coalesced onto
+> a single extraction, so the origin site sees one request rather than one per
+> reader. **Without Redis the route still runs** — it simply keeps nothing, so
+> the next device pays for the extraction again. Parsing runs in a worker
+> thread, away from the process that serves the instance: each page gets at
+> most 10 seconds and 256 MB, a page nested too deeply is refused before it is
+> parsed, and at most five extractions run or wait at once — beyond that the
+> server answers *busy* and the reader can retry. Budget for it on a small
+> host: the largest pages (2 MB, the cap) take up to about a second of CPU
+> each.
 
 Single sign-on is configured at runtime in *Preferences → Administration* (issuer, client ID, client secret).
 

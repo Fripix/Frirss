@@ -6477,7 +6477,7 @@ images consultés restent lisibles sans réseau.
   automatique, « Annuler » (`cancelOfflinePrep`) l'arrête entre deux flux ou
   entre deux articles — l'article en cours va au bout, d'où « Arrêt… ». Une
   annulation compte comme une interruption : listes déjà rangées gardées,
-  **aucun retrait final** d'images ; le rapport dit « Préparation arrêtée à
+  **aucun retrait final** d'images ; le rapport dit « Préparation arrêtée :
   N sur M articles » (`offline.cancelledReport`, au pluriel de M), jamais
   « Hors ligne prêt ». « Annulée » ne se dit que d'une boucle **arrêtée sur
   la demande** (`stoppedOnCancel`) : « Annuler » touché pendant le dernier
