@@ -19,7 +19,7 @@ import {
 import { advisoryPageHtml, ADVISORY_BODY_MARKER } from '../test/advisoryPageFixture';
 import { blogPageHtml, BLOG_BODY_MARKER, newsPageHtml, pressPageHtml, shortPostPageHtml } from '../test/boilerplatePageFixtures';
 import { INLINE_IMAGE, LAZY_IMAGES, lazyImagePageHtml } from '../test/lazyImagePageFixture';
-import { splitBodyAcrossImagesPageHtml, splitBodyPageHtml, splitBodyWithBioPageHtml } from '../test/splitBodyPageFixtures';
+import { splitBodyAcrossEmbedPageHtml, splitBodyAcrossHeadingsPageHtml, splitBodyAcrossImagesPageHtml, splitBodyPageHtml, splitBodyWithBioPageHtml } from '../test/splitBodyPageFixtures';
 
 const serverAnswer = {
   title: 'Titre serveur', content: '<p>corps serveur</p>',
@@ -442,6 +442,21 @@ describe('extractFullContent — repli local : corps réparti en plusieurs blocs
     const cells = new DOMParser().parseFromString(content, 'text/html').querySelectorAll('td');
     expect(Array.from(cells, (td) => td.querySelectorAll('p').length)).toEqual([1, 1, 1, 1]);
   });
+
+  // A4-01 (quatrième round) : mêmes pages que le serveur.
+  for (const [name, html] of [['intertitres et image', splitBodyAcrossHeadingsPageHtml()], ['message intégré', splitBodyAcrossEmbedPageHtml()]] as const) {
+    it(`garde tout un corps que coupent ses intertitres, ses images légendées et ses contenus intégrés (structure Clubic, ${name})`, async () => {
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+      const pieces = Array.from(doc.querySelectorAll('div.slate-content p, div.slate-content h2'), (b) => norm(b.textContent)).filter(Boolean);
+      const figures = Array.from(doc.querySelectorAll('article figcaption'), (fc) => fc.parentElement!.querySelector('img')!.getAttribute('src')!);
+      expect(figures.length).toBeGreaterThan(0);
+      fallbackOn(html);
+      const { content } = await extractFullContent(`https://example.com/clubic-${figures.length}-${pieces.length}`);
+      const text = textOf(content);
+      for (const piece of pieces) expect(text).toContain(piece);
+      for (const src of figures) expect(content).toContain(`https://example.com${src}`);
+    });
+  }
 
   // B-01 (quatrième round) : un bloc invisible pour Readability n'est pas un corps.
   const story = Array.from({ length: 12 }, (_, i) => `<p>Paragraph ${i} of the real story, with enough words to look like genuine body text that Readability scores well and keeps.</p>`).join('');

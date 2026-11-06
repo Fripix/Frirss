@@ -6,7 +6,7 @@ import {
 import { advisoryPageHtml, ADVISORY_BODY_MARKER } from '../../src/test/advisoryPageFixture.js';
 import { INLINE_IMAGE, LAZY_IMAGES, lazyImagePageHtml } from '../../src/test/lazyImagePageFixture.js';
 import { blogPageHtml, BLOG_BODY_MARKER, newsPageHtml, pressPageHtml, shortPostPageHtml } from '../../src/test/boilerplatePageFixtures.js';
-import { splitBodyAcrossImagesPageHtml, splitBodyPageHtml, splitBodyWithBioPageHtml } from '../../src/test/splitBodyPageFixtures.js';
+import { splitBodyAcrossEmbedPageHtml, splitBodyAcrossHeadingsPageHtml, splitBodyAcrossImagesPageHtml, splitBodyPageHtml, splitBodyWithBioPageHtml } from '../../src/test/splitBodyPageFixtures.js';
 
 const page = `<!doctype html><html><head><title>Titre de la page</title></head>
 <body><article><h1>Un vrai titre</h1>
@@ -503,6 +503,30 @@ describe('extractArticle — corps réparti en plusieurs blocs', () => {
     for (const src of bodyImages) expect(out.content).toContain(`https://example.com${src}`);
   });
 
+  // A4-01 (quatrième round) : « tout ou rien » refusait toute réunion dès
+  // qu'un intertitre (seul dans son bloc, sans paragraphe), une image
+  // légendée ou un message intégré séparait deux blocs — le cas ordinaire de
+  // Clubic. Readability ne gardait que le dernier bloc, ou l'avant-dernier.
+  for (const [name, html] of [['intertitres et image', splitBodyAcrossHeadingsPageHtml()], ['message intégré', splitBodyAcrossEmbedPageHtml()]] as const) {
+    it(`garde tout un corps que coupent ses intertitres, ses images légendées et ses contenus intégrés (structure Clubic, ${name})`, () => {
+      const { document } = parseHTML(html);
+      const pieces = Array.from(document.querySelectorAll('div.slate-content p, div.slate-content h2'), (b) => norm((b as Element).textContent)).filter(Boolean);
+      expect(pieces.length).toBeGreaterThan(5);
+      const figures = Array.from(document.querySelectorAll('article figcaption'), (fc) => (fc as Element).parentElement!.querySelector('img')!.getAttribute('src')!);
+      expect(figures.length).toBeGreaterThan(0);
+      const out = extractArticle('https://example.com/clubic', html)!;
+      const text = textOf(out.content);
+      for (const piece of pieces) expect(text).toContain(piece);
+      // Dans l'ordre de la page, image comprise.
+      expect(text.indexOf(pieces[0])).toBeLessThan(text.indexOf(pieces[pieces.length - 1]));
+      for (const src of figures) expect(out.content).toContain(`https://example.com${src}`);
+      // L'image reste à sa place : après le chapeau, avant la fin.
+      const beforeImage = textOf(out.content.slice(0, out.content.indexOf(figures[0])));
+      expect(beforeImage).toContain(pieces[0]);
+      expect(beforeImage).not.toContain(pieces[pieces.length - 1]);
+    });
+  }
+
   // B-01 (quatrième round) : la réunion ne regardait pas si un bloc était
   // invisible pour Readability, qui écarte `noscript`, `[hidden]`,
   // `aria-hidden="true"` et les styles `display:none` / `visibility:hidden`.
@@ -564,22 +588,61 @@ describe('joinSplitBody', () => {
     expect(performance.now() - started).toBeLessThan(2000);
   });
 
-  it('ne réunit pas deux blocs qu’une image sépare', () => {
-    const { document } = run(`<article>
+  // Un encart de liens (« À découvrir », une offre) n'est pas du corps : le
+  // verser y ferait entrer d'autres articles, et réunir par-dessus lui
+  // changerait l'ordre de ce qui se lit.
+  const card = '<div class="card"><a href="/x"><img src="/t.jpg"><span>À découvrir : un autre article du site</span></a></div>';
+
+  // A4-01 : un parcours franchit désormais les intercalaires du corps. Des
+  // groupes dont chaque bloc est enveloppé d'une citation, de part et d'autre
+  // d'un long intercalaire d'images, le faisaient franchir une fois par
+  // groupe (300 groupes et 50 000 images : 30 s). Le total est borné.
+  it('ne franchit pas le même long intercalaire une fois par groupe', () => {
+    const block = (g: number) => `<blockquote><div class="w"><div class="post-content g${g}"><p>x</p></div></div></blockquote>`;
+    const groups = Array.from({ length: 200 }, (_, g) => g);
+    const { document } = parseHTML(`<html><body><article>${groups.map(block).join('')}${'<img src="/a.jpg">'.repeat(20_000)}${groups.map((g) => `<p>coupure</p>${block(g)}`).join('')}</article></body></html>`);
+    const started = performance.now();
+    joinSplitBody(document.documentElement as unknown as Element);
+    expect(performance.now() - started).toBeLessThan(2000);
+  });
+
+  it('ne réunit pas deux blocs qu’un encart de liens sépare', () => {
+    for (const between of [card, '<div class="row"><a href="/offre">Découvrir l’offre !</a></div>', '<div><a href="/pub"><img src="/banniere.jpg"></a></div>']) {
+      const { document } = run(`<article>
+        <div class="w"><div class="post-content">${para('UN')}</div></div>
+        ${between}
+        <div class="w"><div class="post-content">${para('DEUX')}</div></div></article>`);
+      expect(document.querySelectorAll('.post-content'), between).toHaveLength(2);
+    }
+  });
+
+  // A4-01 (quatrième round) : les intertitres seuls dans leur bloc, les images
+  // légendées et les messages intégrés font partie du corps. Ils y sont
+  // versés à leur place : l'ordre de ce qui se lit ne change pas.
+  it('verse dans le corps, à leur place, ses intertitres, ses images et ses contenus intégrés', () => {
+    const { document, before, after } = run(`<article>
       <div class="w"><div class="post-content">${para('UN')}</div></div>
-      <figure><img src="/a.jpg"></figure>
-      <div class="w"><div class="post-content">${para('DEUX')}</div></div></article>`);
-    expect(document.querySelectorAll('.post-content')).toHaveLength(2);
+      <div class="fig"><figure><img src="/a.jpg"><figcaption>Légende de <a href="/credit">l’auteur</a></figcaption></figure></div>
+      <div class="w"><div class="post-content">${para('DEUX')}</div></div>
+      <div class="w"><div class="post-content"><h2>Un intertitre</h2></div></div>
+      <div class="w"><div class="post-content">${para('TROIS')}</div></div>
+      <div class="embed"><blockquote class="twitter-tweet"><p>Un message</p><a href="/status">lien</a></blockquote></div>
+      <div class="w"><div class="post-content">${para('QUATRE')}</div></div></article>`);
+    const blocks = Array.from(document.querySelectorAll('.post-content') as ArrayLike<Element>).filter((b) => b.querySelector('p'));
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0].textContent).toMatch(/UN[\s\S]*Légende[\s\S]*DEUX[\s\S]*Un intertitre[\s\S]*TROIS[\s\S]*Un message[\s\S]*QUATRE/);
+    expect(blocks[0].querySelector('img')?.getAttribute('src')).toBe('/a.jpg');
+    expect(after).toBe(before);
   });
 
   // R3V-01 : réunir les seuls blocs contigus d'un corps coupé faisait d'un
   // morceau le seul candidat de Readability. C'est tout le groupe ou rien.
-  it('ne réunit aucun bloc d’un corps qu’une image coupe ailleurs : tout ou rien', () => {
+  it('ne réunit aucun bloc d’un corps qu’un encart coupe ailleurs : tout ou rien', () => {
     const { document, before, after } = run(`<article>
       <div class="w"><div class="post-content">${para('UN')}</div></div>
       <div class="ad-slot"></div>
       <div class="w"><div class="post-content">${para('DEUX')}</div></div>
-      <figure><img src="/a.jpg"></figure>
+      ${card}
       <div class="w"><div class="post-content">${para('TROIS')}</div></div></article>`);
     expect(parentsOf(document, '.post-content').map((p) => p?.className)).toEqual(['w', 'w', 'w']);
     expect(after).toBe(before);
@@ -600,7 +663,7 @@ describe('joinSplitBody', () => {
       <div class="w"><div class="post-content">${para('UN')}</div></div>
       <div class="w"><div class="post-content">${para('DEUX')}</div></div></article>
       <article><div class="w"><div class="post-content">${para('TROIS')}</div></div>
-      <figure><img src="/a.jpg"></figure>
+      ${card}
       <div class="w"><div class="post-content">${para('QUATRE')}</div></div></article>`);
     expect(parentsOf(document, '.post-content').map((p) => p?.className)).toEqual(['w', 'w', 'w']);
   });

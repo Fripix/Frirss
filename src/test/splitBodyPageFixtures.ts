@@ -20,6 +20,8 @@
 import splitBodyStructureHtml from './splitBodyStructureFixture.html?raw';
 import splitBodyBioStructureHtml from './splitBodyBioStructureFixture.html?raw';
 import splitBodyAcrossImagesHtml from './splitBodyAcrossImagesFixture.html?raw';
+import splitBodyAcrossHeadingsHtml from './splitBodyAcrossHeadingsFixture.html?raw';
+import splitBodyAcrossEmbedHtml from './splitBodyAcrossEmbedFixture.html?raw';
 
 /**
  * Trois blocs (1 827, 1 722 et 2 258 caractères). Readability ne gardait que
@@ -50,4 +52,25 @@ export function splitBodyWithBioPageHtml(): string {
  */
 export function splitBodyAcrossImagesPageHtml(): string {
   return splitBodyAcrossImagesHtml;
+}
+
+/**
+ * Six blocs `div.slate-content` cousins (l'arbre d'un article de Clubic,
+ * quatrième round, A4-01 : 281, 543, 83, 2 143, 54 et 1 829 caractères) :
+ * une image légendée entre les deux premiers, et deux intertitres seuls dans
+ * leur bloc, sans paragraphe. « Tout ou rien » refusait toute réunion, et
+ * Readability ne gardait que le dernier bloc (1 835 caractères sur ~4 900).
+ */
+export function splitBodyAcrossHeadingsPageHtml(): string {
+  return splitBodyAcrossHeadingsHtml;
+}
+
+/**
+ * Sept blocs `div.slate-content` cousins (un autre article de Clubic, A4-01) :
+ * une image légendée, deux intertitres seuls dans leur bloc et un message
+ * intégré (`blockquote`) au milieu. Readability ne gardait que l'avant-dernier
+ * bloc (840 caractères sur ~2 000).
+ */
+export function splitBodyAcrossEmbedPageHtml(): string {
+  return splitBodyAcrossEmbedHtml;
 }

@@ -5558,9 +5558,34 @@ serveur de développement en 1.4.4.)*
   des cadres : mesuré, cela ne changeait que des listes de billets liés, dont
   la réunion laisse justement l'article l'emporter sur elles (le même billet
   de Docker : 19 028 caractères d'article au lieu de 1 038 de liens).
-  Limite connue : un intertitre seul dans un bloc sans paragraphe, en tête
-  d'une suite de blocs (Clubic), est écarté par Readability, avant cette
-  règle comme depuis.
+  ⚠️ **Les intercalaires du corps ne le coupent pas** (quatrième round,
+  A4-01 — `partOfBody`, `pourGap`). « Tout ou rien » refusait toute
+  réunion dès qu'un intertitre seul dans son bloc (sans paragraphe, donc hors
+  du groupe), une image légendée ou un message intégré séparait deux blocs :
+  le cas ordinaire de Clubic, où Readability ne gardait alors que le dernier
+  bloc (1 835 caractères sur ~4 900 sur un article, 840 sur ~2 000 sur un
+  autre — défaut présent depuis la 1.8.0). Un intercalaire fait seulement
+  d'un autre bloc du groupe, d'une image (hors lien) et de sa légende, d'une
+  citation ou d'un message intégré (`blockquote`) est désormais versé avec
+  les blocs, **à sa place** : l'ordre de ce qui se lit ne change pas. Un bloc
+  du groupe y entre sans ses gabarits — Readability écarte un `<div>` qui
+  n'enveloppe qu'un intertitre (« No useful content »), et l'intertitre avec
+  lui : c'est aussi ce qui perdait les intertitres d'un article de Clubic
+  déjà complet. Tout autre texte coupe encore le groupe (l'heure d'une entrée
+  de direct), comme un lien qui se lit : encart « À découvrir », offre,
+  bouton « Découvrir l'offre ! », bannière.
+  ⚠️ **Coût** : un parcours franchit désormais ces intercalaires au lieu de
+  s'arrêter au premier ; des groupes dont chaque bloc est enveloppé d'une
+  citation, de part et d'autre d'un long intercalaire d'images, le faisaient
+  franchir une fois par groupe (300 groupes, 50 000 images : 30 s). Le total
+  des parcours d'une page est borné (8 nœuds par élément) ; épuisé, il ne
+  réunit plus rien (35 ms). Mesuré (2026-11-06) sur 275 pages : 25 changent,
+  toutes en gagnant — les articles de Clubic retrouvent leurs blocs, leurs
+  intertitres et leurs légendes (1 835 → 5 142, 840 → 2 053, 677 → 1 925,
+  755 → 2 023, 1 463 → 4 326 caractères…), trois pages de Zoomit leurs
+  intertitres et un message intégré ; aucune ne perd une phrase d'article
+  (une ligne de mots-clés de Clubic, « Xiaomi Honor Smartphone Actus
+  Comparer », n'est plus reprise).
   ⚠️ **Un bloc invisible pour Readability n'est pas un corps** (quatrième
   round, B-01 — `hiddenForReadability`) : Readability écarte, avec tout ce
   qu'ils contiennent, les `noscript`, les éléments `[hidden]`,

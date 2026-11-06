@@ -930,6 +930,18 @@ function forgetText(posts: Map<Element, number>, el: Element, length: number): v
 // cela ramassait les encarts « À découvrir » et les offres glissés entre les
 // blocs, et coupait des pages Numerama.)
 //
+// LES INTERCALAIRES DU CORPS NE LE COUPENT PAS (A4-01, quatrième round) :
+// chez Clubic, presque chaque article a ses intertitres seuls dans leur bloc
+// (sans paragraphe, donc hors du groupe), une image légendée ou un message
+// intégré entre deux blocs. « Tout ou rien » refusait alors toute réunion, et
+// Readability ne gardait que le dernier bloc : 1 835 caractères sur ~4 900,
+// 840 sur ~2 000. Un intercalaire fait de cela seulement — un autre bloc du
+// groupe, une image et sa légende, une citation ou un message intégré
+// (`partOfBody`) — est versé avec les blocs, à sa place ; l'ordre de ce qui
+// se lit ne change donc pas. Tout autre texte coupe encore (l'heure d'une
+// entrée de direct), et un lien qui se lit aussi : encart « À découvrir »,
+// offre, bannière.
+//
 // UN BLOC INVISIBLE POUR READABILITY N'EST PAS UN CORPS (B-01, quatrième
 // round) : Readability écarte, avec tout ce qu'ils contiennent, les
 // `noscript`, les éléments `[hidden]`, `aria-hidden="true"` (sauf
@@ -946,7 +958,7 @@ function forgetText(posts: Map<Element, number>, el: Element, length: number): v
 const POSITIVE_NAME = /article|body|content|entry|hentry|h-entry|main|page|pagination|post|text|blog|story/i;
 /** `REGEXPS.negative` de Readability 0.6.0 : un nom qui annonce autre chose. */
 const NEGATIVE_NAME = /-ad-|hidden|^hid$| hid$| hid |^hid |banner|combx|comment|com-|contact|footer|gdpr|masthead|media|meta|outbrain|promo|related|scroll|share|shoutbox|sidebar|skyscraper|sponsor|shopping|tags|widget/i;
-/** Un média se lit aussi : deux blocs qu'une image sépare ne sont pas réunis. */
+/** Un média se lit aussi : dans un lien (une bannière), il coupe le corps ; hors lien, légendé ou non, il en fait partie. */
 const MEDIA = 'img, picture, video, audio, iframe, object, embed';
 /**
  * Le cadre d'un bloc : seuls les blocs d'un même cadre sont réunis. Deux
@@ -1015,19 +1027,79 @@ function nextOutside(node: Node): Node | null {
   return null;
 }
 
-/** Quelque chose se lit-il entre la fin de `a` et le début de `b`, qui le suit ? */
-function readableBetween(a: Element, b: Element): boolean {
+/** Nœuds que les parcours d'une réunion peuvent encore visiter (voir `joinSplitBody`). */
+interface Budget { left: number }
+
+/**
+ * Ce qui se lit entre la fin de `a` et le début de `b`, qui le suit, dans
+ * l'ordre — ou `null` si l'un de ces nœuds n'est pas du corps (`partOfBody`) :
+ * il coupe le groupe. `null` aussi quand le budget est épuisé.
+ */
+function readableBetween(a: Element, b: Element, members: Set<Element>, budget: Budget): Node[] | null {
+  const found: Node[] = [];
   let node = nextOutside(a);
   while (node && node !== b) {
+    if (--budget.left < 0) return null;
     if (node.contains(b)) {
       // Un ancêtre de `b` : seul ce qui précède `b` en lui compte.
       node = node.firstChild;
       continue;
     }
-    if (isReadable(node)) return true;
+    if (isReadable(node)) {
+      if (!partOfBody(node, members, budget)) return null;
+      found.push(node);
+    }
     node = nextOutside(node);
   }
-  return false;
+  return found;
+}
+
+/**
+ * Ce qui, entre deux blocs, appartient au corps qu'ils coupent (A4-01) : un
+ * autre bloc du groupe (un intertitre seul dans son bloc, sans paragraphe),
+ * une image et sa légende, une citation ou un message intégré
+ * (`blockquote`). Tout autre texte le coupe — l'heure et le titre des
+ * entrées d'un direct —, de même qu'un lien qui se lit : un encart
+ * « À découvrir », une offre, une bannière.
+ */
+function partOfBody(node: Node, members: Set<Element>, budget: Budget): boolean {
+  const stack: Node[] = [node];
+  while (stack.length) {
+    if (--budget.left < 0) return false;
+    const current = stack.pop()!;
+    if (current.nodeType === 3) {
+      if ((current.textContent || '').trim()) return false;
+      continue;
+    }
+    if (current.nodeType !== 1) continue;
+    const el = current as Element;
+    const tag = el.tagName.toLowerCase();
+    if (INVISIBLE.has(tag) || members.has(el) || tag === 'figcaption' || tag === 'blockquote') continue;
+    if (tag === 'a') {
+      if (isReadable(el)) return false;
+      continue;
+    }
+    if (el.matches(MEDIA)) continue;
+    for (let child = el.firstChild; child; child = child.nextSibling) stack.push(child);
+  }
+  return true;
+}
+
+/**
+ * Verse dans `body` ce qu'un intercalaire du corps porte de lisible, dans
+ * l'ordre. Un bloc du groupe y est versé comme les autres : son contenu, sans
+ * ses gabarits — Readability écarte un `<div>` qui n'enveloppe qu'un
+ * intertitre (« No useful content »), et l'intertitre avec lui. Une image
+ * légendée ou un message intégré y entre entier.
+ */
+function pourGap(node: Node, body: Element, members: Set<Element>, holders: Set<Node>): void {
+  if (members.has(node as Element)) {
+    body.append(...Array.from(node.childNodes));
+  } else if (holders.has(node)) {
+    for (const child of Array.from(node.childNodes)) pourGap(child, body, members, holders);
+  } else if (isReadable(node)) {
+    body.append(node);
+  }
 }
 
 /** Réunit, sous `root`, les blocs d'un corps réparti dans des gabarits parallèles. */
@@ -1041,6 +1113,11 @@ export function joinSplitBody(root: Element): void {
     else groups.set(name, [el]);
   }
   const hidden = new Map<Element, boolean>();
+  // Depuis A4-01, un parcours franchit les intercalaires du corps au lieu de
+  // s'arrêter au premier : sur une page faite pour cela, les parcours de
+  // groupes différents pourraient franchir le même long intercalaire. Leur
+  // total est donc borné ; épuisé, il ne réunit plus rien.
+  const budget: Budget = { left: 8 * root.getElementsByTagName('*').length + 10_000 };
   for (const group of groups.values()) {
     // Dans l'ordre du document. Un bloc imbriqué dans un autre du groupe
     // voyage avec lui : seuls les plus extérieurs comptent.
@@ -1048,6 +1125,13 @@ export function joinSplitBody(root: Element): void {
     for (const el of group) {
       const last = blocks[blocks.length - 1];
       if (!last || !last.contains(el)) blocks.push(el);
+    }
+    const members = new Set(blocks.filter((block) => !insideHidden(block, hidden)));
+    // Les ancêtres des blocs : un intercalaire qui en contient un est
+    // déballé jusqu'à lui (voir `pourGap`).
+    const holders = new Set<Node>();
+    for (const member of members) {
+      for (let up = member.parentNode; up && up !== root && !holders.has(up); up = up.parentNode) holders.add(up);
     }
     // Par `<article>` (ou hors de tout `<article>`), dans l'ordre. Une cellule
     // de tableau est son propre cadre : ses blocs ne sont jamais versés dans
@@ -1066,17 +1150,26 @@ export function joinSplitBody(root: Element): void {
       else runs.set(scope, [block]);
     }
     for (const run of runs.values()) {
-      // Tout ou rien : une seule coupure lisible, et aucun bloc n'est réuni.
-      if (run.some((block, i) => i > 0 && readableBetween(run[i - 1], block))) continue;
+      // Tout ou rien : une seule coupure, et aucun bloc n'est réuni. Ce qui
+      // se lit entre deux blocs sans les couper (A4-01) est versé avec eux, à
+      // sa place.
+      const gaps: Node[][] = [];
+      for (let i = 1; i < run.length; i++) {
+        const gap = readableBetween(run[i - 1], run[i], members, budget);
+        if (!gap) break;
+        gaps.push(gap);
+      }
+      if (gaps.length < run.length - 1) continue;
       let body = run[0];
-      for (const block of run.slice(1)) {
+      run.slice(1).forEach((block, i) => {
         if (block.parentElement === body.parentElement) {
           body = block;
-          continue;
+          return;
         }
+        for (const node of gaps[i]) pourGap(node, body, members, holders);
         body.append(...Array.from(block.childNodes));
         block.remove();
-      }
+      });
     }
   }
 }

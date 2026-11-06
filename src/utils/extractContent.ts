@@ -670,17 +670,60 @@ function nextOutside(node: Node): Node | null {
   return null;
 }
 
-function readableBetween(a: Element, b: Element): boolean {
+interface Budget { left: number }
+
+/** Ce qui se lit entre `a` et `b`, dans l'ordre, ou `null` si quelque chose coupe le corps (voir le serveur, A4-01). */
+function readableBetween(a: Element, b: Element, members: Set<Element>, budget: Budget): Node[] | null {
+  const found: Node[] = [];
   let node = nextOutside(a);
   while (node && node !== b) {
+    if (--budget.left < 0) return null;
     if (node.contains(b)) {
       node = node.firstChild;
       continue;
     }
-    if (isReadable(node)) return true;
+    if (isReadable(node)) {
+      if (!partOfBody(node, members, budget)) return null;
+      found.push(node);
+    }
     node = nextOutside(node);
   }
-  return false;
+  return found;
+}
+
+/** Un autre bloc du groupe, une image légendée, une citation ou un message intégré : du corps (A4-01). */
+function partOfBody(node: Node, members: Set<Element>, budget: Budget): boolean {
+  const stack: Node[] = [node];
+  while (stack.length) {
+    if (--budget.left < 0) return false;
+    const current = stack.pop()!;
+    if (current.nodeType === Node.TEXT_NODE) {
+      if ((current.textContent || '').trim()) return false;
+      continue;
+    }
+    if (current.nodeType !== Node.ELEMENT_NODE) continue;
+    const el = current as Element;
+    const tag = el.tagName.toLowerCase();
+    if (INVISIBLE.has(tag) || members.has(el) || tag === 'figcaption' || tag === 'blockquote') continue;
+    if (tag === 'a') {
+      if (isReadable(el)) return false;
+      continue;
+    }
+    if (el.matches(MEDIA)) continue;
+    for (let child = el.firstChild; child; child = child.nextSibling) stack.push(child);
+  }
+  return true;
+}
+
+/** Verse un intercalaire dans le corps : le contenu d'un bloc du groupe, sans ses gabarits (voir le serveur). */
+function pourGap(node: Node, body: Element, members: Set<Element>, holders: Set<Node>): void {
+  if (members.has(node as Element)) {
+    body.append(...Array.from(node.childNodes));
+  } else if (holders.has(node)) {
+    for (const child of Array.from(node.childNodes)) pourGap(child, body, members, holders);
+  } else if (isReadable(node)) {
+    body.append(node);
+  }
 }
 
 function joinSplitBody(root: Element): void {
@@ -693,11 +736,18 @@ function joinSplitBody(root: Element): void {
     else groups.set(name, [el]);
   }
   const hidden = new Map<Element, boolean>();
+  // Parcours bornés au total (A4-01, voir le serveur).
+  const budget: Budget = { left: 8 * root.getElementsByTagName('*').length + 10_000 };
   for (const group of groups.values()) {
     const blocks: Element[] = [];
     for (const el of group) {
       const last = blocks[blocks.length - 1];
       if (!last || !last.contains(el)) blocks.push(el);
+    }
+    const members = new Set(blocks.filter((block) => !insideHidden(block, hidden)));
+    const holders = new Set<Node>();
+    for (const member of members) {
+      for (let up = member.parentNode; up && up !== root && !holders.has(up); up = up.parentNode) holders.add(up);
     }
     const runs = new Map<Element | null, Element[]>();
     for (const block of blocks) {
@@ -710,17 +760,25 @@ function joinSplitBody(root: Element): void {
       else runs.set(scope, [block]);
     }
     for (const run of runs.values()) {
-      // Tout ou rien par cadre (R3V-01, voir le serveur).
-      if (run.some((block, i) => i > 0 && readableBetween(run[i - 1], block))) continue;
+      // Tout ou rien par cadre (R3V-01) ; les intercalaires du corps sont
+      // versés avec les blocs, à leur place (A4-01, voir le serveur).
+      const gaps: Node[][] = [];
+      for (let i = 1; i < run.length; i++) {
+        const gap = readableBetween(run[i - 1], run[i], members, budget);
+        if (!gap) break;
+        gaps.push(gap);
+      }
+      if (gaps.length < run.length - 1) continue;
       let body = run[0];
-      for (const block of run.slice(1)) {
+      run.slice(1).forEach((block, i) => {
         if (block.parentElement === body.parentElement) {
           body = block;
-          continue;
+          return;
         }
+        for (const node of gaps[i]) pourGap(node, body, members, holders);
         body.append(...Array.from(block.childNodes));
         block.remove();
-      }
+      });
     }
   }
 }
