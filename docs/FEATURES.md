@@ -6607,8 +6607,14 @@ dans quelques composants partagés.
   la fermeture. Échap (grille), le bouton Retour ou la commande « Retour »
   démontaient le volet sous le focus, qui retombait sur `<body>` — déjà en
   1.8.0. La carte ou la ligne de l'article fermé (`data-article-id`) reprend
-  le focus, sans défilement (`preventScroll` : la liste restaure sa propre
-  position) ; seulement si le focus est perdu (`<body>` ou un élément sorti
+  le focus. La liste remontée revient à la position de l'ouverture : un
+  article atteint au clavier depuis est plus bas, et son anneau de focus
+  restait hors de l'écran (second round, M-05). La carte est donc d'abord
+  amenée dans la liste, **au plus juste** (`revealScrollTop`, le calcul du
+  défilement vers la sélection, posé sur `[data-article-scroll]` seul —
+  `scrollIntoView` ferait défiler la page, L-15), puis focalisée avec
+  `preventScroll`. Une carte déjà visible ne fait rien bouger. Seulement si
+  le focus est perdu (`<body>` ou un élément sorti
   de la page), et en attendant au plus dix images que la liste remontée rende
   la carte — absente (filtrée entre-temps), on renonce. Le téléphone garde
   sa propre règle (`MobileStack`, ci-dessus), d'où le hook désactivé là.
