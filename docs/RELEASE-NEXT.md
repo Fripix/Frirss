@@ -116,9 +116,50 @@ la release publiée.
   polonais corrigés.
 - **Connexion** : l'écran de connexion dit quand le serveur a fermé la
   session.
+- **Une page piégée ne peut plus geler FriRSS** (défaut présent depuis 1.4.10).
+  Une page web aux éléments imbriqués sur des milliers de niveaux occupait
+  le serveur de quelques secondes à plusieurs minutes, pour tous les comptes,
+  dès qu'on demandait son article complet (y compris par l'extraction
+  automatique ou la préparation hors ligne). Une telle page est maintenant
+  refusée en quelques millisecondes, l'analyse tourne à l'écart du serveur
+  avec un délai de 10 secondes, et un échec est retenu quelques minutes.
+- **Article complet plus propre** : mentions légales, fil d'Ariane, blocs
+  « Related », commentaires et « Powered by » ne s'invitent plus dans
+  l'article extrait. Les extraits déjà en cache sont refaits une fois. Si la
+  nouvelle extraction échoue, l'ancien extrait reste affiché (favoris
+  épinglés compris, avec leurs images).
+- **Tableaux larges** : ils défilent de côté au lieu d'être coupés, et le
+  balayage de l'article laisse faire un tableau ou un bloc de code qui
+  défile ; un long `code` en ligne se coupe.
+- **Densité Compacte** : le titre garde toujours de la place (il disparaissait
+  dans une colonne étroite, et la ligne débordait au téléphone) ; la source se
+  tronque la première. Masquer des boutons de ligne ou la source dans les
+  réglages rend de la place au titre.
+- **Android : le bouton retour ferme la feuille, le menu ou la confirmation
+  ouverte**, et rien d'autre (il fermait l'app ou l'onglet).
+- **Retour sur l'onglet** : une page de suite en cours de chargement n'est
+  plus perdue, et les étiquettes et abonnements modifiés sur un autre appareil
+  sont relus.
+- **« Lu » puis « non lu » en rafale** : les écritures d'un même article
+  partent dans l'ordre ; FreshRSS et l'écran ne divergent plus sur un réseau
+  lent.
+- **Aperçus des cartes** : les entités HTML sont décodées (« &amp; »
+  s'affiche « & »).
+- **Résumés IA** : un résumé en arabe ou en persan s'affiche de droite à
+  gauche ; « Traduire » ne répond plus « Déjà en français » à un texte qui ne
+  l'est manifestement pas ; le markdown que certains modèles ajoutent est
+  nettoyé.
+- **Focus** : fermer un article ramène sa carte à l'écran avant de la
+  focaliser ; « Résumer », « Préparer » et « Annuler » rendent le focus au
+  bon endroit ; au téléphone, l'erreur d'un « Réessayer » reste visible
+  au-dessus de la barre du bas.
 
 ## Sous le capot
 
+- **Cache Redis indexé par serveur** : deux serveurs à la même adresse
+  (deux utilisateurs FreshRSS) ne partagent plus leurs listes en cache ; la
+  liste d'un serveur supprimé ou changé d'identité est purgée.
+- **nginx** : la page 404 porte les mêmes en-têtes de sécurité que le reste.
 - **Le jeton d'écriture de FreshRSS ne quitte plus le serveur.** Le proxy signe
   lui-même les écritures ; le navigateur ne pouvait plus en tirer, avec sa
   session FriRSS, un accès à FreshRSS qui survivait à la déconnexion.
