@@ -5963,11 +5963,21 @@ Vignette cliquable (façade) au lieu d'un `<iframe>` chargé d'emblée.
   dans sa façade : une vidéo intégrée en iframe s'affichait en **deux lecteurs
   imbriqués**.
 - **Ce qui devient une façade** (1.9.0, A4-06) : toute iframe YouTube, et un
-  lien vers YouTube **seul dans son bloc** (paragraphe, `div`, élément de
-  liste, ou entre deux `<br>`) dont le texte est vide, une image ou l'adresse
-  elle-même — l'hôte du lien décide (`isYouTubeHost`), pas une adresse
-  YouTube cachée dans une redirection. **Tout autre lien reste un lien, avec
-  ses mots.** Jusqu'en 1.8.0, chaque lien vers YouTube devenait une façade :
+  lien vers YouTube **seul dans son bloc** dont le texte est vide, une image
+  ou l'adresse elle-même — l'hôte du lien décide (`isYouTubeHost`), pas une
+  adresse YouTube cachée dans une redirection. « Seul » se lit sur ses deux
+  voisins immédiats (`linkStandsForVideo`) : de chaque côté, une balise de
+  bloc ouvrante ou fermante (paragraphe, `div`, liste, `figure` et
+  `figcaption`, `section`, `article`, `header`, `footer`, `aside`, `main`,
+  tableau et cellules, titres, `blockquote`), un `<br>` ou un `<hr>`, ou le
+  bord du document. Les enveloppes en ligne (`span`, `strong`, `em`, `b`, `i`,
+  `u`, `small`) sont transparentes : retirées avant de chercher la borne, un
+  lien enveloppé au milieu d'une phrase reste un lien. La première version
+  n'acceptait qu'une ouvrante avant, une fermante après et une poignée de
+  blocs : une vraie vidéo, vignette liée, perdait sa façade entre `</p>` et
+  `<p>`, après `</figure>`, devant une `<figcaption>`, dans une `<section>`,
+  une cellule ou un `<span>`, ou devant un `<hr>` (RO-02, 1.9.0). **Tout
+  autre lien reste un lien, avec ses mots.** Jusqu'en 1.8.0, chaque lien vers YouTube devenait une façade :
   « — Nilay Patel, The Vergecast » se lisait « — Ouvrir sur YouTube, The
   Vergecast », en article complet comme en contenu RSS, et deux liens voisins
   vers la même vidéo donnaient deux façades identiques. **Une vidéo, une

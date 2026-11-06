@@ -246,11 +246,44 @@ describe('injectVideoFacades', () => {
       expect(html).not.toContain('<iframe');
     });
 
+    it('un lien autour d’une image, glissé dans une phrase, reste un lien', () => {
+      for (const src of [
+        '<p>Regardez <span><a href="https://youtu.be/dQw4w9WgXcQ"><img src="t.jpg"></a></span> maintenant</p>',
+        '<p>x</p>Du texte libre <a href="https://youtu.be/dQw4w9WgXcQ"><img src="t.jpg"></a> et la suite<p>y</p>',
+        '<p>x</p><a href="https://youtu.be/dQw4w9WgXcQ">Voir l’entretien</a><p>y</p>',
+      ]) expect(injectVideoFacades(src, L), src).toEqual({ html: src, ids: [] });
+    });
+
     it('un lien seul qui ne mène pas à YouTube (redirection) reste un lien', () => {
       const href = 'https://example.com/redirect?to=https://www.youtube.com/watch?v=dQw4w9WgXcQ';
       const src = `<p><a href="${href}">${href}</a></p>`;
       expect(injectVideoFacades(src, L)).toEqual({ html: src, ids: [] });
     });
+  });
+
+  // A4-06 avait borné « lien seul » à une poignée de blocs : une vraie vidéo,
+  // vignette liée, perdait sa façade dans des balisages courants (RO-02, 1.9.0).
+  describe('une vidéo en lien seul autour de sa vignette garde sa façade (RO-02)', () => {
+    const V = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
+    const thumb = `<a href="${V}"><img src="https://example.com/t.jpg" alt=""></a>`;
+    const cases: Record<string, string> = {
+      'entre deux paragraphes, hors de tout bloc': `<p>Intro</p>\n${thumb}\n<p>Suite</p>`,
+      'après une figure, l’adresse pour texte': `<figure><img src="a.jpg"></figure><a href="${V}">${V}</a><p>x</p>`,
+      'dans une figure légendée': `<p>x</p><figure>${thumb}<figcaption>La vidéo</figcaption></figure>`,
+      'dans une section': `<section>${thumb}</section>`,
+      'dans une cellule de tableau': `<table><tr><td>${thumb}</td></tr></table>`,
+      'dans un span, après un paragraphe': `<p>x</p><span>${thumb}</span>`,
+      'avant un filet': `<p>x</p>${thumb}<hr>`,
+      'avant un saut de ligne': `<p>x</p>${thumb}<br>`,
+      'dans un article, avant un intertitre': `<article>${thumb}<h2>Suite</h2></article>`,
+    };
+    for (const [name, src] of Object.entries(cases)) {
+      it(name, () => {
+        const { html, ids } = injectVideoFacades(src, L);
+        expect(ids).toEqual(['dQw4w9WgXcQ']);
+        expect(html.match(/class="yt-facade"/g)).toHaveLength(1);
+      });
+    }
   });
 
   it('uses the labels it is given, never a hard-coded language', () => {

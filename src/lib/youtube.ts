@@ -183,8 +183,24 @@ export function dropVideoThumbnails(html: string, id: string): string {
 // Bornes d'un bloc : ce qui peut précéder et suivre un lien seul sur sa ligne.
 // Lues sur le voisinage du lien seulement (`NEAR`), espaces retirés : jamais
 // tout le document à chaque lien.
-const BLOCK_BEFORE_RE = /(?:<(?:p|div|li|figure|blockquote|center|h[1-6])\b[^>]*>|<br\s*\/?>)$/i;
-const BLOCK_AFTER_RE = /^(?:<\/(?:p|div|li|figure|blockquote|center|h[1-6])>|<br\s*\/?>)/i;
+//
+// Une borne est une balise de bloc, OUVRANTE OU FERMANTE, un saut de ligne ou
+// un filet : un lien posé entre `</p>` et `<p>`, hors de tout bloc, est aussi
+// seul que dans son propre paragraphe. La première version n'acceptait qu'une
+// ouvrante avant et une fermante après, et une poignée de blocs : une vraie
+// vidéo, vignette liée, perdait sa façade après `</figure>`, devant une
+// `<figcaption>`, dans une `<section>` ou une cellule (RO-02, 1.9.0).
+// Les enveloppes en ligne (`<span>`, `<strong>`…) sont transparentes : elles
+// sont retirées du voisinage avant de chercher la borne, donc un lien enveloppé
+// au milieu d'une phrase y reste (A4-06).
+// `[^<>]*` et non `[^>]*` : une tentative ne franchit jamais une autre balise,
+// le coût reste linéaire sur le voisinage même devant du balisage hostile.
+const BLOCK = '(?:p|div|li|ul|ol|dl|dt|dd|figure|figcaption|blockquote|center|h[1-6]|section|article|header|footer|aside|main|table|thead|tbody|tfoot|tr|td|th)';
+const INLINE_WRAP = '(?:span|strong|em|b|i|u|small)';
+const WRAP_OPEN_TAIL_RE = new RegExp(`(?:<${INLINE_WRAP}\\b[^<>]*>\\s*)+$`, 'i');
+const WRAP_CLOSE_HEAD_RE = new RegExp(`^(?:<\\/${INLINE_WRAP}\\s*>\\s*)+`, 'i');
+const BLOCK_BEFORE_RE = new RegExp(`(?:<\\/?${BLOCK}\\b[^<>]*>|<[bh]r\\b[^<>]*>)$`, 'i');
+const BLOCK_AFTER_RE = new RegExp(`^(?:<\\/?${BLOCK}\\b|<[bh]r\\b)`, 'i');
 const NEAR = 400;
 
 /**
@@ -197,8 +213,8 @@ const NEAR = 400;
  */
 function linkStandsForVideo(href: string, inner: string, doc: string, start: number, end: number): boolean {
   if (!isYouTubeHost(href)) return false;
-  const before = doc.slice(Math.max(0, start - NEAR), start).trimEnd();
-  const after = doc.slice(end, end + NEAR).trimStart();
+  const before = doc.slice(Math.max(0, start - NEAR), start).trimEnd().replace(WRAP_OPEN_TAIL_RE, '').trimEnd();
+  const after = doc.slice(end, end + NEAR).trimStart().replace(WRAP_CLOSE_HEAD_RE, '').trimStart();
   const opens = (start <= NEAR && before === '') || BLOCK_BEFORE_RE.test(before);
   const closes = (end + NEAR >= doc.length && after === '') || BLOCK_AFTER_RE.test(after);
   if (!opens || !closes) return false;
