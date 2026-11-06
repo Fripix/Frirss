@@ -26,5 +26,12 @@
  *     (A3 : publicités, affiliation, formulaire d'abonnement, repli CodePen,
  *     colonne `#secondary`) : les extraits v4 aux images en cadre blanc ou
  *     encombrés de ces blocs sont refaits.
+ * 6 : 1.9.0 (troisième round, suite) — corps réparti en blocs cousins réuni
+ *     avant Readability (Ars Technica : chapeau perdu, ou notice de l'auteur
+ *     et compteur de commentaires ramassés) ; termes de taxonomie
+ *     (`tag-*`, `category-*`) ignorés et billet jamais jugé « court » (un
+ *     billet WordPress court étiqueté `pwa` ou `ads` sortait entier) ; seuls
+ *     les boutons d'agrandissement déballés (les icônes entraient) : les
+ *     extraits v5 sont refaits.
  */
-export const EXTRACT_VERSION = 5;
+export const EXTRACT_VERSION = 6;

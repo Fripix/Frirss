@@ -327,7 +327,11 @@ export function extractArticle(url: string, html: string): ExtractedArticle | nu
   const clean = (doc: ParsedDocument) => {
     // `documentElement` et pas `body` : linkedom produit parfois DEUX `<body>`
     // (The Verge), et `document.body` désigne alors le premier, vide.
-    if (doc.documentElement) stripBoilerplate(doc.documentElement as unknown as Element);
+    if (doc.documentElement) {
+      stripBoilerplate(doc.documentElement as unknown as Element);
+      // Après le nettoyage : un bloc retiré ne compte plus dans un groupe.
+      joinSplitBody(doc.documentElement as unknown as Element);
+    }
     return doc;
   };
 
@@ -486,7 +490,8 @@ function keepOnlyMainContainer(doc: ParsedDocument): boolean {
 // - sinon, le `<noscript>` qui la suit (elle ou sa `<picture>`) et ne porte
 //   qu'une image la remplace ;
 // - une `<source>` sans `srcset` prend son `data-srcset` ;
-// - un `<button>` sans texte qui n'enveloppe qu'une image est déballé.
+// - un `<button>` d'agrandissement sans texte qui n'enveloppe qu'une image
+//   (pas une icône) est déballé (`isZoomButton`, plus bas).
 // Un `data:` base64 est une vraie image en ligne : Readability juge lui-même
 // les plus petites (ses « pixels » de remplacement) et n'est pas devancé ici.
 //
@@ -535,8 +540,41 @@ export function resolveLazyImages(root: Element): void {
     if (srcset && isPlaceholderSource(source.getAttribute('srcset'))) source.setAttribute('srcset', srcset);
   }
   for (const button of Array.from(root.querySelectorAll('button')) as Element[]) {
-    if (onlyImage(button)) button.replaceWith(...Array.from(button.childNodes));
+    if (isZoomButton(button)) button.replaceWith(...Array.from(button.childNodes));
   }
+}
+
+// Seuls les boutons d'AGRANDISSEMENT sont déballés (relecture du troisième
+// round) : déballer tout bouton à image unique faisait entrer dans l'article
+// les icônes de « Copier » ou les flèches d'un carrousel. Un bouton
+// d'agrandissement se reconnaît à un indice dans son libellé, sa classe ou son
+// titre (`ZOOM_HINT`, dans les langues de FriRSS et celle de Zoomit), ou à un
+// libellé qui reprend le texte de remplacement de son image (« Agrandir
+// l'image : <alt> », la forme de Zoomit). Son image n'est jamais une icône :
+// ni `.svg`, ni de taille déclarée sous `ICON_MAX_SIZE`.
+
+/** Agrandir, en anglais, français, allemand, néerlandais, espagnol, portugais, italien, polonais, ukrainien, chinois, persan. */
+const ZOOM_HINT = /zoom|lightbox|enlarge|expand|fullscreen|full-screen|agrandi|plein écran|vergr[öo]ß|vergroot|ampliar|ingrand|powi[eę]ksz|збільш|放大|بزرگ/i;
+/** Une image déclarée plus petite que ceci (largeur ou hauteur) est une icône. */
+const ICON_MAX_SIZE = 64;
+
+function isIcon(img: Element): boolean {
+  const src = (img.getAttribute('src') || '').trim();
+  if (/^data:image\/svg/i.test(src) || /\.svg(?:[?#]|$)/i.test(src)) return true;
+  return ['width', 'height'].some((name) => {
+    const size = parseInt(img.getAttribute(name) || '', 10);
+    return Number.isFinite(size) && size < ICON_MAX_SIZE;
+  });
+}
+
+function isZoomButton(button: Element): boolean {
+  const img = onlyImage(button);
+  if (!img || isIcon(img)) return false;
+  const label = button.getAttribute('aria-label') || '';
+  const hints = `${label} ${button.getAttribute('class') || ''} ${button.getAttribute('title') || ''}`;
+  if (ZOOM_HINT.test(hints)) return true;
+  const alt = (img.getAttribute('alt') || '').trim();
+  return alt.length > 0 && label.includes(alt);
 }
 
 // ── Blocs étrangers retirés avant toute passe (M-04) ─────────────────
@@ -578,7 +616,14 @@ export function resolveLazyImages(root: Element): void {
 //   l'invitation à installer l'application (`pwa` : Numerama) ;
 // - un bloc `newsletter` qui porte un champ de saisie, quelle que soit sa
 //   longueur : c'est un formulaire d'abonnement, que sa FAQ allonge au-delà
-//   de la règle des blocs courts (Frandroid, A3) ;
+//   de la règle des blocs courts (Frandroid, A3) — sauf s'il porte la moitié
+//   du texte de son billet : c'est alors le corps d'une lettre publiée comme
+//   billet, et seul le conteneur du formulaire, en lui, est visé ;
+// - les classes de taxonomie (`tag-*`, `category-*`) ne comptent pas : WordPress
+//   y range les SUJETS d'un billet, sur son `<article>` (`tag-pwa`,
+//   `category-ads`) ; et ni `<article>` ni le conteneur principal (`<main>`,
+//   `[role=main]`) ne sont jamais jugés « courts » ni « formulaire » — un
+//   billet court entier sortait (relecture du troisième round) ;
 // - le texte de repli d'une démo CodePen (`[data-slug-hash]`) quand une
 //   légende la suit : le script de CodePen ne tourne jamais dans l'extrait, et
 //   le repli répète la légende (Smashing Magazine, A3). Sans légende, le
@@ -634,11 +679,15 @@ function isBoilerplate(el: Element, insideArticle: boolean): boolean {
   if (!insideArticle && (tag === 'aside' || role === 'complementary' || (el.getAttribute('id') || '').toLowerCase() === 'secondary')) return true;
   if (el.hasAttribute('data-slug-hash') && hasCaptionSibling(el)) return true;
   if (!NAMED_EXEMPT.has(tag)) {
-    const tokens = `${el.getAttribute('class') || ''} ${el.getAttribute('id') || ''}`.toLowerCase().split(/[^a-z0-9]+/);
+    const tokens = `${withoutTaxonomy(el.getAttribute('class'))} ${el.getAttribute('id') || ''}`.toLowerCase().split(/[^a-z0-9]+/);
     if (tokens.some((token) => BOILERPLATE_TOKENS.has(token))) return true;
-    if (tokens.includes('newsletter') && el.querySelector(FORM_CONTROLS)) return true;
-    if (tokens.some((token) => SHORT_BLOCK_TOKENS.has(token))
-      && visibleTextLength(el, READABILITY_CHAR_THRESHOLD) < READABILITY_CHAR_THRESHOLD) return true;
+    // Ni le billet ni le conteneur principal ne sont jugés « courts » ou
+    // « formulaire » : ce sont eux qu'on extrait.
+    if (!isPostContainer(tag, role)) {
+      if (tokens.includes('newsletter') && el.querySelector(FORM_CONTROLS) && !carriesMostOfItsPost(el)) return true;
+      if (tokens.some((token) => SHORT_BLOCK_TOKENS.has(token))
+        && visibleTextLength(el, READABILITY_CHAR_THRESHOLD) < READABILITY_CHAR_THRESHOLD) return true;
+    }
   }
   // Seulement sur un bloc presque feuille : lire `textContent` de chaque
   // élément d'un arbre profond coûterait le carré de sa taille.
@@ -647,6 +696,34 @@ function isBoilerplate(el: Element, insideArticle: boolean): boolean {
     if (text.length <= POWERED_BY_MAX_LENGTH && POWERED_BY.test(text)) return true;
   }
   return false;
+}
+
+/**
+ * La classe sans ses termes de taxonomie. `post_class()` de WordPress met
+ * les étiquettes et catégories du billet sur son `<article>` (`tag-pwa`,
+ * `category-ads`, `tag-sponsored`, `tag-newsletter`) : ce sont les SUJETS du
+ * billet, pas la nature du bloc. Lus comme des mots de bloc étranger, ils
+ * faisaient sortir un billet court entier (relecture du troisième round).
+ */
+function withoutTaxonomy(className: string | null): string {
+  return (className || '').split(/\s+/).filter((name) => !/^(tag|category)-/i.test(name)).join(' ');
+}
+
+/** Le billet lui-même ou le conteneur principal de la page. */
+function isPostContainer(tag: string, role: string): boolean {
+  return tag === 'article' || tag === 'main' || role === 'main';
+}
+
+/**
+ * Le bloc porte-t-il la moitié du texte de son billet (ou du conteneur
+ * principal) ? Alors c'est le corps — une lettre d'information publiée comme
+ * billet, dont le formulaire d'abonnement n'est qu'une partie — et la règle
+ * « newsletter + champ » ne vise que le conteneur du formulaire.
+ */
+function carriesMostOfItsPost(el: Element): boolean {
+  const post = el.parentElement?.closest('article, main, [role="main"]');
+  if (!post) return false;
+  return visibleTextLength(el) >= visibleTextLength(post) * MAIN_CONTAINER_MIN_SHARE;
 }
 
 /** Une `<figcaption>` voisine : la légende qui dit déjà ce que dit le repli. */
@@ -700,5 +777,119 @@ export function stripBoilerplate(root: Element): void {
     }
     const inArticle = insideArticle || el.tagName.toLowerCase() === 'article';
     for (let child = el.firstElementChild; child; child = child.nextElementSibling) stack.push([child, inArticle]);
+  }
+}
+
+// ── Corps réparti en plusieurs blocs (troisième round) ───────────────
+// Ars Technica coupe le corps d'un article en plusieurs `div.post-content`,
+// chacun dans sa propre grille (le texte, une colonne de publicité vide), les
+// grilles séparées par un emplacement publicitaire. Les blocs sont des
+// COUSINS : Readability choisit le mieux noté et ne lui adjoint que ses
+// FRÈRES. Il ne gardait donc qu'un bloc — le chapeau disparaissait sur quatre
+// pages sur cinq, parfois la moitié du texte. Quand il en gardait moins de la
+// moitié, la seconde passe (A-1, faite sur l'`<article>` entier) retrouvait le
+// corps, mais ramassait avec lui ce que contient la grille du dernier bloc :
+// la notice de l'auteur et « 48 Comments ».
+//
+// Règle générale : deux blocs qui portent exactement la même classe, un nom
+// que Readability juge lui-même favorable (`POSITIVE_NAME`, sans
+// `NEGATIVE_NAME` — ses propres expressions), qui contiennent un paragraphe,
+// dans le même `<article>` (ou hors de tout `<article>`), et entre lesquels
+// RIEN NE SE LIT (ni texte ni média : des gabarits et des emplacements
+// publicitaires vides) sont un seul corps : le second est versé dans le
+// premier avant toute passe. Readability voit alors un bloc, entier ; le reste
+// des gabarits (colonne vide, notice, compteur) reste où il était.
+//
+// L'ORDRE DU TEXTE NE CHANGE JAMAIS, puisque rien de lisible ne les sépare.
+// C'est aussi ce qui protège les entrées d'un direct (l'heure et le titre de
+// chaque entrée les séparent) et les cartes d'une liste (leurs titres). Des
+// blocs déjà frères sont laissés à Readability, qui les réunit lui-même
+// (bonus des frères de même classe : The Verge). Deux `<article>` différents
+// ne sont jamais réunis.
+//
+// Même règle dans le repli du navigateur (`src/utils/extractContent.ts`) ;
+// toute modification de l'une va avec l'autre, et avec `EXTRACT_VERSION`.
+
+/** `REGEXPS.positive` de Readability 0.6.0 : un nom qui annonce du contenu. */
+const POSITIVE_NAME = /article|body|content|entry|hentry|h-entry|main|page|pagination|post|text|blog|story/i;
+/** `REGEXPS.negative` de Readability 0.6.0 : un nom qui annonce autre chose. */
+const NEGATIVE_NAME = /-ad-|hidden|^hid$| hid$| hid |^hid |banner|combx|comment|com-|contact|footer|gdpr|masthead|media|meta|outbrain|promo|related|scroll|share|shoutbox|sidebar|skyscraper|sponsor|shopping|tags|widget/i;
+/** Un média se lit aussi : deux blocs qu'une image sépare ne sont pas réunis. */
+const MEDIA = 'img, picture, video, audio, iframe, object, embed';
+
+/** Un nœud qui se lit : du texte hors script et style, ou un média. */
+function isReadable(node: Node): boolean {
+  const stack: Node[] = [node];
+  while (stack.length) {
+    const current = stack.pop()!;
+    if (current.nodeType === 3) {
+      if ((current.textContent || '').trim()) return true;
+    } else if (current.nodeType === 1) {
+      const el = current as Element;
+      if (INVISIBLE.has(el.tagName.toLowerCase())) continue;
+      if (el.matches(MEDIA)) return true;
+      for (let child = el.firstChild; child; child = child.nextSibling) stack.push(child);
+    }
+  }
+  return false;
+}
+
+/** Le nœud qui suit `node` dans l'ordre du document, sous-arbre de `node` exclu. */
+function nextOutside(node: Node): Node | null {
+  for (let current: Node | null = node; current; current = current.parentNode) {
+    if (current.nextSibling) return current.nextSibling;
+  }
+  return null;
+}
+
+/** Quelque chose se lit-il entre la fin de `a` et le début de `b`, qui le suit ? */
+function readableBetween(a: Element, b: Element): boolean {
+  let node = nextOutside(a);
+  while (node && node !== b) {
+    if (node.contains(b)) {
+      // Un ancêtre de `b` : seul ce qui précède `b` en lui compte.
+      node = node.firstChild;
+      continue;
+    }
+    if (isReadable(node)) return true;
+    node = nextOutside(node);
+  }
+  return false;
+}
+
+/** Réunit, sous `root`, les blocs d'un corps réparti dans des gabarits parallèles. */
+export function joinSplitBody(root: Element): void {
+  const groups = new Map<string, Element[]>();
+  for (const el of Array.from(root.querySelectorAll('[class]')) as Element[]) {
+    const name = (el.getAttribute('class') || '').replace(/\s+/g, ' ').trim();
+    if (!name || !POSITIVE_NAME.test(name) || NEGATIVE_NAME.test(name)) continue;
+    const group = groups.get(name);
+    if (group) group.push(el);
+    else groups.set(name, [el]);
+  }
+  for (const group of groups.values()) {
+    // Dans l'ordre du document. Un bloc imbriqué dans un autre du groupe
+    // voyage avec lui : seuls les plus extérieurs comptent.
+    const blocks: Element[] = [];
+    for (const el of group) {
+      const last = blocks[blocks.length - 1];
+      if (!last || !last.contains(el)) blocks.push(el);
+    }
+    let body: Element | null = null;
+    for (const block of blocks) {
+      // Un bloc sans texte n'est pas un corps. C'est aussi ce qui borne le
+      // coût : un bloc qui se lit arrête tout parcours qui le croise, donc les
+      // intervalles parcourus d'un groupe à l'autre ne se recouvrent pas — sans
+      // cette règle, 1 000 groupes de blocs vides encadrant 50 000 `<div>`
+      // coûtaient 54 s.
+      if (!block.querySelector('p') || !isReadable(block)) continue;
+      if (!body || block.parentElement === body.parentElement
+        || block.closest('article') !== body.closest('article') || readableBetween(body, block)) {
+        body = block;
+        continue;
+      }
+      body.append(...Array.from(block.childNodes));
+      block.remove();
+    }
   }
 }

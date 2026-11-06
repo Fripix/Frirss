@@ -1,11 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { parseHTML } from 'linkedom';
 import {
-  extractArticle, EXTRACT_MAX_PENDING, ExtractorBusyError, extractPending, resolveLazyImages, stripBoilerplate, withExtractSlot,
+  extractArticle, EXTRACT_MAX_PENDING, ExtractorBusyError, extractPending, joinSplitBody, resolveLazyImages, stripBoilerplate, withExtractSlot,
 } from '../extract.js';
 import { advisoryPageHtml, ADVISORY_BODY_MARKER } from '../../src/test/advisoryPageFixture.js';
 import { INLINE_IMAGE, LAZY_IMAGES, lazyImagePageHtml } from '../../src/test/lazyImagePageFixture.js';
 import { blogPageHtml, BLOG_BODY_MARKER, newsPageHtml, pressPageHtml, shortPostPageHtml } from '../../src/test/boilerplatePageFixtures.js';
+import { splitBodyPageHtml, splitBodyWithBioPageHtml } from '../../src/test/splitBodyPageFixtures.js';
 
 const page = `<!doctype html><html><head><title>Titre de la page</title></head>
 <body><article><h1>Un vrai titre</h1>
@@ -172,6 +173,22 @@ describe('resolveLazyImages', () => {
   it('laisse un bouton qui porte du texte', () => {
     expect(resolve('<button><img src="https://example.com/a.jpg"> Agrandir</button>')).toContain('<button');
   });
+
+  // Relecture du troisième round : tout bouton à image unique était déballé,
+  // et les icônes (copier, flèches de carrousel) entraient dans l'article.
+  it('laisse les boutons d’icône : copier, flèches de carrousel, image déclarée petite', () => {
+    const html = resolve(`<button class="copy-button" aria-label="Copier"><img src="/static/icons/copy.svg" alt=""></button>
+      <button class="prev"><img src="/static/icons/arrow-left.svg"></button>
+      <button aria-label="Agrandir l’image"><img src="/static/icons/zoom.png" width="24" height="24"></button>
+      <button class="next"><img src="/static/icons/arrow-right.png"></button>`);
+    expect(html.match(/<button/g)).toHaveLength(4);
+  });
+
+  it('déballe un bouton d’agrandissement, quelle que soit la langue de son libellé', () => {
+    const html = resolve(`<button aria-label="بزرگ‌نمایی تصویر: خودرو سفید" class="cursor-pointer"><img alt="خودرو سفید" width="1300" height="832" src="https://example.com/car.jpg"></button>
+      <button class="lightbox-trigger"><img src="https://example.com/b.jpg"></button>`);
+    expect(html).not.toContain('<button');
+  });
 });
 
 // ── M-04 (campagne 1.9.0, second round) : blocs étrangers ────────────
@@ -327,6 +344,144 @@ describe('stripBoilerplate', () => {
     const text = strip(`<div id="wrapper"><div id="primary">${body}</div><div id="secondary"><div class="metabox"><p class="this-is">COLONNE billet publié le 4 novembre.</p><h3>Lettre mensuelle</h3><p>Soutenez-moi.</p></div></div></div>`);
     expect(text).not.toContain('COLONNE');
     expect(text).toContain(long);
+  });
+});
+
+// ── Relecture du troisième round : billets WordPress courts ─────────
+// `post_class()` met les termes du billet sur son `<article>` :
+// `tag-pwa`, `category-ads`, `tag-sponsored`, `tag-newsletter`. Les règles par
+// nom (A3) lisaient ces termes comme des blocs étrangers, et un billet court —
+// moins de la moitié du texte de la page, menu et archives compris — sortait
+// entier : Readability rendait la colonne d'archives.
+describe('extractArticle — billets WordPress courts étiquetés', () => {
+  const nav = `<nav><ul>${Array.from({ length: 12 }, (_, i) => `<li><a href="/c${i}">Catégorie numéro ${i}</a></li>`).join('')}</ul></nav>`;
+  const archives = `<div class="widget-area"><section class="widget"><h2>Archives</h2><ul>${
+    Array.from({ length: 30 }, (_, i) => `<li><a href="/2025/${i}">Billet ancien numéro ${i} sur un autre sujet sans rapport</a></li>`).join('')
+  }</ul></section></div>`;
+  const post = (terms: string) => `<article class="post-42 post type-post status-publish format-standard hentry ${terms}"><header class="entry-header"><h1 class="entry-title">Les PWA sur iOS 26</h1></header><div class="entry-content"><p>BILLET Apple ouvre enfin les notifications aux applications web installées sur l’écran d’accueil : un détail qui change la donne pour les petits éditeurs. Voir <a href="https://example.com/notes">les notes de version</a> pour le détail de ce qui est pris en charge.</p></div></article>`;
+  const page = (terms: string) => `<!doctype html><html><head><title>t</title></head><body>${nav}<div id="page"><main id="main">${post(terms)}</main>${archives}</div></body></html>`;
+
+  for (const terms of ['category-web tag-pwa', 'category-ads tag-ios', 'category-web tag-sponsored', 'category-news tag-ad', 'category-web tag-related']) {
+    it(`garde le billet dont les termes sont « ${terms} »`, () => {
+      const out = extractArticle('https://example.com/pwa', page(terms));
+      expect(out?.content).toContain('BILLET');
+    });
+  }
+
+  it('garde une lettre étiquetée « newsletter » qui intègre son formulaire, sans le formulaire', () => {
+    const body = Array.from({ length: 6 }, (_, i) => `<p>Paragraphe ${i} de la lettre de novembre : trois liens commentés sur la sobriété numérique, un outil libre pour mesurer le poids des pages, et une lecture longue.</p>`).join('');
+    const form = '<div class="mc4wp-form newsletter-signup"><p>FORMULAIRE Recevoir la lettre :</p><input type="email" name="EMAIL"><button>OK</button></div>';
+    const archivesLong = `<div class="widget-area"><ul>${Array.from({ length: 60 }, (_, i) => `<li><a href="/2025/${i}">Billet ancien numéro ${i} sur un autre sujet sans rapport</a></li>`).join('')}</ul></div>`;
+    const html = `<!doctype html><html><body><main><article class="post-7 post type-post hentry category-lettre tag-newsletter"><h1>Lettre n° 12</h1><div class="entry-content newsletter-issue">${body}${form}</div></article></main>${archivesLong}</body></html>`;
+    const text = (extractArticle('https://example.com/lettre-12', html)?.content || '').replace(/<[^>]+>/g, ' ');
+    expect(text).toContain('Paragraphe 5');
+    expect(text).not.toContain('FORMULAIRE');
+  });
+});
+
+// ── Corps réparti en plusieurs blocs (campagne 1.9.0, troisième round) ──
+// Ars Technica coupe son corps en plusieurs `div.post-content`, chacun dans sa
+// propre grille : des cousins, pas des frères. Readability n'en gardait qu'un —
+// le chapeau disparaissait sur quatre pages sur cinq — ou, quand la seconde
+// passe (A-1) rattrapait le corps, ramassait avec lui la notice de l'auteur et
+// le compteur de commentaires.
+describe('extractArticle — corps réparti en plusieurs blocs', () => {
+  const norm = (s: string | null) => (s || '').replace(/\s+/g, ' ').trim();
+  const textOf = (html: string) => norm(parseHTML(`<html><body>${html}</body></html>`).document.body.textContent);
+  const blocksOf = (html: string) => Array.from(parseHTML(html).document.querySelectorAll('div.post-content'), (b) => norm((b as Element).textContent));
+
+  it('garde chaque bloc d’un corps réparti, chapeau compris (structure Ars Technica)', () => {
+    const html = splitBodyPageHtml();
+    const blocks = blocksOf(html);
+    expect(blocks).toHaveLength(3);
+    const text = textOf(extractArticle('https://example.com/ars', html)!.content);
+    for (const block of blocks) expect(text).toContain(block);
+    // Dans l'ordre de la page.
+    expect(text.indexOf(blocks[0])).toBeLessThan(text.indexOf(blocks[1]));
+    expect(text.indexOf(blocks[1])).toBeLessThan(text.indexOf(blocks[2]));
+  });
+
+  it('garde tout le corps réparti sans la notice de l’auteur qui le suit (structure Ars Technica)', () => {
+    const html = splitBodyWithBioPageHtml();
+    const blocks = blocksOf(html);
+    const { document } = parseHTML(html);
+    const bio = document.querySelector('.author-mini-bio') as Element;
+    const srcs = (selector: string) => Array.from(document.querySelectorAll(selector), (img) => (img as Element).getAttribute('src')!);
+    const out = extractArticle('https://example.com/ars', html)!;
+    const text = textOf(out.content);
+    for (const block of blocks) expect(text).toContain(block);
+    expect(text).not.toContain(norm(bio.textContent).slice(-80));
+    // Les images du corps restent ; le portrait de la notice s'en va avec elle.
+    const bodyImages = srcs('.post-content img');
+    expect(bodyImages.length).toBeGreaterThan(0);
+    for (const src of bodyImages) expect(out.content).toContain(`https://example.com${src}`);
+    for (const src of srcs('.author-mini-bio img')) expect(out.content).not.toContain(src);
+  });
+});
+
+describe('joinSplitBody', () => {
+  const para = (s: string) => `<p>${s} — un paragraphe d’article assez long pour compter comme du texte.</p>`;
+  const run = (body: string) => {
+    const { document } = parseHTML(`<html><body>${body}</body></html>`);
+    const before = (document.body.textContent || '').replace(/\s+/g, ''); // l'ordre des mots, pas les blancs entre blocs
+    joinSplitBody(document.documentElement as unknown as Element);
+    const after = (document.body.textContent || '').replace(/\s+/g, '');
+    return { document, before, after };
+  };
+  const parentsOf = (document: { querySelectorAll: (s: string) => ArrayLike<unknown> }, selector: string) =>
+    Array.from(document.querySelectorAll(selector) as ArrayLike<Element>, (el) => el.parentElement);
+
+  it('réunit les blocs du corps répartis dans des gabarits parallèles, sans changer l’ordre du texte', () => {
+    const { document, before, after } = run(`<article><header><h1>Titre</h1></header>
+      <div class="grid"><div class="col"><div class="post-content">${para('UN')}</div></div><div class="rail"></div></div>
+      <div class="ad-slot"><div class="ad"></div></div>
+      <div class="grid"><div class="col"><div class="post-content">${para('DEUX')}</div><div class="author-bio"><p>Notice</p></div></div></div>
+    </article>`);
+    const blocks = document.querySelectorAll('.post-content');
+    expect(blocks).toHaveLength(1);
+    expect((blocks[0] as Element).textContent).toMatch(/UN[\s\S]*DEUX/);
+    expect((blocks[0] as Element).textContent).not.toContain('Notice');
+    expect(after).toBe(before);
+  });
+
+  // Relecture du correctif : des blocs vides de même classe encadrant un long
+  // vide faisaient parcourir ce vide une fois par groupe (54 s pour 1 000
+  // groupes et 50 000 `<div>`).
+  it('ne parcourt pas le même vide une fois par groupe (blocs sans texte)', () => {
+    const pair = (i: number) => `<div class="w"><div class="post-content k${i}"><p></p></div></div>`;
+    const ends = Array.from({ length: 1000 }, (_, i) => pair(i)).join('');
+    const { document } = parseHTML(`<html><body><article>${ends}${'<div></div>'.repeat(50_000)}${ends}</article></body></html>`);
+    const started = performance.now();
+    joinSplitBody(document.documentElement as unknown as Element);
+    expect(performance.now() - started).toBeLessThan(2000);
+  });
+
+  it('ne réunit pas deux blocs qu’une image sépare', () => {
+    const { document } = run(`<article>
+      <div class="w"><div class="post-content">${para('UN')}</div></div>
+      <figure><img src="/a.jpg"></figure>
+      <div class="w"><div class="post-content">${para('DEUX')}</div></div></article>`);
+    expect(document.querySelectorAll('.post-content')).toHaveLength(2);
+  });
+
+  it('laisse les blocs que sépare un texte à eux (heure et titre des entrées d’un direct)', () => {
+    const { document } = run(`<article>
+      <div class="update"><h3>10 h 02</h3><div class="update-content">${para('UN')}</div></div>
+      <div class="update"><h3>10 h 15</h3><div class="update-content">${para('DEUX')}</div></div>
+    </article>`);
+    expect(parentsOf(document, '.update-content').map((p) => p?.className)).toEqual(['update', 'update']);
+  });
+
+  it('laisse des blocs de deux articles différents', () => {
+    const { document } = run(`<article><div class="w"><div class="entry-content">${para('UN')}</div></div></article>
+      <article><div class="w"><div class="entry-content">${para('DEUX')}</div></div></article>`);
+    expect(parentsOf(document, '.entry-content').map((p) => p?.className)).toEqual(['w', 'w']);
+  });
+
+  it('laisse des blocs dont le nom dit qu’ils ne sont pas le corps (commentaires)', () => {
+    const { document } = run(`<article><div class="w"><div class="comment-body">${para('UN')}</div></div>
+      <div class="w"><div class="comment-body">${para('DEUX')}</div></div></article>`);
+    expect(parentsOf(document, '.comment-body').map((p) => p?.className)).toEqual(['w', 'w']);
   });
 });
 

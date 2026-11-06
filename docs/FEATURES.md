@@ -3026,8 +3026,10 @@ libellés disaient « plein écran » jusqu'en 1.8.0) au double-clic. Contenu bi
   (Hacker News : « Article URL », « Comments URL ») n'est fait que de liens.
   Mesuré (2026-11-06) sur 116 pages réelles dont le flux était connu : le
   billet en cause 13 %, une page d'abonné LWN 16 % ; un vrai extrait 54 % et
-  plus, sauf Ars Technica, 24 à 39 % — l'extraction y perd le chapeau, que
-  porte le flux, mais garde la suite, et reste montrée. Deux textes sans
+  plus, sauf Ars Technica, 24 à 39 % — l'extraction y perdait alors le
+  chapeau, que porte le flux, mais gardait la suite, et restait montrée (le
+  chapeau est rendu depuis la réunion du corps réparti en blocs, plus bas :
+  la part ne peut que monter). Deux textes sans
   rapport se partagent 10 à 20 % de mots courants. Sur les extraits
   d'avant ce round, la garde écarte les deux billets de Simon Willison et les
   deux pages d'abonné LWN ; sur ceux d'après, seulement LWN (le nettoyage du
@@ -5443,7 +5445,16 @@ serveur de développement en 1.4.4.)*
   latérale des thèmes WordPress écrite en `div` — Simon Willison). Gardes : un bloc qui porte la moitié du texte lisible ou plus
   n'est jamais retiré (une page entière dans un `<form>` ASP.NET), ni un bloc
   qui porte l'auteur (mêmes signaux que Readability, qui lit l'auteur avant
-  d'écarter lui-même `footer` et `aside` du corps).
+  d'écarter lui-même `footer` et `aside` du corps). **Relecture du troisième
+  round**, trois gardes de plus : les classes de taxonomie (`tag-*`,
+  `category-*`) ne comptent pas — `post_class()` de WordPress range sur
+  l'`<article>` les sujets du billet (`tag-pwa`, `category-ads`,
+  `tag-sponsored`, `tag-related`), et un billet court, moins de la moitié du
+  texte de la page menu et archives compris, sortait entier ; ni `<article>`
+  ni le conteneur principal (`<main>`, `[role=main]`) ne sont jugés « courts »
+  ni « formulaire » ; un bloc `newsletter` à champ de saisie qui porte la
+  moitié du texte de son billet ou plus reste (une lettre publiée comme
+  billet : seul le conteneur de son formulaire sort).
   ⚠️ **Pièges trouvés en le mesurant** : un `aside` DANS l'article (fenêtres
   « Suivre » du chapeau de The Verge) ne doit pas sortir — son retrait
   changeait le poids du chapeau et Readability perdait l'image d'en-tête ;
@@ -5467,14 +5478,55 @@ serveur de développement en 1.4.4.)*
   TechCrunch, l'avertissement des bons plans de 01net, sept replis CodePen de
   Smashing, la colonne et les « Recent articles » de Simon Willison) ; aucun
   titre ni auteur ne bouge, aucune image d'article n'est perdue. Effet de
-  bord heureux : un article d'Ars Technica coupé en deux blocs par une
-  publicité est rendu entier (2 030 → 5 192 caractères ; il s'arrêtait à la
-  moitié depuis la 1.8.0), avec la notice de l'auteur et « 48 Comments » en
-  plus. **Restent** (pas de signal sûr dans le balisage) : l'encart
+  bord : un article d'Ars Technica coupé en deux blocs par une publicité
+  était rendu entier par la seconde passe, mais avec la notice de l'auteur et
+  « 48 Comments » en plus — corrigé par la réunion du corps réparti en blocs
+  (ci-dessous). **Restent** (pas de signal sûr dans le balisage) : l'encart
   sponsorisé de BleepingComputer (`div.article-callout`, nom porté aussi par
   de vrais encadrés), « Follow topics and authors » de The Verge (classes
   hachées), les invitations à suivre de 01net et des Numériques (paragraphes
   sans classe), le rappel d'abonnement de Developpez (`#nagging`).
+- **Corps réparti en plusieurs blocs, réuni avant toute passe** (1.9.0,
+  troisième round — `joinSplitBody`, `server/extract.ts`, copiée dans le
+  repli de `extractContent.ts`, appelée après `stripBoilerplate` ; tests :
+  `server/test/extract.test.ts` › « corps réparti en plusieurs blocs » et
+  « joinSplitBody », `extractContent.test.ts` › « repli local : corps réparti
+  en plusieurs blocs », sur `src/test/splitBodyPageFixtures.ts` — l'arbre de
+  deux articles d'Ars Technica, chaque texte remplacé par un texte inventé de
+  même longueur). Ars coupe le corps en plusieurs `div.post-content`, chacun
+  dans sa propre grille (le texte, une colonne de publicité vide), séparées
+  par un emplacement publicitaire : des **cousins**. Readability choisit le
+  mieux noté et ne lui adjoint que ses **frères** : depuis la 1.8.0, il ne
+  gardait qu'un bloc — le chapeau perdu, parfois les deux tiers du texte.
+  Quand la seconde passe (A-1) rattrapait le corps, elle ramassait aussi ce
+  que porte la grille du dernier bloc : la notice et le portrait de l'auteur,
+  « 48 Comments ». Règle : deux blocs de **même classe exacte**, au nom que
+  Readability juge favorable (ses propres expressions `positive`/`negative` :
+  `post-content` oui, `comment-body` non), qui contiennent un paragraphe et du
+  texte, dans le même `<article>` (ou hors de tout `<article>`), **sans rien
+  de lisible entre eux** (ni texte ni média), sont un seul corps : le second
+  est versé dans le premier. **L'ordre du texte ne change jamais**, puisque
+  rien ne les sépare ; c'est aussi ce qui laisse en paix les entrées d'un
+  direct (heure et titre entre elles) et les cartes d'une liste. Des blocs
+  déjà frères (The Verge) sont laissés à Readability, qui les réunit lui-même.
+  ⚠️ **Coût** : sans la règle « du texte dans chaque bloc », 1 000 groupes de
+  blocs vides encadrant 50 000 `<div>` faisaient parcourir ce vide une fois
+  par groupe — 54 s ; avec elle, un bloc qui se lit arrête tout parcours qui
+  le croise, et les intervalles parcourus ne se recouvrent plus (test « ne
+  parcourt pas le même vide une fois par groupe »). Sur les pages réelles, le
+  coût ne se mesure pas (Wikipédia, 3 Mo : 354 → 360 ms).
+  Mesuré (2026-11-06) sur 132 pages (corpus des trois rounds, pages fraîches,
+  six articles d'Ars du jour) : 13 changent. Les **onze pages d'Ars** gardent
+  chaque bloc, dans l'ordre : cinq retrouvent ce qu'elles perdaient (p. ex.
+  2 258 → 5 814 caractères, 1 329 → 2 433), six perdent la notice de
+  l'auteur, son portrait et le compteur de commentaires ; sur la Rocket Report
+  (six blocs), la seconde passe ne se déclenche plus et le surtitre, le
+  chapeau d'en-tête et la légende de l'image d'en-tête, qu'elle ramassait
+  avec la notice, ne sont plus repris — comme sur toutes les autres pages
+  d'Ars, où ils ne l'ont jamais été. Zoomit gagne un tweet intégré (texte,
+  traduction, avatar) à sa place dans l'article ; la page d'accueil de Simon
+  Willison (une liste) gagne une ligne. Aucun titre ni auteur ne bouge, aucune
+  image d'article n'est perdue.
 - **Images paresseuses résolues avant toute passe** (1.9.0, troisième round,
   A1 — `resolveLazyImages`, `server/extract.ts`, copiée dans le repli de
   `extractContent.ts` ; tests : `server/test/extract.test.ts` › « images
@@ -5494,7 +5546,15 @@ serveur de développement en 1.4.4.)*
   `data-srcset` s'ils sont des adresses web (pas de `javascript:`), sinon le
   `<noscript>` qui la suit (elle ou sa `<picture>`) et ne porte qu'une image
   la remplace ; une `<source>` sans `srcset` prend son `data-srcset` ; un
-  `<button>` sans texte qui n'enveloppe qu'une image est déballé. Un `data:`
+  `<button>` **d'agrandissement** sans texte qui n'enveloppe qu'une image est
+  déballé (`isZoomButton`). Relecture du troisième round : déballer tout
+  bouton à image unique faisait entrer les icônes (« Copier » d'un bloc de
+  code, flèches d'un carrousel). Un bouton d'agrandissement se reconnaît à un
+  indice dans son libellé, sa classe ou son titre (`zoom`, `lightbox`,
+  `enlarge`, `expand`, `agrandi`, `vergrößern`, `放大`, `بزرگ`… — langues de
+  FriRSS et de Zoomit), ou à un libellé qui reprend le texte de remplacement
+  de son image (« Agrandir l'image : <alt> ») ; son image n'est jamais une
+  icône : ni `.svg`, ni de largeur ou hauteur déclarée sous 64. Un `data:`
   base64 est une vraie image en ligne et n'est pas touché. Dans le repli,
   avant `absolutizeUrls` : une adresse `data-src` relative est résolue
   contre l'article comme les autres.
@@ -5506,10 +5566,12 @@ serveur de développement en 1.4.4.)*
 - **Version de l'extraction** (1.9.0, A-2 — `server/extractVersion.ts` et
   `src/lib/extractVersion.ts`, même valeur vérifiée par
   `server/test/cache.test.ts`). À monter à chaque changement du résultat de
-  l'extraction pour une même page. **5** depuis les images paresseuses (A1,
-  troisième round) et les nouvelles familles de blocs étrangers (A3) : les
-  extraits v4 aux images en cadre blanc ou encombrés de ces blocs sont refaits ;
-  4 avait accompagné le gain minimal de la seconde passe (N-1 : encart
+  l'extraction pour une même page. **6** depuis la réunion du corps réparti
+  en blocs (Ars Technica), les termes de taxonomie ignorés et les seuls
+  boutons d'agrandissement déballés (suite du troisième round) : les
+  extraits v5 sans chapeau, avec notice d'auteur ou icônes sont refaits ; 5
+  avait accompagné les images paresseuses (A1) et les nouvelles familles de
+  blocs étrangers (A3), 4 le gain minimal de la seconde passe (N-1 : encart
   produit, ligne promotionnelle), 3 le retrait des blocs étrangers (M-04). Les extraits gardés avant le seuil à 500 et
   la seconde passe (l'avis tronqué) restaient servis : 24 h par Redis, 30 jours
   dans le navigateur, **sans limite** pour un article épinglé.

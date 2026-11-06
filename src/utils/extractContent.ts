@@ -445,8 +445,32 @@ function resolveLazyImages(root: Element): void {
     if (srcset && isPlaceholderSource(source.getAttribute('srcset'))) source.setAttribute('srcset', srcset);
   }
   for (const button of Array.from(root.querySelectorAll('button'))) {
-    if (onlyImage(button)) button.replaceWith(...Array.from(button.childNodes));
+    if (isZoomButton(button)) button.replaceWith(...Array.from(button.childNodes));
   }
+}
+
+// Seuls les boutons d'agrandissement sont déballés, jamais une icône (copie
+// de `isZoomButton`, `server/extract.ts`, qui dit pourquoi).
+const ZOOM_HINT = /zoom|lightbox|enlarge|expand|fullscreen|full-screen|agrandi|plein écran|vergr[öo]ß|vergroot|ampliar|ingrand|powi[eę]ksz|збільш|放大|بزرگ/i;
+const ICON_MAX_SIZE = 64;
+
+function isIcon(img: Element): boolean {
+  const src = (img.getAttribute('src') || '').trim();
+  if (/^data:image\/svg/i.test(src) || /\.svg(?:[?#]|$)/i.test(src)) return true;
+  return ['width', 'height'].some((name) => {
+    const size = parseInt(img.getAttribute(name) || '', 10);
+    return Number.isFinite(size) && size < ICON_MAX_SIZE;
+  });
+}
+
+function isZoomButton(button: Element): boolean {
+  const img = onlyImage(button);
+  if (!img || isIcon(img)) return false;
+  const label = button.getAttribute('aria-label') || '';
+  const hints = `${label} ${button.getAttribute('class') || ''} ${button.getAttribute('title') || ''}`;
+  if (ZOOM_HINT.test(hints)) return true;
+  const alt = (img.getAttribute('alt') || '').trim();
+  return alt.length > 0 && label.includes(alt);
 }
 
 // ── Blocs étrangers retirés avant toute passe (M-04) ─────────────────
@@ -484,11 +508,13 @@ function isBoilerplate(el: Element, insideArticle: boolean): boolean {
   if (!insideArticle && (tag === 'aside' || role === 'complementary' || (el.getAttribute('id') || '').toLowerCase() === 'secondary')) return true;
   if (el.hasAttribute('data-slug-hash') && hasCaptionSibling(el)) return true;
   if (!NAMED_EXEMPT.has(tag)) {
-    const tokens = `${el.getAttribute('class') || ''} ${el.getAttribute('id') || ''}`.toLowerCase().split(/[^a-z0-9]+/);
+    const tokens = `${withoutTaxonomy(el.getAttribute('class'))} ${el.getAttribute('id') || ''}`.toLowerCase().split(/[^a-z0-9]+/);
     if (tokens.some((token) => BOILERPLATE_TOKENS.has(token))) return true;
-    if (tokens.includes('newsletter') && el.querySelector(FORM_CONTROLS)) return true;
-    if (tokens.some((token) => SHORT_BLOCK_TOKENS.has(token))
-      && visibleTextLength(el, SHORT_BLOCK_MAX) < SHORT_BLOCK_MAX) return true;
+    if (!isPostContainer(tag, role)) {
+      if (tokens.includes('newsletter') && el.querySelector(FORM_CONTROLS) && !carriesMostOfItsPost(el)) return true;
+      if (tokens.some((token) => SHORT_BLOCK_TOKENS.has(token))
+        && visibleTextLength(el, SHORT_BLOCK_MAX) < SHORT_BLOCK_MAX) return true;
+    }
   }
   if (el.childElementCount <= 3 && Array.from(el.children).every((child) => child.childElementCount === 0)) {
     const text = (el.textContent || '').replace(/\s+/g, ' ').trim();
@@ -498,6 +524,23 @@ function isBoilerplate(el: Element, insideArticle: boolean): boolean {
 }
 
 /** Repli d'une démo CodePen : retiré seulement quand une légende le répète (A3). */
+/** Termes de taxonomie de WordPress (`tag-pwa`, `category-ads`) : les sujets du billet, pas la nature du bloc. */
+function withoutTaxonomy(className: string | null): string {
+  return (className || '').split(/\s+/).filter((name) => !/^(tag|category)-/i.test(name)).join(' ');
+}
+
+/** Le billet ou le conteneur principal : jamais « court » ni « formulaire ». */
+function isPostContainer(tag: string, role: string): boolean {
+  return tag === 'article' || tag === 'main' || role === 'main';
+}
+
+/** Moitié du texte de son billet ou plus : le corps d'une lettre publiée comme billet. */
+function carriesMostOfItsPost(el: Element): boolean {
+  const post = el.parentElement?.closest('article, main, [role="main"]');
+  if (!post) return false;
+  return visibleTextLength(el) >= visibleTextLength(post) * MAIN_CONTAINER_MIN_SHARE;
+}
+
 function hasCaptionSibling(el: Element): boolean {
   for (let sibling = el.parentElement?.firstElementChild; sibling; sibling = sibling.nextElementSibling) {
     if (sibling !== el && sibling.tagName.toLowerCase() === 'figcaption') return true;
@@ -535,6 +578,83 @@ function stripBoilerplate(root: Element): void {
     }
     const inArticle = insideArticle || el.tagName.toLowerCase() === 'article';
     for (let child = el.firstElementChild; child; child = child.nextElementSibling) stack.push([child, inArticle]);
+  }
+}
+
+// ── Corps réparti en plusieurs blocs (troisième round) ───────────────
+// Copie de `joinSplitBody` (`server/extract.ts`, qui dit pourquoi : le corps
+// d'Ars Technica coupé en `div.post-content` cousins, dont Readability ne
+// gardait qu'un — chapeau perdu — ou que la seconde passe rattrapait avec la
+// notice de l'auteur). Règles et gardes identiques : même classe, nom
+// favorable pour Readability, un paragraphe et du texte, même `<article>`,
+// rien de lisible entre deux blocs ; l'ordre du texte ne change jamais.
+const POSITIVE_NAME = /article|body|content|entry|hentry|h-entry|main|page|pagination|post|text|blog|story/i;
+const NEGATIVE_NAME = /-ad-|hidden|^hid$| hid$| hid |^hid |banner|combx|comment|com-|contact|footer|gdpr|masthead|media|meta|outbrain|promo|related|scroll|share|shoutbox|sidebar|skyscraper|sponsor|shopping|tags|widget/i;
+const MEDIA = 'img, picture, video, audio, iframe, object, embed';
+
+function isReadable(node: Node): boolean {
+  const stack: Node[] = [node];
+  while (stack.length) {
+    const current = stack.pop()!;
+    if (current.nodeType === Node.TEXT_NODE) {
+      if ((current.textContent || '').trim()) return true;
+    } else if (current.nodeType === Node.ELEMENT_NODE) {
+      const el = current as Element;
+      if (INVISIBLE.has(el.tagName.toLowerCase())) continue;
+      if (el.matches(MEDIA)) return true;
+      for (let child = el.firstChild; child; child = child.nextSibling) stack.push(child);
+    }
+  }
+  return false;
+}
+
+function nextOutside(node: Node): Node | null {
+  for (let current: Node | null = node; current; current = current.parentNode) {
+    if (current.nextSibling) return current.nextSibling;
+  }
+  return null;
+}
+
+function readableBetween(a: Element, b: Element): boolean {
+  let node = nextOutside(a);
+  while (node && node !== b) {
+    if (node.contains(b)) {
+      node = node.firstChild;
+      continue;
+    }
+    if (isReadable(node)) return true;
+    node = nextOutside(node);
+  }
+  return false;
+}
+
+function joinSplitBody(root: Element): void {
+  const groups = new Map<string, Element[]>();
+  for (const el of Array.from(root.querySelectorAll('[class]'))) {
+    const name = (el.getAttribute('class') || '').replace(/\s+/g, ' ').trim();
+    if (!name || !POSITIVE_NAME.test(name) || NEGATIVE_NAME.test(name)) continue;
+    const group = groups.get(name);
+    if (group) group.push(el);
+    else groups.set(name, [el]);
+  }
+  for (const group of groups.values()) {
+    const blocks: Element[] = [];
+    for (const el of group) {
+      const last = blocks[blocks.length - 1];
+      if (!last || !last.contains(el)) blocks.push(el);
+    }
+    let body: Element | null = null;
+    for (const block of blocks) {
+      // Sans texte, pas un corps — et la borne du coût (voir le serveur).
+      if (!block.querySelector('p') || !isReadable(block)) continue;
+      if (!body || block.parentElement === body.parentElement
+        || block.closest('article') !== body.closest('article') || readableBetween(body, block)) {
+        body = block;
+        continue;
+      }
+      body.append(...Array.from(block.childNodes));
+      block.remove();
+    }
   }
 }
 
@@ -722,6 +842,8 @@ async function extractOnce(url: string): Promise<ExtractedContent> {
     absolutizeUrls(parsed, url);
     // Les blocs étrangers à l'article sortent avant toute passe (M-04).
     stripBoilerplate(parsed.documentElement);
+    // Puis le corps réparti en blocs cousins est réuni (troisième round).
+    joinSplitBody(parsed.documentElement);
     return parsed;
   };
 

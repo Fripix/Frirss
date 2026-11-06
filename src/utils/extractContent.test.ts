@@ -19,6 +19,7 @@ import {
 import { advisoryPageHtml, ADVISORY_BODY_MARKER } from '../test/advisoryPageFixture';
 import { blogPageHtml, BLOG_BODY_MARKER, newsPageHtml, pressPageHtml, shortPostPageHtml } from '../test/boilerplatePageFixtures';
 import { INLINE_IMAGE, LAZY_IMAGES, lazyImagePageHtml } from '../test/lazyImagePageFixture';
+import { splitBodyPageHtml, splitBodyWithBioPageHtml } from '../test/splitBodyPageFixtures';
 
 const serverAnswer = {
   title: 'Titre serveur', content: '<p>corps serveur</p>',
@@ -371,6 +372,71 @@ describe('extractFullContent — repli local : blocs étrangers (M-04)', () => {
     const text = textOf((await extractFullContent('https://example.com/a3')).content);
     expect(text).toContain('Paragraphe 20');
     for (const junk of ['PUB DU SITE', 'DEMOREPLI', 'jamais revendues', 'commission', 'COLONNE']) expect(text).not.toContain(junk);
+  });
+});
+
+// ── Corps réparti en plusieurs blocs (campagne 1.9.0, troisième round) ──
+// Mêmes pages que la route serveur (`server/test/extract.test.ts`, qui dit
+// pourquoi) : chaque bloc du corps d'Ars Technica, pas la notice de l'auteur.
+describe('extractFullContent — repli local : corps réparti en plusieurs blocs', () => {
+  const fallbackOn = (html: string) => vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo) => {
+    if (String(input).startsWith('/api/extract')) return new Response('', { status: 404 });
+    return htmlPage(html);
+  }));
+  const norm = (s: string | null) => (s || '').replace(/\s+/g, ' ').trim();
+  const textOf = (html: string) => norm(new DOMParser().parseFromString(html, 'text/html').body.textContent);
+  const blocksOf = (html: string) => Array.from(new DOMParser().parseFromString(html, 'text/html').querySelectorAll('div.post-content'), (b) => norm(b.textContent));
+
+  it('garde chaque bloc d’un corps réparti, chapeau compris (structure Ars Technica)', async () => {
+    const html = splitBodyPageHtml();
+    const blocks = blocksOf(html);
+    fallbackOn(html);
+    const text = textOf((await extractFullContent('https://example.com/ars-repli')).content);
+    for (const block of blocks) expect(text).toContain(block);
+    expect(text.indexOf(blocks[0])).toBeLessThan(text.indexOf(blocks[2]));
+  });
+
+  it('garde tout le corps réparti sans la notice de l’auteur qui le suit (structure Ars Technica)', async () => {
+    const html = splitBodyWithBioPageHtml();
+    const blocks = blocksOf(html);
+    const bio = norm(new DOMParser().parseFromString(html, 'text/html').querySelector('.author-mini-bio')!.textContent);
+    fallbackOn(html);
+    const text = textOf((await extractFullContent('https://example.com/ars-bio-repli')).content);
+    for (const block of blocks) expect(text).toContain(block);
+    expect(text).not.toContain(bio.slice(-80));
+  });
+});
+
+// ── Relecture du troisième round : mêmes cas que la route serveur ────
+describe('extractFullContent — repli local : termes de billet et boutons d’icône', () => {
+  const fallbackOn = (html: string) => vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo) => {
+    if (String(input).startsWith('/api/extract')) return new Response('', { status: 404 });
+    return htmlPage(html);
+  }));
+  const archives = (n: number) => `<div class="widget-area"><ul>${Array.from({ length: n }, (_, i) => `<li><a href="/2025/${i}">Billet ancien numéro ${i} sur un autre sujet sans rapport</a></li>`).join('')}</ul></div>`;
+
+  it('garde un billet WordPress court étiqueté « pwa », « ads » ou « sponsored »', async () => {
+    const nav = `<nav><ul>${Array.from({ length: 12 }, (_, i) => `<li><a href="/c${i}">Catégorie numéro ${i}</a></li>`).join('')}</ul></nav>`;
+    for (const [i, terms] of ['category-web tag-pwa', 'category-ads tag-ios', 'category-web tag-sponsored'].entries()) {
+      fallbackOn(`<!doctype html><html><head><title>t</title></head><body>${nav}<div id="page"><main id="main"><article class="post-42 post type-post hentry ${terms}"><h1>Les PWA</h1><div class="entry-content"><p>BILLET Apple ouvre enfin les notifications aux applications web installées sur l’écran d’accueil : un détail qui change la donne pour les petits éditeurs. Voir <a href="https://example.com/notes">les notes</a>.</p></div></article></main>${archives(30)}</div></body></html>`);
+      expect((await extractFullContent(`https://example.com/pwa-${i}`)).content).toContain('BILLET');
+    }
+  });
+
+  it('garde une lettre étiquetée « newsletter » qui intègre son formulaire, sans le formulaire', async () => {
+    const body = Array.from({ length: 6 }, (_, i) => `<p>Paragraphe ${i} de la lettre de novembre : trois liens commentés sur la sobriété numérique, un outil libre pour mesurer le poids des pages, et une lecture longue.</p>`).join('');
+    fallbackOn(`<!doctype html><html><body><main><article class="post-7 post hentry tag-newsletter"><h1>Lettre n° 12</h1><div class="entry-content newsletter-issue">${body}<div class="mc4wp-form newsletter-signup"><p>FORMULAIRE Recevoir la lettre :</p><input type="email"><button>OK</button></div></div></article></main>${archives(60)}</body></html>`);
+    const content = (await extractFullContent('https://example.com/lettre-12')).content;
+    expect(content).toContain('Paragraphe 5');
+    expect(content).not.toContain('FORMULAIRE');
+  });
+
+  it('ne fait pas entrer les icônes des boutons (copier, carrousel) dans l’article', async () => {
+    const p = Array.from({ length: 5 }, (_, i) => `<p>Paragraphe ${i} : explication détaillée du fonctionnement de la commande, avec ses options et un exemple complet à recopier.</p>`).join('');
+    fallbackOn(`<!doctype html><html><body><article><h1>Titre</h1>${p}<div class="code-block"><button class="copy-button" aria-label="Copier"><img src="/static/icons/copy.svg" alt=""></button><pre><code>npm run build</code></pre></div><div class="gallery"><button class="prev"><img src="/static/icons/arrow-left.png"></button><img src="/img/photo1.jpg" alt="Photo"><button class="next"><img src="/static/icons/arrow-right.svg"></button></div>${p}</article></body></html>`);
+    const content = (await extractFullContent('https://example.com/icones')).content;
+    expect(content).toContain('photo1.jpg');
+    for (const icon of ['copy.svg', 'arrow-left.png', 'arrow-right.svg']) expect(content).not.toContain(icon);
   });
 });
 
