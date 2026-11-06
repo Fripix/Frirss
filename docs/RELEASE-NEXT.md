@@ -146,6 +146,10 @@ la release publiée.
 - **« Lu » puis « non lu » en rafale** : les écritures d'un même article
   partent dans l'ordre ; FreshRSS et l'écran ne divergent plus sur un réseau
   lent.
+- **« Tout lu » et « marquer lus en dessous »** attendent les écritures
+  « lu/non lu » encore en route avant de partir.
+- **Préparation hors ligne** : un article refusé parce que le serveur est
+  occupé est redemandé en fin de passage.
 - **Aperçus des cartes** : les entités HTML sont décodées (« &amp; »
   s'affiche « & »).
 - **Résumés IA** : un résumé en arabe ou en persan s'affiche de droite à
