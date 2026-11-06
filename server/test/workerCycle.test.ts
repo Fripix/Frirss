@@ -15,7 +15,8 @@ vi.mock('../routes/proxy.js', async () => {
 });
 const cacheSet = vi.fn(async () => {});
 vi.mock('../cache.js', () => ({
-  cacheEnabled: true, cacheSet: (...a: unknown[]) => cacheSet(...(a as [])), cacheKey: (u: unknown, sv: unknown, t: string) => `k:${String(u)}:${String(sv)}:${t}`,
+  cacheEnabled: true, cacheSet: (...a: unknown[]) => cacheSet(...(a as [])), cacheKey: (u: unknown, sv: unknown, id: string, t: string) => `k:${String(u)}:${String(sv)}:${id}:${t}`,
+  serverCacheIdentity: (url: string, user: string) => `${url}|${user}`,
   trimStreamJson: (s: string) => s, cacheableEntry: (s: string) => (s.startsWith('<') ? null : s), cacheGet: vi.fn(async () => null),
 }));
 
@@ -78,6 +79,9 @@ describe('cycle de synchronisation', () => {
     const alice = accounts.get('alice')!;
     const ofAlice = keys.filter((k) => k.includes('alice.example.com'));
     expect(ofAlice).toHaveLength(5);
-    for (const k of ofAlice) expect(k.startsWith(`k:${alice.user}:${alice.server}:https://alice.example.com/`)).toBe(true);
+    // Et l'identité de la ligne lue au départ (adresse, utilisateur FreshRSS),
+    // comme le proxy : une lecture partie avant un changement d'utilisateur
+    // tombe sous une clé que personne ne relit (relecture 1.9.0).
+    for (const k of ofAlice) expect(k.startsWith(`k:${alice.user}:${alice.server}:https://alice.example.com|alice:https://alice.example.com/`)).toBe(true);
   });
 });

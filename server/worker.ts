@@ -1,6 +1,6 @@
 import db from './db.js';
 import { decrypt } from './crypto.js';
-import { cacheEnabled, cacheKey, cacheSet, cacheableEntry } from './cache.js';
+import { cacheEnabled, cacheKey, cacheSet, cacheableEntry, serverCacheIdentity } from './cache.js';
 import { fetchUpstream, readBodyText, PROXY_TOTAL_TIMEOUT_MS } from './routes/proxy.js';
 import { stripTrailingSlashes } from './validate.js';
 
@@ -40,6 +40,8 @@ interface SyncRow {
   /** L'id de la ligne serveur : il fait partie de la clé (voir `cacheKey`). */
   server_id: number;
   url: string;
+  /** Avec `url`, l'identité du serveur au départ de la lecture (voir `cacheKey`). */
+  freshrss_user: string;
   freshrss_token: string;
 }
 
@@ -57,6 +59,8 @@ export async function syncUser(row: SyncRow, deadlineMs = PROXY_TOTAL_TIMEOUT_MS
   const token = decrypt(row.freshrss_token);
   if (!token) return;
   const serverUrl = stripTrailingSlashes(row.url);
+  // Lue une fois, avec la ligne : la même que celle du proxy (`cacheKey`).
+  const identity = serverCacheIdentity(row.url, row.freshrss_user);
   const headers = { Authorization: `GoogleLogin auth=${token}`, Accept: 'application/json' };
   for (const target of streamTargets(serverUrl)) {
     const deadline = new AbortController();
@@ -68,7 +72,7 @@ export async function syncUser(row: SyncRow, deadlineMs = PROXY_TOTAL_TIMEOUT_MS
       // Du JSON seulement : un proxy d'authentification répond 200 en HTML, et
       // la peinture depuis le cache en faisait une liste vide.
       const entry = cacheableEntry(text);
-      if (entry !== null) await cacheSet(cacheKey(row.user_id, row.server_id, target), entry);
+      if (entry !== null) await cacheSet(cacheKey(row.user_id, row.server_id, identity, target), entry);
     } catch { /* skip this stream, keep going */ } finally {
       clearTimeout(timer);
     }
@@ -81,7 +85,7 @@ export async function runCycle(): Promise<void> {
   running = true;
   try {
     const users = db.prepare(`
-      SELECT s.user_id, s.id AS server_id, s.url, s.freshrss_token
+      SELECT s.user_id, s.id AS server_id, s.url, s.freshrss_user, s.freshrss_token
       FROM servers s
       JOIN users u ON u.id = s.user_id
       WHERE s.is_default = 1

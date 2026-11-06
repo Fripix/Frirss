@@ -32,14 +32,20 @@ vi.mock('../cache.js', async () => ({
 }));
 
 const { default: proxyRouter } = await import('../routes/proxy.js');
+const { cacheSet } = await import('../cache.js');
 const { encrypt } = await import('../crypto.js');
 const { default: db } = await import('../db.js');
 
 // L'amont rend la liste du compte FreshRSS que désigne le jeton.
+// `hold` retient la réponse : une lecture « en vol » pendant qu'on modifie le serveur.
+let hold: { arrived: () => void; release: Promise<void> } | null = null;
 const upstream = http.createServer((req, res) => {
   const who = /auth=(\w+)/.exec(req.headers.authorization ?? '')?.[1] ?? 'personne';
-  res.writeHead(200, { 'Content-Type': 'application/json' });
-  res.end(JSON.stringify({ items: [{ id: `article-de-${who}` }] }));
+  const answer = () => {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ items: [{ id: `article-de-${who}` }] }));
+  };
+  if (hold) { hold.arrived(); void hold.release.then(answer); } else answer();
 });
 const app = express();
 app.use('/api/proxy', proxyRouter);
@@ -104,5 +110,37 @@ describe('/api/proxy — cache des lectures, un serveur par clé', () => {
     await vi.waitFor(() => expect(store.size).toBe(2));
     expect((await call(alice, true)).body).toContain('article-de-alice');
     expect((await call(bob, true)).body).toContain('article-de-bob');
+  });
+
+  // Relecture 1.9.0 (R1-5) : la ligne serveur passe à un autre utilisateur
+  // FreshRSS pendant qu'une lecture de l'ancien est en vol. La purge
+  // (`cachePurgeServer`) passe AVANT que la réponse arrive ; la réponse était
+  // ensuite écrite sous la même clé, et peinte sous le nouveau compte.
+  it("ne peint pas sous le nouveau compte une lecture de l'ancien arrivée après la purge", async () => {
+    const carol = Number(db.prepare('INSERT INTO servers (user_id, url, freshrss_user, freshrss_token) VALUES (1, ?, ?, ?)')
+      .run(upBase, 'carol', encrypt('carol')).lastInsertRowid);
+    let arrived!: () => void;
+    const reached = new Promise<void>((r) => { arrived = r; });
+    let release!: () => void;
+    hold = { arrived, release: new Promise<void>((r) => { release = r; }) };
+    const writes = vi.mocked(cacheSet).mock.calls.length;
+    try {
+      const inFlight = call(carol, false);
+      await reached;
+
+      // Le compte change d'utilisateur FreshRSS ; ses listes sont purgées.
+      db.prepare('UPDATE servers SET freshrss_user = ?, freshrss_token = ? WHERE id = ?').run('dave', encrypt('dave'), carol);
+      for (const k of [...store.keys()]) if (k.startsWith(`frirss:c:1:${carol}:`)) store.delete(k);
+
+      release();
+      expect((await inFlight).body).toContain('article-de-carol');
+      await vi.waitFor(() => expect(vi.mocked(cacheSet).mock.calls.length).toBe(writes + 1));
+    } finally {
+      hold = null;
+    }
+
+    const painted = await call(carol, true);
+    expect(painted.body).not.toContain('article-de-carol');
+    expect(painted.status).toBe(204);
   });
 });

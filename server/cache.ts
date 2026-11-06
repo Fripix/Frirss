@@ -1,6 +1,7 @@
 import { Redis } from 'ioredis';
 import { createHash } from 'crypto';
 import { EXTRACT_VERSION } from './extractVersion.js';
+import { stripTrailingSlashes } from './validate.js';
 
 // Optional Redis cache for FreshRSS read responses. Enabled only when
 // REDIS_URL is set — otherwise every function is a no-op and the app behaves
@@ -33,19 +34,47 @@ if (cacheEnabled) {
 const KEY_PREFIX = 'frirss:c:';
 
 /**
- * Clé d'une lecture greader mise en cache : `frirss:c:<compte>:<serveur>:<empreinte>`.
+ * Clé d'une lecture greader mise en cache :
+ * `frirss:c:<compte>:<serveur>:<sha1(identité du serveur + URL)>`.
  *
  * Le SERVEUR (l'id de sa ligne dans `servers`) en fait partie : deux serveurs
  * d'un même compte peuvent avoir la même adresse — deux utilisateurs FreshRSS
  * sur la même instance — et donc les mêmes URL. Sans lui, la liste de l'un se
- * peignait sous l'autre (M-09, 1.9.0). Le proxy et le worker de
- * synchronisation doivent passer le même id, sinon le pré-remplissage n'est
- * jamais relu. Les clés d'avant (`frirss:c:<compte>:<empreinte>`) ne sont plus
- * lues et expirent avec `CACHE_TTL` ; `userCachePattern` les couvre encore.
+ * peignait sous l'autre (M-09, 1.9.0).
+ *
+ * L'IDENTITÉ du serveur (`serverCacheIdentity` : adresse normalisée et
+ * utilisateur FreshRSS, telles que lues au DÉPART de la lecture) entre dans
+ * l'empreinte : une ligne qui change d'utilisateur FreshRSS ou d'adresse garde
+ * son id, et une lecture de l'ancien compte en vol pendant le changement était
+ * écrite APRÈS la purge (`cachePurgeServer`), sous la même clé — peinte sous
+ * le nouveau compte jusqu'à `CACHE_TTL` (relecture 1.9.0). Elle tombe
+ * désormais sous une clé que plus personne ne lit, et qui expire seule.
+ * L'identité reste dans l'empreinte, pas en clair : le motif de purge par
+ * serveur (`serverCachePattern`) couvre toujours toutes ses clés.
+ *
+ * Le proxy et le worker de synchronisation doivent passer le même id et la
+ * même identité, sinon le pré-remplissage n'est jamais relu. Les clés d'avant
+ * ne sont plus lues et expirent avec `CACHE_TTL` ; `userCachePattern` les
+ * couvre encore.
  */
-export function cacheKey(userId: number | string, serverId: number | string, target: string): string {
-  const h = createHash('sha1').update(target).digest('hex').slice(0, 24);
+export function cacheKey(userId: number | string, serverId: number | string, identity: string, target: string): string {
+  const h = createHash('sha1').update(`${identity}\n${target}`).digest('hex').slice(0, 24);
   return `${KEY_PREFIX}${userId}:${serverId}:${h}`;
+}
+
+/**
+ * L'identité d'un serveur pour la clé de cache : origine analysée (schéma,
+ * hôte en minuscules, port par défaut omis), chemin sans barre finale, et
+ * utilisateur FreshRSS. Deux écritures de la même adresse donnent la même
+ * identité ; un autre utilisateur ou une autre adresse, une autre.
+ */
+export function serverCacheIdentity(url: string, freshrssUser: string): string {
+  let address = url;
+  try {
+    const u = new URL(url);
+    address = `${u.origin}${stripTrailingSlashes(u.pathname)}`;
+  } catch { /* adresse illisible : prise telle quelle */ }
+  return `${address}\n${freshrssUser}`;
 }
 
 /**

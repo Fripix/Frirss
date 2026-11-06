@@ -15,14 +15,15 @@ vi.mock('../routes/proxy.js', async () => {
 });
 const cacheSet = vi.fn(async () => {});
 vi.mock('../cache.js', () => ({
-  cacheEnabled: true, cacheSet: (...a: unknown[]) => cacheSet(...(a as [])), cacheKey: (u: unknown, sv: unknown, t: string) => `k:${String(u)}:${String(sv)}:${t}`,
+  cacheEnabled: true, cacheSet: (...a: unknown[]) => cacheSet(...(a as [])), cacheKey: (u: unknown, sv: unknown, id: string, t: string) => `k:${String(u)}:${String(sv)}:${id}:${t}`,
+  serverCacheIdentity: (url: string, user: string) => `${url}|${user}`,
   trimStreamJson: (s: string) => s, cacheableEntry: (s: string) => (s.startsWith('<') ? null : s), cacheGet: vi.fn(async () => null),
 }));
 
 const { syncUser } = await import('../worker.js');
 const { encrypt } = await import('../crypto.js');
 
-const row = () => ({ user_id: 1, server_id: 1, url: 'https://rss.example.com', freshrss_token: encrypt('jeton') });
+const row = () => ({ user_id: 1, server_id: 1, url: 'https://rss.example.com', freshrss_user: 'alice', freshrss_token: encrypt('jeton') });
 
 describe('syncUser — corps bornés', () => {
   it('abandonne une réponse qui ne finit jamais, et passe à la suite', async () => {

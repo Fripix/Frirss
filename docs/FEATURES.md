@@ -8013,17 +8013,25 @@ désactivé, aucune dépendance.
   serveur du compte, `X-Cache-Only` pour la peinture instantanée) et écrit par
   le worker de synchronisation.
 - **Réglages** : `REDIS_URL`, `CACHE_ARTICLES_PER_FEED`, `CACHE_TTL`
-- **Clé** (`cacheKey`) : `frirss:c:<compte>:<serveur>:<sha1(url) tronqué>`, où
+- **Clé** (`cacheKey`) :
+  `frirss:c:<compte>:<serveur>:<sha1(identité du serveur + url) tronqué>`, où
   `<serveur>` est l'id de la ligne `servers` lu en base (pas l'en-tête
   `X-Server-Id` brut). Le serveur en fait partie depuis 1.9.0 (M-09) : deux
   serveurs d'un compte à la même adresse — deux utilisateurs FreshRSS sur la
   même instance, ce que la section Serveurs recommande — ont les mêmes URL, et
   la clé `compte + URL` peignait la liste de l'un sous l'autre, jusque dans son
-  cache hors ligne (marquer lu envoyait alors un id étranger). Le proxy et le
-  worker passent le même id, sinon le pré-remplissage n'est jamais relu
-  (`workerCycle.test.ts`, `proxyCacheServerKey.test.ts`). Les clés d'avant
-  1.9.0 (`frirss:c:<compte>:<empreinte>`) ne sont plus lues et expirent avec
-  `CACHE_TTL`.
+  cache hors ligne (marquer lu envoyait alors un id étranger). L'**identité**
+  du serveur (`serverCacheIdentity` : adresse normalisée et utilisateur
+  FreshRSS, lus avec la ligne au DÉPART de la lecture) entre dans l'empreinte
+  (relecture 1.9.0) : une ligne qui change d'utilisateur ou d'adresse garde son
+  id, et une lecture de l'ancien compte en vol pendant le changement était
+  écrite APRÈS la purge, sous la même clé — peinte sous le nouveau compte
+  jusqu'au TTL. Elle tombe désormais sous une clé que plus personne ne lit, et
+  qui expire seule ; dans l'empreinte et non en clair, l'identité laisse le
+  motif de purge du serveur couvrir toutes ses clés. Le proxy et le worker
+  passent le même id et la même identité, sinon le pré-remplissage n'est
+  jamais relu (`workerCycle.test.ts`, `proxyCacheServerKey.test.ts`). Les clés
+  d'avant ne sont plus lues et expirent avec `CACHE_TTL`.
 - **Purges** : toutes les clés `frirss:c:*` après une restauration de
   sauvegarde (`cachePurgeAll`) ; celles d'un compte supprimé par
   l'administration (`cachePurgeUser`, motif `userCachePattern`) ; celles d'un

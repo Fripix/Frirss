@@ -1,9 +1,12 @@
 import { describe, it, expect, vi } from 'vitest';
 import fs from 'fs';
 import path from 'path';
-import { extractKey, cacheKey, userCachePattern, serverCachePattern, cacheableEntry, claimCacheRead, MAX_CACHED_ENTRY_BYTES, MAX_CACHE_READS_AT_ONCE, MAX_CACHE_READ_BYTES_PER_MINUTE } from '../cache.js';
+import { extractKey, cacheKey, serverCacheIdentity, userCachePattern, serverCachePattern, cacheableEntry, claimCacheRead, MAX_CACHED_ENTRY_BYTES, MAX_CACHE_READS_AT_ONCE, MAX_CACHE_READ_BYTES_PER_MINUTE } from '../cache.js';
 import { EXTRACT_VERSION } from '../extractVersion.js';
 import { EXTRACT_VERSION as CLIENT_EXTRACT_VERSION } from '../../src/lib/extractVersion.js';
+
+/** Une identité de serveur quelconque (`serverCacheIdentity`). */
+const ID = 'https://rss.example.com\nalice';
 
 describe('extractKey', () => {
   it('donne la même clé pour la même URL', () => {
@@ -18,7 +21,7 @@ describe('extractKey', () => {
     // Les deux vivent dans le même Redis : un préfixe distinct permet de
     // purger l'un sans l'autre et rend les clés lisibles en exploitation.
     expect(extractKey('https://example.com/a').startsWith('frirss:x:')).toBe(true);
-    expect(cacheKey(1, 1, 'https://example.com/a').startsWith('frirss:x:')).toBe(false);
+    expect(cacheKey(1, 1, ID, 'https://example.com/a').startsWith('frirss:x:')).toBe(false);
   });
 
   // A-2 (campagne 1.9.0) : un extrait gardé avant un changement de
@@ -56,11 +59,11 @@ const matches = (pattern: string, key: string) =>
 
 describe('userCachePattern', () => {
   it('couvre toutes les clés du compte', () => {
-    expect(matches(userCachePattern(7), cacheKey(7, 3, 'https://rss.example.com/a'))).toBe(true);
+    expect(matches(userCachePattern(7), cacheKey(7, 3, ID, 'https://rss.example.com/a'))).toBe(true);
   });
   it('ne touche ni un autre compte ni le cache partagé des extraits', () => {
-    expect(matches(userCachePattern(7), cacheKey(70, 3, 'https://rss.example.com/a'))).toBe(false);
-    expect(matches(userCachePattern(7), cacheKey(17, 3, 'https://rss.example.com/a'))).toBe(false);
+    expect(matches(userCachePattern(7), cacheKey(70, 3, ID, 'https://rss.example.com/a'))).toBe(false);
+    expect(matches(userCachePattern(7), cacheKey(17, 3, ID, 'https://rss.example.com/a'))).toBe(false);
     expect(matches(userCachePattern(7), extractKey('https://example.com/a'))).toBe(false);
   });
 });
@@ -71,18 +74,34 @@ describe('userCachePattern', () => {
 describe('cacheKey — un serveur, une clé', () => {
   it('distingue deux serveurs à la même adresse', () => {
     const url = 'https://rss.example.com/api/greader.php/reader/api/0/stream/contents/user/-/state/com.google/starred?output=json&n=50';
-    expect(cacheKey(1, 4, url)).not.toBe(cacheKey(1, 5, url));
-    expect(cacheKey(1, 4, url)).toBe(cacheKey(1, 4, url));
+    expect(cacheKey(1, 4, ID, url)).not.toBe(cacheKey(1, 5, ID, url));
+    expect(cacheKey(1, 4, ID, url)).toBe(cacheKey(1, 4, ID, url));
+  });
+
+  // Relecture 1.9.0 (R1-5) : une ligne serveur qui change d'utilisateur
+  // FreshRSS garde son id. Une lecture de l'ancien compte, partie avant le
+  // changement et arrivée après la purge, se réécrivait sous la même clé — et
+  // se peignait sous le nouveau compte jusqu'à `CACHE_TTL`. La clé porte donc
+  // aussi l'identité du serveur au départ de la lecture.
+  it('change avec l’identité du serveur (adresse, utilisateur FreshRSS), à id égal', () => {
+    const url = 'https://rss.example.com/api/greader.php/reader/api/0/stream/contents/user/-/state/com.google/starred?output=json&n=50';
+    const alice = serverCacheIdentity('https://rss.example.com', 'alice');
+    expect(cacheKey(1, 4, alice, url)).not.toBe(cacheKey(1, 4, serverCacheIdentity('https://rss.example.com', 'bob'), url));
+    expect(cacheKey(1, 4, alice, url)).not.toBe(cacheKey(1, 4, serverCacheIdentity('https://other.example.com', 'alice'), url));
+    // La même adresse, écrite autrement, reste la même identité.
+    expect(serverCacheIdentity('https://RSS.example.com:443/', 'alice')).toBe(alice);
+    // Et la clé reste sous le motif de purge du serveur.
+    expect(matches(serverCachePattern(1, 4), cacheKey(1, 4, alice, url))).toBe(true);
   });
 });
 
 describe('serverCachePattern', () => {
   it('couvre les clés de ce serveur, et elles seules', () => {
     const url = 'https://rss.example.com/a';
-    expect(matches(serverCachePattern(7, 3), cacheKey(7, 3, url))).toBe(true);
-    expect(matches(serverCachePattern(7, 3), cacheKey(7, 30, url))).toBe(false);
-    expect(matches(serverCachePattern(7, 3), cacheKey(7, 13, url))).toBe(false);
-    expect(matches(serverCachePattern(7, 3), cacheKey(70, 3, url))).toBe(false);
+    expect(matches(serverCachePattern(7, 3), cacheKey(7, 3, ID, url))).toBe(true);
+    expect(matches(serverCachePattern(7, 3), cacheKey(7, 30, ID, url))).toBe(false);
+    expect(matches(serverCachePattern(7, 3), cacheKey(7, 13, ID, url))).toBe(false);
+    expect(matches(serverCachePattern(7, 3), cacheKey(70, 3, ID, url))).toBe(false);
     expect(matches(serverCachePattern(7, 3), extractKey(url))).toBe(false);
   });
 });
