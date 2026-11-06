@@ -317,6 +317,20 @@ describe('ReadingPane — Résumé IA', () => {
       await waitFor(() => expect(requestAiSummary).toHaveBeenCalledTimes(1));
       expect(queryAllByRole('button', { name: 'ai.summarizeAction' })).toHaveLength(0);
     });
+    // M-17 (second round) : le bouton disparaît sous le focus quand la demande
+    // part, et le focus retombait sur la page.
+    it('the toolbar button hands focus to the summary panel title as it goes', async () => {
+      useUiStore.setState({ aiPanelAlways: false });
+      vi.mocked(requestAiSummary).mockReturnValue(new Promise(() => {}) as never);
+      const { getAllByRole, container } = render(<ReadingPane />);
+      const btn = getAllByRole('button', { name: 'ai.summarizeAction' })[0];
+      btn.focus();
+      await act(async () => { fireEvent.click(btn); await Promise.resolve(); });
+      expect(btn.isConnected).toBe(false);
+      const title = container.querySelector('.ai-summary button[aria-controls]');
+      expect(title).not.toBeNull();
+      expect(document.activeElement).toBe(title);
+    });
     it('no toolbar button when AI is unusable', () => {
       useUiStore.setState({ aiPanelAlways: false });
       useAiStore.setState({ config: { ...ON, enabled: false, providers: [] } });

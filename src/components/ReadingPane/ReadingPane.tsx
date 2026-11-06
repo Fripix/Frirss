@@ -1101,6 +1101,18 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   const autoSummaryPending = autoSummary && online && autoSummarisedId.current !== selectedArticle?.id;
   const showSummarizeBarBtn = aiUsable && !showAiPanel && !autoSummaryPending;
   const summarizeFromBar = () => { expandOnFirstSummary(); void handleSummarize(); };
+  // Le bouton de la barre disparaît sous le focus quand la demande part : le
+  // focus passe au titre du panneau qui prend le relais, pas sur la page
+  // (M-17). Seulement si le bouton l'avait, et si rien d'autre ne l'a pris.
+  const aiPanelRef = useRef<HTMLDivElement>(null);
+  const focusAiPanel = useRef(false);
+  useEffect(() => {
+    if (!showAiPanel || !focusAiPanel.current) return;
+    focusAiPanel.current = false;
+    const active = document.activeElement;
+    if (active && active !== document.body && active.isConnected) return;
+    aiPanelRef.current?.querySelector<HTMLElement>('.ai-summary button')?.focus();
+  }, [showAiPanel]);
   const autoTranslate = !!selectedArticle && autoFor('translate', selectedArticle.sourceId, subscriptions, autoPrefs);
   // Si l'extraction automatique s'applique à ce flux, on attend qu'elle ait
   // abouti ou échoué POUR CET ARTICLE (et non pour le précédent, dont l'état
@@ -1746,7 +1758,10 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
         {showSummarizeBtn && (
           <button
             type="button"
-            onClick={summarizeFromBar}
+            onClick={(e) => {
+              focusAiPanel.current = document.activeElement === e.currentTarget;
+              summarizeFromBar();
+            }}
             disabled={!online}
             className="action-btn flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold transition-all duration-200"
             style={{ color: 'var(--reading-meta)', background: 'transparent', border: '1.5px solid transparent' }}
@@ -2104,13 +2119,17 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
           })()}
 
           {showAiPanel && (
-            <AiSummary
-              status={aiStatus} result={aiResult} error={aiError} errorProviderId={aiErrorProvider} providers={aiProviders}
-              onSummarize={handleSummarize}
-              disabled={!online}
-              translation={aiTranslation} onTranslate={handleTranslateSummary}
-              onShowSource={showSummarySource} targetLang={aiTargetLang}
-            />
+            // `contents` : sans boîte, seulement de quoi y trouver le titre
+            // du panneau à focaliser (M-17).
+            <div ref={aiPanelRef} className="contents">
+              <AiSummary
+                status={aiStatus} result={aiResult} error={aiError} errorProviderId={aiErrorProvider} providers={aiProviders}
+                onSummarize={handleSummarize}
+                disabled={!online}
+                translation={aiTranslation} onTranslate={handleTranslateSummary}
+                onShowSource={showSummarySource} targetLang={aiTargetLang}
+              />
+            </div>
           )}
 
           {/* Extraction error — demandée par le lecteur. L'échec d'une

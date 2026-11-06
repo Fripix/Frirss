@@ -4330,7 +4330,12 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     44 pt), et sans lui un téléphone n'aurait que la palette. Le bouton appelle le même chemin que `s`
     (`expandOnFirstSummary` + `handleSummarize`) et **disparaît dès que la
     demande part** : le panneau apparaît (statut `loading`), avec son résumé ou
-    son erreur. Il repart avec l'état à l'article suivant, comme le résumé. Le résumé automatique
+    son erreur. Le bouton de la barre, démonté sous le focus, le passe au
+    **titre du panneau** (son bouton replier/déplier), au lieu de le laisser
+    retomber sur la page — seulement s'il l'avait et que rien d'autre ne l'a
+    pris (second round, M-17, `ReadingPane.ai.test.tsx`). Au doigt, la rangée
+    de la feuille « … » n'est pas concernée : la feuille rend le focus à son
+    bouton d'ouverture. Il repart avec l'état à l'article suivant, comme le résumé. Le résumé automatique
     (`autoFor`) est indépendant : il part panneau masqué et le fait
     apparaître de même. Réglé dans Préférences → IA → « Résumés » (global) ;
     l'interrupteur « Panneau » de « Par flux et catégorie » le précise pour un
