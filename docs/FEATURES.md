@@ -5552,6 +5552,19 @@ serveur de développement en 1.4.4.)*
   Limite connue : un intertitre seul dans un bloc sans paragraphe, en tête
   d'une suite de blocs (Clubic), est écarté par Readability, avant cette
   règle comme depuis.
+  ⚠️ **Un bloc invisible pour Readability n'est pas un corps** (quatrième
+  round, B-01 — `hiddenForReadability`) : Readability écarte, avec tout ce
+  qu'ils contiennent, les `noscript`, les éléments `[hidden]`,
+  `aria-hidden="true"` (sauf `fallback-image`, son exception), en
+  `display:none` ou `visibility:hidden` (style en ligne), et les dialogues
+  modaux. La réunion ne le regardait pas : un corps versé dans une accroche
+  cachée de même classe qui le précédait disparaissait avec elle (extrait
+  vide), et la copie cachée du corps (en `noscript`, ou dans un bloc
+  `hidden`) versée dans le corps doublait l'article. Un bloc invisible —
+  lui-même ou par un ancêtre, mémorisé d'un bloc à l'autre — sort du groupe.
+  Le contenu d'un `template` n'est de toute façon pas parcouru (linkedom le
+  range dans `content`, comme le navigateur). Mesuré (2026-11-06) sur 275
+  pages réelles : aucune ne change.
   ⚠️ **Coût** : sans la règle « du texte dans chaque bloc », 1 000 groupes de
   blocs vides encadrant 50 000 `<div>` faisaient parcourir ce vide une fois
   par groupe — 54 s ; avec elle, un bloc qui se lit arrête tout parcours qui
@@ -5625,9 +5638,11 @@ serveur de développement en 1.4.4.)*
 - **Version de l'extraction** (1.9.0, A-2 — `server/extractVersion.ts` et
   `src/lib/extractVersion.ts`, même valeur vérifiée par
   `server/test/cache.test.ts`). À monter à chaque changement du résultat de
-  l'extraction pour une même page. **7** depuis la réunion « tout ou rien »
-  du corps réparti, cellules de tableau comprises (R3V-01) : les extraits v6
-  de Clubic réduits à un morceau du milieu sont refaits ; 6 avait accompagné
+  l'extraction pour une même page. **8** depuis que les blocs invisibles pour
+  Readability n'entrent plus dans la réunion du corps réparti (B-01) : les
+  extraits v7 vides ou doublés sont refaits ; 7 avait accompagné la réunion
+  « tout ou rien » du corps réparti, cellules de tableau comprises (R3V-01 :
+  extraits v6 de Clubic réduits à un morceau du milieu) ; 6 avait accompagné
   la réunion du corps réparti en blocs (Ars Technica), les termes de
   taxonomie ignorés et les seuls boutons d'agrandissement déballés (suite du
   troisième round : extraits v5 sans chapeau, avec notice d'auteur ou

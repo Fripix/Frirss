@@ -820,6 +820,15 @@ export function stripBoilerplate(root: Element): void {
 // cela ramassait les encarts « À découvrir » et les offres glissés entre les
 // blocs, et coupait des pages Numerama.)
 //
+// UN BLOC INVISIBLE POUR READABILITY N'EST PAS UN CORPS (B-01, quatrième
+// round) : Readability écarte, avec tout ce qu'ils contiennent, les
+// `noscript`, les éléments `[hidden]`, `aria-hidden="true"` (sauf
+// `fallback-image`), en `display:none` ou `visibility:hidden`, et les
+// dialogues modaux. Versé dans une accroche cachée qui le précédait, le corps
+// disparaissait avec elle (extrait vide) ; un doublon caché du corps (sa copie
+// en `noscript`) versé dans le corps doublait l'article. Un tel bloc — lui-même
+// ou par un ancêtre — sort donc du groupe : `hiddenForReadability`.
+//
 // Même règle dans le repli du navigateur (`src/utils/extractContent.ts`) ;
 // toute modification de l'une va avec l'autre, et avec `EXTRACT_VERSION`.
 
@@ -857,6 +866,37 @@ function isReadable(node: Node): boolean {
   return false;
 }
 
+/**
+ * Readability écarte-t-il cet élément, et tout ce qu'il contient ? Son
+ * `_isProbablyVisible`, son retrait des dialogues modaux, et les éléments
+ * jamais rendus (`noscript`, qu'il retire avant toute passe, `template`).
+ */
+function hiddenForReadability(el: Element): boolean {
+  if (INVISIBLE.has(el.tagName.toLowerCase()) || el.hasAttribute('hidden')) return true;
+  if (el.getAttribute('aria-hidden') === 'true' && !(el.getAttribute('class') || '').includes('fallback-image')) return true;
+  if (el.getAttribute('aria-modal') === 'true' && el.getAttribute('role') === 'dialog') return true;
+  if (!el.hasAttribute('style')) return false;
+  const style = (el as unknown as { style?: { display?: string; visibility?: string } }).style;
+  return !!style && (style.display === 'none' || style.visibility === 'hidden');
+}
+
+/**
+ * `el` ou l'un de ses ancêtres est-il invisible pour Readability ? Mémorisé
+ * dans `memo` : les blocs d'une page partagent leurs ancêtres.
+ */
+function insideHidden(el: Element, memo: Map<Element, boolean>): boolean {
+  const path: Element[] = [];
+  let hidden = false;
+  for (let current: Element | null = el; current; current = current.parentElement) {
+    const known = memo.get(current);
+    if (known !== undefined) { hidden = known; break; }
+    path.push(current);
+    if (hiddenForReadability(current)) { hidden = true; break; }
+  }
+  for (const node of path) memo.set(node, hidden);
+  return hidden;
+}
+
 /** Le nœud qui suit `node` dans l'ordre du document, sous-arbre de `node` exclu. */
 function nextOutside(node: Node): Node | null {
   for (let current: Node | null = node; current; current = current.parentNode) {
@@ -890,6 +930,7 @@ export function joinSplitBody(root: Element): void {
     if (group) group.push(el);
     else groups.set(name, [el]);
   }
+  const hidden = new Map<Element, boolean>();
   for (const group of groups.values()) {
     // Dans l'ordre du document. Un bloc imbriqué dans un autre du groupe
     // voyage avec lui : seuls les plus extérieurs comptent.
@@ -907,8 +948,8 @@ export function joinSplitBody(root: Element): void {
       // coût : un bloc qui se lit arrête tout parcours qui le croise, donc les
       // intervalles parcourus d'un groupe à l'autre ne se recouvrent pas — sans
       // cette règle, 1 000 groupes de blocs vides encadrant 50 000 `<div>`
-      // coûtaient 54 s.
-      if (!block.querySelector('p') || !isReadable(block)) continue;
+      // coûtaient 54 s. Un bloc que Readability écartera non plus (B-01).
+      if (!block.querySelector('p') || !isReadable(block) || insideHidden(block, hidden)) continue;
       const scope = block.closest(SCOPE);
       const run = runs.get(scope);
       if (run) run.push(block);

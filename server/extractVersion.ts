@@ -37,5 +37,10 @@
  *     réparti est tout ou rien par `<article>`, et jamais d'une cellule de
  *     tableau à l'autre : les extraits v6 de Clubic réduits à un morceau du
  *     milieu (chapeau, moitié du texte et images perdus) sont refaits.
+ * 8 : 1.9.0 (quatrième round, B-01) — un bloc invisible pour Readability
+ *     (`noscript`, `[hidden]`, `aria-hidden`, `display:none`…) n'entre plus
+ *     dans la réunion du corps réparti : les extraits v7 vides (corps versé
+ *     dans une accroche cachée) ou doublés (doublon caché versé dans le corps)
+ *     sont refaits.
  */
-export const EXTRACT_VERSION = 7;
+export const EXTRACT_VERSION = 8;

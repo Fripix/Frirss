@@ -590,7 +590,8 @@ function stripBoilerplate(root: Element): void {
 // rien de lisible entre deux blocs ; l'ordre du texte ne change jamais. Tout
 // ou rien : un groupe qu'une image ou un texte coupe n'est pas réuni du tout
 // (Clubic, R3V-01) ; une cellule de tableau est son propre cadre, comme un
-// `<article>`.
+// `<article>`. Un bloc invisible pour Readability — lui-même ou par un
+// ancêtre — n'est pas un corps (B-01).
 const POSITIVE_NAME = /article|body|content|entry|hentry|h-entry|main|page|pagination|post|text|blog|story/i;
 const NEGATIVE_NAME = /-ad-|hidden|^hid$| hid$| hid |^hid |banner|combx|comment|com-|contact|footer|gdpr|masthead|media|meta|outbrain|promo|related|scroll|share|shoutbox|sidebar|skyscraper|sponsor|shopping|tags|widget/i;
 const MEDIA = 'img, picture, video, audio, iframe, object, embed';
@@ -610,6 +611,30 @@ function isReadable(node: Node): boolean {
     }
   }
   return false;
+}
+
+/** Écarté par Readability avec son contenu (voir le serveur, B-01). */
+function hiddenForReadability(el: Element): boolean {
+  if (INVISIBLE.has(el.tagName.toLowerCase()) || el.hasAttribute('hidden')) return true;
+  if (el.getAttribute('aria-hidden') === 'true' && !(el.getAttribute('class') || '').includes('fallback-image')) return true;
+  if (el.getAttribute('aria-modal') === 'true' && el.getAttribute('role') === 'dialog') return true;
+  if (!el.hasAttribute('style')) return false;
+  const style = (el as HTMLElement).style;
+  return !!style && (style.display === 'none' || style.visibility === 'hidden');
+}
+
+/** `el` ou un ancêtre invisible pour Readability ; mémorisé dans `memo`. */
+function insideHidden(el: Element, memo: Map<Element, boolean>): boolean {
+  const path: Element[] = [];
+  let hidden = false;
+  for (let current: Element | null = el; current; current = current.parentElement) {
+    const known = memo.get(current);
+    if (known !== undefined) { hidden = known; break; }
+    path.push(current);
+    if (hiddenForReadability(current)) { hidden = true; break; }
+  }
+  for (const node of path) memo.set(node, hidden);
+  return hidden;
 }
 
 function nextOutside(node: Node): Node | null {
@@ -641,6 +666,7 @@ function joinSplitBody(root: Element): void {
     if (group) group.push(el);
     else groups.set(name, [el]);
   }
+  const hidden = new Map<Element, boolean>();
   for (const group of groups.values()) {
     const blocks: Element[] = [];
     for (const el of group) {
@@ -649,8 +675,9 @@ function joinSplitBody(root: Element): void {
     }
     const runs = new Map<Element | null, Element[]>();
     for (const block of blocks) {
-      // Sans texte, pas un corps — et la borne du coût (voir le serveur).
-      if (!block.querySelector('p') || !isReadable(block)) continue;
+      // Sans texte, pas un corps — et la borne du coût (voir le serveur). Ni
+      // un bloc que Readability écartera (B-01).
+      if (!block.querySelector('p') || !isReadable(block) || insideHidden(block, hidden)) continue;
       const scope = block.closest(SCOPE);
       const run = runs.get(scope);
       if (run) run.push(block);

@@ -429,6 +429,27 @@ describe('extractFullContent — repli local : corps réparti en plusieurs blocs
     const cells = new DOMParser().parseFromString(content, 'text/html').querySelectorAll('td');
     expect(Array.from(cells, (td) => td.querySelectorAll('p').length)).toEqual([1, 1, 1, 1]);
   });
+
+  // B-01 (quatrième round) : un bloc invisible pour Readability n'est pas un corps.
+  const story = Array.from({ length: 12 }, (_, i) => `<p>Paragraph ${i} of the real story, with enough words to look like genuine body text that Readability scores well and keeps.</p>`).join('');
+  const paragraphs = (html: string) => (html.match(/Paragraph \d+/g) || []).length;
+
+  it('garde le corps entier quand un bloc caché de même classe le précède', async () => {
+    for (const [i, hide] of ['hidden', 'style="display:none"', 'style="visibility: hidden"', 'aria-hidden="true"'].entries()) {
+      fallbackOn(`<!doctype html><html><head><title>T</title></head><body><article><h1>Title</h1>
+        <div class="teaser" ${hide}><div class="article-body"><p>Short teaser shown in the app only.</p></div></div>
+        <div class="full"><div class="article-body">${story}</div></div></article></body></html>`);
+      expect(paragraphs((await extractFullContent(`https://example.com/cache-${i}`)).content), hide).toBe(12);
+    }
+  });
+
+  it('ne double pas l’article quand un doublon caché du corps le suit', async () => {
+    for (const [i, duplicate] of [`<noscript><div class="article-body">${story}</div></noscript>`, `<div class="dup" hidden><div class="article-body">${story}</div></div>`].entries()) {
+      fallbackOn(`<!doctype html><html><head><title>T</title></head><body><article><h1>Title</h1>
+        <div class="full"><div class="article-body">${story}</div></div>${duplicate}</article></body></html>`);
+      expect(paragraphs((await extractFullContent(`https://example.com/doublon-${i}`)).content), duplicate.slice(0, 20)).toBe(12);
+    }
+  });
 });
 
 // ── Relecture du troisième round : mêmes cas que la route serveur ────

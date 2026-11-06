@@ -434,6 +434,29 @@ describe('extractArticle — corps réparti en plusieurs blocs', () => {
     expect(bodyImages).toHaveLength(2);
     for (const src of bodyImages) expect(out.content).toContain(`https://example.com${src}`);
   });
+
+  // B-01 (quatrième round) : la réunion ne regardait pas si un bloc était
+  // invisible pour Readability, qui écarte `noscript`, `[hidden]`,
+  // `aria-hidden="true"` et les styles `display:none` / `visibility:hidden`.
+  const story = Array.from({ length: 12 }, (_, i) => `<p>Paragraph ${i} of the real story, with enough words to look like genuine body text that Readability scores well and keeps.</p>`).join('');
+  const paragraphs = (html: string) => (html.match(/Paragraph \d+/g) || []).length;
+
+  it('garde le corps entier quand un bloc caché de même classe le précède', () => {
+    for (const hide of ['hidden', 'style="display:none"', 'style="visibility: hidden"', 'aria-hidden="true"']) {
+      const html = `<html><head><title>T</title></head><body><article><h1>Title</h1>
+        <div class="teaser" ${hide}><div class="article-body"><p>Short teaser shown in the app only.</p></div></div>
+        <div class="full"><div class="article-body">${story}</div></div></article></body></html>`;
+      expect(paragraphs(extractArticle('https://example.com/a', html)?.content || ''), hide).toBe(12);
+    }
+  });
+
+  it('ne double pas l’article quand un doublon caché du corps le suit', () => {
+    for (const duplicate of [`<noscript><div class="article-body">${story}</div></noscript>`, `<div class="dup" hidden><div class="article-body">${story}</div></div>`]) {
+      const html = `<html><head><title>T</title></head><body><article><h1>Title</h1>
+        <div class="full"><div class="article-body">${story}</div></div>${duplicate}</article></body></html>`;
+      expect(paragraphs(extractArticle('https://example.com/a', html)!.content), duplicate.slice(0, 20)).toBe(12);
+    }
+  });
 });
 
 describe('joinSplitBody', () => {
@@ -526,6 +549,52 @@ describe('joinSplitBody', () => {
     const { document } = run(`<article><div class="w"><div class="entry-content">${para('UN')}</div></div></article>
       <article><div class="w"><div class="entry-content">${para('DEUX')}</div></div></article>`);
     expect(parentsOf(document, '.entry-content').map((p) => p?.className)).toEqual(['w', 'w']);
+  });
+
+  // B-01 (quatrième round) : invisible pour Readability, le bloc lui-même ou
+  // un ancêtre. Versé dedans, le corps disparaissait ; versé dans le corps, un
+  // doublon caché doublait l'article.
+  const hiders: Array<[string, (inner: string) => string]> = [
+    ['noscript', (inner) => `<noscript>${inner}</noscript>`],
+    // Le contenu d'un `template` n'est déjà pas parcouru (linkedom le range
+    // dans `content`, comme le navigateur) : le cas reste pour le garantir.
+    ['template', (inner) => `<template>${inner}</template>`],
+    ['hidden', (inner) => `<div hidden>${inner}</div>`],
+    ['aria-hidden', (inner) => `<div aria-hidden="true">${inner}</div>`],
+    ['display:none', (inner) => `<div style="color: red; display: none">${inner}</div>`],
+    ['visibility:hidden', (inner) => `<div style="visibility:hidden">${inner}</div>`],
+    ['dialogue modal', (inner) => `<div role="dialog" aria-modal="true">${inner}</div>`],
+    ['bloc lui-même caché', (inner) => inner.replace('class="post-content"', 'class="post-content" hidden')],
+    ['ancêtre lointain caché', (inner) => `<section hidden><div><div>${inner}</div></div></section>`],
+  ];
+
+  it('ne verse pas le corps dans un bloc invisible pour Readability', () => {
+    for (const [name, hide] of hiders) {
+      const { document } = run(`<article>
+        <div class="w">${hide(`<div class="post-content">${para('CACHÉ')}</div>`)}</div>
+        <div class="w"><div class="post-content">${para('UN')}${para('DEUX')}</div></div></article>`);
+      const visible = Array.from(document.querySelectorAll('.post-content') as ArrayLike<Element>).find((b) => b.textContent!.includes('UN'));
+      expect(visible?.textContent, name).toContain('DEUX');
+      expect(visible?.textContent, name).not.toContain('CACHÉ');
+    }
+  });
+
+  it('ne verse pas un doublon invisible dans le corps', () => {
+    for (const [name, hide] of hiders) {
+      const { document } = run(`<article>
+        <div class="w"><div class="post-content">${para('UN')}</div></div>
+        <div class="w">${hide(`<div class="post-content">${para('DOUBLON')}</div>`)}</div></article>`);
+      const visible = Array.from(document.querySelectorAll('.post-content') as ArrayLike<Element>).find((b) => b.textContent!.includes('UN'));
+      expect(visible?.textContent, name).not.toContain('DOUBLON');
+    }
+  });
+
+  it('garde l’exception de Readability : `aria-hidden` sur un `fallback-image` reste visible', () => {
+    const { document } = run(`<article>
+      <div class="w"><div class="post-content">${para('UN')}</div></div>
+      <div class="ad-slot"></div>
+      <div class="w fallback-image" aria-hidden="true"><div class="post-content">${para('DEUX')}</div></div></article>`);
+    expect(document.querySelectorAll('.post-content')).toHaveLength(1);
   });
 
   it('laisse des blocs dont le nom dit qu’ils ne sont pas le corps (commentaires)', () => {
