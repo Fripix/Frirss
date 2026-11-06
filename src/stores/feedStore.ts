@@ -915,6 +915,12 @@ export interface FeedState {
     startedAt?: number;
     /** Arrêtée par « Annuler » (`cancelOfflinePrep`). */
     cancelled?: boolean;
+    /** Articles refusés pour occupation qui attendent leur reprise : posé
+     *  pendant l'attente seulement (l'onglet dit qu'il attend le serveur). */
+    waitingServer?: number;
+    /** Articles faits qui devaient s'ouvrir en article complet et n'en ont
+     *  aucun (extraction refusée ou en échec) : ils ne se disent pas prêts. */
+    missingFull?: number;
   } | null;
   /** Arrête la préparation en cours après l'article en cours. Sans effet sinon. */
   cancelOfflinePrep: () => void;
@@ -1888,8 +1894,19 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       // ne demande pas d'importer la classe elle-même.
       const refusedForBusy = (err: unknown) => err instanceof Error && err.name === 'ExtractorBusyError';
       let done = 0;
+      // Faits, mais sans l'article complet qu'ils devaient ouvrir (idée du
+      // troisième round 1.9.0) : « Hors ligne prêt (6) » s'affichait quand
+      // aucun extrait n'avait été obtenu. Un ancien extrait gardé compte comme
+      // obtenu (l'article s'ouvre dessus) ; un flux réglé « Non » ne manque de
+      // rien.
+      let missingFull = 0;
       const total = ordered.length;
-      const publish = () => set({ offlinePrep: { running: true, phase: 'articles', done, total, imagesFound, imagesStored, startedAt } });
+      const publish = (waitingServer?: number) => set({
+        offlinePrep: {
+          running: true, phase: 'articles', done, total, imagesFound, imagesStored, startedAt,
+          ...(waitingServer ? { waitingServer } : {}),
+        },
+      });
       const offline = () => typeof navigator !== 'undefined' && navigator.onLine === false;
 
       const sweepImages = async (urls: string[]) => {
@@ -1926,7 +1943,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       // avec les images déjà préparées pour chacun. Un tel article n'est pas
       // encore « fait » : il compte dans ce qui reste, donc l'estimation de
       // durée et la barre restent justes pendant la reprise.
-      let busy: Array<{ article: Article; seen: Set<string> }> = [];
+      let busy: Array<{ article: Article; seen: Set<string>; fallback: boolean }> = [];
       for (const a of ordered) {
         if (offline()) { interrupted = true; break; }
         if (scopeLeft()) { interrupted = true; break; }
@@ -1934,6 +1951,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
 
         let extracted: string | null = peekExtract(a.id)?.content ?? null;
         let refusedBusy = false;
+        let lacksFull = false;
         if (a.url && !extracted) {
           const stored = await getExtract(a.id);
           extracted = stored?.content ?? null;
@@ -1959,6 +1977,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
           // contenu du flux, et les images de l'ancien extrait prenaient la
           // place de celles qu'on lira.
           if (!extracted && wantsFull) extracted = (await getOutdatedExtract(a.id))?.content ?? null;
+          lacksFull = wantsFull && !extracted;
         }
 
         let urls: string[] = [];
@@ -1967,7 +1986,8 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
           await sweepImages(urls);
         }
 
-        if (refusedBusy) { busy.push({ article: a, seen: new Set(urls) }); continue; }
+        if (refusedBusy) { busy.push({ article: a, seen: new Set(urls), fallback: !!extracted }); continue; }
+        if (lacksFull) missingFull++;
         done++;
         if (done % 5 === 0 || done === total) publish();
       }
@@ -1981,8 +2001,12 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       // (`waitUnless`) ; les images de l'extrait obtenu entrent dans le même
       // budget, sans compter deux fois celles déjà préparées pour l'article.
       for (let round = 0; round < PREP_BUSY_RETRY_DELAYS_MS.length && busy.length && !interrupted; round++) {
-        publish();
+        // Pendant l'attente, l'onglet dit qu'il attend le serveur (idée du
+        // troisième round 1.9.0) : jusqu'à 15 s sans un mot, la préparation
+        // semblait figée. Retiré dès la reprise, au premier `publish()`.
+        publish(busy.length);
         const waited = await waitUnless(PREP_BUSY_RETRY_DELAYS_MS[round], () => prepCancelRequested || scopeLeft() || offline());
+        publish();
         if (!waited) {
           interrupted = true;
           if (prepCancelRequested) stoppedOnCancel = true;
@@ -1995,10 +2019,12 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
           if (scopeLeft()) { interrupted = true; break; }
           if (prepCancelRequested) { interrupted = true; stoppedOnCancel = true; break; }
           const { article: a, seen } = entry;
+          let obtained = entry.fallback;
           if (!deviceFull && a.url) {
             try {
               const content = await extractFullContent(a.url);
               await putExtract(a.id, content);
+              obtained = true;
               if (!budgetReached) {
                 // Le plafond par article vaut pour les deux passages réunis.
                 const fresh = articleImageUrls(a.content, content.content, budget.perArticle).filter((u) => !seen.has(u));
@@ -2008,6 +2034,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
               if (!lastRound && refusedForBusy(err)) { again.push(entry); continue; }
             }
           }
+          if (!obtained) missingFull++;
           done++;
           if (done % 5 === 0 || done === total) publish();
         }
@@ -2020,7 +2047,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       if (!interrupted && !scopeLeft() && budget.bytes > 0) await pruneImages(keptImages, undefined, scope);
       set({
         offlinePrep: {
-          running: false, phase: 'done', done, total: ordered.length,
+          running: false, phase: 'done', done, total: ordered.length, missingFull,
           imagesFound, imagesStored, imagesFailed,
           budgetStopped: budgetReached && budget.bytes > 0, deviceFull, imagesError,
           ...(stoppedOnCancel ? { cancelled: true } : {}),

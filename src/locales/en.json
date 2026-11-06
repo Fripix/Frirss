@@ -496,7 +496,13 @@
       "etaMinutes_other": "About {{count}} min left",
       "etaHours": "About {{hours}} h {{minutes}} min left",
       "etaWholeHours_one": "About {{count}} h left",
-      "etaWholeHours_other": "About {{count}} h left"
+      "etaWholeHours_other": "About {{count}} h left",
+      "waitingServer_one": "The server is busy: {{count}} article will be requested again in a few seconds.",
+      "waitingServer_other": "The server is busy: {{count}} articles will be requested again in a few seconds.",
+      "doneMissing_one": "Offline ready: {{count}} full article out of {{total}}",
+      "doneMissing_other": "Offline ready: {{count}} full articles out of {{total}}",
+      "missingFull_one": "{{count}} article will open with its RSS content: its full article could not be fetched. The next preparation will ask for it again.",
+      "missingFull_other": "{{count}} articles will open with their RSS content: their full article could not be fetched. The next preparation will ask for them again."
     },
     "refresh": {
       "title": "Refresh",

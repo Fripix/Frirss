@@ -496,7 +496,13 @@
       "etaMinutes_other": "Quedan aproximadamente {{count}} min",
       "etaHours": "Quedan aproximadamente {{hours}} h {{minutes}} min",
       "etaWholeHours_one": "Queda aproximadamente {{count}} h",
-      "etaWholeHours_other": "Quedan aproximadamente {{count}} h"
+      "etaWholeHours_other": "Quedan aproximadamente {{count}} h",
+      "waitingServer_one": "El servidor está ocupado: {{count}} artículo se volverá a pedir en unos segundos.",
+      "waitingServer_other": "El servidor está ocupado: {{count}} artículos se volverán a pedir en unos segundos.",
+      "doneMissing_one": "Listo sin conexión: {{count}} artículo completo de {{total}}",
+      "doneMissing_other": "Listo sin conexión: {{count}} artículos completos de {{total}}",
+      "missingFull_one": "{{count}} artículo se abrirá con el contenido RSS: no se pudo obtener su artículo completo. La próxima preparación lo volverá a pedir.",
+      "missingFull_other": "{{count}} artículos se abrirán con el contenido RSS: no se pudo obtener su artículo completo. La próxima preparación los volverá a pedir."
     },
     "refresh": {
       "title": "Actualización",

@@ -65,7 +65,15 @@ export default function OfflineTab({ active = true }: { active?: boolean }) {
     const { key, options } = etaMessage(ms);
     return t(key, options);
   };
-  const eta = remaining === null || cancelling ? null : etaFor(remaining);
+  // Pendant l'attente d'une reprise (serveur d'extraction occupé, jusqu'à
+  // 15 s), la durée au rythme observé ne veut rien dire : l'onglet dit qu'il
+  // attend le serveur, à sa place.
+  const waitingServer = running && !cancelling ? offlinePrep?.waitingServer ?? 0 : 0;
+  const eta = remaining === null || cancelling || waitingServer ? null : etaFor(remaining);
+  // Faits sans l'article complet qu'ils devaient ouvrir : ils ne se disent
+  // pas prêts (« Hors ligne prêt (6) » sans un seul extrait obtenu).
+  const missingFull = offlinePrep?.missingFull ?? 0;
+  const complete = offlinePrep ? offlinePrep.done - missingFull : 0;
   const autoOffline = useUiStore((s) => s.autoOffline);
   const setAutoOffline = useUiStore((s) => s.setAutoOffline);
   const offlineImagePreset = useUiStore((s) => s.offlineImagePreset);
@@ -154,6 +162,11 @@ export default function OfflineTab({ active = true }: { active?: boolean }) {
             {eta}
           </p>
         )}
+        {waitingServer > 0 && (
+          <p role="status" className="text-[11px] mt-2" style={{ color: 'var(--list-summary)' }}>
+            {t('preferences.offline.waitingServer', { count: waitingServer })}
+          </p>
+        )}
         {!online && (
           <p className="text-[11px] mt-2" style={{ color: 'var(--list-summary)' }}>
             {t('preferences.offline.needsNetwork')}
@@ -163,7 +176,14 @@ export default function OfflineTab({ active = true }: { active?: boolean }) {
           <p className="text-[11px] mt-2" style={{ color: 'var(--list-summary)' }}>
             {offlinePrep.cancelled
               ? t('preferences.offline.cancelledReport', { done: offlinePrep.done, total: offlinePrep.total, count: offlinePrep.total })
-              : `${t('preferences.offline.done')} (${offlinePrep.total})`}
+              : complete < offlinePrep.total
+                ? t('preferences.offline.doneMissing', { count: complete, total: offlinePrep.total })
+                : `${t('preferences.offline.done')} (${offlinePrep.total})`}
+            {missingFull > 0 && (
+              <span className="block">
+                {t('preferences.offline.missingFull', { count: missingFull })}
+              </span>
+            )}
             {offlinePrep.imagesFound !== undefined && (
               <span className="block">
                 {t('preferences.offline.imagesReport', {

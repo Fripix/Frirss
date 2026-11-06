@@ -496,7 +496,13 @@
       "etaMinutes_other": "Noch etwa {{count}} Min.",
       "etaHours": "Noch etwa {{hours}} Std. {{minutes}} Min.",
       "etaWholeHours_one": "Noch etwa {{count}} Std.",
-      "etaWholeHours_other": "Noch etwa {{count}} Std."
+      "etaWholeHours_other": "Noch etwa {{count}} Std.",
+      "waitingServer_one": "Der Server ist ausgelastet: {{count}} Artikel wird in wenigen Sekunden erneut angefragt.",
+      "waitingServer_other": "Der Server ist ausgelastet: {{count}} Artikel werden in wenigen Sekunden erneut angefragt.",
+      "doneMissing_one": "Offline bereit: Volltext für {{count}} von {{total}}",
+      "doneMissing_other": "Offline bereit: Volltext für {{count}} von {{total}}",
+      "missingFull_one": "{{count}} Artikel öffnet sich mit dem RSS-Inhalt: Sein Volltext konnte nicht abgerufen werden. Die nächste Vorbereitung fragt ihn erneut an.",
+      "missingFull_other": "{{count}} Artikel öffnen sich mit dem RSS-Inhalt: Ihr Volltext konnte nicht abgerufen werden. Die nächste Vorbereitung fragt ihn erneut an."
     },
     "refresh": {
       "title": "Abruf",

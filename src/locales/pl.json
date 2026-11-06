@@ -518,7 +518,19 @@
       "etaWholeHours_many": "Zostało około {{count}} godz.",
       "etaWholeHours_other": "Zostało około {{count}} godz.",
       "etaMinutes_few": "Zostały około {{count}} min",
-      "etaMinutes_many": "Zostało około {{count}} min"
+      "etaMinutes_many": "Zostało około {{count}} min",
+      "waitingServer_one": "Serwer jest zajęty: {{count}} artykuł zostanie ponownie pobrany za kilka sekund.",
+      "waitingServer_few": "Serwer jest zajęty: {{count}} artykuły zostaną ponownie pobrane za kilka sekund.",
+      "waitingServer_many": "Serwer jest zajęty: {{count}} artykułów zostanie ponownie pobranych za kilka sekund.",
+      "waitingServer_other": "Serwer jest zajęty: {{count}} artykułu zostanie ponownie pobrane za kilka sekund.",
+      "doneMissing_one": "Offline gotowe: pełny artykuł dla {{count}} z {{total}}",
+      "doneMissing_few": "Offline gotowe: pełny artykuł dla {{count}} z {{total}}",
+      "doneMissing_many": "Offline gotowe: pełny artykuł dla {{count}} z {{total}}",
+      "doneMissing_other": "Offline gotowe: pełny artykuł dla {{count}} z {{total}}",
+      "missingFull_one": "{{count}} artykuł otworzy się z treścią RSS: nie udało się pobrać pełnego artykułu. Następne przygotowanie spróbuje ponownie.",
+      "missingFull_few": "{{count}} artykuły otworzą się z treścią RSS: nie udało się pobrać pełnych artykułów. Następne przygotowanie spróbuje ponownie.",
+      "missingFull_many": "{{count}} artykułów otworzy się z treścią RSS: nie udało się pobrać pełnych artykułów. Następne przygotowanie spróbuje ponownie.",
+      "missingFull_other": "{{count}} artykułu otworzy się z treścią RSS: nie udało się pobrać pełnych artykułów. Następne przygotowanie spróbuje ponownie."
     },
     "refresh": {
       "title": "Odświeżanie",

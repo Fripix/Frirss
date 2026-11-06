@@ -170,6 +170,8 @@ describe('M-03 — extrait d’une version antérieure, réextraction en échec'
       await useFeedStore.getState().prepareOffline();
       const urls = vi.mocked(cacheImages).mock.calls.flatMap(([u]) => u as string[]);
       expect(urls).toContain('https://img.example.com/ancien.jpg');
+      // Il s'ouvre sur cet extrait : il ne manque pas d'article complet.
+      expect(useFeedStore.getState().offlinePrep!.missingFull).toBe(0);
     } finally {
       vi.mocked(dbGet).mockImplementation(() => Promise.resolve(undefined));
     }
@@ -279,5 +281,63 @@ describe('préparation : articles refusés pour occupation, redemandés en fin d
     await vi.advanceTimersByTimeAsync(30_000);
     await run;
     expect(extract.fn).toHaveBeenCalledTimes(6);
+  });
+});
+
+// Idée du troisième round 1.9.0 : pendant les reprises (jusqu'à 15 s), rien ne
+// disait que la préparation attendait le serveur ; puis « Hors ligne prêt (6) »
+// s'affichait alors qu'aucun article complet n'avait été obtenu.
+describe('préparation : attente du serveur dite, compte rendu honnête', () => {
+  beforeEach(() => {
+    useUiStore.setState({ autoExtractDefault: true, feedSettings: {} } as never);
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+  });
+  afterEach(() => { vi.useRealTimers(); });
+
+  it('pendant l’attente d’une reprise, dit combien d’articles attendent le serveur, puis cesse de le dire', async () => {
+    let first: string | null = null;
+    let tries = 0;
+    extract.fn.mockImplementation(async (url: string) => {
+      first ??= url;
+      if (url === first && ++tries === 1) throw new ExtractorBusyError();
+      return extracted(url);
+    });
+    const run = useFeedStore.getState().prepareOffline();
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(useFeedStore.getState().offlinePrep!.waitingServer).toBe(1);
+    await vi.advanceTimersByTimeAsync(PREP_BUSY_RETRY_DELAYS_MS[0]);
+    await run;
+    const prep = useFeedStore.getState().offlinePrep!;
+    expect(prep.waitingServer).toBeUndefined();
+    expect(prep.missingFull).toBe(0);
+  });
+
+  it('les articles restés sans article complet après les reprises sont comptés à part', async () => {
+    extract.fn.mockImplementation(async () => { throw new ExtractorBusyError(); });
+    const run = useFeedStore.getState().prepareOffline();
+    await vi.advanceTimersByTimeAsync(PREP_BUSY_RETRY_DELAYS_MS[0] + PREP_BUSY_RETRY_DELAYS_MS[1] + 1_000);
+    await run;
+    const prep = useFeedStore.getState().offlinePrep!;
+    expect(prep.done).toBe(6);
+    expect(prep.total).toBe(6);
+    expect(prep.missingFull).toBe(6);
+    expect(prep.waitingServer).toBeUndefined();
+  });
+
+  it('un autre échec d’extraction compte aussi comme sans article complet', async () => {
+    let first: string | null = null;
+    extract.fn.mockImplementation(async (url: string) => {
+      first ??= url;
+      if (url === first) throw new ExtractTimeoutError();
+      return extracted(url);
+    });
+    await useFeedStore.getState().prepareOffline();
+    expect(useFeedStore.getState().offlinePrep!.missingFull).toBe(1);
+  });
+
+  it('un flux réglé « Article complet : Non » ne manque de rien', async () => {
+    useUiStore.setState({ autoExtractDefault: false, feedSettings: { 'feed/2': { autoExtract: true } } } as never);
+    await useFeedStore.getState().prepareOffline();
+    expect(useFeedStore.getState().offlinePrep!.missingFull).toBe(0);
   });
 });

@@ -169,6 +169,38 @@ describe('Préférences › Hors ligne', () => {
       });
     });
 
+    // Idée du troisième round 1.9.0 : jusqu'à 15 s sans un mot pendant les
+    // reprises, puis « Hors ligne prêt (6) » sans un seul article complet.
+    describe('attente du serveur et compte rendu honnête', () => {
+      it('pendant l’attente d’une reprise, dit qu’elle attend le serveur, à la place de la durée', async () => {
+        useFeedStore.setState({ cancelOfflinePrep: vi.fn(), offlinePrep: { running: true, phase: 'articles', done: 100, total: 6000, startedAt: Date.now() - 40_000, waitingServer: 2 } } as never);
+        await act(async () => { render(<OfflineTab />); });
+        expect(screen.getByRole('status').textContent).toBe('preferences.offline.waitingServer{"count":2}');
+        expect(screen.queryByText(/preferences\.offline\.eta/)).toBeNull();
+      });
+
+      it('ne compte pas comme complets les articles restés sans article complet', async () => {
+        useFeedStore.setState({ offlinePrep: { running: false, phase: 'done', done: 6, total: 6, missingFull: 6 } } as never);
+        await act(async () => { render(<OfflineTab />); });
+        expect(screen.getByText('preferences.offline.doneMissing{"count":0,"total":6}')).toBeTruthy();
+        expect(screen.getByText('preferences.offline.missingFull{"count":6}')).toBeTruthy();
+        expect(screen.queryByText(/preferences\.offline\.done \(/)).toBeNull();
+      });
+
+      it('tout obtenu : « Hors ligne prêt (n) », sans ligne de plus', async () => {
+        useFeedStore.setState({ offlinePrep: { running: false, phase: 'done', done: 6, total: 6, missingFull: 0 } } as never);
+        await act(async () => { render(<OfflineTab />); });
+        expect(screen.getByText('preferences.offline.done (6)')).toBeTruthy();
+        expect(screen.queryByText(/missingFull/)).toBeNull();
+      });
+
+      it('une préparation annulée dit aussi ce qui manque', async () => {
+        useFeedStore.setState({ offlinePrep: { running: false, phase: 'done', done: 3, total: 6, missingFull: 1, cancelled: true } } as never);
+        await act(async () => { render(<OfflineTab />); });
+        expect(screen.getByText('preferences.offline.missingFull{"count":1}')).toBeTruthy();
+      });
+    });
+
     it('une préparation annulée le dit, et ne se dit pas « prête »', async () => {
       useFeedStore.setState({ offlinePrep: { running: false, phase: 'done', done: 120, total: 6068, cancelled: true } } as never);
       await act(async () => { render(<OfflineTab />); });

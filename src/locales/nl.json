@@ -496,7 +496,13 @@
       "etaMinutes_other": "Nog ongeveer {{count}} min",
       "etaHours": "Nog ongeveer {{hours}} u {{minutes}} min",
       "etaWholeHours_one": "Nog ongeveer {{count}} u",
-      "etaWholeHours_other": "Nog ongeveer {{count}} u"
+      "etaWholeHours_other": "Nog ongeveer {{count}} u",
+      "waitingServer_one": "De server is bezet: {{count}} artikel wordt over enkele seconden opnieuw opgevraagd.",
+      "waitingServer_other": "De server is bezet: {{count}} artikelen worden over enkele seconden opnieuw opgevraagd.",
+      "doneMissing_one": "Offline klaar: {{count}} volledig artikel van {{total}}",
+      "doneMissing_other": "Offline klaar: {{count}} volledige artikelen van {{total}}",
+      "missingFull_one": "{{count}} artikel opent met de RSS-inhoud: het volledige artikel kon niet worden opgehaald. De volgende voorbereiding vraagt het opnieuw op.",
+      "missingFull_other": "{{count}} artikelen openen met de RSS-inhoud: het volledige artikel kon niet worden opgehaald. De volgende voorbereiding vraagt ze opnieuw op."
     },
     "refresh": {
       "title": "Ophalen",

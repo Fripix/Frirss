@@ -6157,6 +6157,27 @@ images consultés restent lisibles sans réseau.
   passages réunis —, sans compter deux fois celles déjà préparées pour
   l'article au premier passage ; un appareil plein ne
   redemande rien (l'article est compté fait).
+  **L'attente se dit, et le compte rendu ne ment pas** (idée du troisième
+  round 1.9.0, `OfflineTab.test.tsx`,
+  `feedStore.prepareOffline.extract.test.ts`). Pendant l'attente d'une
+  reprise (jusqu'à 15 s), `offlinePrep.waitingServer` porte le nombre
+  d'articles en attente et l'onglet dit, à la place de la durée restante,
+  que le serveur est occupé et qu'ils seront redemandés dans quelques
+  secondes (`offline.waitingServer`, `role="status"`) ; la préparation
+  semblait figée. `offlinePrep.missingFull` compte les articles **faits sans
+  l'article complet qu'ils devaient ouvrir** : extraction en échec, refus
+  pour occupation après les reprises, appareil plein. Ne comptent pas : un
+  flux réglé « Article complet : Non » (il s'ouvre sur le contenu RSS, comme
+  en ligne) et un article qui garde un extrait d'une version antérieure (il
+  s'ouvre dessus). Le rapport ne dit « Hors ligne prêt (N) » que si tous les
+  articles faits ont ce qu'ils devaient ouvrir et que tous sont faits ;
+  sinon « Hors ligne prêt : K articles complets sur N » (`offline.doneMissing`,
+  K = faits − manquants, donc une préparation coupée par le réseau ne compte
+  pas non plus comme complets les articles jamais atteints), puis une ligne
+  dit combien s'ouvriront avec le contenu RSS et que la préparation suivante
+  redemandera leur article complet (`offline.missingFull`, aussi sous un
+  rapport d'annulation). Avant, « Hors ligne prêt (6) » s'affichait quand
+  aucun article complet n'avait été obtenu.
 - **Ce qui est gardé pour le hors ligne est rangé par compte et par serveur**
   (1.8.0, `offlineScope` dans `feedStore.ts`, `feedStore.scope.test.ts`) :
   `viewKey` et `viewIdentity` commencent par `user@serveur`, donc le cache
