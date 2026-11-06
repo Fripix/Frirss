@@ -540,9 +540,6 @@ const EMBEDDED_CONTENT = 'blockquote, img, picture, video, audio, iframe, figure
 const BACK_TO_TOP_NAME = /^(?:top|(?:back|go|scroll)?-?to-?top|scroll-?top|back-?top)(?:-(?:button|btn|link|anchor|arrow|icon))?$/;
 /** Un lien payant (A4-03, voir le serveur). */
 const PAID_LINK = /[?&]utm_medium=paid/i;
-/** Étiquette d'un encart sponsorisé : mot de classe ou d'id, texte court (V-01, voir le serveur). */
-const SPONSOR_LABEL_TOKENS = new Set(['sponsored', 'sponsor']);
-const SPONSOR_LABEL_MAX_LENGTH = 40;
 /** Seulement sur un bloc court : la règle « share » de Readability (relecture 1.9.0), étendue en A3. */
 const SHORT_BLOCK_TOKENS = new Set([
   'share', 'sharing', 'newsletter',
@@ -580,7 +577,7 @@ function isBoilerplate(el: Element, insideArticle: boolean, postLength: PostLeng
       if (tokens.some((token) => SHORT_BLOCK_TOKENS.has(token))
         && visibleTextLength(el, SHORT_BLOCK_MAX) < SHORT_BLOCK_MAX) return true;
       const counts = paid.get(el);
-      if (counts && (isPaidPromotion(counts) || counts.sponsoredCard) && !carriesMostOfItsPost(el, postLength, counts.text)) return true;
+      if (counts && isPaidPromotion(counts) && !carriesMostOfItsPost(el, postLength, counts.text)) return true;
     }
   }
   if (el.childElementCount <= 3 && Array.from(el.children).every((child) => child.childElementCount === 0)) {
@@ -602,28 +599,14 @@ function isPaidPromotion(counts: LinkCounts): boolean {
 }
 
 /** Sous un élément : texte lisible, liens, liens payants, liens payants sur une image (RX-04, voir le serveur). */
-interface LinkCounts {
-  text: number; links: number; paidLinks: number; paidImageLinks: number; image: boolean;
-  /** Étiquettes « sponsorisé » dessous ; le plus petit bloc court qui en porte une avec une image et un lien est l'encart (V-01). */
-  labels: number; sponsoredCard: boolean; cardInside: boolean;
-}
+interface LinkCounts { text: number; links: number; paidLinks: number; paidImageLinks: number; image: boolean }
 
-/** Les ancêtres d'un lien payant ou d'une étiquette « sponsorisé », avec leurs comptes faits de bas en haut en une passe (RX-04, V-01, voir le serveur). */
-function promotionCandidates(root: Element): Map<Node, LinkCounts> {
+/** Les ancêtres d'un lien payant, avec leurs comptes faits de bas en haut en une passe (RX-04, voir le serveur). */
+function paidLinkAncestors(root: Element): Map<Node, LinkCounts> {
   const candidates = new Map<Node, LinkCounts | null>();
-  const addAncestors = (from: Node) => {
-    for (let up: Node | null = from; up && up !== root && !candidates.has(up); up = up.parentNode) candidates.set(up, null);
-  };
   for (const link of Array.from(root.querySelectorAll('a[href*="utm_medium"]'))) {
-    if (PAID_LINK.test(link.getAttribute('href') || '')) addAncestors(link);
-  }
-  // Les étiquettes « sponsorisé » (V-01) ; leur texte est jugé dans la passe.
-  const labels = new Set<Node>();
-  for (const label of Array.from(root.querySelectorAll('[class*="ponsor"], [id*="ponsor"]'))) {
-    const tokens = `${label.getAttribute('class') || ''} ${label.getAttribute('id') || ''}`.toLowerCase().split(/[^a-z0-9]+/);
-    if (!tokens.some((token) => SPONSOR_LABEL_TOKENS.has(token))) continue;
-    labels.add(label);
-    addAncestors(label);
+    if (!PAID_LINK.test(link.getAttribute('href') || '')) continue;
+    for (let up: Node | null = link; up && up !== root && !candidates.has(up); up = up.parentNode) candidates.set(up, null);
   }
   const found = new Map<Node, LinkCounts>();
   if (!candidates.size) return found;
@@ -639,7 +622,7 @@ function promotionCandidates(root: Element): Map<Node, LinkCounts> {
   for (let i = order.length - 1; i >= 0; i--) {
     const el = order[i];
     const invisible = INVISIBLE.has(el.tagName.toLowerCase());
-    const mine: LinkCounts = { text: 0, links: 0, paidLinks: 0, paidImageLinks: 0, image: false, labels: 0, sponsoredCard: false, cardInside: false };
+    const mine: LinkCounts = { text: 0, links: 0, paidLinks: 0, paidImageLinks: 0, image: false };
     for (let node = el.firstChild; node; node = node.nextSibling) {
       if (node.nodeType === 3) {
         if (!invisible) mine.text += (node.textContent || '').replace(/\s+/g, ' ').length;
@@ -655,8 +638,6 @@ function promotionCandidates(root: Element): Map<Node, LinkCounts> {
       mine.paidLinks += below.paidLinks;
       mine.paidImageLinks += below.paidImageLinks;
       mine.image ||= below.image || tag === 'img';
-      mine.labels += below.labels + (labels.has(child) && below.text > 0 && below.text <= SPONSOR_LABEL_MAX_LENGTH ? 1 : 0);
-      mine.cardInside ||= below.sponsoredCard || below.cardInside;
       if (tag === 'a' && child.hasAttribute('href')) {
         mine.links++;
         if (PAID_LINK.test(child.getAttribute('href') || '')) {
@@ -665,7 +646,6 @@ function promotionCandidates(root: Element): Map<Node, LinkCounts> {
         }
       }
     }
-    mine.sponsoredCard = mine.labels > 0 && mine.image && mine.links > 0 && mine.text < SHORT_BLOCK_MAX && !mine.cardInside;
     counts.set(el, mine);
     if (candidates.has(el)) found.set(el, mine);
   }
@@ -727,8 +707,8 @@ export function stripBoilerplate(root: Element): void {
     if (length === undefined) posts.set(post, length = visibleTextLength(post));
     return length;
   };
-  // Seuls les ancêtres d'un lien payant ou d'une étiquette « sponsorisé » peuvent être un encart (A4-03, V-01).
-  const paid = promotionCandidates(root);
+  // Seuls les ancêtres d'un lien payant peuvent être un encart publicitaire (A4-03).
+  const paid = paidLinkAncestors(root);
   const stack: Array<[Element, boolean]> = Array.from(root.children, (child) => [child, false]);
   while (stack.length) {
     const [el, insideArticle] = stack.pop()!;
@@ -753,89 +733,6 @@ function forgetText(posts: Map<Element, number>, el: Element, length: number): v
     const measured = posts.get(ancestor);
     if (measured !== undefined && !unread) posts.set(ancestor, measured - length);
   }
-}
-
-// ── Liens vers la page elle-même (V-02, V-03) ────────────────────────
-// Copie de `stripSelfReferences` (`server/extract.ts`, qui dit pourquoi) :
-// boîte de liens qui contient l'article lui-même, bouton « Json ».
-
-const SELF_LIST_MIN_ITEMS = 2;
-const SELF_LIST_LINK_SHARE = 0.8;
-const SELF_LIST_TITLE_MAX = 80;
-/** La même page, dans un autre format : `/json`, `.pdf`… après son chemin. */
-const PAGE_FORMAT_SUFFIX = /^[/.](?:json|xml|pdf|txt|csv|rss|atom|feed|print|amp)$/;
-const SELF_BOX_MEDIA = 'img, picture, video, audio, iframe, figure, table';
-
-/** Hôte (sans `www.`) et chemin (sans barre finale) : ce qui désigne une page. */
-function pageKey(url: URL): string {
-  return `${url.host.toLowerCase().replace(/^www\./, '')}${url.pathname.replace(/\/+$/, '')}`;
-}
-
-/** Les adresses de la page : celle demandée, puis sa canonique et son `og:url`. */
-function pageAddresses(doc: Document, url: string): string[] {
-  const addresses = [url];
-  const canonical = doc.querySelector('link[rel="canonical"]')?.getAttribute('href');
-  const og = doc.querySelector('meta[property="og:url"]')?.getAttribute('content');
-  for (const raw of [canonical, og]) {
-    if (!raw) continue;
-    try { addresses.push(new URL(raw, url).href); } catch { /* adresse illisible : ignorée */ }
-  }
-  return addresses;
-}
-
-const squeezedLength = (text: string | null) => (text || '').replace(/\s+/g, '').length;
-
-/** Retire de `root` les liens vers la page elle-même qui ne sont pas du texte (V-02, V-03). */
-export function stripSelfReferences(root: Element, pageUrls: string[]): void {
-  const pages: string[] = [];
-  for (const raw of pageUrls) {
-    try { pages.push(pageKey(new URL(raw))); } catch { /* adresse illisible : ignorée */ }
-  }
-  if (!pages.length) return;
-  const base = pageUrls.find((raw) => { try { return !!new URL(raw); } catch { return false; } })!;
-  const lists = new Set<Element>();
-  const formatLinks: Element[] = [];
-  for (const link of Array.from(root.querySelectorAll('a[href]'))) {
-    const raw = link.getAttribute('href') || '';
-    if (raw.startsWith('#')) continue;
-    let target: URL;
-    try { target = new URL(raw, base); } catch { continue; }
-    if (target.hash) continue;
-    const key = pageKey(target);
-    if (pages.includes(key)) {
-      const list = link.closest('ul, ol');
-      if (list && list !== root && root.contains(list)) lists.add(list);
-    } else if (pages.some((page) => key.startsWith(page) && PAGE_FORMAT_SUFFIX.test(key.slice(page.length)))) {
-      formatLinks.push(link);
-    }
-  }
-  if (!lists.size && !formatLinks.length) return;
-  const total = visibleTextLength(root);
-  for (const list of lists) {
-    if (!root.contains(list)) continue;
-    const box = selfLinkBox(list, root);
-    if (box && visibleTextLength(box) < total * MAIN_CONTAINER_MIN_SHARE && !carriesByline(box)) box.remove();
-  }
-  for (const link of formatLinks) {
-    const block = link.parentElement;
-    const length = squeezedLength(link.textContent);
-    if (block && root.contains(link) && length && squeezedLength(block.textContent) === length) link.remove();
-  }
-}
-
-/** La boîte à retirer pour une liste qui contient un lien vers la page : la liste, avec son conteneur s'il n'est que son titre ; `null` si elle ne fait pas que lier. */
-function selfLinkBox(list: Element, root: Element): Element | null {
-  const items = Array.from(list.children).filter((child) => child.tagName === 'LI');
-  if (items.length < SELF_LIST_MIN_ITEMS) return null;
-  const length = squeezedLength(list.textContent);
-  let linked = 0;
-  for (const link of Array.from(list.querySelectorAll('a[href]'))) linked += squeezedLength(link.textContent);
-  if (!length || linked < length * SELF_LIST_LINK_SHARE) return null;
-  const holder = list.parentElement;
-  if (!holder || holder === root || isPostContainer(holder.tagName.toLowerCase(), (holder.getAttribute('role') || '').toLowerCase())) return list;
-  if (squeezedLength(holder.textContent) - length > SELF_LIST_TITLE_MAX) return list;
-  if (Array.from(holder.querySelectorAll(SELF_BOX_MEDIA)).some((media) => !list.contains(media))) return list;
-  return holder;
 }
 
 // ── Corps réparti en plusieurs blocs (troisième round) ───────────────
@@ -1198,8 +1095,6 @@ async function extractOnce(url: string): Promise<ExtractedContent> {
     absolutizeUrls(parsed, url);
     // Les blocs étrangers à l'article sortent avant toute passe (M-04).
     stripBoilerplate(parsed.documentElement);
-    // Les liens vers l'article lui-même qui ne sont pas du texte (V-02, V-03).
-    stripSelfReferences(parsed.documentElement, pageAddresses(parsed, url));
     // Puis le corps réparti en blocs cousins est réuni (troisième round).
     joinSplitBody(parsed.documentElement);
     return parsed;
