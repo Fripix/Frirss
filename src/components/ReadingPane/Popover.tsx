@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useLayoutEffect, type ReactNode } from 'react';
 import { clampToViewport } from '../../lib/clampToViewport';
 import { useMenuKeys } from '../../hooks/useMenuKeys';
+import { useBackLayer } from '../../hooks/useAndroidBack';
 
 const ITEMS = '[role="menuitem"], [role="menuitemradio"]';
 
@@ -21,6 +22,8 @@ export default function Popover({ anchor, onClose, children, header, label }: {
   // Flèches et focus de départ : ceux de Popover (qui connaît son champ de
   // filtre). Le hook n'ajoute que le retour du focus au déclencheur.
   useMenuKeys(ref);
+  // Android (tablette) : le retour ferme le menu, lui seul (M-08).
+  useBackLayer(true, onClose);
   const [pos, setPos] = useState({ left: 0, top: 0 });
 
   useLayoutEffect(() => {

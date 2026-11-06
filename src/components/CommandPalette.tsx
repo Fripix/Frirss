@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useUiStore } from '../stores/uiStore';
 import { useReturnFocus } from '../hooks/useReturnFocus';
 import { useFocusTrap } from '../hooks/useFocusTrap';
+import { useBackLayer } from '../hooks/useAndroidBack';
 import { useThemeStore } from '../stores/themeStore';
 import { useFeedStore, READ_LATER_LABEL } from '../stores/feedStore';
 import { useAiStore, aiUsable } from '../stores/aiStore';
@@ -30,6 +31,8 @@ export default function CommandPalette() {
   useReturnFocus(open);
   const paletteRef = useRef<HTMLDivElement>(null);
   useFocusTrap(paletteRef, open);
+  // Android : le retour ferme cette surface, elle seule (M-08).
+  useBackLayer(open, () => setOpen(false));
   const setPanelLayout = useUiStore((s) => s.setPanelLayout);
   const openPreferences = useThemeStore((s) => s.openPreferences);
 

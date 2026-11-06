@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useMenuKeys } from '../../hooks/useMenuKeys';
+import { useBackLayer } from '../../hooks/useAndroidBack';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useFeedStore } from '../../stores/feedStore';
@@ -29,6 +30,8 @@ export default function SavedCategoryPicker({ prefix, article, anchor, onClose }
   const [name, setName] = useState('');
   const menuRef = useRef<HTMLDivElement>(null);
   useMenuKeys(menuRef);
+  // Android : le retour ferme cette surface, elle seule (M-08).
+  useBackLayer(true, onClose);
   const cats = savedCategories(labels, prefix, names);
 
   const file = (labelId: string) => {

@@ -8,6 +8,7 @@ import ToggleSwitch from '../ToggleSwitch';
 import type { Tag } from '../../types';
 import { TabResetButton } from './TabResetButton';
 import ConfirmDialog from '../ConfirmDialog';
+import { useBackLayer } from '../../hooks/useAndroidBack';
 import { swatchPopoverWidth, isCoarsePointer } from '../../lib/swatchPopover';
 import { nameOwners, takenBy, type NameOwners } from '../../lib/labelNames';
 import NameRefusal from '../NameRefusal';
@@ -827,6 +828,8 @@ function LabelColorPicker({ labelName, color, effectiveColor, onChangeColor, onR
   const btnRef = useRef<HTMLButtonElement>(null);
   const pickerRef = useRef<HTMLInputElement>(null);
   const displayColor = color || effectiveColor || 'var(--accent)';
+  // Android : le retour ferme le sélecteur, pas les Préférences dessous (M-08).
+  useBackLayer(open, () => setOpen(false));
 
   // Sync hex field when color prop changes
   useEffect(() => {

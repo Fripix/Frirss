@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useUiStore, shortcutGroups, AI_SHORTCUTS } from '../stores/uiStore';
 import { useReturnFocus } from '../hooks/useReturnFocus';
 import { useFocusTrap } from '../hooks/useFocusTrap';
+import { useBackLayer } from '../hooks/useAndroidBack';
 import { useThemeStore } from '../stores/themeStore';
 import { useAiStore, aiUsable } from '../stores/aiStore';
 import { keyLabel } from '../lib/keyLabel';
@@ -30,6 +31,8 @@ export default function ShortcutHelp() {
   const openPreferences = useThemeStore((s) => s.openPreferences);
   const panelRef = useRef<HTMLDivElement>(null);
   useFocusTrap(panelRef, open);
+  // Android : le retour ferme cette surface, elle seule (M-08).
+  useBackLayer(open, () => setOpen(false));
   const titleId = useId();
 
   useEffect(() => {

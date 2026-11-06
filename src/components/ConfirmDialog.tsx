@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { useFocusTrap } from '../hooks/useFocusTrap';
+import { useBackLayer } from '../hooks/useAndroidBack';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 
@@ -54,6 +55,12 @@ export default function ConfirmDialog({ open, title, message, confirmLabel, warn
   // Lue par l'écouteur d'Échap, qui n'est posé qu'à l'ouverture.
   const busyRef = useRef(false);
   busyRef.current = busy;
+  // Android : le retour annule, comme Échap — et comme lui, il ne ferme rien
+  // pendant le travail (la boîte garde alors son entrée d'historique).
+  useBackLayer(open, () => {
+    if (busyRef.current) return false;
+    onCancel();
+  });
 
   useEffect(() => {
     if (!open) { setArmed(false); setBusy(false); return; }

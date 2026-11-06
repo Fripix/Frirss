@@ -2,6 +2,7 @@ import { useEffect, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useReturnFocus } from '../hooks/useReturnFocus';
 import { useFocusTrap } from '../hooks/useFocusTrap';
+import { useBackLayer } from '../hooks/useAndroidBack';
 
 interface BottomSheetProps {
   open: boolean;
@@ -49,7 +50,8 @@ if (typeof document !== 'undefined') {
  * HAUT de l'écran, hors de portée du pouce, avec des rangées de 13 px. Une
  * seule implémentation ici, utilisée par les trois.
  *
- * Échap ferme, le fond aussi ; le contenu ne propage pas le clic.
+ * Échap ferme, le fond aussi, et le retour d'Android (`useBackLayer`) ; le
+ * contenu ne propage pas le clic.
  *
  * Armement du fond : pourquoi attendre le lever du doigt qui a ouvert la
  * feuille. L'appui long qui déclenche l'ouverture tient le doigt posé
@@ -71,6 +73,8 @@ export default function BottomSheet({ open, onClose, title, children }: BottomSh
   useReturnFocus(open);
   const sheetRef = useRef<HTMLDivElement>(null);
   useFocusTrap(sheetRef, open);
+  // Android : le retour ferme la feuille, elle seule (M-08).
+  useBackLayer(open, onClose);
 
   useEffect(() => {
     armed.current = false;

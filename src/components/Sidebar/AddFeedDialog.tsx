@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useId, useRef, type FormEvent } from 'react';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
+import { useBackLayer } from '../../hooks/useAndroidBack';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useFeedStore } from '../../stores/feedStore';
@@ -20,6 +21,8 @@ export default function AddFeedDialog({ onClose }: AddFeedDialogProps) {
   const titleId = useId();
   const dialogRef = useRef<HTMLDivElement>(null);
   useFocusTrap(dialogRef, true);
+  // Android : le retour ferme cette surface, elle seule (M-08).
+  useBackLayer(true, onClose);
   const fieldId = useId();
 
   // Échap ferme. La boîte est `role="dialog"` : `useKeyboardNav` se tait tant

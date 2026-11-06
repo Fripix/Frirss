@@ -7,6 +7,7 @@ import BottomSheet from '../BottomSheet';
 import { articleMenuItems, type ArticleMenuItem, type ArticleMenuKind } from '../../lib/articleMenu';
 import { clampToViewport } from '../../lib/clampToViewport';
 import { useMenuKeys } from '../../hooks/useMenuKeys';
+import { useBackLayer } from '../../hooks/useAndroidBack';
 
 /**
  * Icônes du menu — retouche visuelle décidée avec le propriétaire.
@@ -188,6 +189,9 @@ export default function ArticleContextMenu({
   // au clavier (touche Menu), il doit rester utilisable au clavier — focus sur
   // la première entrée, flèches, focus rendu à la fermeture (`useMenuKeys`).
   useMenuKeys(menuRef);
+  // Android (tablette) : le retour ferme le menu flottant. La feuille du bas
+  // porte sa propre couche.
+  useBackLayer(!sheet, onClose);
 
   if (sheet) {
     return (

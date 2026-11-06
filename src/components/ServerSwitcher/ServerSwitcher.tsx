@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from
 import { createPortal } from 'react-dom';
 import { clampToViewport } from '../../lib/clampToViewport';
 import { useMenuKeys } from '../../hooks/useMenuKeys';
+import { useBackLayer } from '../../hooks/useAndroidBack';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../stores/authStore';
 import { useThemeStore } from '../../stores/themeStore';
@@ -106,6 +107,8 @@ function ManageMenu({ x, y, onClose, onManage }: { x: number; y: number; onClose
   const { t } = useTranslation();
   const ref = useRef<HTMLDivElement>(null);
   useMenuKeys(ref);
+  // Android : le retour ferme cette surface, elle seule (M-08).
+  useBackLayer(true, onClose);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {

@@ -28,6 +28,7 @@ import {
 } from '../../lib/savedCategories';
 import FeedFavicon from '../FeedFavicon';
 import { resolveVersionLabel } from '../../lib/version';
+import { useBackLayer } from '../../hooks/useAndroidBack';
 
 const SIDEBAR_FONT_MIN = 11;
 const SIDEBAR_FONT_MAX = 18;
@@ -865,6 +866,9 @@ export function FeedContextMenu({ feed, x, y, onRename, onDelete, onClose }: Fee
   const [renameValue, setRenameValue] = useState(feed.title);
   const menuRef = useRef<HTMLDivElement>(null);
   useMenuKeys(menuRef);
+  // Android : le retour ferme le menu, pas le tiroir dessous (M-08). Pendant
+  // « Se désabonner ? », la boîte pousse sa propre couche par-dessus.
+  useBackLayer(true, onClose);
   // Lu par l'écouteur de clic extérieur, posé une seule fois : pendant la
   // confirmation, la boîte vit hors du menu, et un clic dedans ne le ferme pas.
   const modeRef = useRef(mode);

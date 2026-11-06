@@ -925,11 +925,37 @@ d'adopter la disposition mobile.
 - **Règle** : conditionner le **survol** à `(hover: hover)`, jamais à la largeur —
   une tablette avec trackpad est un pointeur fin. Cibles tactiles ≥ 44 pt.
 - **Geste retour Android** (`src/lib/historyLayers.ts`, testé ;
-  `src/hooks/useAndroidBack.ts`, branché dans `App.tsx`) : chaque surface qui
-  recouvre l'écran — article sur téléphone, tiroir des flux, Préférences —
-  pousse une entrée d'historique ; un retour (geste depuis le bord, bouton
-  Précédent) ferme la couche du dessus, Préférences avant tiroir avant
-  article ; un retour sans couche ouverte quitte l'app, comme toute app.
+  `src/hooks/useAndroidBack.ts`) : chaque surface qui recouvre l'écran pousse
+  une entrée d'historique, et un retour (geste depuis le bord, bouton
+  Précédent) ferme la couche du dessus, **elle seule** ; un retour sans couche
+  ouverte quitte l'app, comme toute app. Deux familles, un seul registre :
+  - les **trois couches fixes** — article sur téléphone, tiroir des flux,
+    Préférences — branchées dans `App.tsx` par `useAndroidBack`, dans cet
+    ordre de superposition (Préférences avant tiroir avant article) ;
+  - les **surfaces flottantes**, au-dessus des trois, la dernière ouverte
+    d'abord : `useBackLayer(open, onClose)` est appelé par `BottomSheet`
+    (menus d'options, feuille « More », menu d'article et d'étiquettes au
+    format mobile, menus IA au doigt), `ConfirmDialog` (« Tout lu ? »,
+    désabonnement…), `Popover`, `ArticleContextMenu` flottant,
+    `FeedContextMenu`, le menu du sélecteur de serveurs, `SavedCategoryPicker`,
+    `AddFeedDialog`, la palette de commandes, l'aide des raccourcis, la liste
+    d'étiquettes du volet et le sélecteur de couleur des étiquettes.
+    `src/lib/backLayerCoverage.test.ts` échoue si un composant rend une
+    surface par portail sans la brancher (seul un `Popover` portalisé en est
+    dispensé : il la porte). Avant la 1.9.0, seules les trois couches fixes
+    existaient : le retour fermait l'app (ou l'onglet de Chrome) sous le menu
+    d'un article, les Options ou « Tout lu ? », fermait l'article avec la
+    feuille « More », et le tiroir en laissant le menu d'un flux à l'écran.
+  Les entrées sont anonymes : chacune inscrit sa **profondeur** dans son état
+  (`frirssDepth`), et un `popstate` ferme les couches du dessus jusqu'à ce que
+  le reste tienne dans les entrées restantes. Les changements sont accordés
+  **une fois par microtâche** : une entrée de feuille qui ouvre une
+  confirmation (fermer + ouvrir) n'écrit rien, l'ouvrir-fermer-rouvrir de
+  StrictMode pousse une seule entrée, une feuille fermée avec son article
+  reprend ses deux entrées d'un seul `history.go(-2)`, et une ouverture
+  pendant un retour en cours attend son `popstate` avant de pousser. Une
+  confirmation **au travail** refuse le retour comme elle refuse Échap : elle
+  reste, et reprend son entrée.
   Le tiroir **ne s'ouvre jamais seul** : `sidebarVisible` est la préférence de
   la barre latérale du bureau (`true` par défaut), mais sous 1024 px elle pilote
   aussi le tiroir, qui s'ouvrait donc au chargement sur téléphone et au
@@ -942,8 +968,10 @@ d'adopter la disposition mobile.
   vrai, ce que `useDrawerOffDesktop` pose sur le bureau seulement. Avant, un
   tiroir fermé sur tablette masquait la barre latérale au retour sur
   ordinateur (iPad qu'on tourne, fenêtre redimensionnée).
-  Fermer depuis l'app (croix, bouton retour en bas à gauche) reprend l'entrée
-  par un `history.back()` synthétique dont le `popstate` ne ferme rien.
+  Fermer depuis l'app (croix, doigt sur le fond, Échap, bouton retour en bas à
+  gauche, démontage) reprend l'entrée par un retour synthétique : l'app
+  reconnaît son `popstate` à la profondeur où il arrive, et il ne ferme rien.
+  Une surface déjà fermée par un vrai retour ne reprend rien en se démontant.
   Avant la 1.6.0, le geste retour natif fermait l'app depuis un article
   (discussion #19, reproduit sur l'émulateur). ⚠️ **Android seulement, par
   plateforme** (`isAndroid(userAgent)`), jamais par largeur d'écran : le

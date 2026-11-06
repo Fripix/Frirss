@@ -46,6 +46,7 @@ import { useArticleTranslation, plainText, type TranslateChoice } from './useArt
 import { AI_TRANSLATE_PROBE, AI_SUMMARIZE_PROBE, answerTranslateProbe } from '../../lib/aiTranslateProbe';
 import TranslateMenu from './TranslateMenu';
 import { useLongPress } from '../../hooks/useLongPress';
+import { useBackLayer } from '../../hooks/useAndroidBack';
 import { useToolbarFold } from '../../hooks/useToolbarFold';
 import { useToolbarShown } from '../../hooks/useToolbarShown';
 import { separatorsBefore } from '../../lib/toolbarItems';
@@ -2623,6 +2624,9 @@ export function LabelMenu({ article, variant }: LabelMenuProps) {
   useMenuKeys(dropdownRef, open);
   const breakpoint = useBreakpoint();
   const isMobile = breakpoint !== 'desktop';
+  // Android : le retour ferme la liste déroulante (la feuille du bas, au
+  // format mobile, porte sa propre couche) (M-08).
+  useBackLayer(open && !isMobile, () => setOpen(false));
 
   useEffect(() => {
     if (open && labels.length === 0) loadLabels();
