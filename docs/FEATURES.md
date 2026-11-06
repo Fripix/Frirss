@@ -5386,7 +5386,19 @@ serveur de développement en 1.4.4.)*
   `div.share-of-voice-analysis` sortaient de l'article alors que Readability
   les gardait, relecture 1.9.0 ; boutons de partage et encarts d'abonnement
   sont courts) ; un court bloc qui commence par
-  « Powered by ». Gardes : un bloc qui porte la moitié du texte lisible ou plus
+  « Powered by ». **Troisième round (A3)**, mêmes gardes : la règle des blocs
+  courts couvre aussi les publicités (`ad`, `ads`, `advert`,
+  `advertisement`, `sponsor`, `sponsored` — le « REG AD » de The Register, un
+  bandeau `#sponsored-banner`), les mentions d'affiliation et avertissements
+  (`affiliate`, `disclaimer` — TechCrunch, 01net) et l'invitation à installer
+  l'application (`pwa` — Numerama) ; un bloc `newsletter` qui porte un champ
+  de saisie (`input`, `select`, `textarea`) sort **quelle que soit sa
+  longueur** — un formulaire d'abonnement, que la FAQ de Frandroid allongeait
+  au-delà des 500 caractères ; le texte de repli d'une démo CodePen
+  (`[data-slug-hash]`) sort quand une `<figcaption>` voisine le répète
+  (Smashing Magazine — sans légende il reste, c'est le seul lien vers la
+  démo) ; hors d'un `<article>`, la colonne `#secondary` (id exact, barre
+  latérale des thèmes WordPress écrite en `div` — Simon Willison). Gardes : un bloc qui porte la moitié du texte lisible ou plus
   n'est jamais retiré (une page entière dans un `<form>` ASP.NET), ni un bloc
   qui porte l'auteur (mêmes signaux que Readability, qui lit l'auteur avant
   d'écarter lui-même `footer` et `aside` du corps).
@@ -5405,6 +5417,22 @@ serveur de développement en 1.4.4.)*
   les articles du jour : un test direct du nettoyage le couvre. Le
   resserrement de `share`/`newsletter` ne change aucune de ces pages
   (comparaison avant/après, 2026-11-06).
+  **A3, mesuré (2026-11-06) sur 126 pages** — les corpus des trois rounds et
+  31 pages fraîches des sites cités : 39 pages changent, chacune par le
+  retrait des blocs visés (« REG AD » sur cinq articles de The Register, la
+  carte d'installation de Numerama et ses deux icônes sur dix-huit pages, la
+  FAQ de lettre d'information de Frandroid, la mention d'affiliation de
+  TechCrunch, l'avertissement des bons plans de 01net, sept replis CodePen de
+  Smashing, la colonne et les « Recent articles » de Simon Willison) ; aucun
+  titre ni auteur ne bouge, aucune image d'article n'est perdue. Effet de
+  bord heureux : un article d'Ars Technica coupé en deux blocs par une
+  publicité est rendu entier (2 030 → 5 192 caractères ; il s'arrêtait à la
+  moitié depuis la 1.8.0), avec la notice de l'auteur et « 48 Comments » en
+  plus. **Restent** (pas de signal sûr dans le balisage) : l'encart
+  sponsorisé de BleepingComputer (`div.article-callout`, nom porté aussi par
+  de vrais encadrés), « Follow topics and authors » de The Verge (classes
+  hachées), les invitations à suivre de 01net et des Numériques (paragraphes
+  sans classe), le rappel d'abonnement de Developpez (`#nagging`).
 - **Images paresseuses résolues avant toute passe** (1.9.0, troisième round,
   A1 — `resolveLazyImages`, `server/extract.ts`, copiée dans le repli de
   `extractContent.ts` ; tests : `server/test/extract.test.ts` › « images
@@ -5437,7 +5465,8 @@ serveur de développement en 1.4.4.)*
   `src/lib/extractVersion.ts`, même valeur vérifiée par
   `server/test/cache.test.ts`). À monter à chaque changement du résultat de
   l'extraction pour une même page. **5** depuis les images paresseuses (A1,
-  troisième round) : les extraits v4 aux images en cadre blanc sont refaits ;
+  troisième round) et les nouvelles familles de blocs étrangers (A3) : les
+  extraits v4 aux images en cadre blanc ou encombrés de ces blocs sont refaits ;
   4 avait accompagné le gain minimal de la seconde passe (N-1 : encart
   produit, ligne promotionnelle), 3 le retrait des blocs étrangers (M-04). Les extraits gardés avant le seuil à 500 et
   la seconde passe (l'avis tronqué) restaient servis : 24 h par Redis, 30 jours

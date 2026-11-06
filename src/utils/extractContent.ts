@@ -452,14 +452,21 @@ function resolveLazyImages(root: Element): void {
 // ── Blocs étrangers retirés avant toute passe (M-04) ─────────────────
 // Copie de `stripBoilerplate` (`server/extract.ts`, qui dit pourquoi : mentions
 // légales de The Verge ramassées par la seconde passe, fil d'Ariane et
-// crédits de Schneier par la première). Règles, mots et gardes identiques.
+// crédits de Schneier par la première ; publicités, affiliation, formulaire
+// de lettre d'information, repli CodePen et colonne `#secondary` en A3).
+// Règles, mots et gardes identiques.
 const BOILERPLATE_TAGS = new Set(['footer', 'nav', 'form']);
 const BOILERPLATE_ROLES = new Set(['navigation', 'contentinfo']);
 const BOILERPLATE_TOKENS = new Set([
   'related', 'comment', 'comments', 'breadcrumb', 'breadcrumbs', 'footer',
 ]);
-/** Seulement sur un bloc court : la règle « share » de Readability (relecture 1.9.0). */
-const SHORT_BLOCK_TOKENS = new Set(['share', 'sharing', 'newsletter']);
+/** Seulement sur un bloc court : la règle « share » de Readability (relecture 1.9.0), étendue en A3. */
+const SHORT_BLOCK_TOKENS = new Set([
+  'share', 'sharing', 'newsletter',
+  'ad', 'ads', 'advert', 'advertisement', 'sponsor', 'sponsored', 'affiliate', 'disclaimer', 'pwa',
+]);
+/** Un bloc `newsletter` qui porte un champ de saisie est un formulaire, quelle que soit sa longueur (A3). */
+const FORM_CONTROLS = 'input, select, textarea';
 const SHORT_BLOCK_MAX = 500;
 const NAMED_EXEMPT = new Set([
   'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'a', 'span', 'b', 'i', 'em', 'strong', 'code', 'small', 'sup', 'sub',
@@ -474,16 +481,26 @@ function isBoilerplate(el: Element, insideArticle: boolean): boolean {
   const tag = el.tagName.toLowerCase();
   const role = (el.getAttribute('role') || '').toLowerCase();
   if (BOILERPLATE_TAGS.has(tag) || BOILERPLATE_ROLES.has(role)) return true;
-  if (!insideArticle && (tag === 'aside' || role === 'complementary')) return true;
+  if (!insideArticle && (tag === 'aside' || role === 'complementary' || (el.getAttribute('id') || '').toLowerCase() === 'secondary')) return true;
+  if (el.hasAttribute('data-slug-hash') && hasCaptionSibling(el)) return true;
   if (!NAMED_EXEMPT.has(tag)) {
     const tokens = `${el.getAttribute('class') || ''} ${el.getAttribute('id') || ''}`.toLowerCase().split(/[^a-z0-9]+/);
     if (tokens.some((token) => BOILERPLATE_TOKENS.has(token))) return true;
+    if (tokens.includes('newsletter') && el.querySelector(FORM_CONTROLS)) return true;
     if (tokens.some((token) => SHORT_BLOCK_TOKENS.has(token))
       && visibleTextLength(el, SHORT_BLOCK_MAX) < SHORT_BLOCK_MAX) return true;
   }
   if (el.childElementCount <= 3 && Array.from(el.children).every((child) => child.childElementCount === 0)) {
     const text = (el.textContent || '').replace(/\s+/g, ' ').trim();
     if (text.length <= POWERED_BY_MAX_LENGTH && POWERED_BY.test(text)) return true;
+  }
+  return false;
+}
+
+/** Repli d'une démo CodePen : retiré seulement quand une légende le répète (A3). */
+function hasCaptionSibling(el: Element): boolean {
+  for (let sibling = el.parentElement?.firstElementChild; sibling; sibling = sibling.nextElementSibling) {
+    if (sibling !== el && sibling.tagName.toLowerCase() === 'figcaption') return true;
   }
   return false;
 }

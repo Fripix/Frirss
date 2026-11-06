@@ -344,6 +344,22 @@ describe('extractFullContent — repli local : blocs étrangers (M-04)', () => {
     expect(out.content).toContain(ADVISORY_BODY_MARKER);
     expect(out.content).toContain('Gestion du document');
   });
+
+  // A3 (campagne 1.9.0, troisième round) : mêmes familles que le serveur.
+  it('retire publicité, affiliation, formulaire de lettre d’information, repli CodePen et colonne `#secondary`', async () => {
+    const para = (i: number) => `<p>Paragraphe ${i} de l’article, qui raconte longuement ce qui s’est passé, avec des détails et des chiffres pour peser.</p>`;
+    const body = (from: number) => Array.from({ length: 5 }, (_, i) => para(from + i)).join('');
+    const faq = 'Les données transmises par ce formulaire servent à envoyer la lettre et ne sont jamais revendues. '.repeat(6);
+    fallbackOn(`<html><head><title>Article</title></head><body><div id="wrapper"><div id="primary"><article><h1>Article</h1>${body(1)}
+      <div class="column google-ad"><span class="ad-label">PUB DU SITE</span></div>${body(6)}
+      <figure><p data-slug-hash="AbCdEf">DEMOREPLI See the Pen démo by Auteur.</p><figcaption>See the Pen <a href="/x">démo</a> by Auteur.</figcaption></figure>${body(11)}
+      <div class="newsletter-form"><p>Recevez nos bons plans</p><input type="email"><div class="newsletter-form__faq"><p>${faq}</p></div></div>
+      <p class="affiliate-disclaimer-text">Un achat par nos liens peut nous rapporter une commission.</p>${body(16)}
+    </article></div><div id="secondary"><p>COLONNE billet publié le 4 novembre.</p><p>Soutenez-moi chaque mois.</p></div></div></body></html>`);
+    const text = textOf((await extractFullContent('https://example.com/a3')).content);
+    expect(text).toContain('Paragraphe 20');
+    for (const junk of ['PUB DU SITE', 'DEMOREPLI', 'jamais revendues', 'commission', 'COLONNE']) expect(text).not.toContain(junk);
+  });
 });
 
 // ── La jambe de repli doit être bornée elle aussi ────────────────────

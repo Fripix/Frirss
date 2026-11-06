@@ -570,7 +570,21 @@ export function resolveLazyImages(root: Element): void {
 //   « share ». Sans elle, un `<table class="share-table">` (parts de marché)
 //   ou une `div.share-of-voice-analysis` sortaient de l'article alors que
 //   Readability les gardait (relecture 1.9.0). Boutons de partage et encarts
-//   d'abonnement, eux, sont courts ;
+//   d'abonnement, eux, sont courts. Même règle (troisième round, A3) pour les
+//   publicités (`ad`, `ads`, `advert`, `advertisement`, `sponsor`,
+//   `sponsored` : `div.google-ad` de The Register et son « REG AD », le
+//   bandeau `#sponsored-banner` d'un blog), les mentions d'affiliation et
+//   avertissements (`affiliate`, `disclaimer` : TechCrunch, 01net) et
+//   l'invitation à installer l'application (`pwa` : Numerama) ;
+// - un bloc `newsletter` qui porte un champ de saisie, quelle que soit sa
+//   longueur : c'est un formulaire d'abonnement, que sa FAQ allonge au-delà
+//   de la règle des blocs courts (Frandroid, A3) ;
+// - le texte de repli d'une démo CodePen (`[data-slug-hash]`) quand une
+//   légende la suit : le script de CodePen ne tourne jamais dans l'extrait, et
+//   le repli répète la légende (Smashing Magazine, A3). Sans légende, le
+//   repli reste : c'est le seul lien vers la démo ;
+// - hors d'un `<article>`, la colonne `#secondary` (id exact), barre latérale
+//   des thèmes WordPress écrite en `div` (Simon Willison, A2) ;
 // - un court bloc qui commence par « Powered by ».
 // Deux gardes :
 // - un bloc qui porte la moitié du texte de la racine ou plus n'est jamais
@@ -587,6 +601,10 @@ export function resolveLazyImages(root: Element): void {
 // d'information et mentions légales) ; aucune autre ne perd ni ne gagne un
 // caractère, aucune image, aucun auteur ni titre ne bouge, le CERT-FR garde son
 // corps complet (A-1).
+// Troisième round (A3), sur 126 pages (corpus et pages fraîches des sites
+// cités) : 39 pages changent, chacune par le retrait des seuls blocs visés ;
+// aucun titre ni auteur ne bouge, aucune image d'article n'est perdue (seules
+// les deux icônes de la carte d'installation de Numerama sortent avec elle).
 
 const BOILERPLATE_TAGS = new Set(['footer', 'nav', 'form']);
 const BOILERPLATE_ROLES = new Set(['navigation', 'contentinfo']);
@@ -594,7 +612,12 @@ const BOILERPLATE_TOKENS = new Set([
   'related', 'comment', 'comments', 'breadcrumb', 'breadcrumbs', 'footer',
 ]);
 /** Mots qui ne désignent un bloc étranger que s'il est court (règle « share » de Readability). */
-const SHORT_BLOCK_TOKENS = new Set(['share', 'sharing', 'newsletter']);
+const SHORT_BLOCK_TOKENS = new Set([
+  'share', 'sharing', 'newsletter',
+  'ad', 'ads', 'advert', 'advertisement', 'sponsor', 'sponsored', 'affiliate', 'disclaimer', 'pwa',
+]);
+/** Un champ de saisie : un bloc `newsletter` qui en porte un est un formulaire. */
+const FORM_CONTROLS = 'input, select, textarea';
 /** Jamais jugés sur leur nom : titres et éléments de texte. */
 const NAMED_EXEMPT = new Set([
   'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'a', 'span', 'b', 'i', 'em', 'strong', 'code', 'small', 'sup', 'sub',
@@ -608,10 +631,12 @@ function isBoilerplate(el: Element, insideArticle: boolean): boolean {
   const tag = el.tagName.toLowerCase();
   const role = (el.getAttribute('role') || '').toLowerCase();
   if (BOILERPLATE_TAGS.has(tag) || BOILERPLATE_ROLES.has(role)) return true;
-  if (!insideArticle && (tag === 'aside' || role === 'complementary')) return true;
+  if (!insideArticle && (tag === 'aside' || role === 'complementary' || (el.getAttribute('id') || '').toLowerCase() === 'secondary')) return true;
+  if (el.hasAttribute('data-slug-hash') && hasCaptionSibling(el)) return true;
   if (!NAMED_EXEMPT.has(tag)) {
     const tokens = `${el.getAttribute('class') || ''} ${el.getAttribute('id') || ''}`.toLowerCase().split(/[^a-z0-9]+/);
     if (tokens.some((token) => BOILERPLATE_TOKENS.has(token))) return true;
+    if (tokens.includes('newsletter') && el.querySelector(FORM_CONTROLS)) return true;
     if (tokens.some((token) => SHORT_BLOCK_TOKENS.has(token))
       && visibleTextLength(el, READABILITY_CHAR_THRESHOLD) < READABILITY_CHAR_THRESHOLD) return true;
   }
@@ -620,6 +645,14 @@ function isBoilerplate(el: Element, insideArticle: boolean): boolean {
   if (el.childElementCount <= 3 && Array.from(el.children).every((child) => child.childElementCount === 0)) {
     const text = (el.textContent || '').replace(/\s+/g, ' ').trim();
     if (text.length <= POWERED_BY_MAX_LENGTH && POWERED_BY.test(text)) return true;
+  }
+  return false;
+}
+
+/** Une `<figcaption>` voisine : la légende qui dit déjà ce que dit le repli. */
+function hasCaptionSibling(el: Element): boolean {
+  for (let sibling = el.parentElement?.firstElementChild; sibling; sibling = sibling.nextElementSibling) {
+    if (sibling !== el && sibling.tagName.toLowerCase() === 'figcaption') return true;
   }
   return false;
 }

@@ -22,7 +22,9 @@
  *     de texte (N-1) : les extraits v3 qui portaient un encart produit ou une
  *     ligne promotionnelle (Numerama) sont refaits.
  * 5 : 1.9.0 (troisième round) — images paresseuses résolues et boutons
- *     d'agrandissement déballés (A1) : les extraits v4 aux images en cadre
- *     blanc sont refaits.
+ *     d'agrandissement déballés (A1), nouvelles familles de blocs étrangers
+ *     (A3 : publicités, affiliation, formulaire d'abonnement, repli CodePen,
+ *     colonne `#secondary`) : les extraits v4 aux images en cadre blanc ou
+ *     encombrés de ces blocs sont refaits.
  */
 export const EXTRACT_VERSION = 5;

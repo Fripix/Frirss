@@ -265,6 +265,57 @@ describe('stripBoilerplate', () => {
     // Une page ASP.NET enveloppe tout dans un `<form>`.
     expect(strip(`<form id="aspnetForm"><p>${long}</p><p>${long}</p></form><nav>Menu</nav>`)).toContain(long);
   });
+
+  // A3 (campagne 1.9.0, troisième round) : familles relevées sur les pages
+  // réelles, structures reproduites, textes inventés.
+  const body = Array.from({ length: 10 }, () => `<p>${long}</p>`).join('');
+
+  it('retire publicité, mention d’affiliation, avertissement et invitation à installer l’application, qui sont courts', () => {
+    // The Register (`div.google-ad` > `span.ad-label`), TechCrunch
+    // (`p.affiliate-disclaimer-text`), 01net (`div.comp-disclaimer`), Numerama
+    // (`div.card-install-pwa`).
+    const text = strip(`<article>${body}<div class="column google-ad small-12"><span class="ad-label">PUB DU SITE</span></div>${body}<p class="affiliate-disclaimer-text"><em>Un achat par nos liens peut nous rapporter une commission.</em></p><div class="not-prose comp-boxed comp-disclaimer"><h3>Ce qu’il faut savoir sur nos bons plans</h3><p>Ce contenu est proposé par notre équipe commerciale.</p></div><div id="installPwaDiv" class="card-install-pwa optid-no-ads"><p class="card-install-pwa__title">Toute l’actualité en un clin d’œil</p><p>Ajoutez le site à votre écran d’accueil.</p></div></article>`);
+    for (const junk of ['PUB DU SITE', 'commission', 'Ce qu’il faut savoir', 'clin d’œil', 'écran d’accueil']) expect(text).not.toContain(junk);
+    expect(text).toContain(long);
+  });
+
+  it('garde un long bloc dont la classe contient « ad » ou « disclaimer »', () => {
+    const analysis = 'ADMARKET analysis paragraph about the advertising market, part of the article. '.repeat(8);
+    const notice = 'NOTICEBODY the legal notice is the subject of this article and is quoted here. '.repeat(8);
+    const text = strip(`<article>${body}<section class="ad-market"><p>${analysis}</p></section><div class="disclaimer-quote"><p>${notice}</p></div>${body}</article>`);
+    expect(text).toContain('ADMARKET');
+    expect(text).toContain('NOTICEBODY');
+  });
+
+  it('retire un formulaire de lettre d’information, même long', () => {
+    // Frandroid : `div.newsletter-form` avec ses champs et une FAQ de plus de
+    // 500 caractères — au-delà de la règle des blocs courts.
+    const faq = 'Les données transmises par ce formulaire servent à envoyer la lettre et ne sont jamais revendues. '.repeat(6);
+    const text = strip(`<article>${body}<div class="newsletter-form newsletter-form--gooddeal"><p class="newsletter-form__title">Recevez nos bons plans</p><input type="email" name="email"><button type="submit">S’inscrire</button><div class="newsletter-form__faq"><p>${faq}</p></div></div>${body}</article>`);
+    expect(text).not.toContain('Recevez nos bons plans');
+    expect(text).not.toContain('jamais revendues');
+    expect(text).toContain(long);
+  });
+
+  it('retire le texte de repli d’une démo CodePen que sa légende répète', () => {
+    // Smashing Magazine : le repli (« See the Pen … ») et la légende disent la
+    // même chose ; le script de CodePen ne tournera jamais dans l'extrait.
+    const text = strip(`<article>${body}<figure><p data-height="480" data-slug-hash="AbCdEf" data-user="exemple">DEMOREPLI See the Pen [démo] by Auteur.</p><figcaption>See the Pen <a href="/x">démo</a> by Auteur.</figcaption></figure>${body}</article>`);
+    expect(text).not.toContain('DEMOREPLI');
+    expect(text).toContain('See the Pen démo by Auteur.');
+  });
+
+  it('garde le repli d’une démo CodePen sans légende : c’est son seul lien', () => {
+    expect(strip(`<article>${body}<p data-slug-hash="AbCdEf">DEMOSEULE See the Pen <a href="/x">démo</a>.</p>${body}</article>`)).toContain('DEMOSEULE');
+  });
+
+  it('retire la colonne `#secondary` d’un blog, hors de l’article', () => {
+    // Simon Willison : la barre latérale est un `div#secondary` (convention
+    // des thèmes WordPress), pas un `<aside>`.
+    const text = strip(`<div id="wrapper"><div id="primary">${body}</div><div id="secondary"><div class="metabox"><p class="this-is">COLONNE billet publié le 4 novembre.</p><h3>Lettre mensuelle</h3><p>Soutenez-moi.</p></div></div></div>`);
+    expect(text).not.toContain('COLONNE');
+    expect(text).toContain(long);
+  });
 });
 
 // ── La file d'analyse ────────────────────────────────────────────────
