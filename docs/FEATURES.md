@@ -3775,12 +3775,20 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   fois (sortie comprise), puis le `same` est mis en cache comme un vrai.
   **Garde de vraisemblance** (1.9.0, M-16) : ces deux « déjà dans la cible »
   ne sont acceptés que si **l'écriture du lot** est compatible avec la langue
-  cible (`textFitsLanguage` de `script.ts`) : au moins la moitié des lettres
-  visibles (balises, attributs et entités retirés) dans une écriture de la
-  cible, d'après `Intl.Locale#maximize()` (`fr` → latin, `uk` → cyrillique,
-  `ja` → kanji et kana, `ko` → hangul et hanja ; une sous-étiquette d'écriture
-  l'emporte ; `sr`, `bs`, `uz`, `az`, `kk`, `ku`, `pa`, `tk` acceptent leurs
-  deux écritures). Sans lettre, ou langue sans écriture connue, rien ne se
+  cible (`textFitsLanguage` de `script.ts`), d'après `Intl.Locale#maximize()`
+  (`fr` → latin, `uk` → cyrillique, `ja` → kanji et kana, `ko` → hangul et
+  hanja ; une sous-étiquette d'écriture l'emporte ; `sr`, `bs`, `uz`, `az`,
+  `kk`, `ku`, `pa`, `tk` acceptent leurs deux écritures). Le texte visible
+  (balises, attributs et entités retirés) se compte en **mots**, pas en
+  lettres : un idéogramme ou un kana vaut un mot, toute autre suite de lettres
+  aussi. Cible en latin : au moins la moitié des mots dans son écriture. Autre
+  cible : les mots latins (emprunts, noms de produits) sont mis à part, au
+  moins la moitié des autres sont dans son écriture, et celle-ci fait au moins
+  10 % du texte. ⚠️ Compter les lettres (première version) donnait cinq voix
+  à « Docker » contre une à « 镜 » : un texte technique chinois, japonais ou
+  coréen mêlé de noms de produits était refusé comme « pas dans la langue
+  cible », et le même texte passait pour du français (relecture 1.9.0).
+  Sans lettre, ou langue sans écriture connue, rien ne se
   conclut : accepté. Raison : sur un résumé persan, Ollama répondait
   `lang: fr` et « Traduire » affichait « Déjà en français. », mis en cache
   30 jours. Refusé : un `same` est une **réponse inexploitable** (rejeu une

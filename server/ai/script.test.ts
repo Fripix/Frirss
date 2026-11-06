@@ -29,6 +29,22 @@ describe('textFitsLanguage', () => {
     expect(textFitsLanguage('आज दिल्ली में एक नई तकनीक पेश की गई।', 'hi')).toBe(true);
     expect(textFitsLanguage('วันนี้มีการเปิดตัวเทคโนโลยีใหม่', 'th')).toBe(true);
   });
+  // Relecture 1.9.0 (R1-1) : un sinogramme comptait pour une lettre, un mot
+  // anglais pour cinq. Un texte technique chinois, japonais ou coréen mêlé de
+  // noms de produits latins passait pour « pas dans la langue cible ».
+  it('accepts a CJK technical text full of Latin product names in its own language', () => {
+    expect(textFitsLanguage('<p>本文介绍如何在 GitHub Actions 中配置 Docker Buildx 与 QEMU，构建 arm64 镜像。</p>', 'zh-Hans')).toBe(true);
+    expect(textFitsLanguage('<p>本文介绍如何在 GitHub Actions 中配置 Docker Buildx 与 QEMU，构建 arm64 镜像。</p>', 'zh')).toBe(true);
+    expect(textFitsLanguage('使用 Kubernetes 部署 PostgreSQL 数据库', 'zh')).toBe(true);
+    expect(textFitsLanguage('<p>TypeScript の strictNullChecks を有効にする</p>', 'ja')).toBe(true);
+    expect(textFitsLanguage('<p>React Server Components 와 Next.js App Router</p>', 'ko')).toBe(true);
+  });
+  it('still refuses those CJK texts as a Latin-script language, and an English text as Chinese', () => {
+    expect(textFitsLanguage('<p>本文介绍如何在 GitHub Actions 中配置 Docker Buildx 与 QEMU，构建 arm64 镜像。</p>', 'fr')).toBe(false);
+    expect(textFitsLanguage('<p>TypeScript の strictNullChecks を有効にする</p>', 'en')).toBe(false);
+    const english = 'This article explains how to configure GitHub Actions with Docker Buildx and QEMU to build arm64 images for every release of the project.';
+    expect(textFitsLanguage(`${english} (镜像)`, 'zh')).toBe(false);
+  });
   it('judges the majority: a few foreign words do not change the verdict', () => {
     expect(textFitsLanguage(`iPhone, Apple, OpenAI : ${PERSIAN}`, 'fr')).toBe(false);
     expect(textFitsLanguage(`${FRENCH} (« سلام » veut dire bonjour)`, 'fr')).toBe(true);
