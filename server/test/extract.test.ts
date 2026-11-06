@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { parseHTML } from 'linkedom';
 import {
-  extractArticle, EXTRACT_MAX_PENDING, ExtractorBusyError, extractPending, joinSplitBody, resolveLazyImages, stripBoilerplate, withExtractSlot,
+  aroundTheList, extractArticle, EXTRACT_MAX_PENDING, ExtractorBusyError, extractPending, joinSplitBody, resolveLazyImages, stripBoilerplate, withExtractSlot,
 } from '../extract.js';
 import { advisoryPageHtml, ADVISORY_BODY_MARKER } from '../../src/test/advisoryPageFixture.js';
 import { INLINE_IMAGE, LAZY_IMAGES, lazyImagePageHtml } from '../../src/test/lazyImagePageFixture.js';
@@ -105,6 +105,19 @@ describe('extractArticle', () => {
     expect(out.title).toBe('Avis d’exemple');
   });
 
+  // RX-05 : le texte de la liste remis à la place du marqueur passait par
+  // `String.replace`, qui lit `$'`, `` $` ``, `$&` et `$$` comme des motifs.
+  it('remet le texte d’une liste tel quel, même quand il porte `$’`, `$&` ou `$$`', () => {
+    const paragraphs = Array.from({ length: 4 }, (_, i) => `<p>Paragraphe ${i} de l’avis, assez long pour peser dans le score de Readability, avec des virgules.</p>`).join('');
+    const items = Array.from({ length: 12 }, (_, i) => `<li>Entrée ${i} : écrire $' puis $&amp; puis $$ puis $\` dans le motif.</li>`).join('');
+    const { document } = parseHTML(`<html><head><title>T</title></head><body><article>${paragraphs}<ul>${items}</ul>${paragraphs}</article></body></html>`);
+    const list = document.querySelector('ul') as unknown as Element;
+    const first = (list.firstElementChild!.textContent || '').replace(/\s+/g, '');
+    const out = aroundTheList(document, { html: list.outerHTML, text: list.textContent || '', first, items: 12 });
+    expect(out!.textContent).toContain('Entrée 0 : écrire $\' puis $& puis $$ puis $` dans le motif.Entrée 1');
+    expect(out!.textContent.match(/Paragraphe 0/g)).toHaveLength(2);
+  });
+
   // N-1 (vérification 1.9.0) : sur Numerama, l'`<article>` porte bien plus
   // que le corps (en-tête, résumé, barre latérale, pied, scripts) : la
   // première passe a déjà tout l'article mais n'en garde que 37 %, la seconde
@@ -170,6 +183,30 @@ describe('extractArticle', () => {
     const out = extractArticle('https://example.com/a', `<!doctype html><title>Titre omis</title><meta charset="utf-8"><div><section>${story}</section></div>`);
     expect(out!.content).toContain('Une phrase d’article');
     expect(out!.title).toBe('Titre omis');
+  });
+
+  // RX-01 (relecture des correctifs du quatrième round) : un `<head>` ouvert,
+  // jamais fermé, sans `<body>` — linkedom y laisse tout le contenu, et
+  // Readability levait une TypeError en remontant de son candidat. Un
+  // navigateur ferme `<head>` au premier élément qui n'y a pas sa place.
+  it('lit une page dont le contenu est resté dans un `<head>` jamais fermé, ou dans `<html>` hors de `<body>`', () => {
+    const pages = {
+      article: `<!doctype html><html lang=fr><head><meta charset=utf-8><title>T</title><article>${story}</article></html>`,
+      main: `<!doctype html><html><head><title>T</title><main>${story}</main>`,
+      paragraph: `<html><head><title>T</title>${story}`,
+      div: `<!doctype html><html><head><title>T</title><script>var a = 1;</script><div>${story}</div></html>`,
+      // Même famille, avec un `<body>` : ce qui reste dans `<head>`, ce qui
+      // précède `<body>` ou le suit dans `<html>`, y est rangé par le navigateur.
+      headWithBody: `<html><head><title>T</title><div>${story}</div></head><body><p>court</p></body></html>`,
+      beforeBody: `<html><head><title>T</title></head><div>${story}</div><body><p>court</p></body></html>`,
+      afterBody: `<html><head><title>T</title></head><body></body><table><tr><td>${story}</td></tr></table></html>`,
+    };
+    for (const [name, html] of Object.entries(pages)) {
+      let out: ReturnType<typeof extractArticle> = null;
+      expect(() => { out = extractArticle('https://example.com/a', html); }, name).not.toThrow();
+      expect(out!.content, name).toContain('Une phrase d’article');
+      expect(out!.title, name).toBe('T');
+    }
   });
 });
 
@@ -399,6 +436,59 @@ describe('stripBoilerplate', () => {
     expect(text).not.toContain('Retour en haut');
     expect(text).toContain('SECTION');
     expect(text).toContain('UNE de la semaine');
+  });
+
+  // RX-02 : la règle découpait la classe sur tout ce qui n'est pas lettre ou
+  // chiffre ; les utilitaires Tailwind `top-px`, `-top-1`, `md:top-0`
+  // donnaient un mot `top`, et un lien interne d'article sortait.
+  it('garde un lien interne dont une classe utilitaire contient « top » (Tailwind)', () => {
+    const text = strip(`<article>${body}<h2 id="install"><a href="#install" class="group relative top-px no-underline">INTERTITRE Installation</a></h2>${body}<p>Une phrase citée<sup><a href="#fn-1" class="relative -top-1 text-xs">NOTE1</a></sup> avec une note.</p><p>Voir <a href="#chapitre-2" class="underline md:top-0 focus:top-2">LIENSOMMAIRE le chapitre deux</a>.</p><a href="#top" class="scroll-top">Haut de page</a><a href="#haut" class="btn top">Remonter</a></article>`);
+    for (const kept of ['INTERTITRE', 'NOTE1', 'LIENSOMMAIRE']) expect(text).toContain(kept);
+    expect(text).not.toContain('Haut de page');
+    expect(text).not.toContain('Remonter');
+  });
+
+  // RX-03 : le mot `consent` retirait tout bloc ; un gestionnaire qui
+  // enveloppe l'intégration ET son voile emportait la citation du message.
+  it('garde un contenu intégré que son gestionnaire de consentement enveloppe avec le voile', () => {
+    const text = strip(`<article>${body}<div class="embed-consent"><blockquote class="twitter-tweet"><p>TWEET Le texte cité du message.</p>— Quelqu’un (@q)</blockquote><div class="overlay">Accepter les cookies</div></div><div class="consent-wrapper"><figure><img src="/a.png" alt=""><figcaption>LEGENDE de l’image</figcaption></figure></div>${body}</article>`);
+    expect(text).toContain('TWEET');
+    expect(text).toContain('LEGENDE');
+  });
+
+  it('ne juge jamais un billet ni le conteneur principal sur le mot « consent »', () => {
+    const text = strip(`<div class="archives"><p>${long}</p><p>${long}</p><p>${long}</p></div><article class="post requires-consent"><p>BILLET ${long}</p></article><main class="consent-aware"><p>PRINCIPAL ${long}</p></main>`);
+    expect(text).toContain('BILLET');
+    expect(text).toContain('PRINCIPAL');
+  });
+
+  // RX-04 : sur une chaîne d'ancêtres d'un lien payant, chaque niveau relisait
+  // tout son sous-arbre (texte, liens) : un coût en profondeur fois taille.
+  it('ne relit pas tout le sous-arbre de chaque ancêtre d’un lien payant', () => {
+    // Mesuré contre la même page sans lien payant, qui ne juge aucun encart :
+    // le rapport tient sous la charge, pas un seuil en millisecondes.
+    const timed = (href: string) => {
+      const depth = 240;
+      const { document } = parseHTML(`<html><body><article><p>${long}</p></article>${'<div>'.repeat(depth)}<a href="${href}"><img src="/a.png"></a><a href="/libre">x</a>${'<i></i>'.repeat(55_000)}${'</div>'.repeat(depth)}</body></html>`);
+      const started = performance.now();
+      stripBoilerplate(document.documentElement as unknown as Element);
+      const elapsed = performance.now() - started;
+      // Un lien libre sous chaque ancêtre : aucun n'est un encart.
+      expect(document.querySelectorAll('i')).toHaveLength(55_000);
+      return elapsed;
+    };
+    const unpaid = timed('https://x.example/?utm_medium=email');
+    const paid = timed('https://x.example/?utm_medium=paid');
+    expect(paid).toBeLessThan(unpaid * 3 + 100);
+  });
+
+  // Relecture des correctifs du quatrième round : un court billet dont la
+  // photo mène à un lien payant ressemblait à un encart, et sortait entier
+  // quand la colonne d'archives pesait plus que lui.
+  it('garde le corps d’un court billet dont la seule image porte un lien payant', () => {
+    const paid = 'https://shop.example.com/p?utm_source=blog&amp;utm_medium=paid_social';
+    const text = strip(`<article class="post"><h1>Un court billet</h1><div class="entry-content"><p>BILLET Un court billet sur l’objet acheté, avec une photo.</p><p><a href="${paid}"><img src="/photo.jpg" alt=""></a></p></div></article><div class="archives"><p>${long}</p><p>${long}</p></div>`);
+    expect(text).toContain('BILLET');
   });
 
   // B-02 (quatrième round) : chaque bloc « newsletter » à champ de saisie

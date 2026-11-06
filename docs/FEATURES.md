@@ -5445,7 +5445,12 @@ serveur de développement en 1.4.4.)*
   `<article>` unique, sinon `[role=main]` ou `<main>`) est relu avec, à la
   place de la liste, un paragraphe repère ; si Readability garde le repère,
   la liste y est remise, **à sa place**. Sinon — pas de conteneur, repère
-  écarté — le premier résultat reste : la règle n'ôte jamais rien. Mesuré
+  écarté — le premier résultat reste : la règle n'ôte jamais rien. Le
+  texte de la liste remplace le repère par une fonction, pas une chaîne :
+  `String.replace` lisait `$'`, `` $` ``, `$&` et `$$` d'une liste (un
+  tutoriel de shell ou d'expressions régulières) comme des motifs, et le
+  texte mesuré par la seconde passe s'en trouvait faussé (relecture des
+  correctifs, RX-05 ; `aroundTheList` est exportée pour son test). Mesuré
   (2026-11-06) sur 275 pages : seuls les deux gros avis changent (SUSE
   100 641 → 106 967 caractères, IBM 49 043 → 53 155), avec les huit
   intertitres des petits avis ; aucune autre page ne bouge. Sans la règle du
@@ -5541,24 +5546,44 @@ serveur de développement en 1.4.4.)*
   était rendu entier par la seconde passe, mais avec la notice de l'auteur et
   « 48 Comments » en plus — corrigé par la réunion du corps réparti en blocs
   (ci-dessous). **Quatrième round (A4-03)**, trois règles de plus, mêmes
-  gardes : le mot `consent` rejoint les blocs toujours retirés — le voile
+  gardes. Un bloc dont la classe ou l'id porte le mot `consent` est un
+  voile de consentement, retiré quelle que soit sa longueur — le voile
   « Ce contenu est bloqué car vous n'avez pas accepté les cookies… » posé
   sur chaque vidéo ou message intégré de Numerama (~1 000
-  caractères par contenu intégré, `div.embed-consent-overlay`) ; un court
-  bloc (moins de 500 caractères lisibles) dont **tous** les liens sont
+  caractères par contenu intégré, `div.embed-consent-overlay`, frère de
+  l'intégration) — **sauf** s'il est le billet ou le conteneur principal
+  (`<article>`, `<main>`, `[role=main]`), ou s'il porte une citation ou un
+  média (`blockquote`, `img`, `picture`, `video`, `audio`, `iframe`,
+  `figure`) : un gestionnaire qui enveloppe l'intégration ET son voile
+  emportait la citation du message (relecture des correctifs, RX-03). Un
+  court bloc (moins de 500 caractères lisibles) dont **tous** les liens sont
   payants (`utm_medium=paid…` dans l'adresse) et dont l'un enveloppe une
   image est un encart publicitaire — celui de BleepingComputer en fin
   d'article (`div.article-callout`, nom que portent aussi de vrais encadrés :
   c'est le lien payant qui signe, pas le nom) ; un paragraphe d'article qui
-  cite un lien payant, sans image en lien, reste ; seuls les ancêtres d'un
-  lien payant sont examinés. Et le bouton « retour en haut » : un lien vers
-  la page même (`href` en `#…`) dont la classe ou l'id contient `top`
-  (tech-wd : son libellé pour lecteur d'écran, « زر الذهاب إلى الأعلى », se
-  lisait en fin d'article) ; un lien vers une section de l'article n'est pas
-  visé. Mesuré (2026-11-06) sur 275 pages : 14 changent, chacune par le
-  retrait du seul bloc visé (9 pages de Numerama perdent un ou
-  deux voiles, 3 de BleepingComputer l'encart, 2 de tech-wd le bouton) ;
-  aucune phrase d'article n'est perdue.
+  cite un lien payant, sans image en lien, reste, et un bloc qui porte la
+  moitié du texte de son billet aussi (le corps d'un court billet dont la
+  photo mène à un lien payant sortait entier quand la colonne d'archives
+  pesait plus que lui). Seuls les ancêtres d'un lien payant sont examinés,
+  et leurs textes et liens sont comptés de bas en haut en une seule passe :
+  relire le sous-arbre à chaque ancêtre coûtait la profondeur fois la taille
+  (RX-04 : 240 niveaux sur 55 000 éléments, 1,5 s au lieu de 0,5). Une
+  image seule dans son bloc, en lien payant, sort avec lui : c'est la forme
+  d'une bannière. Et le bouton « retour en haut » : un lien vers la page
+  même (`href` en `#…`) dont une classe ou l'id est, **en entier**, un nom
+  de ce bouton (`top`, `to-top`, `back-to-top`, `go-to-top`, `scroll-top`,
+  `scrolltop`, `backtotop`, `gototop`…, éventuellement suivi de `-button`,
+  `-btn`, `-link`, `-anchor`, `-arrow` ou `-icon`) — tech-wd (`a#go-to-top`) :
+  son libellé pour lecteur d'écran, « زر الذهاب إلى الأعلى », se lisait en fin
+  d'article. Jamais un morceau découpé : les utilitaires Tailwind `top-px`,
+  `-top-1`, `md:top-0` sont sur des liens d'article — un intertitre
+  enveloppé dans son ancre, un appel de note, un lien de sommaire —, que la
+  première version, qui découpait la classe, retirait (RX-02). Mesuré
+  (2026-11-06) sur 275 pages : 14 changent, chacune par le retrait du seul
+  bloc visé (9 pages de Numerama perdent un ou deux voiles, 3 de
+  BleepingComputer l'encart, 2 de tech-wd le bouton) ; aucune phrase
+  d'article n'est perdue. Les resserrements RX-02 à RX-04 ne changent
+  aucune de ces 275 pages (2026-11-07, sortie identique champ par champ).
   **Restent** (pas de signal sûr dans le balisage) : « Follow topics and
   authors », la signature, la date, « Photo: » et la notice de l'auteur de
   The Verge, son chapeau et son image d'en-tête doublés (classes hachées ; la
@@ -8383,22 +8408,36 @@ qu'elle rend (voir *Extraction du contenu complet*).
   navigateur ajoute toujours. Une page sans aucun élément (vide, texte seul,
   commentaire) levait une TypeError dès l'insertion du `<base>` ; une page
   dont le contenu n'est pas sous un `<body>` (SVG seul, fragment sans
-  `<html>`, `<div>` écrit après `</html>`, balises facultatives omises) en
-  faisait lever une dans Readability, qui remonte de son candidat jusqu'au
-  `<body>`. C'était le 502 nu ci-dessus, et le client se repliait sur son
-  propre extracteur, qui lisait la page. Désormais : sans aucun élément, rien
-  à lire — `Not extractable` (422), sans repli ; sinon le document est
-  complété comme le ferait le navigateur — `<html>`, `<head>` et `<body>`
-  créés s'ils manquent, ce qui précède `<html>` en tête du `<body>` (sauf
-  `title`, `meta`, `link`, `base`, `style` écrits avant tout contenu, qui
-  vont dans `<head>` : le titre d'une page aux balises omises est gardé), ce
-  qui suit `</html>` à la fin. Ces pages s'extraient donc côté serveur, comme
+  `<html>`, `<div>` écrit après `</html>`, balises facultatives omises, et
+  — relecture des correctifs, RX-01 — un `<head>` ouvert et jamais fermé,
+  où linkedom laisse tout le contenu : `<html><head><title>T</title><article>…`)
+  en faisait lever une dans Readability, qui remonte de son candidat
+  jusqu'au `<body>`. C'était le 502 nu ci-dessus, et le client se repliait
+  sur son propre extracteur, qui lisait la page. Désormais : sans aucun
+  élément, rien à lire — `Not extractable` (422), sans repli ; sinon le
+  document est complété comme le ferait le navigateur — `<html>`, `<head>`
+  et `<body>` créés s'ils manquent ; ce qui précède `<html>`, ce qui déborde
+  de `<head>` (tout à partir du premier nœud qui n'y a pas sa place — autre
+  que `title`, `meta`, `link`, `base`, `style`, `script`, `noscript`,
+  `template` —, sauf `<title>`, que linkedom ne cherche que là) et ce qui
+  précède `<body>` dans `<html>` vont en tête du `<body>`, dans l'ordre
+  (sauf `title`, `meta`, `link`, `base`, `style` écrits avant tout contenu,
+  qui vont dans `<head>` : le titre d'une page aux balises omises est
+  gardé) ; ce qui suit `<body>` dans `<html>`, puis ce qui suit `</html>`,
+  à la fin. Un second `<html>`, `<head>` ou `<body>` égaré disparaît, son
+  contenu reste à sa place. Ces pages s'extraient donc côté serveur, comme
   le repli les lisait. Une page ordinaire — un seul élément racine,
-  `<html>`, qui a son `<body>` — n'est pas touchée. Mesuré (2026-11-06) :
-  dix des 275 pages du corpus passent par là (un `<script>` écrit après
-  `</html>`), aucune ne change. Effet de bord voulu : ce qui était écrit
-  hors du premier élément racine échappait jusqu'ici au filet
-  `assertTreeBounded`, qui ne mesure que `documentElement`.
+  `<html>`, qui ne porte que `<head>` et `<body>` (et des blancs ou
+  commentaires), rien ne débordant de `<head>` — n'est pas touchée. Mesuré
+  (2026-11-07) : 41 des 275 pages du corpus passent par là (un `<script>`
+  écrit après `</html>`, un `<meta>` entre `</head>` et `<body>`, un
+  `<header>` avant `<body>`, trois `<head>` qui débordent), aucune ne change,
+  champ par champ ; 3 000 coquilles tirées au hasard autour d'un même texte
+  levaient 20 fois et en perdaient 6, aucune désormais. Le repli du client
+  n'a pas cette fonction : `DOMParser` construit l'arbre comme le
+  navigateur. Effet de bord voulu : ce qui était écrit hors du premier
+  élément racine échappait jusqu'ici au filet `assertTreeBounded`, qui ne
+  mesure que `documentElement`.
   **File : cinq analyses au plus** (`EXTRACT_MAX_PENDING`). Le compteur est pris
   à l'ARRIVÉE, tenu pendant le travail du worker et rendu au départ : il borne
   donc la file ET le nombre de workers vivants (cinq, chacun ≤ 10 s et 256 Mo).

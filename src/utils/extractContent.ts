@@ -429,7 +429,7 @@ function onlyAList(content: string): OnlyList | null {
   }
 }
 
-function aroundTheList(doc: Document, list: OnlyList): { content: string; length: number; textContent: string } | null {
+export function aroundTheList(doc: Document, list: OnlyList): { content: string; length: number; textContent: string } | null {
   const source = Array.from(doc.querySelectorAll('ul, ol')).find((candidate) => {
     const items = Array.from(candidate.children).filter((child) => child.tagName === 'LI');
     return items.length >= list.items && squeezed(items[0].textContent) === list.first;
@@ -445,7 +445,7 @@ function aroundTheList(doc: Document, list: OnlyList): { content: string; length
   return {
     content: again.content.replace(placed, () => list.html),
     length: (again.length || 0) - token.length + list.text.length,
-    textContent: (again.textContent || '').replace(token, list.text),
+    textContent: (again.textContent || '').replace(token, () => list.text), // fonction : RX-05, voir le serveur
   };
 }
 
@@ -532,9 +532,12 @@ const BOILERPLATE_TAGS = new Set(['footer', 'nav', 'form']);
 const BOILERPLATE_ROLES = new Set(['navigation', 'contentinfo']);
 const BOILERPLATE_TOKENS = new Set([
   'related', 'comment', 'comments', 'breadcrumb', 'breadcrumbs', 'footer',
-  // Voile de consentement d'un contenu intégré (A4-03, voir le serveur).
-  'consent',
 ]);
+/** Voile de consentement d'un contenu intégré : sans citation ni média, hors billet (A4-03, RX-03, voir le serveur). */
+const CONSENT_TOKEN = 'consent';
+const EMBEDDED_CONTENT = 'blockquote, img, picture, video, audio, iframe, figure';
+/** Bouton « retour en haut » : un nom entier de classe ou d'id, jamais un morceau découpé (RX-02, voir le serveur). */
+const BACK_TO_TOP_NAME = /^(?:top|(?:back|go|scroll)?-?to-?top|scroll-?top|back-?top)(?:-(?:button|btn|link|anchor|arrow|icon))?$/;
 /** Un lien payant (A4-03, voir le serveur). */
 const PAID_LINK = /[?&]utm_medium=paid/i;
 /** Seulement sur un bloc court : la règle « share » de Readability (relecture 1.9.0), étendue en A3. */
@@ -557,22 +560,24 @@ const INVISIBLE = new Set(['script', 'style', 'template', 'noscript']);
 /** Texte lisible d'un billet, mesuré une fois par nettoyage (B-02, voir le serveur). */
 type PostLength = (post: Element) => number;
 
-function isBoilerplate(el: Element, insideArticle: boolean, postLength: PostLength, paid: Set<Node>): boolean {
+function isBoilerplate(el: Element, insideArticle: boolean, postLength: PostLength, paid: Map<Node, LinkCounts>): boolean {
   const tag = el.tagName.toLowerCase();
   const role = (el.getAttribute('role') || '').toLowerCase();
   if (BOILERPLATE_TAGS.has(tag) || BOILERPLATE_ROLES.has(role)) return true;
   if (!insideArticle && (tag === 'aside' || role === 'complementary' || (el.getAttribute('id') || '').toLowerCase() === 'secondary')) return true;
   if (el.hasAttribute('data-slug-hash') && hasCaptionSibling(el)) return true;
   const tokens = `${withoutTaxonomy(el.getAttribute('class'))} ${el.getAttribute('id') || ''}`.toLowerCase().split(/[^a-z0-9]+/);
-  // Bouton « retour en haut » (A4-03, voir le serveur).
-  if (tag === 'a' && (el.getAttribute('href') || '').startsWith('#') && tokens.includes('top')) return true;
+  // Bouton « retour en haut » (A4-03, RX-02, voir le serveur).
+  if (tag === 'a' && (el.getAttribute('href') || '').startsWith('#') && isBackToTop(el)) return true;
   if (!NAMED_EXEMPT.has(tag)) {
     if (tokens.some((token) => BOILERPLATE_TOKENS.has(token))) return true;
     if (!isPostContainer(tag, role)) {
+      if (tokens.includes(CONSENT_TOKEN) && !el.querySelector(EMBEDDED_CONTENT)) return true;
       if (tokens.includes('newsletter') && el.querySelector(FORM_CONTROLS) && !carriesMostOfItsPost(el, postLength)) return true;
       if (tokens.some((token) => SHORT_BLOCK_TOKENS.has(token))
         && visibleTextLength(el, SHORT_BLOCK_MAX) < SHORT_BLOCK_MAX) return true;
-      if (paid.has(el) && isPaidPromotion(el)) return true;
+      const counts = paid.get(el);
+      if (counts && isPaidPromotion(counts) && !carriesMostOfItsPost(el, postLength, counts.text)) return true;
     }
   }
   if (el.childElementCount <= 3 && Array.from(el.children).every((child) => child.childElementCount === 0)) {
@@ -582,12 +587,69 @@ function isBoilerplate(el: Element, insideArticle: boolean, postLength: PostLeng
   return false;
 }
 
-/** Encart publicitaire : court, tous ses liens payants, l'un sur une image (A4-03, voir le serveur). */
-function isPaidPromotion(el: Element): boolean {
-  if (visibleTextLength(el, SHORT_BLOCK_MAX) >= SHORT_BLOCK_MAX) return false;
-  const links = Array.from(el.querySelectorAll('a[href]'));
-  return links.every((link) => PAID_LINK.test(link.getAttribute('href') || ''))
-    && links.some((link) => link.querySelector('img'));
+/** Un nom entier de classe ou d'id de bouton « retour en haut » (RX-02, voir le serveur). */
+function isBackToTop(el: Element): boolean {
+  const names = `${el.getAttribute('class') || ''} ${el.getAttribute('id') || ''}`.toLowerCase().replace(/_/g, '-').split(/\s+/);
+  return names.some((name) => BACK_TO_TOP_NAME.test(name));
+}
+
+/** Encart publicitaire : court, tous ses liens payants, l'un sur une image, moins de la moitié de son billet (A4-03, voir le serveur). */
+function isPaidPromotion(counts: LinkCounts): boolean {
+  return counts.text < SHORT_BLOCK_MAX && counts.links === counts.paidLinks && counts.paidImageLinks > 0;
+}
+
+/** Sous un élément : texte lisible, liens, liens payants, liens payants sur une image (RX-04, voir le serveur). */
+interface LinkCounts { text: number; links: number; paidLinks: number; paidImageLinks: number; image: boolean }
+
+/** Les ancêtres d'un lien payant, avec leurs comptes faits de bas en haut en une passe (RX-04, voir le serveur). */
+function paidLinkAncestors(root: Element): Map<Node, LinkCounts> {
+  const candidates = new Map<Node, LinkCounts | null>();
+  for (const link of Array.from(root.querySelectorAll('a[href*="utm_medium"]'))) {
+    if (!PAID_LINK.test(link.getAttribute('href') || '')) continue;
+    for (let up: Node | null = link; up && up !== root && !candidates.has(up); up = up.parentNode) candidates.set(up, null);
+  }
+  const found = new Map<Node, LinkCounts>();
+  if (!candidates.size) return found;
+  const order: Element[] = [];
+  const stack: Element[] = [root];
+  while (stack.length) {
+    const el = stack.pop()!;
+    order.push(el);
+    for (let child = el.firstElementChild; child; child = child.nextElementSibling) stack.push(child);
+  }
+  // Les enfants avant leur parent ; un compte sert une fois, puis s'oublie.
+  const counts = new Map<Element, LinkCounts>();
+  for (let i = order.length - 1; i >= 0; i--) {
+    const el = order[i];
+    const invisible = INVISIBLE.has(el.tagName.toLowerCase());
+    const mine: LinkCounts = { text: 0, links: 0, paidLinks: 0, paidImageLinks: 0, image: false };
+    for (let node = el.firstChild; node; node = node.nextSibling) {
+      if (node.nodeType === 3) {
+        if (!invisible) mine.text += (node.textContent || '').replace(/\s+/g, ' ').length;
+        continue;
+      }
+      const below = node.nodeType === 1 ? counts.get(node as Element) : undefined;
+      if (!below) continue;
+      const child = node as Element;
+      counts.delete(child);
+      const tag = child.tagName.toLowerCase();
+      if (!invisible) mine.text += below.text;
+      mine.links += below.links;
+      mine.paidLinks += below.paidLinks;
+      mine.paidImageLinks += below.paidImageLinks;
+      mine.image ||= below.image || tag === 'img';
+      if (tag === 'a' && child.hasAttribute('href')) {
+        mine.links++;
+        if (PAID_LINK.test(child.getAttribute('href') || '')) {
+          mine.paidLinks++;
+          if (below.image) mine.paidImageLinks++;
+        }
+      }
+    }
+    counts.set(el, mine);
+    if (candidates.has(el)) found.set(el, mine);
+  }
+  return found;
 }
 
 /** Repli d'une démo CodePen : retiré seulement quand une légende le répète (A3). */
@@ -602,12 +664,12 @@ function isPostContainer(tag: string, role: string): boolean {
 }
 
 /** Moitié du texte de son billet ou plus : le corps d'une lettre publiée comme billet.
- *  Le billet n'est pas relu à chaque bloc (B-02) : `postLength` le mesure une fois. */
-function carriesMostOfItsPost(el: Element, postLength: PostLength): boolean {
+ *  Le billet n'est pas relu à chaque bloc (B-02) : `postLength` le mesure une fois ; `length`, déjà connu pour un encart payant. */
+function carriesMostOfItsPost(el: Element, postLength: PostLength, length?: number): boolean {
   const post = el.parentElement?.closest('article, main, [role="main"]');
   if (!post) return false;
   const half = postLength(post) * MAIN_CONTAINER_MIN_SHARE;
-  return visibleTextLength(el, half) >= half;
+  return (length ?? visibleTextLength(el, half)) >= half;
 }
 
 function hasCaptionSibling(el: Element): boolean {
@@ -636,7 +698,7 @@ function visibleTextLength(root: Element, stopAt = Infinity): number {
 }
 
 /** Retire de `root` (jamais `root` lui-même) les blocs étrangers à l'article. */
-function stripBoilerplate(root: Element): void {
+export function stripBoilerplate(root: Element): void {
   const total = visibleTextLength(root);
   // Billets déjà mesurés, tenus à jour à chaque retrait (B-02, voir le serveur).
   const posts = new Map<Element, number>();
@@ -646,11 +708,7 @@ function stripBoilerplate(root: Element): void {
     return length;
   };
   // Seuls les ancêtres d'un lien payant peuvent être un encart publicitaire (A4-03).
-  const paid = new Set<Node>();
-  for (const link of Array.from(root.querySelectorAll('a[href*="utm_medium"]'))) {
-    if (!PAID_LINK.test(link.getAttribute('href') || '')) continue;
-    for (let up: Node | null = link; up && up !== root && !paid.has(up); up = up.parentNode) paid.add(up);
-  }
+  const paid = paidLinkAncestors(root);
   const stack: Array<[Element, boolean]> = Array.from(root.children, (child) => [child, false]);
   while (stack.length) {
     const [el, insideArticle] = stack.pop()!;

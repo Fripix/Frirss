@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
+  aroundTheList,
   extractFullContent,
+  stripBoilerplate,
   retryAfterMs,
   RateLimitedError,
   NotExtractableError,
@@ -397,6 +399,47 @@ describe('extractFullContent — repli local : blocs étrangers (M-04)', () => {
     for (const junk of ['VOILE', 'REGIE', 'HAUTDEPAGE']) expect(text).not.toContain(junk);
   });
 
+  // RX-02 et RX-03 (relecture des correctifs du quatrième round), voir le serveur.
+  it('garde un lien interne à classe utilitaire « top » et un contenu intégré enveloppé par son gestionnaire de consentement', async () => {
+    const para = (i: number) => `<p>Paragraphe ${i} de l’article, qui raconte longuement ce qui s’est passé, avec des détails et des chiffres pour peser.</p>`;
+    const body = (from: number) => Array.from({ length: 5 }, (_, i) => para(from + i)).join('');
+    fallbackOn(`<html><head><title>Article</title></head><body><article><h1>Article</h1>${body(1)}
+      <h2 id="install"><a href="#install" class="group relative top-px">INTERTITRE Installation</a></h2>${body(6)}
+      <p>Une phrase citée<sup><a href="#fn-1" class="relative -top-1">NOTE1</a></sup>, puis <a href="#chapitre-2" class="md:top-0">LIENSOMMAIRE le chapitre deux</a>, et la suite de la phrase pour compter.</p>
+      <div class="embed-consent"><blockquote class="twitter-tweet"><p>TWEET Le texte cité du message, que l’article commente plus bas.</p>— Quelqu’un (@q)</blockquote><div class="overlay">Accepter les cookies</div></div>
+      ${body(11)}<a href="#top" class="scroll-top">HAUTDEPAGE</a></article></body></html>`);
+    const text = textOf((await extractFullContent('https://example.com/utilitaires')).content);
+    for (const kept of ['Paragraphe 15', 'INTERTITRE', 'NOTE1', 'LIENSOMMAIRE', 'TWEET']) expect(text).toContain(kept);
+    expect(text).not.toContain('HAUTDEPAGE');
+  });
+
+  // RX-04, voir le serveur : chaque ancêtre d'un lien payant relisait son sous-arbre.
+  it('ne relit pas tout le sous-arbre de chaque ancêtre d’un lien payant', () => {
+    // Mesuré contre la même page sans lien payant, qui ne juge aucun encart :
+    // le rapport tient sous la charge, pas un seuil en millisecondes.
+    const timed = (href: string) => {
+      const depth = 200;
+      const doc = new DOMParser().parseFromString(`<html><body><article><p>Un paragraphe d’article.</p></article>${'<div>'.repeat(depth)}<a href="${href}"><img src="/a.png"></a><a href="/libre">x</a>${'<i></i>'.repeat(15_000)}${'</div>'.repeat(depth)}</body></html>`, 'text/html');
+      const started = performance.now();
+      stripBoilerplate(doc.documentElement);
+      const elapsed = performance.now() - started;
+      expect(doc.querySelectorAll('i')).toHaveLength(15_000);
+      return elapsed;
+    };
+    const unpaid = timed('https://x.example/?utm_medium=email');
+    const paid = timed('https://x.example/?utm_medium=paid');
+    expect(paid).toBeLessThan(unpaid * 3 + 100);
+  });
+
+  // Voir le serveur : un court billet dont la photo porte un lien payant n'est pas un encart.
+  it('garde le corps d’un court billet dont la seule image porte un lien payant', () => {
+    const long = 'Un paragraphe d’archives assez long pour peser plus que le billet, et même davantage encore.';
+    const paid = 'https://shop.example.com/p?utm_source=blog&amp;utm_medium=paid_social';
+    const doc = new DOMParser().parseFromString(`<html><body><article class="post"><h1>Un court billet</h1><div class="entry-content"><p>BILLET Un court billet sur l’objet acheté, avec une photo.</p><p><a href="${paid}"><img src="/photo.jpg" alt=""></a></p></div></article><div class="archives"><p>${long}</p><p>${long}</p></div></body></html>`, 'text/html');
+    stripBoilerplate(doc.documentElement);
+    expect(doc.body.textContent).toContain('BILLET');
+  });
+
   // B-02 (quatrième round) : chaque formulaire de lettre d'information
   // relisait tout le texte de son billet (voir le serveur) : 3,4 s ici dans
   // jsdom, 0,23 s depuis — Readability compris.
@@ -408,6 +451,20 @@ describe('extractFullContent — repli local : blocs étrangers (M-04)', () => {
     expect(performance.now() - started).toBeLessThan(1500);
     expect(content).toContain('Lorem ipsum');
     expect(content).not.toContain('<input');
+  });
+});
+
+// RX-05 (relecture des correctifs du quatrième round), voir le serveur.
+describe('aroundTheList', () => {
+  it('remet le texte d’une liste tel quel, même quand il porte `$’`, `$&` ou `$$`', () => {
+    const paragraphs = Array.from({ length: 4 }, (_, i) => `<p>Paragraphe ${i} de l’avis, assez long pour peser dans le score de Readability, avec des virgules.</p>`).join('');
+    const items = Array.from({ length: 12 }, (_, i) => `<li>Entrée ${i} : écrire $' puis $&amp; puis $$ puis $\` dans le motif.</li>`).join('');
+    const doc = new DOMParser().parseFromString(`<html><head><title>T</title></head><body><article>${paragraphs}<ul>${items}</ul>${paragraphs}</article></body></html>`, 'text/html');
+    const list = doc.querySelector('ul')!;
+    const first = (list.firstElementChild!.textContent || '').replace(/\s+/g, '');
+    const out = aroundTheList(doc, { html: list.outerHTML, text: list.textContent || '', first, items: 12 });
+    expect(out!.textContent).toContain('Entrée 0 : écrire $\' puis $& puis $$ puis $` dans le motif.Entrée 1');
+    expect(out!.textContent.match(/Paragraphe 0/g)).toHaveLength(2);
   });
 });
 

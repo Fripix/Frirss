@@ -191,7 +191,8 @@ function assertTreeBounded(doc: ParsedDocument): void {
 // l'arbre tel qu'il est écrit : une page vide ou de texte seul n'a pas de
 // racine, et `document.head` levait une TypeError ; une page dont le contenu
 // n'est pas sous un `<body>` (SVG seul, fragment, `<div>` après `</html>`,
-// balises facultatives omises) en faisait lever une dans Readability, qui
+// balises facultatives omises, `<head>` ouvert et jamais fermé — RX-01 :
+// linkedom y laisse tout le contenu) en faisait lever une dans Readability, qui
 // remonte de son candidat jusqu'au `<body>` et tombait sur le document. La
 // route rendait un 502 nu, et le client se repliait sur son propre
 // extracteur — qui, lui, lisait la page.
@@ -203,6 +204,8 @@ function assertTreeBounded(doc: ParsedDocument): void {
 
 /** Ce qu'un navigateur range dans `<head>` tant que le corps n'a pas commencé. */
 const HEAD_ONLY = new Set(['title', 'meta', 'link', 'base', 'style']);
+/** Ce qui reste aussi dans un `<head>` écrit, quand le navigateur le lit (RX-01). */
+const IN_HEAD_TOO = new Set(['script', 'noscript', 'template']);
 
 /** Complète `doc` en `<html>` + `<head>` + `<body>` ; `false` s'il n'a aucun élément. */
 function wholeDocument(doc: ParsedDocument): boolean {
@@ -211,7 +214,7 @@ function wholeDocument(doc: ParsedDocument): boolean {
   if (!roots.length) return false;
   const childOf = (parent: Element, tag: string) => Array.from(parent.children).find((child) => child.tagName === tag) ?? null;
   let html = roots.find((root) => root.tagName === 'HTML') ?? null;
-  if (roots.length === 1 && html && childOf(html, 'BODY')) return true;
+  if (roots.length === 1 && html && isOrdinary(html)) return true;
 
   const make = (tag: string) => doc.createElement(tag) as unknown as Element;
   if (!html) {
@@ -224,7 +227,7 @@ function wholeDocument(doc: ParsedDocument): boolean {
     html.prepend(head);
   }
   // Ce qui est écrit avant `<html>` ouvre la page ; ce qui suit `</html>` la
-  // ferme. Sans `<body>`, les enfants de `<html>` sont aussi le début de la page.
+  // ferme.
   const opening: Node[] = [];
   const closing: Node[] = [];
   let afterHtml = false;
@@ -232,9 +235,21 @@ function wholeDocument(doc: ParsedDocument): boolean {
     if (node === html) afterHtml = true;
     else if (node.nodeType !== 10) (afterHtml ? closing : opening).push(node);
   }
+  // Un `<head>` jamais fermé garde le contenu chez linkedom (RX-01) ; le
+  // navigateur le ferme au premier élément qui n'y a pas sa place.
+  opening.push(...spilledFromHead(head));
+  // Dans `<html>`, hors de `<head>` et `<body>` : ce qui précède `<body>` ouvre
+  // la page, ce qui le suit la ferme ; sans `<body>`, tout l'ouvre.
   let body = childOf(html, 'BODY');
+  const afterBody: Node[] = [];
+  let pastBody = false;
+  for (const node of Array.from(html.childNodes)) {
+    if (node === head) continue;
+    if (node === body) pastBody = true;
+    else (pastBody ? afterBody : opening).push(node);
+  }
+  closing.unshift(...afterBody);
   if (!body) {
-    opening.push(...Array.from(html.childNodes).filter((node) => node !== head));
     body = make('body');
     html.append(body);
   }
@@ -245,9 +260,46 @@ function wholeDocument(doc: ParsedDocument): boolean {
     if (!content.length && headOnly(node)) head.append(node);
     else content.push(node);
   }
-  body.prepend(...content);
-  body.append(...closing);
+  body.prepend(...unwrapSections(content));
+  body.append(...unwrapSections(closing));
   return true;
+}
+
+/** Une page ordinaire : `<html>` ne porte que `<head>`, `<body>`, des blancs et des commentaires, et rien ne déborde de `<head>`. */
+function isOrdinary(html: Element): boolean {
+  let body = false;
+  for (let node = html.firstChild; node; node = node.nextSibling) {
+    const tag = node.nodeType === 1 ? (node as Element).tagName : '';
+    if (tag === 'BODY') body = true;
+    else if (tag === 'HEAD') { if (spilledFromHead(node as Element).length) return false; }
+    else if (!headOnly(node) || node.nodeType === 1) return false;
+  }
+  return body;
+}
+
+/**
+ * Ce que linkedom laisse dans un `<head>` jamais fermé (RX-01) : tout, à
+ * partir du premier nœud qui n'y a pas sa place — sauf `<title>`, que linkedom
+ * ne cherche que dans `<head>` (le navigateur le trouve partout).
+ */
+function spilledFromHead(head: Element): Node[] {
+  const spilled: Node[] = [];
+  for (let node = head.firstChild; node; node = node.nextSibling) {
+    if (!spilled.length && (headOnly(node) || (node.nodeType === 1 && IN_HEAD_TOO.has((node as Element).tagName.toLowerCase())))) continue;
+    if (node.nodeType === 1 && (node as Element).tagName === 'TITLE') continue;
+    spilled.push(node);
+  }
+  return spilled;
+}
+
+/** Un second `<html>`, `<head>` ou `<body>` égaré n'est pas imbriqué : il disparaît, son contenu reste à sa place. */
+function unwrapSections(nodes: Node[]): Node[] {
+  return nodes.flatMap((node) => {
+    if (node.nodeType !== 1 || !['HTML', 'HEAD', 'BODY'].includes((node as Element).tagName)) return [node];
+    const children = Array.from(node.childNodes);
+    (node as Element).remove();
+    return children;
+  });
 }
 
 /** Un nœud qui ne commence pas le corps de la page : `title`, `meta`…, un blanc, un commentaire. */
@@ -600,7 +652,7 @@ function onlyAList(content: string): OnlyList | null {
 }
 
 /** Relit `doc` sans la liste, puis l'y remet : le nouveau résultat, ou `null`. */
-function aroundTheList(doc: ParsedDocument, list: OnlyList): { content: string; length: number; textContent: string } | null {
+export function aroundTheList(doc: ParsedDocument, list: OnlyList): { content: string; length: number; textContent: string } | null {
   const source = (Array.from(doc.querySelectorAll('ul, ol')) as unknown as Element[]).find((candidate) => {
     const items = Array.from(candidate.children).filter((child) => child.tagName === 'LI');
     return items.length >= list.items && squeezed(items[0].textContent) === list.first;
@@ -613,7 +665,8 @@ function aroundTheList(doc: ParsedDocument, list: OnlyList): { content: string; 
   const again = new Readability(doc as never, { charThreshold: READABILITY_CHAR_THRESHOLD }).parse();
   const placed = new RegExp(`<p[^>]*>\\s*${token}\\s*</p>`);
   if (!again?.content || !placed.test(again.content)) return null;
-  const textContent = (again.textContent || '').replace(token, list.text);
+  // Une fonction, pas une chaîne : `$'`, `$&`… d'une liste ne sont pas des motifs (RX-05).
+  const textContent = (again.textContent || '').replace(token, () => list.text);
   return {
     content: again.content.replace(placed, () => list.html),
     length: (again.length || 0) - token.length + list.text.length,
@@ -769,6 +822,9 @@ function isZoomButton(button: Element): boolean {
 //   de la règle des blocs courts (Frandroid, A3) — sauf s'il porte la moitié
 //   du texte de son billet : c'est alors le corps d'une lettre publiée comme
 //   billet, et seul le conteneur du formulaire, en lui, est visé ;
+// - un voile de consentement (`consent`) sans citation ni média, un encart
+//   dont tous les liens sont payants, un bouton « retour en haut » nommé en
+//   entier (A4-03, resserrés en RX-02 à RX-04 : voir leurs constantes) ;
 // - les classes de taxonomie (`tag-*`, `category-*`) ne comptent pas : WordPress
 //   y range les SUJETS d'un billet, sur son `<article>` (`tag-pwa`,
 //   `category-ads`) ; et ni `<article>` ni le conteneur principal (`<main>`,
@@ -805,9 +861,22 @@ const BOILERPLATE_TAGS = new Set(['footer', 'nav', 'form']);
 const BOILERPLATE_ROLES = new Set(['navigation', 'contentinfo']);
 const BOILERPLATE_TOKENS = new Set([
   'related', 'comment', 'comments', 'breadcrumb', 'breadcrumbs', 'footer',
-  // Le voile de consentement d'un contenu intégré (A4-03 : Numerama).
-  'consent',
 ]);
+/**
+ * Le voile de consentement d'un contenu intégré (A4-03 : Numerama) porte le
+ * mot `consent` ; il est retiré, quelle que soit sa longueur, s'il n'est pas
+ * le billet et ne porte ni citation ni média. Un gestionnaire qui enveloppe
+ * l'intégration ET son voile garde la citation du message (RX-03).
+ */
+const CONSENT_TOKEN = 'consent';
+const EMBEDDED_CONTENT = 'blockquote, img, picture, video, audio, iframe, figure';
+/**
+ * Le bouton « retour en haut » : un nom ENTIER de classe ou d'id
+ * (`go-to-top`, `back-to-top-link`, `scrolltop`, `top`), jamais un
+ * morceau découpé — les utilitaires Tailwind `top-px`, `-top-1`, `md:top-0`
+ * sont sur des liens d'article (RX-02).
+ */
+const BACK_TO_TOP_NAME = /^(?:top|(?:back|go|scroll)?-?to-?top|scroll-?top|back-?top)(?:-(?:button|btn|link|anchor|arrow|icon))?$/;
 /** Un lien payant : la campagne qui l'a acheté le dit dans son adresse (A4-03). */
 const PAID_LINK = /[?&]utm_medium=paid/i;
 /** Mots qui ne désignent un bloc étranger que s'il est court (règle « share » de Readability). */
@@ -829,25 +898,27 @@ const POWERED_BY_MAX_LENGTH = 120;
 /** Texte lisible d'un billet, mesuré une fois par nettoyage (voir `stripBoilerplate`). */
 type PostLength = (post: Element) => number;
 
-function isBoilerplate(el: Element, insideArticle: boolean, postLength: PostLength, paid: Set<Node>): boolean {
+function isBoilerplate(el: Element, insideArticle: boolean, postLength: PostLength, paid: Map<Node, LinkCounts>): boolean {
   const tag = el.tagName.toLowerCase();
   const role = (el.getAttribute('role') || '').toLowerCase();
   if (BOILERPLATE_TAGS.has(tag) || BOILERPLATE_ROLES.has(role)) return true;
   if (!insideArticle && (tag === 'aside' || role === 'complementary' || (el.getAttribute('id') || '').toLowerCase() === 'secondary')) return true;
   if (el.hasAttribute('data-slug-hash') && hasCaptionSibling(el)) return true;
   const tokens = `${withoutTaxonomy(el.getAttribute('class'))} ${el.getAttribute('id') || ''}`.toLowerCase().split(/[^a-z0-9]+/);
-  // Le bouton « retour en haut » : un lien vers la page même, nommé `top`
+  // Le bouton « retour en haut » : un lien vers la page même
   // (A4-03 : tech-wd, dont seul le libellé pour lecteur d'écran se lisait).
-  if (tag === 'a' && (el.getAttribute('href') || '').startsWith('#') && tokens.includes('top')) return true;
+  if (tag === 'a' && (el.getAttribute('href') || '').startsWith('#') && isBackToTop(el)) return true;
   if (!NAMED_EXEMPT.has(tag)) {
     if (tokens.some((token) => BOILERPLATE_TOKENS.has(token))) return true;
-    // Ni le billet ni le conteneur principal ne sont jugés « courts » ou
-    // « formulaire » : ce sont eux qu'on extrait.
+    // Ni le billet ni le conteneur principal ne sont jugés « courts »,
+    // « formulaire » ou « voile » : ce sont eux qu'on extrait.
     if (!isPostContainer(tag, role)) {
+      if (tokens.includes(CONSENT_TOKEN) && !el.querySelector(EMBEDDED_CONTENT)) return true;
       if (tokens.includes('newsletter') && el.querySelector(FORM_CONTROLS) && !carriesMostOfItsPost(el, postLength)) return true;
       if (tokens.some((token) => SHORT_BLOCK_TOKENS.has(token))
         && visibleTextLength(el, READABILITY_CHAR_THRESHOLD) < READABILITY_CHAR_THRESHOLD) return true;
-      if (paid.has(el) && isPaidPromotion(el)) return true;
+      const counts = paid.get(el);
+      if (counts && isPaidPromotion(counts) && !carriesMostOfItsPost(el, postLength, counts.text)) return true;
     }
   }
   // Seulement sur un bloc presque feuille : lire `textContent` de chaque
@@ -870,18 +941,84 @@ function withoutTaxonomy(className: string | null): string {
   return (className || '').split(/\s+/).filter((name) => !/^(tag|category)-/i.test(name)).join(' ');
 }
 
+/** Une classe ou l'id du lien est-il, en entier, un nom de bouton « retour en haut » (RX-02) ? */
+function isBackToTop(el: Element): boolean {
+  const names = `${el.getAttribute('class') || ''} ${el.getAttribute('id') || ''}`.toLowerCase().replace(/_/g, '-').split(/\s+/);
+  return names.some((name) => BACK_TO_TOP_NAME.test(name));
+}
+
 /**
  * Un encart publicitaire (A4-03 : BleepingComputer, `div.article-callout`,
  * nom que portent aussi de vrais encadrés) : un court bloc dont TOUS les liens
  * sont payants (`PAID_LINK`) et dont l'un enveloppe une image — le visuel de
  * la réclame. Un paragraphe d'article qui cite un lien payant n'a pas
- * d'image en lien : il reste.
+ * d'image en lien : il reste. Un bloc qui porte la moitié de son billet non
+ * plus (`carriesMostOfItsPost`) : c'est le corps d'un court billet dont la
+ * photo mène à un lien payant, que la colonne d'archives emportait.
  */
-function isPaidPromotion(el: Element): boolean {
-  if (visibleTextLength(el, READABILITY_CHAR_THRESHOLD) >= READABILITY_CHAR_THRESHOLD) return false;
-  const links = Array.from(el.querySelectorAll('a[href]')) as Element[];
-  return links.every((link) => PAID_LINK.test(link.getAttribute('href') || ''))
-    && links.some((link) => link.querySelector('img'));
+function isPaidPromotion(counts: LinkCounts): boolean {
+  return counts.text < READABILITY_CHAR_THRESHOLD && counts.links === counts.paidLinks && counts.paidImageLinks > 0;
+}
+
+/** Sous un élément : texte lisible (comme `visibleTextLength`), liens, liens payants, liens payants sur une image. */
+interface LinkCounts { text: number; links: number; paidLinks: number; paidImageLinks: number; image: boolean }
+
+/**
+ * Les ancêtres d'un lien payant (seuls candidats à l'encart), chacun avec ses
+ * comptes (`LinkCounts`), faits de bas en haut en UNE passe sur `root`.
+ * Relire le sous-arbre à chaque ancêtre coûtait sa profondeur fois sa taille
+ * (RX-04 : 240 niveaux au-dessus de 55 000 éléments, 1,5 s au lieu de 0,5).
+ * Les comptes restent justes au moment du jugement : un ancêtre est jugé avant
+ * tout ce qu'il contient, et rien de son sous-arbre n'a encore été retiré.
+ */
+function paidLinkAncestors(root: Element): Map<Node, LinkCounts> {
+  const candidates = new Map<Node, LinkCounts | null>();
+  for (const link of Array.from(root.querySelectorAll('a[href*="utm_medium"]')) as Element[]) {
+    if (!PAID_LINK.test(link.getAttribute('href') || '')) continue;
+    for (let up: Node | null = link; up && up !== root && !candidates.has(up); up = up.parentNode) candidates.set(up, null);
+  }
+  const found = new Map<Node, LinkCounts>();
+  if (!candidates.size) return found;
+  const order: Element[] = [];
+  const stack: Element[] = [root];
+  while (stack.length) {
+    const el = stack.pop()!;
+    order.push(el);
+    for (let child = el.firstElementChild; child; child = child.nextElementSibling) stack.push(child);
+  }
+  // Les enfants avant leur parent ; un compte sert une fois, puis s'oublie.
+  const counts = new Map<Element, LinkCounts>();
+  for (let i = order.length - 1; i >= 0; i--) {
+    const el = order[i];
+    const invisible = INVISIBLE.has(el.tagName.toLowerCase());
+    const mine: LinkCounts = { text: 0, links: 0, paidLinks: 0, paidImageLinks: 0, image: false };
+    for (let node = el.firstChild; node; node = node.nextSibling) {
+      if (node.nodeType === 3) {
+        if (!invisible) mine.text += (node.textContent || '').replace(/\s+/g, ' ').length;
+        continue;
+      }
+      const below = node.nodeType === 1 ? counts.get(node as Element) : undefined;
+      if (!below) continue;
+      const child = node as Element;
+      counts.delete(child);
+      const tag = child.tagName.toLowerCase();
+      if (!invisible) mine.text += below.text;
+      mine.links += below.links;
+      mine.paidLinks += below.paidLinks;
+      mine.paidImageLinks += below.paidImageLinks;
+      mine.image ||= below.image || tag === 'img';
+      if (tag === 'a' && child.hasAttribute('href')) {
+        mine.links++;
+        if (PAID_LINK.test(child.getAttribute('href') || '')) {
+          mine.paidLinks++;
+          if (below.image) mine.paidImageLinks++;
+        }
+      }
+    }
+    counts.set(el, mine);
+    if (candidates.has(el)) found.set(el, mine);
+  }
+  return found;
 }
 
 /** Le billet lui-même ou le conteneur principal de la page. */
@@ -898,13 +1035,17 @@ function isPostContainer(tag: string, role: string): boolean {
  * Le texte du billet n'est PAS relu à chaque bloc (B-02, quatrième round) :
  * 4 000 formulaires au pied d'un billet de 1 Mo coûtaient 11,4 s, chacun
  * relisant le billet entier. `postLength` le mesure une fois ; celui du bloc
- * s'arrête à la moitié du billet, seule question posée.
+ * s'arrête à la moitié du billet, seule question posée — ou vient de
+ * `length`, déjà connu pour un encart payant (RX-04).
+ *
+ * Même garde pour l'encart payant : un court billet dont la seule image mène
+ * à un lien payant n'est pas une réclame.
  */
-function carriesMostOfItsPost(el: Element, postLength: PostLength): boolean {
+function carriesMostOfItsPost(el: Element, postLength: PostLength, length?: number): boolean {
   const post = el.parentElement?.closest('article, main, [role="main"]');
   if (!post) return false;
   const half = postLength(post) * MAIN_CONTAINER_MIN_SHARE;
-  return visibleTextLength(el, half) >= half;
+  return (length ?? visibleTextLength(el, half)) >= half;
 }
 
 /** Une `<figcaption>` voisine : la légende qui dit déjà ce que dit le repli. */
@@ -959,11 +1100,7 @@ export function stripBoilerplate(root: Element): void {
   };
   // Seuls les ancêtres d'un lien payant peuvent être un encart publicitaire
   // (A4-03) : sans cela, chaque élément relirait tous ses liens.
-  const paid = new Set<Node>();
-  for (const link of Array.from(root.querySelectorAll('a[href*="utm_medium"]')) as Element[]) {
-    if (!PAID_LINK.test(link.getAttribute('href') || '')) continue;
-    for (let up: Node | null = link; up && up !== root && !paid.has(up); up = up.parentNode) paid.add(up);
-  }
+  const paid = paidLinkAncestors(root);
   const stack: Array<[Element, boolean]> = Array.from(root.children, (child) => [child, false]);
   while (stack.length) {
     const [el, insideArticle] = stack.pop()!;
