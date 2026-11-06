@@ -240,8 +240,14 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   const extractForced = !!selectedArticle && extractForcedFor === selectedArticle.id;
   // L'extrait est-il ce que le volet montre ? Le bouton et la palette disent
   // ce qui est réellement affiché, pas seulement qu'un extrait existe.
-  const showingExtract = !!extractedContent
-    && extractShown(selectedArticle?.content, extractedContent.content, extractForced);
+  // Mémorisé : la décision lit tout le texte (5,5 ms sur 170 Ko), et chaque
+  // pas de la barre de progression de lecture re-rend le volet.
+  const rssContent = selectedArticle?.content;
+  const extractedHtml = extractedContent?.content;
+  const showingExtract = useMemo(
+    () => extractedHtml !== undefined && extractShown(rssContent, extractedHtml, extractForced),
+    [rssContent, extractedHtml, extractForced],
+  );
 
   // Résumé IA — un état par article affiché ; remis à zéro quand il change.
   const aiOn = useAiStore(aiEnabled);

@@ -3024,6 +3024,25 @@ libellés disaient « plein écran » jusqu'en 1.8.0) au double-clic. Contenu bi
   jugement sous **20 mots distincts** (`FEED_MIN_WORDS`) : trop peu pour
   conclure. Les adresses sont retirées parce que le flux d'un agrégateur
   (Hacker News : « Article URL », « Comments URL ») n'est fait que de liens.
+  **Écritures sans espaces** (chinois, japonais, thaï, lao, khmer, birman ;
+  relecture du troisième round) : un « mot » y était une proposition entière,
+  et deux rédactions du même article n'en partageaient aucune — la page
+  légitime n'était pas montrée. Elles se comparent sur des **paires de
+  caractères voisins** (bigrammes), au même seuil. **Autre langue** : un
+  extrait d'une autre écriture, ou d'une autre langue reconnue (mots-outils
+  de fr, en, de, es, it, nl, pt, pl, sur les 4 000 premiers caractères), sous
+  le seuil mais au moins **deux fois plus long** que le flux
+  (`FOREIGN_MIN_LENGTH`) est montré : la garde vise l'habillage d'un même
+  site, pas une traduction ; un habillage d'une autre langue à peine plus
+  long reste écarté. **Entités** : toutes les entités nommées sont décodées
+  (`&oslash;`, `&szlig;`, `&lstrok;`, grec, cyrillique par table ; les autres
+  par le navigateur) — elles devenaient des blancs et coupaient leur mot.
+  **La réponse est gardée** pour les huit derniers couples flux / extrait :
+  le volet pose la question plusieurs fois par rendu, et la barre de
+  progression re-rend le volet à chaque pas (5,5 ms par mesure sur 170 Ko) ;
+  `showingExtract` est en outre mémorisé dans le volet
+  (`ReadingPane.extractMemo.test.tsx`). Remesuré sur les 116 pages
+  (2026-11-06) : aucune ne change.
   Mesuré (2026-11-06) sur 116 pages réelles dont le flux était connu : le
   billet en cause 13 %, une page d'abonné LWN 16 % ; un vrai extrait 54 % et
   plus, sauf Ars Technica, 24 à 39 % — l'extraction y perdait alors le

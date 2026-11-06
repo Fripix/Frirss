@@ -84,11 +84,26 @@ function visibleText(html: string): string {
  * l'habillage de la page, même plus long que le flux.
  */
 export function extractWorthShowing(rssHtml?: string | null, extractedHtml?: string | null): boolean {
-  if (!hasRenderableContent(extractedHtml)) return false;
-  if (!rssHtml) return true;
-  if (visibleText(extractedHtml!).length * 2 < visibleText(rssHtml).length) return false;
-  return extractCarriesFeed(rssHtml, extractedHtml!);
+  if (!rssHtml || !extractedHtml) return hasRenderableContent(extractedHtml);
+  const known = answers.find((a) => a.rss === rssHtml && a.extract === extractedHtml);
+  if (known) return known.worth;
+  const feedText = visibleText(rssHtml);
+  const extractText = visibleText(extractedHtml);
+  const renderable = extractText.length > 0 || VISUAL_TAG.test(extractedHtml);
+  const worth = renderable && extractText.length * 2 >= feedText.length && extractCarriesFeed(feedText, extractText);
+  answers.unshift({ rss: rssHtml, extract: extractedHtml, worth });
+  answers.length = Math.min(answers.length, REMEMBERED_ANSWERS);
+  return worth;
 }
+
+// La même question revient plusieurs fois par rendu du volet (squelette,
+// durée de lecture, avis, corps affiché), et chaque pas de la barre de
+// progression de lecture re-rend le volet : la mesure lit tout le texte,
+// 5,5 ms sur un article de 170 Ko (relecture du troisième round). Les
+// dernières réponses sont gardées — l'article ouvert, ses voisins du
+// balayage. Comparer deux fois la même chaîne ne coûte rien.
+const REMEMBERED_ANSWERS = 8;
+const answers: Array<{ rss: string; extract: string; worth: boolean }> = [];
 
 // ── L'extrait contient-il le texte du flux ? (A2) ────────────────────
 // Sur un billet très court (Simon Willison, ~160 caractères), aucune passe de
@@ -118,41 +133,217 @@ export const FEED_MIN_WORDS = 20;
 /** Part minimale des mots du flux que l'extrait doit contenir. */
 export const FEED_MIN_SHARED = 0.2;
 
-/** Accents des entités nommées (`&eacute;`) : lettre + diacritique combinant. */
+// Écritures sans espaces (relecture du troisième round). En chinois, en
+// japonais, en thaï, les blancs ne séparent pas les mots : un « mot » était
+// une proposition entière, et deux rédactions du même article — le chapeau
+// du flux, le corps de la page — n'en partageaient aucune. Ces écritures se
+// comparent sur des PAIRES de caractères voisins (bigrammes) : « 交通政策 »
+// donne « 交通 », « 通政 », « 政策 », que l'autre rédaction partage même
+// quand la phrase change. Le seuil reste le même.
+//
+// Une autre langue. Un flux anglais dont la page est en français (ou en
+// japonais) n'en partage que des noms propres et des nombres : sous le
+// seuil, la garde masquait une vraie page. Elle vise l'habillage d'un MÊME
+// site ; un extrait d'une autre écriture, ou d'une autre langue reconnue, ET
+// nettement plus long que le flux (`FOREIGN_MIN_LENGTH`) est montré. Le
+// recouvrement n'est pas exigé nul : noms propres et nombres passent d'une
+// langue à l'autre, il ne l'est jamais tout à fait.
+
+/** Un extrait d'une autre langue doit faire au moins ce multiple du flux pour passer outre. */
+export const FOREIGN_MIN_LENGTH = 2;
+
+/** Écritures sans espaces entre les mots : comparées par paires de caractères. */
+const UNSPACED_CLASS = String.raw`\p{scx=Han}\p{scx=Hiragana}\p{scx=Katakana}\p{scx=Thai}\p{scx=Lao}\p{scx=Khmer}\p{scx=Myanmar}`;
+const UNSPACED = new RegExp(`[${UNSPACED_CLASS}]`, 'u');
+const UNSPACED_RUNS = new RegExp(`[${UNSPACED_CLASS}]+|[^${UNSPACED_CLASS}]+`, 'gu');
+
+/** Accents des entités nommées (`&eacute;`, `&zdot;`) : lettre + diacritique combinant. */
 const COMBINING: Record<string, string> = {
-  grave: '̀', acute: '́', circ: '̂', tilde: '̃', uml: '̈', ring: '̊', cedil: '̧', caron: '̌',
+  grave: '̀', acute: '́', circ: '̂', tilde: '̃', macr: '̄', breve: '̆',
+  dot: '̇', uml: '̈', ring: '̊', dblac: '̋', caron: '̌', cedil: '̧', ogon: '̨',
 };
+const ACCENTED = /^([a-z])(grave|acute|circ|tilde|macr|breve|dot|uml|ring|dblac|caron|cedil|ogon)$/i;
+
+/**
+ * Les entités nommées qui écrivent une lettre ou un chiffre sans se
+ * décomposer en lettre + accent : celles de HTML 4, les lettres latines
+ * barrées et ligatures de HTML 5, le cyrillique de HTML 5.
+ */
+const LETTER_ENTITIES: Record<string, string> = Object.fromEntries(
+  ('ordf:ª sup1:¹ sup2:² sup3:³ micro:µ ordm:º frac14:¼ frac12:½ frac34:¾ AElig:Æ aelig:æ ETH:Ð eth:ð '
+  + 'Oslash:Ø oslash:ø THORN:Þ thorn:þ szlig:ß OElig:Œ oelig:œ fnof:ƒ circ:ˆ sigmaf:ς thetasym:ϑ upsih:ϒ '
+  + 'piv:ϖ image:ℑ real:ℜ alefsym:ℵ odot:⊙ sdot:⋅ '
+  + 'Lstrok:Ł lstrok:ł Dstrok:Đ dstrok:đ Hstrok:Ħ hstrok:ħ Tstrok:Ŧ tstrok:ŧ ENG:Ŋ eng:ŋ IJlig:Ĳ ijlig:ĳ '
+  + 'kgreen:ĸ imath:ı inodot:ı jmath:ȷ napos:ŉ Lmidot:Ŀ lmidot:ŀ fflig:ﬀ filig:ﬁ fllig:ﬂ ffilig:ﬃ ffllig:ﬄ')
+    .split(' ').map((pair) => pair.split(':') as [string, string]),
+);
+// Grec : Alpha…Omega, alpha…omega (le rang vide est celui du sigma final, à part).
+'Alpha Beta Gamma Delta Epsilon Zeta Eta Theta Iota Kappa Lambda Mu Nu Xi Omicron Pi Rho - Sigma Tau Upsilon Phi Chi Psi Omega'
+  .split(' ').forEach((name, i) => {
+    if (name === '-') return;
+    LETTER_ENTITIES[name] = String.fromCodePoint(0x391 + i);
+    LETTER_ENTITIES[name.toLowerCase()] = String.fromCodePoint(0x3b1 + i);
+  });
+// Cyrillique : А…Я, а…я, puis Ё, Ђ…Џ (ukrainien, biélorusse, serbe, macédonien).
+'A B V G D IE ZH Z I J K L M N O P R S T U F KH TS CH SH SHCH HARD Y SOFT E YU YA'
+  .split(' ').forEach((stem, i) => {
+    LETTER_ENTITIES[`${stem}cy`] = String.fromCodePoint(0x410 + i);
+    LETTER_ENTITIES[`${stem.toLowerCase()}cy`] = String.fromCodePoint(0x430 + i);
+  });
+'IOcy DJcy GJcy Jukcy DScy Iukcy YIcy Jsercy LJcy NJcy TSHcy KJcy - Ubrcy DZcy'
+  .split(' ').forEach((name, i) => {
+    if (name === '-') return;
+    LETTER_ENTITIES[name] = String.fromCodePoint(0x401 + i);
+    LETTER_ENTITIES[name.toLowerCase()] = String.fromCodePoint(0x451 + i);
+  });
 
 function codePoint(n: number): string {
   return Number.isInteger(n) && n > 0 && n <= 0x10ffff ? String.fromCodePoint(n) : ' ';
 }
 
 /**
- * Décode ce qu'il faut d'entités pour comparer des mots : numériques, lettres
- * accentuées nommées. Les autres (`&rsquo;`, `&amp;`…) deviennent des blancs —
- * de la ponctuation, qui sépare les mots des deux côtés de la même façon.
+ * Une entité nommée que la table ne connaît pas (symboles mathématiques,
+ * variantes rares) : dans le navigateur, il la décode lui-même, une fois par
+ * nom. Ailleurs (tests en Node), un blanc. Le nom est vérifié avant d'entrer
+ * dans un `<textarea>` détaché, dont le contenu n'est jamais que du texte.
+ */
+const decodedNames = new Map<string, string>();
+let entityBox: HTMLTextAreaElement | null = null;
+function namedEntity(name: string): string {
+  const letter = LETTER_ENTITIES[name];
+  if (letter) return letter;
+  const accented = ACCENTED.exec(name);
+  if (accented) return (accented[1] + COMBINING[accented[2].toLowerCase()]).normalize('NFC');
+  const cached = decodedNames.get(name);
+  if (cached !== undefined) return cached;
+  let decoded = ' ';
+  if (typeof document !== 'undefined' && name.length <= 32) {
+    entityBox ??= document.createElement('textarea');
+    entityBox.innerHTML = `&${name};`;
+    if (entityBox.value !== `&${name};`) decoded = entityBox.value;
+  }
+  decodedNames.set(name, decoded);
+  return decoded;
+}
+
+/**
+ * Décode les entités pour comparer des mots : numériques et nommées. Une
+ * entité de ponctuation (`&rsquo;`, `&amp;`) écrit un séparateur, des deux
+ * côtés pareil. Avant la relecture du troisième round, seules les lettres
+ * accentuées nommées étaient décodées : `&oslash;`, `&szlig;`, `&lstrok;`
+ * devenaient des blancs et coupaient leur mot, que l'extrait écrivait d'un
+ * seul tenant.
  */
 function decodeEntities(text: string): string {
   return text
     .replace(/&#(\d+);/g, (_, n: string) => codePoint(Number(n)))
     .replace(/&#x([0-9a-f]+);/gi, (_, h: string) => codePoint(parseInt(h, 16)))
-    .replace(/&([a-z])(grave|acute|circ|tilde|uml|ring|cedil|caron);/gi, (_, letter: string, accent: string) => (letter + COMBINING[accent.toLowerCase()]).normalize('NFC'))
-    .replace(/&[a-z][a-z0-9]*;/gi, ' ');
+    .replace(/&([a-z][a-z0-9]*);/gi, (_, name: string) => namedEntity(name));
 }
 
-/** Les mots distincts d'un HTML, en minuscules, adresses retirées. */
-function wordsOf(html: string): Set<string> {
-  const text = visibleText(html).replace(/\b(?:https?:\/\/|www\.)\S+/gi, ' ').toLowerCase();
-  return new Set(text.split(/[^\p{L}\p{N}]+/u).filter((word) => word.length >= 3));
+/**
+ * Les unités comparables d'un texte, en minuscules, adresses retirées : ses
+ * mots distincts de trois caractères au moins et, dans une écriture sans
+ * espaces, ses paires de caractères voisins.
+ */
+function wordsOf(text: string): Set<string> {
+  const clean = text.replace(/\b(?:https?:\/\/|www\.)\S+/gi, ' ').normalize('NFC').toLowerCase();
+  const units = new Set<string>();
+  const unspaced = UNSPACED.test(clean);
+  for (const token of clean.split(/[^\p{L}\p{M}\p{N}]+/u)) {
+    if (!unspaced || !UNSPACED.test(token)) {
+      if (token.length >= 3) units.add(token);
+      continue;
+    }
+    for (const run of token.match(UNSPACED_RUNS) ?? []) {
+      if (!UNSPACED.test(run)) {
+        if (run.length >= 3) units.add(run);
+        continue;
+      }
+      const chars = Array.from(run);
+      for (let i = 1; i < chars.length; i++) units.add(chars[i - 1] + chars[i]);
+    }
+  }
+  return units;
 }
 
-function extractCarriesFeed(rssHtml: string, extractedHtml: string): boolean {
-  const feed = wordsOf(rssHtml);
+// ── Écriture et langue d'un texte ────────────────────────────────────
+// Assez pour dire « autre langue », pas pour la nommer à coup sûr :
+// l'écriture dominante, puis, en alphabet latin, les mots-outils des langues
+// de l'interface. Sur les premiers milliers de caractères : au-delà, rien ne
+// change, et le corps d'une page peut peser 170 Ko.
+
+const LANGUAGE_SAMPLE = 4000;
+
+const SCRIPTS: Array<[string, RegExp]> = [
+  ['latin', /\p{sc=Latin}/gu], ['cyrillic', /\p{sc=Cyrillic}/gu], ['greek', /\p{sc=Greek}/gu],
+  ['arabic', /\p{sc=Arabic}/gu], ['hebrew', /\p{sc=Hebrew}/gu], ['hangul', /\p{sc=Hangul}/gu],
+  ['thai', /\p{sc=Thai}/gu], ['devanagari', /\p{sc=Devanagari}/gu],
+  ['kana', /[\p{sc=Hiragana}\p{sc=Katakana}]/gu], ['han', /\p{sc=Han}/gu],
+];
+
+/** L'écriture dominante d'un texte ; le japonais (kanji et kana) à part du chinois. */
+function scriptOf(sample: string): string | null {
+  const count: Record<string, number> = {};
+  for (const [name, re] of SCRIPTS) count[name] = sample.match(re)?.length ?? 0;
+  if (count.kana > (count.kana + count.han) * 0.1) {
+    count.japanese = count.kana + count.han;
+    count.kana = 0;
+    count.han = 0;
+  }
+  let best: string | null = null;
+  for (const [name, n] of Object.entries(count)) if (n > 0 && (!best || n > count[best])) best = name;
+  return best;
+}
+
+const STOPWORDS: Record<string, string> = {
+  en: 'the and of to is that with for this are was from have which were their been has would will they by',
+  fr: 'le la les des et est une du qui dans pour pas sur avec au aux cette sont été ses nous mais ou plus',
+  de: 'der die und das ist nicht mit ein eine auf den dem sich auch für von zu wird werden im sie',
+  es: 'el la los las y del es por con una para se al como más fue su sus entre pero este esta',
+  it: 'il la gli della che è per non sono alla nel di delle dei anche questo ha più lo una',
+  nl: 'het een van en is niet op dat voor met zijn ook wordt aan er bij naar deze worden om',
+  pt: 'os as do da dos das não com uma em ao mais foi são pelo pela também seu sua mas',
+  pl: 'i w z na się nie jest to że do o jak po przez dla od ale czy są już',
+};
+const STOPWORD_LANGS = new Map<string, string[]>();
+for (const [lang, words] of Object.entries(STOPWORDS)) {
+  for (const word of words.split(' ')) STOPWORD_LANGS.set(word, [...(STOPWORD_LANGS.get(word) ?? []), lang]);
+}
+
+/** La langue d'un texte en alphabet latin, si ses mots-outils la désignent nettement. */
+function latinLanguageOf(sample: string): string | null {
+  const count: Record<string, number> = {};
+  for (const word of sample.toLowerCase().split(/[^\p{L}]+/u)) {
+    for (const lang of STOPWORD_LANGS.get(word) ?? []) count[lang] = (count[lang] ?? 0) + 1;
+  }
+  const [first, second] = Object.entries(count).sort((a, b) => b[1] - a[1]);
+  if (!first || first[1] < 5 || (second && first[1] < second[1] * 1.5)) return null;
+  return first[0];
+}
+
+/** Les deux textes sont-ils d'écritures, ou de langues reconnues, différentes ? */
+function otherLanguage(feedText: string, extractText: string): boolean {
+  const a = feedText.slice(0, LANGUAGE_SAMPLE);
+  const b = extractText.slice(0, LANGUAGE_SAMPLE);
+  const scriptA = scriptOf(a);
+  const scriptB = scriptOf(b);
+  if (!scriptA || !scriptB) return false;
+  if (scriptA !== scriptB) return true;
+  if (scriptA !== 'latin') return false;
+  const langA = latinLanguageOf(a);
+  const langB = latinLanguageOf(b);
+  return !!langA && !!langB && langA !== langB;
+}
+
+function extractCarriesFeed(feedText: string, extractText: string): boolean {
+  const feed = wordsOf(feedText);
   if (feed.size < FEED_MIN_WORDS) return true;
-  const extract = wordsOf(extractedHtml);
+  const extract = wordsOf(extractText);
   let shared = 0;
   for (const word of feed) if (extract.has(word)) shared++;
-  return shared >= feed.size * FEED_MIN_SHARED;
+  if (shared >= feed.size * FEED_MIN_SHARED) return true;
+  return extractText.length >= feedText.length * FOREIGN_MIN_LENGTH && otherLanguage(feedText, extractText);
 }
 
 /**
