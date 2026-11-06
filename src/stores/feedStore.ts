@@ -1944,10 +1944,16 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       // encore « fait » : il compte dans ce qui reste, donc l'estimation de
       // durée et la barre restent justes pendant la reprise.
       let busy: Array<{ article: Article; seen: Set<string>; fallback: boolean }> = [];
+      // Deux notions à ne pas confondre : `interrupted` dit que la préparation
+      // n'a pas tout vu (elle ne retire alors aucune image), `halted` qu'elle
+      // a été ARRÊTÉE ici (coupure, changement de serveur, « Annuler »). Un
+      // flux en échec à la lecture des listes pose le premier, pas le second :
+      // il empêchait aussi la reprise des refusés pour occupation.
+      let halted = false;
       for (const a of ordered) {
-        if (offline()) { interrupted = true; break; }
-        if (scopeLeft()) { interrupted = true; break; }
-        if (prepCancelRequested) { interrupted = true; stoppedOnCancel = true; break; }
+        if (offline()) { interrupted = halted = true; break; }
+        if (scopeLeft()) { interrupted = halted = true; break; }
+        if (prepCancelRequested) { interrupted = halted = true; stoppedOnCancel = true; break; }
 
         let extracted: string | null = peekExtract(a.id)?.content ?? null;
         let refusedBusy = false;
@@ -2000,7 +2006,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       // changement de serveur interrompent l'attente dans le quart de seconde
       // (`waitUnless`) ; les images de l'extrait obtenu entrent dans le même
       // budget, sans compter deux fois celles déjà préparées pour l'article.
-      for (let round = 0; round < PREP_BUSY_RETRY_DELAYS_MS.length && busy.length && !interrupted; round++) {
+      for (let round = 0; round < PREP_BUSY_RETRY_DELAYS_MS.length && busy.length && !halted; round++) {
         // Pendant l'attente, l'onglet dit qu'il attend le serveur (idée du
         // troisième round 1.9.0) : jusqu'à 15 s sans un mot, la préparation
         // semblait figée. Retiré dès la reprise, au premier `publish()`.
@@ -2008,16 +2014,16 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         const waited = await waitUnless(PREP_BUSY_RETRY_DELAYS_MS[round], () => prepCancelRequested || scopeLeft() || offline());
         publish();
         if (!waited) {
-          interrupted = true;
+          interrupted = halted = true;
           if (prepCancelRequested) stoppedOnCancel = true;
           break;
         }
         const lastRound = round === PREP_BUSY_RETRY_DELAYS_MS.length - 1;
         const again: typeof busy = [];
         for (const entry of busy) {
-          if (offline()) { interrupted = true; break; }
-          if (scopeLeft()) { interrupted = true; break; }
-          if (prepCancelRequested) { interrupted = true; stoppedOnCancel = true; break; }
+          if (offline()) { interrupted = halted = true; break; }
+          if (scopeLeft()) { interrupted = halted = true; break; }
+          if (prepCancelRequested) { interrupted = halted = true; stoppedOnCancel = true; break; }
           const { article: a, seen } = entry;
           let obtained = entry.fallback;
           if (!deviceFull && a.url) {

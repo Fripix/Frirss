@@ -270,6 +270,25 @@ describe('préparation : articles refusés pour occupation, redemandés en fin d
     expect(pruneImages).not.toHaveBeenCalled();
   });
 
+  // Un flux en échec pendant la lecture des listes marque la préparation
+  // « incomplète » (pas de retrait final des images) : ce drapeau empêchait
+  // aussi toute reprise, et les refusés restaient sans article complet.
+  it('un flux en échec à la lecture des listes n’empêche pas la reprise des refusés', async () => {
+    vi.mocked(getStreamContents).mockImplementation(async (feed: string) => {
+      if (feed === 'feed/3') throw new Error('500');
+      return { items: [item(feed), item(feed)], continuation: null } as never;
+    });
+    const calls = busyFirst(1);
+    const run = useFeedStore.getState().prepareOffline();
+    await vi.advanceTimersByTimeAsync(PREP_BUSY_RETRY_DELAYS_MS[0] + 1_000);
+    await run;
+    expect(calls).toHaveLength(5);
+    expect(calls[4].url).toBe(calls[0].url);
+    const prep = useFeedStore.getState().offlinePrep!;
+    expect(prep.done).toBe(4);
+    expect(prep.missingFull).toBe(0);
+  });
+
   it('un autre échec passager n’est pas redemandé dans le passage', async () => {
     let first: string | null = null;
     extract.fn.mockImplementation(async (url: string) => {

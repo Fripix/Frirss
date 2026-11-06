@@ -6152,7 +6152,13 @@ images consultés restent lisibles sans réseau.
   touche pas son bout et la durée restante le compte dans ce qui reste.
   « Annuler », une coupure ou un changement de serveur interrompent
   l'attente dans le quart de seconde (`waitUnless`) — une annulation pendant
-  l'attente se dit annulée, sans retrait final. Les images de l'extrait
+  l'attente se dit annulée, sans retrait final. **Un flux en échec à la
+  lecture des listes n'empêche pas la reprise** (troisième round 1.9.0) :
+  deux drapeaux distincts, `interrupted` (la préparation n'a pas tout vu,
+  donc aucun retrait final d'images) et `halted` (elle a été arrêtée :
+  coupure, changement de serveur, « Annuler »). Seul le second coupe la
+  reprise ; le premier la coupait aussi, et un seul flux en panne laissait
+  tous les refusés sans article complet. Les images de l'extrait
   obtenu entrent dans le même budget — global, et par article pour les deux
   passages réunis —, sans compter deux fois celles déjà préparées pour
   l'article au premier passage ; un appareil plein ne
