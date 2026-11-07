@@ -105,7 +105,16 @@ la release publiée.
   que la page désigne pour son article, sans ramener la signature de l'auteur,
   les commentaires ni ce que le site marque comme hors extrait. Mesuré sur
   490 pages réelles contre le contenu de leur flux : le texte manquant passe
-  de 791 phrases à 22, qui ne sont presque toutes pas de l'article. Un bloc de code
+  de 791 phrases à 22, qui ne sont presque toutes pas de l'article.
+- **Les médias de l'article aussi.** Les images chargées à la demande dans une
+  `<picture>` (Clubic), les vidéos YouTube derrière un voile de consentement
+  (Numerama) ou chargées au clic (Journal du Geek), les vidéos et citations du
+  blog de Google, les questions d'une FAQ et l'image d'en-tête dans son lien
+  d'agrandissement (Ars Technica) sont gardées ; l'en-tête du blog de Google
+  n'est plus flou. La photo du flux n'est plus affichée une seconde fois au-
+  dessus d'un article qui s'ouvre déjà sur elle, à un autre recadrage. Sur 401
+  pages, les médias d'article manquants passent de 937 (1.8.0) à 256, surtout
+  des vignettes et avatars. Un bloc de code
   n'est plus jamais retiré, et le texte d'un bouton placé dans du code est
   gardé (les exemples de code du blog de Node.js sortaient troués). Le
   sommaire d'un article reste. Une publicité peut encore passer ; une phrase
