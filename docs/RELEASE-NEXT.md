@@ -87,10 +87,9 @@ la release publiée.
   dernière section). Les gros avis du CERT-FR gardent leurs sections
   (Risques, Systèmes affectés, Résumé, Solutions) au lieu de se réduire à la
   liste de leurs références. Les voiles de consentement des vidéos et tweets
-  intégrés, les encarts payants ou sponsorisés (BleepingComputer, Numerama,
-  Frandroid), les boîtes « dernières actualités » qui citent l'article
-  lui-même, les boutons d'export (« Json » du CERT-FR) et les liens « retour
-  en haut » ne s'invitent plus dans l'article. Un extrait bien plus court que le contenu du flux, ou qui
+  intégrés (les tweets et vidéos qu'ils masquent restent), les encarts payants
+  (BleepingComputer) et les liens « retour en haut » ne s'invitent plus dans
+  l'article. Un extrait bien plus court que le contenu du flux, ou qui
   n'en contient presque rien, n'est pas montré automatiquement (« Article
   complet » demandé à la main le montre quand même, et le résumé IA porte sur
   le texte affiché). Un échec d'extraction automatique s'annonce discrètement
