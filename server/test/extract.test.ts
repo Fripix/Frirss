@@ -208,6 +208,23 @@ describe('extractArticle', () => {
       expect(out!.title, name).toBe('T');
     }
   });
+
+  // RZ-06 : les nœuds à déplacer étaient passés en arguments (`push(...)`,
+  // `prepend(...)`, `append(...)`). Quelques centaines de milliers de
+  // commentaires après un `<head>` jamais fermé (1,4 Mo) dépassaient la pile :
+  // « Maximum call stack size exceeded », un 502 et le repli client.
+  it('lit un `<head>` jamais fermé suivi de centaines de milliers de nœuds, sans dépasser la pile', () => {
+    const many = '<!---->'.repeat(200_000);
+    const pages = {
+      spilledHead: `<html><head><title>T</title><div>${story}</div>${many}`,
+      afterBody: `<html><head><title>T</title></head><body><div>${story}</div></body>${many}</html>`,
+    };
+    for (const [name, html] of Object.entries(pages)) {
+      let out: ReturnType<typeof extractArticle> = null;
+      expect(() => { out = extractArticle('https://example.com/a', html); }, name).not.toThrow();
+      expect(out!.content, name).toContain('Une phrase d’article');
+    }
+  }, 30_000);
 });
 
 // ── A1 (campagne 1.9.0, troisième round) : images paresseuses ────────

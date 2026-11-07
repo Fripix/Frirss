@@ -8448,7 +8448,10 @@ qu'elle rend (voir *Extraction du contenu complet*).
   gardé) ; ce qui suit `<body>` dans `<html>`, puis ce qui suit `</html>`,
   à la fin. Un second `<html>`, `<head>` ou `<body>` égaré disparaît, son
   contenu reste à sa place. Ces pages s'extraient donc côté serveur, comme
-  le repli les lisait. Une page ordinaire — un seul élément racine,
+  le repli les lisait. ⚠️ Les nœuds se déplacent **un par un**, jamais
+  passés en arguments (`prepend(...nœuds)`) : 200 000 commentaires `<!---->`
+  après un `<head>` jamais fermé (1,4 Mo) dépassaient la pile — « Maximum
+  call stack size exceeded », un 502 et le repli (RZ-06). Une page ordinaire — un seul élément racine,
   `<html>`, qui ne porte que `<head>` et `<body>` (et des blancs ou
   commentaires), rien ne débordant de `<head>` — n'est pas touchée. Mesuré
   (2026-11-07) : 41 des 275 pages du corpus passent par là (un `<script>`

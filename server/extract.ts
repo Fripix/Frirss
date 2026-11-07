@@ -237,7 +237,9 @@ function wholeDocument(doc: ParsedDocument): boolean {
   }
   // Un `<head>` jamais fermé garde le contenu chez linkedom (RX-01) ; le
   // navigateur le ferme au premier élément qui n'y a pas sa place.
-  opening.push(...spilledFromHead(head));
+  // Jamais en arguments (`push(...)`, `prepend(...)`, `append(...)`) :
+  // quelques centaines de milliers de nœuds dépassent la pile (RZ-06).
+  for (const node of spilledFromHead(head)) opening.push(node);
   // Dans `<html>`, hors de `<head>` et `<body>` : ce qui précède `<body>` ouvre
   // la page, ce qui le suit la ferme ; sans `<body>`, tout l'ouvre.
   let body = childOf(html, 'BODY');
@@ -248,7 +250,7 @@ function wholeDocument(doc: ParsedDocument): boolean {
     if (node === body) pastBody = true;
     else (pastBody ? afterBody : opening).push(node);
   }
-  closing.unshift(...afterBody);
+  const tail = afterBody.concat(closing);
   if (!body) {
     body = make('body');
     html.append(body);
@@ -260,8 +262,9 @@ function wholeDocument(doc: ParsedDocument): boolean {
     if (!content.length && headOnly(node)) head.append(node);
     else content.push(node);
   }
-  body.prepend(...unwrapSections(content));
-  body.append(...unwrapSections(closing));
+  const first = body.firstChild;
+  for (const node of unwrapSections(content)) body.insertBefore(node, first);
+  for (const node of unwrapSections(tail)) body.append(node);
   return true;
 }
 
