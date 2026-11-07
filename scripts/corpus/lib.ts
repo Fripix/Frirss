@@ -339,6 +339,19 @@ export function isTracked(sentence: string): boolean {
   return n >= (isNoSpaceScript(sentence) ? 8 : 25);
 }
 
+/**
+ * Fragment court surveillé : de 12 caractères jusqu'au seuil d'une phrase,
+ * hors écritures sans espaces. Un mot isolé (« Partager », « Lire aussi »)
+ * n'en est pas un ; une ligne de liste ou un intertitre court, si.
+ */
+export function isFragment(sentence: string): boolean {
+  if (isTracked(sentence) || isNoSpaceScript(sentence)) return false;
+  return [...normalizeText(sentence)].length >= 12;
+}
+
+/** Au-delà de ces caractères de fragments perdus (non acceptés), la page échoue. */
+export const LOST_FRAGMENTS_LIMIT = 60;
+
 function occurrences(haystack: string, needle: string): number {
   let count = 0;
   for (let i = haystack.indexOf(needle); i !== -1; i = haystack.indexOf(needle, i + needle.length)) count++;
@@ -430,6 +443,8 @@ export interface PageDiff {
   newNull: boolean;
   /** Phrases perdues, non acceptées. */
   lost: string[];
+  /** Fragments courts perdus, non acceptés (voir `isFragment`). */
+  lostFragments: string[];
   accepted: { text: string; reason: string }[];
   gained: string[];
   /** Phrases présentes plus souvent en tête qu'en base. */
@@ -459,6 +474,7 @@ export function compareExtracts(
   const headNorm = ` ${normalizeText(headText)} `;
 
   const lost: string[] = [];
+  const lostFragments: string[] = [];
   const acceptedList: PageDiff['accepted'] = [];
   const duplicated: string[] = [];
   const gained: string[] = [];
@@ -466,6 +482,17 @@ export function compareExtracts(
   if (base && head) {
     const seen = new Set<string>();
     for (const s of splitSentences(base.content)) {
+      if (isFragment(s)) {
+        const n = normalizeText(s);
+        if (seen.has(n)) continue;
+        seen.add(n);
+        if (occurrences(headNorm, ` ${n} `) === 0) {
+          const rule = accepted.match(s, host);
+          if (rule) acceptedList.push({ text: s, reason: rule.reason });
+          else lostFragments.push(s);
+        }
+        continue;
+      }
       if (!isTracked(s)) continue;
       const n = normalizeText(s);
       if (seen.has(n)) continue;
@@ -512,6 +539,7 @@ export function compareExtracts(
   const changed =
     (!base) !== (!head) ||
     lost.length > 0 ||
+    lostFragments.length > 0 ||
     acceptedList.length > 0 ||
     gained.length > 0 ||
     duplicated.length > 0 ||
@@ -525,6 +553,7 @@ export function compareExtracts(
     headNull: !head,
     newNull,
     lost,
+    lostFragments,
     accepted: acceptedList,
     gained,
     duplicated,
@@ -535,8 +564,12 @@ export function compareExtracts(
     lengthDrop,
     titleChanged,
     changed,
-    failing: newNull || lost.length > 0 || lostImages.length > 0,
+    failing: newNull || lost.length > 0 || lostImages.length > 0 || fragmentsWeigh(lostFragments),
   };
+}
+
+function fragmentsWeigh(fragments: string[]): boolean {
+  return fragments.reduce((sum, f) => sum + [...normalizeText(f)].length, 0) >= LOST_FRAGMENTS_LIMIT;
 }
 
 // ── Arguments de ligne de commande ─────────────────────────────────────

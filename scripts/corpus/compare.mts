@@ -235,6 +235,7 @@ function printPage(p: PageReport): void {
     if (d.newNull) lines.push('   NULL NOUVEAU : la base extrayait, la tête rend null');
     if (d.baseNull && !d.headNull) lines.push('   la base rendait null, la tête extrait');
     for (const s of d.lost) lines.push(`   PERTE   « ${clip(s)} »`);
+    if (d.lostFragments.length) lines.push(`   FRAGMENTS « ${clip(d.lostFragments.join(' · '))} »`);
     for (const s of d.lostImages) lines.push(`   IMAGE   ${clip(s)}`);
     const tally = [
       `perdues ${d.lost.length}`,
@@ -329,6 +330,7 @@ async function main(): Promise<number> {
       changed: shown.length,
       failing: reports.filter(isFailing).length,
       lostSentences: sum(reports, (r) => r.diff?.lost.length ?? 0),
+      lostFragments: sum(reports, (r) => r.diff?.lostFragments.length ?? 0),
       acceptedSentences: sum(reports, (r) => r.diff?.accepted.length ?? 0),
       gainedSentences: sum(reports, (r) => r.diff?.gained.length ?? 0),
       lostImages: sum(reports, (r) => r.diff?.lostImages.length ?? 0),
@@ -342,7 +344,7 @@ async function main(): Promise<number> {
     };
     console.log(
       `\n${totals.pages} pages · ${totals.changed} changent · ${totals.failing} en échec` +
-        ` · phrases perdues ${totals.lostSentences}, acceptées ${totals.acceptedSentences}, gagnées ${totals.gainedSentences}` +
+        ` · phrases perdues ${totals.lostSentences}, fragments perdus ${totals.lostFragments}, acceptées ${totals.acceptedSentences}, gagnées ${totals.gainedSentences}` +
         ` · images perdues ${totals.lostImages} · null nouveaux ${totals.newNull} · erreurs nouvelles ${totals.newErrors}` +
         ` · doublons ${totals.duplicated} · chutes > 20 % ${totals.lengthDrops} · titres changés ${totals.titleChanges}` +
         ` · délais ${totals.timeouts} · erreurs ${totals.errors} · ${(durationMs / 1000).toFixed(1)} s`,

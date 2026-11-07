@@ -80,6 +80,12 @@ phrase de la base d'au moins 25 caractères (8 pour une écriture sans espaces :
 chinois, japonais, thaï) est **perdue** si sa forme normalisée (minuscules,
 ponctuation et blancs réduits) n'apparaît plus dans le texte de la tête.
 
+Les **fragments courts** (de 12 caractères jusqu'à ce seuil : une ligne de
+liste, un intertitre court) sont suivis à part : au-delà de 60 caractères de
+fragments perdus non acceptés, la page échoue. Sans ce compte, une garde qui
+perdait les paliers d'une page de dons (« Every little bit helps »…) passait le
+corpus. Un mot isolé (« Partager », « Lire aussi ») n'est pas un fragment.
+
 Aussi relevés : `null` d'un seul côté, chute de longueur de plus de 20 %, images
 dont le `src` de base a disparu (les `data:` exclus), titre changé, phrases
 gagnées, doublons (une phrase plus fréquente en tête qu'en base).

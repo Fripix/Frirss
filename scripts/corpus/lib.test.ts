@@ -137,6 +137,28 @@ describe('compareExtracts', () => {
     expect(diff.lost).toEqual(['Le chat dort sur le canapé du salon.']);
   });
 
+  // Les paliers d'une page de dons (« 2 GB », « Every little bit helps »…)
+  // sont tous sous 25 caractères : sans ce compte, une garde qui les perdait
+  // passait le corpus (relecture de la garde de non-perte, RG-01).
+  it('signale une suite de fragments courts perdus, au-delà de 60 caractères', () => {
+    const tiers = '<li>2 GB</li><li>Every little bit helps</li><li>Supports a good cause</li><li>4 GB</li><li>Our most popular option</li><li>Enough to save one LLM</li>';
+    const diff = compareExtracts(article(`<p>${LONG_A}</p><ul>${tiers}</ul>`), article(`<p>${LONG_A}</p>`), 'example.com');
+    expect(diff.lost).toEqual([]);
+    expect(diff.lostFragments).toEqual(['Every little bit helps', 'Supports a good cause', 'Our most popular option', 'Enough to save one LLM']);
+    expect(diff.failing).toBe(true);
+  });
+
+  it('laisse passer quelques mots courts perdus, et les fragments acceptés', () => {
+    const few = compareExtracts(article(`<p>${LONG_A}</p><p>Partager.</p><p>Lire aussi</p>`), article(`<p>${LONG_A}</p>`), 'example.com');
+    expect(few.lostFragments).toEqual([]);
+    expect(few.failing).toBe(false);
+    const menu = '<li>Every little bit helps</li><li>Supports a good cause</li><li>Our most popular option</li>';
+    const accepted = compileAccepted([{ pattern: '/^(Every little|Supports a|Our most)/', reason: 'menu' }]);
+    const diff = compareExtracts(article(`<p>${LONG_A}</p><ul>${menu}</ul>`), article(`<p>${LONG_A}</p>`), 'example.com', accepted);
+    expect(diff.lostFragments).toEqual([]);
+    expect(diff.failing).toBe(false);
+  });
+
   it('classe une perte qui correspond à un retrait accepté', () => {
     const accepted = compileAccepted([{ pattern: 'deuxième phrase', reason: 'bandeau' }]);
     const diff = compareExtracts(article(`<p>${LONG_A}</p><p>${LONG_B}</p>`), article(`<p>${LONG_A}</p>`), 'example.com', accepted);
