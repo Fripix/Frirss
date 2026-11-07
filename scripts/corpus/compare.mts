@@ -3,10 +3,12 @@
  * de pages capturées (`capture.mts`). Mode d'emploi : `scripts/corpus/README.md`.
  *
  *   npx tsx scripts/corpus/compare.mts --corpus <dossier> --base <ref|chemin> --head <ref|chemin>
- *     [--accepted <fichier>] [--report <fichier.json>] [--only <motif>] [--jobs N] [--timeout ms]
+ *     [--accepted <fichier>] [--report <fichier.json>] [--only <motif>] [--jobs N] [--timeout ms] [--oracle-strict]
  *
  * Code de sortie : 1 s'il existe une perte non acceptée, un `null` nouveau ou
- * une image perdue ; 0 sinon ; 2 si l'outil lui-même échoue.
+ * une image perdue, ou si la tête manque une phrase du flux que la base rendait
+ * (avec `--oracle-strict` : une phrase du flux tout court) ; 0 sinon ; 2 si
+ * l'outil lui-même échoue.
  */
 import { execFileSync, fork, type ChildProcess } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
@@ -25,6 +27,7 @@ import {
   type IndexEntry,
   type PageDiff,
 } from './lib.ts';
+import { buildFeedOracle, judgeOracle, takeFlag, type OracleVerdict } from './feedOracle.ts';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const WORKER = path.join(HERE, 'extract-worker.mts');
@@ -208,6 +211,20 @@ interface PageReport {
   /** Exception nouvelle en tête alors que la base extrayait : compte comme un échec. */
   newError: boolean;
   diff: PageDiff | null;
+  /** Mesure contre le contenu du flux (`feedFile`), absente sans contenu de flux. */
+  oracle?: OracleReport;
+}
+
+interface OracleReport {
+  feedFile: string;
+  /** Phrases et fragments du flux que l'extrait doit contenir. */
+  sentences: number;
+  fragments: number;
+  /** Écartés : fins de flux, retraits acceptés, absents de la page. */
+  trailers: number;
+  accepted: number;
+  offPage: number;
+  verdict: OracleVerdict;
 }
 
 const clip = (s: string, n = 120) => (s.length > n ? s.slice(0, n - 1) + '…' : s);
@@ -255,7 +272,9 @@ function printPage(p: PageReport): void {
 // ── Programme ──────────────────────────────────────────────────────────
 
 async function main(): Promise<number> {
-  const args = parseArgs(process.argv.slice(2));
+  const strictFlag = takeFlag(process.argv.slice(2), 'oracle-strict');
+  const args = parseArgs(strictFlag.argv);
+  const oracleStrict = strictFlag.present;
   for (const key of ['corpus', 'base', 'head']) if (!args[key]) throw new Error(`--${key} est obligatoire`);
   const corpus = path.resolve(args.corpus);
   const jobs = Math.max(1, Number(args.jobs) || Math.min(4, Math.max(1, Math.floor(availableParallelism() / 2))));
@@ -309,6 +328,24 @@ async function main(): Promise<number> {
           newError: false,
           diff: null,
         };
+        const feedFile = (e as IndexEntry & { feedFile?: string }).feedFile;
+        if (feedFile && existsSync(path.join(corpus, 'feed', feedFile))) {
+          const oracle = buildFeedOracle(
+            readFileSync(path.join(corpus, 'feed', feedFile), 'utf8'),
+            report.host,
+            accepted,
+            readFileSync(file, 'utf8'),
+          );
+          report.oracle = {
+            feedFile,
+            sentences: oracle.sentences.length,
+            fragments: oracle.fragments.length,
+            trailers: oracle.trailers.length,
+            accepted: oracle.accepted.length,
+            offPage: oracle.offPage.length,
+            verdict: judgeOracle(oracle, b.kind === 'ok' ? b.result : undefined, h.kind === 'ok' ? h.result : undefined),
+          };
+        }
         if (b.kind === 'timeout' || h.kind === 'timeout') report.verdict = 'timeout';
         else if (b.kind === 'error' || h.kind === 'error') {
           report.verdict = 'error';
@@ -350,6 +387,8 @@ async function main(): Promise<number> {
         ` · délais ${totals.timeouts} · erreurs ${totals.errors} · ${(durationMs / 1000).toFixed(1)} s`,
     );
 
+    const oracleTotals = printOracle(reports, oracleStrict);
+
     if (args.report) {
       const full = {
         corpus,
@@ -358,16 +397,95 @@ async function main(): Promise<number> {
         accepted: args.accepted ?? null,
         finishedAt: new Date().toISOString(),
         durationMs: Math.round(durationMs),
-        totals,
+        totals: { ...totals, oracle: oracleTotals },
+        oracleStrict,
         pages: reports,
       };
       writeFileSync(args.report, JSON.stringify(full, null, 2) + '\n');
       console.log(`rapport : ${path.resolve(args.report)}`);
     }
-    return totals.failing > 0 ? 1 : 0;
+    return totals.failing > 0 || oracleTotals.failingPages > 0 ? 1 : 0;
   } finally {
     stop();
   }
+}
+
+// ── Oracle du flux ─────────────────────────────────────────────────────
+
+const ORACLE_EXAMPLES = 5;
+
+/** Détail par page puis lignes de synthèse de l'oracle du flux ; rend les totaux. */
+function printOracle(reports: PageReport[], strict: boolean) {
+  const covered = reports.filter((r) => r.oracle && r.oracle.sentences + r.oracle.fragments > 0);
+  const failingOf = (r: PageReport) => !!r.oracle && (r.oracle.verdict.failing || (strict && r.oracle.verdict.strictFailing));
+  const side = (pick: (v: OracleVerdict) => OracleVerdict['base']) => {
+    const measured = covered.filter((r) => pick(r.oracle!.verdict));
+    return {
+      measured: measured.length,
+      incomplete: measured.filter((r) => pick(r.oracle!.verdict)!.missing.length > 0).length,
+      missing: sum(measured, (r) => pick(r.oracle!.verdict)!.missing.length),
+      missingFragments: sum(measured, (r) => pick(r.oracle!.verdict)!.missingFragments.length),
+    };
+  };
+  const totals = {
+    withFeed: reports.filter((r) => r.oracle).length,
+    covered: covered.length,
+    sentences: sum(covered, (r) => r.oracle!.sentences),
+    fragments: sum(covered, (r) => r.oracle!.fragments),
+    trailers: sum(covered, (r) => r.oracle!.trailers),
+    accepted: sum(covered, (r) => r.oracle!.accepted),
+    offPage: sum(covered, (r) => r.oracle!.offPage),
+    base: side((v) => v.base),
+    head: side((v) => v.head),
+    regressions: sum(covered, (r) => r.oracle!.verdict.regressions.length),
+    fragmentRegressions: sum(covered, (r) => r.oracle!.verdict.fragmentRegressions.length),
+    regressedPages: covered.filter((r) => r.oracle!.verdict.regressions.length > 0).length,
+    failingPages: covered.filter(failingOf).length,
+  };
+  if (!totals.withFeed) {
+    console.log('\noracle du flux : aucune page n’a de contenu de flux (`capture.mts --backfill`)');
+    return totals;
+  }
+
+  const shown = covered.filter((r) => {
+    const v = r.oracle!.verdict;
+    return (v.head?.missing.length ?? 0) > 0 || (v.base?.missing.length ?? 0) > 0 || v.fragmentRegressions.length > 0;
+  });
+  shown.sort(
+    (a, b) =>
+      Number(failingOf(b)) - Number(failingOf(a)) ||
+      (b.oracle!.verdict.head?.missing.length ?? 0) - (a.oracle!.verdict.head?.missing.length ?? 0) ||
+      a.host.localeCompare(b.host),
+  );
+  if (shown.length) console.log('\n══ oracle du flux : pages incomplètes ══');
+  for (const r of shown) {
+    const o = r.oracle!;
+    const v = o.verdict;
+    const n = (m: OracleVerdict['base']) => (m ? String(m.missing.length) : '?');
+    console.log(
+      `── ${r.host || '?'}  ${r.file}  flux ${o.sentences} phrases · base manque ${n(v.base)} · tête manque ${n(v.head)}` +
+        (v.regressions.length ? ` · RÉGRESSIONS ${v.regressions.length}` : ''),
+    );
+    console.log(`   ${r.url}`);
+    for (const s of v.regressions) console.log(`   RÉGRESSION « ${clip(s)} »`);
+    const others = (v.head?.missing ?? []).filter((s) => !v.regressions.includes(s));
+    for (const s of others.slice(0, ORACLE_EXAMPLES)) console.log(`   manque  « ${clip(s)} »`);
+    if (others.length > ORACLE_EXAMPLES) console.log(`   … et ${others.length - ORACLE_EXAMPLES} autres`);
+    if (v.fragmentRegressions.length) console.log(`   fragments régressés « ${clip(v.fragmentRegressions.join(' · '))} »`);
+  }
+
+  const line = (name: string, t: typeof totals.base) =>
+    `oracle du flux (${name}) : ${totals.covered} pages couvertes, ${t.incomplete} pages incomplètes, ${t.missing} phrases manquantes` +
+    ` (fragments ${t.missingFragments})${t.measured < totals.covered ? ` · ${totals.covered - t.measured} non mesurées` : ''}`;
+  console.log(`\n${line('base', totals.base)}`);
+  console.log(line('tête', totals.head));
+  console.log(
+    `oracle du flux : ${totals.withFeed} pages avec flux · ${totals.sentences} phrases et ${totals.fragments} fragments attendus` +
+      ` · écartés : fins de flux ${totals.trailers}, acceptés ${totals.accepted}, absents de la page ${totals.offPage}` +
+      ` · régressions ${totals.regressions} sur ${totals.regressedPages} pages (fragments ${totals.fragmentRegressions})` +
+      (strict ? ` · strict : ${totals.failingPages} pages en échec` : ''),
+  );
+  return totals;
 }
 
 function isFailing(r: PageReport): boolean {
