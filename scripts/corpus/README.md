@@ -108,12 +108,38 @@ fragments perdus non acceptés, la page échoue. Sans ce compte, une garde qui
 perdait les paliers d'une page de dons (« Every little bit helps »…) passait le
 corpus. Un mot isolé (« Partager », « Lire aussi ») n'est pas un fragment.
 
-Aussi relevés : `null` d'un seul côté, chute de longueur de plus de 20 %, images
-dont le `src` de base a disparu (les `data:` exclus), titre changé, phrases
-gagnées, doublons (une phrase plus fréquente en tête qu'en base).
+Une **image est perdue** quand la photo de la base n'est plus en tête **à la
+taille près** (`imageIdentity`, `src/lib/imageIdentity.ts` : requête d'une
+adresse d'image, suffixe `-1200x675`, paramètres de taille d'un script) ; les
+`data:` sont exclus.
+
+Un **doublon nouveau** fait échouer la page (un doublon visible est un Majeur,
+`docs/TESTING.md`) : une phrase ou un fragment présent **au moins deux fois en
+tête et au plus une fois en base**, même absent de la base ; de même pour une
+image (même photo à la taille près). Avant (REG-228), seule une phrase que la
+base lisait déjà pouvait être « doublée » : le chapeau de The Verge, absent de
+la 1.8.0 et deux fois en tête, passait pour « gagné ». Un doublon que **la page
+montre elle-même** n'en est pas un — un avis du CERT-FR cite chaque bulletin
+dans un tableau puis dans une liste : l'outil relit le texte **visible** de la
+page brute (`pageView` : ni script, style, gabarit, `noscript`, ni élément
+`hidden`, `aria-hidden="true"`, masqué en ligne ou par une classe de masquage
+que rien ne re-montre à une taille d'écran) et y compte les exemplaires
+(`pageCopies`). ⚠️ Une feuille de style externe ne se lit pas : deux
+exemplaires qui **se suivent** dans la page, alignés sur ses blocs (« a b a b »),
+comptent pour un — c'est ainsi que la page de The Verge (chapeau une fois par
+mise en page) et la visionneuse d'Ars Technica (légende puis `<figcaption>`)
+montrent un exemplaire. « (cf. section Documentation) » suivi de l'intertitre
+« Documentation », ou « … 12 SP5 » suivi de « … 12 SP5 LTSS », restent deux.
+Deux images de la même photo côte à côte, sans texte entre elles, comptent
+aussi pour une.
+
+Aussi relevés : `null` d'un seul côté, chute de longueur de plus de 20 %, titre
+changé, phrases gagnées, doublons au sens large (une phrase plus fréquente en
+tête qu'en base, simple relevé).
 
 Tout cela ne voit que les pertes **relatives à la base** : un texte que la base
-perdait déjà reste invisible. D'où la mesure suivante.
+perdait déjà reste invisible, un doublon que la base portait déjà deux fois
+aussi. D'où la mesure suivante.
 
 ### Mesure absolue : l'oracle du flux
 
@@ -172,8 +198,8 @@ fragments régressés sont signalés, sans bloquer.
 
 | Code | Sens |
 |---|---|
-| 0 | Aucune perte non acceptée, aucun `null` nouveau, aucune image perdue |
-| 1 | Au moins une perte non acceptée, un `null` nouveau, une exception nouvelle ou une image perdue ; une phrase du flux que la tête manque et que la base rendait (avec `--oracle-strict` : toute phrase du flux manquante) |
+| 0 | Aucune perte non acceptée, aucun `null` nouveau, aucune image perdue, aucun doublon nouveau |
+| 1 | Au moins une perte non acceptée, un `null` nouveau, une exception nouvelle, une image perdue ou un doublon nouveau (texte ou image) ; une phrase du flux que la tête manque et que la base rendait (avec `--oracle-strict` : toute phrase du flux manquante) |
 | 2 | L'outil lui-même a échoué (argument, ref introuvable, extracteur qui ne se charge pas) |
 
 Logique pure testée dans `lib.test.ts` et `feedOracle.test.ts` (`npx vitest run scripts/corpus`).

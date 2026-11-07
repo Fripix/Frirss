@@ -8,6 +8,8 @@
  * retrait accepté explicitement (`accepted.json`, hors dépôt).
  */
 import { createHash } from 'node:crypto';
+import { parseHTML } from 'linkedom';
+import { imageIdentity } from '../../src/lib/imageIdentity.ts';
 
 /** User-Agent d'un navigateur courant : certains sites refusent les robots. */
 export const BROWSER_USER_AGENT =
@@ -254,6 +256,7 @@ export function pickRecent(items: FeedItem[], opts: PickOptions): string[] {
 const BLOCK_TAGS =
   'p|li|h[1-6]|td|th|blockquote|figcaption|br|div|tr|dt|dd|pre|figure|section|article|header|footer|aside|nav|ul|ol|dl|table|caption|hr|summary|details|main';
 const BLOCK_RE = new RegExp(`<\\/?(?:${BLOCK_TAGS})\\b[^>]*>`, 'gi');
+const PAGE_BLOCK = new RegExp(`^(?:${BLOCK_TAGS})$`);
 
 /** Blocs de texte visible : balises retirées, entités décodées, blancs normalisés. */
 export function visibleBlocks(html: string): string[] {
@@ -352,9 +355,139 @@ export function isFragment(sentence: string): boolean {
 /** Au-delà de ces caractères de fragments perdus (non acceptés), la page échoue. */
 export const LOST_FRAGMENTS_LIMIT = 60;
 
+/**
+ * Occurrences de ` n ` (encadré d'espaces) dans un texte normalisé. Deux
+ * occurrences voisines partagent l'espace qui les sépare : « a a » en compte deux.
+ */
 function occurrences(haystack: string, needle: string): number {
   let count = 0;
-  for (let i = haystack.indexOf(needle); i !== -1; i = haystack.indexOf(needle, i + needle.length)) count++;
+  const step = Math.max(1, needle.length - 1);
+  for (let i = haystack.indexOf(needle); i !== -1; i = haystack.indexOf(needle, i + step)) count++;
+  return count;
+}
+
+// ── Ce que la page montre ──────────────────────────────────────────────
+// Un doublon de l'extrait n'en est pas un quand la page montre elle-même
+// deux exemplaires : un avis du CERT-FR cite chaque bulletin dans un tableau
+// puis dans une liste. L'outil relit donc le texte VISIBLE de la page brute.
+// Visible : ni script, style, gabarit, `noscript` ; ni un élément `hidden`,
+// `aria-hidden="true"`, en `display:none` ou `visibility:hidden` en ligne, ni
+// sous une classe de masquage que rien ne re-montre à une taille d'écran.
+// Une feuille de style externe ne se lit pas : The Verge écrit le chapeau une
+// fois par mise en page, Ars Technica chaque légende dans sa visionneuse puis
+// dans le `<figcaption>`, et la feuille n'en montre qu'un. Deux exemplaires
+// qui SE SUIVENT dans la page, sans rien entre eux, comptent donc pour un
+// (`pageCopies`), comme deux images de la même photo côte à côte.
+
+/** Éléments jamais rendus, ou dont le texte n'est pas celui de la page. */
+const PAGE_UNREAD = new Set(['script', 'style', 'template', 'noscript', 'head', 'title', 'svg', 'canvas', 'iframe', 'object', 'select', 'textarea']);
+/** Classes de masquage courantes ; un jeton qui ne fait qu'en contenir le mot n'en est pas une. */
+const PAGE_HIDING_CLASSES = new Set(['hidden', 'invisible', 'd-none', 'is-hidden', 'sr-only', 'visually-hidden', 'screen-reader-text']);
+const PAGE_SHOWN_AT_SOME_SIZE = /^(?:[a-z0-9-]+:)+(?:block|flex|grid|inline|inline-block|inline-flex|inline-grid|table|table-cell|table-row|contents|flow-root|list-item|visible|not-sr-only)$|^d-(?:sm|md|lg|xl|xxl)-(?:block|flex|grid|inline|inline-block|inline-flex|table|table-cell|table-row)$/;
+/** Au-delà, deux exemplaires ne « se suivent » plus : ce sont deux passages de la page. */
+const TWIN_MAX_SPAN = 4000;
+
+interface DomLike {
+  nodeType: number;
+  textContent: string | null;
+  tagName?: string;
+  childNodes?: ArrayLike<DomLike>;
+  getAttribute?(name: string): string | null;
+  hasAttribute?(name: string): boolean;
+}
+
+function hiddenInPage(el: DomLike): boolean {
+  if (el.hasAttribute!('hidden') || el.getAttribute!('aria-hidden') === 'true') return true;
+  const style = el.getAttribute!('style') || '';
+  if (/(?:^|;)\s*(?:display\s*:\s*none|visibility\s*:\s*hidden)\b/i.test(style)) return true;
+  const tokens = (el.getAttribute!('class') || '').split(/\s+/).filter(Boolean);
+  return tokens.some((t) => PAGE_HIDING_CLASSES.has(t)) && !tokens.some((t) => PAGE_SHOWN_AT_SOME_SIZE.test(t));
+}
+
+export interface PageView {
+  /** Texte visible normalisé, bloc par bloc, encadré d'espaces. */
+  norm: string;
+  /** Positions, dans `norm`, de l'espace qui ouvre chaque bloc. */
+  starts: Set<number>;
+  /** Pour chaque image (identité à la taille près), ses exemplaires visibles, voisins confondus. */
+  images: Map<string, number>;
+}
+
+/** Marque de fin d'un bloc, dans la pile du parcours. */
+const BLOCK_END: DomLike = { nodeType: -1, textContent: null };
+
+/** Le texte et les images que la page brute montre (voir plus haut). */
+export function pageView(html: string, pageUrl?: string): PageView {
+  const { document } = parseHTML(html);
+  const blocks: string[] = [];
+  let current = '';
+  const flush = () => {
+    const n = normalizeText(current);
+    if (n) blocks.push(n);
+    current = '';
+  };
+  const images = new Map<string, number>();
+  let lastImage: string | null = null;
+  let textSinceImage = true;
+  const stack: DomLike[] = [document.documentElement as unknown as DomLike];
+  while (stack.length) {
+    const node = stack.pop()!;
+    if (node === BLOCK_END) { flush(); continue; }
+    if (node.nodeType === 3) {
+      const text = node.textContent || '';
+      if (text.trim()) textSinceImage = true;
+      current += text;
+      continue;
+    }
+    if (node.nodeType !== 1) continue;
+    const tag = (node.tagName || '').toLowerCase();
+    if (PAGE_UNREAD.has(tag) || hiddenInPage(node)) continue;
+    if (tag === 'img') {
+      const identity = imageIdentity(node.getAttribute!('src'), pageUrl);
+      if (identity) {
+        if (identity !== lastImage || textSinceImage) images.set(identity, (images.get(identity) ?? 0) + 1);
+        lastImage = identity;
+        textSinceImage = false;
+      }
+      continue;
+    }
+    if (PAGE_BLOCK.test(tag)) {
+      flush();
+      stack.push(BLOCK_END);
+    }
+    const children = Array.from(node.childNodes ?? []);
+    for (let i = children.length - 1; i >= 0; i--) stack.push(children[i]);
+  }
+  flush();
+  const starts = new Set<number>();
+  let at = 0;
+  for (const block of blocks) {
+    starts.add(at);
+    at += block.length + 1;
+  }
+  return { norm: ` ${blocks.join(' ')} `, starts, images };
+}
+
+/**
+ * Exemplaires de ` n ` dans le texte de la page : une occurrence qui suit la
+ * précédente en la répétant tout entière (« a b a b »), alignée sur les blocs
+ * (chaque exemplaire commence et finit avec un bloc), est le même exemplaire.
+ * Alignée : « (cf. section Documentation) » suivi de l'intertitre
+ * « Documentation », ou « … 12 SP5 » suivi de « … 12 SP5 LTSS », sont deux textes.
+ */
+export function pageCopies(view: Pick<PageView, 'norm' | 'starts'>, needle: string): number {
+  const { norm, starts } = view;
+  let count = 0;
+  let previous = -1;
+  const step = Math.max(1, needle.length - 1);
+  for (let i = norm.indexOf(needle); i !== -1; i = norm.indexOf(needle, i + step)) {
+    if (previous >= 0 && starts.has(previous) && starts.has(i) && (starts.has(2 * i - previous) || 2 * i - previous >= norm.length - 1) && i - previous <= TWIN_MAX_SPAN && norm.startsWith(norm.slice(previous, i), i)) {
+      previous = i;
+      continue;
+    }
+    count++;
+    previous = i;
+  }
   return count;
 }
 
@@ -447,8 +580,18 @@ export interface PageDiff {
   lostFragments: string[];
   accepted: { text: string; reason: string }[];
   gained: string[];
-  /** Phrases présentes plus souvent en tête qu'en base. */
+  /** Phrases présentes plus souvent en tête qu'en base (relevé). */
   duplicated: string[];
+  /**
+   * Doublons nouveaux (REG-228) : une phrase ou un fragment au moins deux fois
+   * en tête, au plus une fois en base, et que la page ne montre pas deux fois
+   * (`pageView`, `pageCopies`). Fait échouer la page : un doublon visible est
+   * un Majeur.
+   */
+  newDuplicates: string[];
+  /** Même règle pour une image (son identité à la taille près, `imageIdentity`) : un `src` par image. */
+  duplicatedImages: string[];
+  /** Images de la base dont la photo (à la taille près) n'est plus en tête. */
   lostImages: string[];
   acceptedImages: { text: string; reason: string }[];
   baseLength: number;
@@ -458,7 +601,7 @@ export interface PageDiff {
   titleChanged: { base: string; head: string } | null;
   /** Quelque chose diffère. */
   changed: boolean;
-  /** Perte non acceptée, `null` nouveau ou image perdue : bloque le commit. */
+  /** Perte non acceptée, `null` nouveau, image perdue ou doublon nouveau : bloque le commit. */
   failing: boolean;
 }
 
@@ -467,6 +610,10 @@ export function compareExtracts(
   head: ExtractLike | null,
   host: string,
   accepted: AcceptedMatcher = compileAccepted([]),
+  /** HTML brut de la page : un doublon qu'elle montre elle-même n'en est pas un. Absent : la page n'est pas consultée. */
+  page?: string,
+  /** URL de la page, pour lire ses images relatives. */
+  pageUrl?: string,
 ): PageDiff {
   const baseText = base ? visibleText(base.content) : '';
   const headText = head ? visibleText(head.content) : '';
@@ -520,12 +667,52 @@ export function compareExtracts(
   const lostImages: string[] = [];
   const acceptedImages: PageDiff['acceptedImages'] = [];
   if (base && head) {
-    const headImages = new Set(imageSources(head.content));
+    const headImages = new Set(imageSources(head.content).map((src) => imageIdentity(src, pageUrl) ?? src));
     for (const src of imageSources(base.content)) {
-      if (headImages.has(src)) continue;
+      if (headImages.has(imageIdentity(src, pageUrl) ?? src)) continue;
       const rule = accepted.match(src, host);
       if (rule) acceptedImages.push({ text: src, reason: rule.reason });
       else lostImages.push(src);
+    }
+  }
+
+  // Doublons nouveaux (REG-228), de texte puis d'images. La page n'est relue
+  // que s'il y a un candidat.
+  const newDuplicates: string[] = [];
+  const duplicatedImages: string[] = [];
+  if (base && head) {
+    let view: PageView | null | undefined;
+    const shown = () => (view === undefined ? (view = page ? pageView(page, pageUrl) : null) : view);
+    const seenTwice = new Set<string>();
+    for (const s of splitSentences(head.content)) {
+      if (!isTracked(s) && !isFragment(s)) continue;
+      const n = normalizeText(s);
+      if (seenTwice.has(n)) continue;
+      seenTwice.add(n);
+      const needle = ` ${n} `;
+      if (occurrences(headNorm, needle) < 2 || occurrences(baseNorm, needle) > 1) continue;
+      const v = shown();
+      if (v && pageCopies(v, needle) > 1) continue;
+      newDuplicates.push(s);
+    }
+    const tally = (html: string) => {
+      const counts = new Map<string, { n: number; src: string }>();
+      for (const m of html.matchAll(/<img\b[^>]*>/gi)) {
+        const src = attr(m[0], 'src')?.trim();
+        const identity = imageIdentity(src, pageUrl);
+        if (!src || !identity) continue;
+        const known = counts.get(identity);
+        if (known) known.n++;
+        else counts.set(identity, { n: 1, src });
+      }
+      return counts;
+    };
+    const baseImages = tally(base.content);
+    for (const [identity, { n, src }] of tally(head.content)) {
+      if (n < 2 || (baseImages.get(identity)?.n ?? 0) > 1) continue;
+      const v = shown();
+      if (v && (v.images.get(identity) ?? 0) > 1) continue;
+      duplicatedImages.push(src);
     }
   }
 
@@ -543,6 +730,8 @@ export function compareExtracts(
     acceptedList.length > 0 ||
     gained.length > 0 ||
     duplicated.length > 0 ||
+    newDuplicates.length > 0 ||
+    duplicatedImages.length > 0 ||
     lostImages.length > 0 ||
     acceptedImages.length > 0 ||
     lengthDrop ||
@@ -557,6 +746,8 @@ export function compareExtracts(
     accepted: acceptedList,
     gained,
     duplicated,
+    newDuplicates,
+    duplicatedImages,
     lostImages,
     acceptedImages,
     baseLength,
@@ -564,7 +755,13 @@ export function compareExtracts(
     lengthDrop,
     titleChanged,
     changed,
-    failing: newNull || lost.length > 0 || lostImages.length > 0 || fragmentsWeigh(lostFragments),
+    failing:
+      newNull ||
+      lost.length > 0 ||
+      lostImages.length > 0 ||
+      fragmentsWeigh(lostFragments) ||
+      newDuplicates.length > 0 ||
+      duplicatedImages.length > 0,
   };
 }
 

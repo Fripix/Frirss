@@ -177,21 +177,137 @@ describe('compareExtracts', () => {
     expect(compareExtracts(base, head, 'notexample.com', accepted).lost).toEqual([LONG_B]);
   });
 
-  it('détecte un doublon apparu en tête', () => {
+  // Un doublon visible est un Majeur (`docs/TESTING.md`) : il fait échouer la
+  // page (REG-228). Avant, il n'était qu'un relevé, et seulement pour une
+  // phrase que la base lisait déjà.
+  it('détecte un doublon apparu en tête, et fait échouer la page', () => {
     const diff = compareExtracts(
       article(`<p>${LONG_A}</p><p>${LONG_B}</p>`),
       article(`<p>${LONG_A}</p><p>${LONG_B}</p><p>${LONG_A}</p>`),
       'example.com',
     );
     expect(diff.duplicated).toEqual([LONG_A]);
+    expect(diff.newDuplicates).toEqual([LONG_A]);
     expect(diff.lost).toEqual([]);
-    expect(diff.failing).toBe(false);
+    expect(diff.failing).toBe(true);
     expect(diff.changed).toBe(true);
+  });
+
+  // L'angle mort qui a laissé passer le chapeau doublé de The Verge : la
+  // phrase était absente de la base, donc « gagnée », jamais « doublée ».
+  it('détecte un doublon d’une phrase que la base n’avait pas du tout (REG-228)', () => {
+    const diff = compareExtracts(article(`<p>${LONG_B}</p>`), article(`<p>${LONG_A}</p><p>${LONG_A}</p><p>${LONG_B}</p>`), 'example.com');
+    expect(diff.newDuplicates).toEqual([LONG_A]);
+    expect(diff.failing).toBe(true);
   });
 
   it('ne prend pas pour un doublon une phrase déjà répétée en base', () => {
     const body = `<p>${LONG_A}</p><p>${LONG_A}</p>`;
-    expect(compareExtracts(article(body), article(body), 'example.com').duplicated).toEqual([]);
+    const diff = compareExtracts(article(body), article(body), 'example.com');
+    expect(diff.duplicated).toEqual([]);
+    expect(diff.newDuplicates).toEqual([]);
+    expect(diff.failing).toBe(false);
+  });
+
+  it('ne prend pas pour un doublon une phrase que la page montre deux fois, à deux endroits (CERT-FR : liste et tableau)', () => {
+    const line = 'Bulletin de sécurité Exemple 123 du 02 novembre 2026';
+    const page = `<html><body><table><tr><td>${line}</td></tr></table><h2>Documentation</h2><ul><li><p>${line}</p></li></ul></body></html>`;
+    const diff = compareExtracts(article(`<p>${LONG_A}</p><p>${line}</p>`), article(`<p>${LONG_A}</p><p>${line}</p><p>${line}</p>`), 'example.com', undefined, page);
+    expect(diff.newDuplicates).toEqual([]);
+    expect(diff.failing).toBe(false);
+  });
+
+  it('compte pour un seul exemplaire de la page celui qu’elle masque, ou ne rend jamais', () => {
+    const head = article(`<p>${LONG_A}</p><p>${LONG_A}</p>`);
+    const base = article(`<p>${LONG_A}</p>`);
+    for (const hidden of [
+      `<p style="display: none">${LONG_A}</p>`,
+      `<p style="visibility:hidden">${LONG_A}</p>`,
+      `<div hidden><p>${LONG_A}</p></div>`,
+      `<div aria-hidden="true"><p>${LONG_A}</p></div>`,
+      `<div class="sr-only">${LONG_A}</div>`,
+      `<noscript><p>${LONG_A}</p></noscript>`,
+      `<template><p>${LONG_A}</p></template>`,
+      `<script>var x = "${LONG_A}";</script>`,
+    ]) {
+      const page = `<html><body><p>${LONG_A}</p><h2>Autre chose ici</h2>${hidden}</body></html>`;
+      expect(compareExtracts(base, head, 'example.com', undefined, page).failing, hidden).toBe(true);
+    }
+    // Masqué seulement à certaines tailles d'écran : la page le montre.
+    const responsive = `<html><body><p>${LONG_A}</p><h2>Autre chose ici</h2><div class="hidden md:block"><p>${LONG_A}</p></div></body></html>`;
+    expect(compareExtracts(base, head, 'example.com', undefined, responsive).failing).toBe(false);
+  });
+
+  // The Verge : le chapeau une fois par mise en page, l'un après l'autre ;
+  // Ars Technica : la légende et son crédit dans la visionneuse puis dans le
+  // `<figcaption>`. La feuille de style n'en montre qu'un : deux exemplaires
+  // qui se suivent comptent pour un.
+  it('compte pour un seul deux exemplaires de la page qui se suivent', () => {
+    const credit = 'Crédit : Exemple, 2026';
+    const caption = `<div class="cap">${LONG_A}<div>${credit}</div></div><figcaption>${LONG_A} <span>${credit}</span></figcaption>`;
+    const dek = `<div><p>${LONG_A}</p></div><div><div><p>${LONG_A}</p></div></div>`;
+    for (const twins of [dek, caption]) {
+      const page = `<html><body><h1>Un titre</h1>${twins}<p>${LONG_B}</p></body></html>`;
+      const diff = compareExtracts(article(`<p>${LONG_B}</p>`), article(`<p>${LONG_A}</p><p>${LONG_A}</p><p>${LONG_B}</p>`), 'example.com', undefined, page);
+      expect(diff.newDuplicates, twins).toEqual([LONG_A]);
+    }
+  });
+
+  // CERT-FR : « (cf. section Documentation). » puis l'intertitre
+  // « Documentation » — deux textes, même collés dans le texte de la page.
+  it('ne confond pas la fin d’une phrase et l’intertitre qui la suit', () => {
+    const page = `<html><body><p>Se référer au bulletin (cf. section Documentation).</p><h2>Documentation</h2><ul><li>Un lien</li></ul></body></html>`;
+    const diff = compareExtracts(
+      article(`<p>Un lien vers la suite</p>`),
+      article(`<p>Se référer au bulletin (cf. section Documentation).</p><h2>Documentation</h2><p>Un lien vers la suite</p>`),
+      'example.com', undefined, page,
+    );
+    expect(diff.newDuplicates).toEqual([]);
+  });
+
+  // CERT-FR : « … 12 SP5 » puis « … 12 SP5 LTSS » dans la liste des systèmes
+  // affectés — le second commence comme le premier, sans le répéter.
+  it('ne prend pas pour deux exemplaires voisins une ligne et la suivante qui la prolonge', () => {
+    const page = `<html><body><ul><li>Serveur Exemple 12 SP5</li><li>Serveur Exemple 12 SP5 LTSS</li></ul></body></html>`;
+    const diff = compareExtracts(
+      article(`<p>${LONG_A}</p>`),
+      article(`<p>${LONG_A}</p><ul><li>Serveur Exemple 12 SP5</li><li>Serveur Exemple 12 SP5 LTSS</li></ul>`),
+      'example.com', undefined, page,
+    );
+    expect(diff.newDuplicates).toEqual([]);
+  });
+
+  it('suit aussi les fragments courts doublés, pas un mot isolé', () => {
+    const diff = compareExtracts(
+      article(`<p>${LONG_A}</p><p>Crédit : Exemple</p><p>Partager</p>`),
+      article(`<p>${LONG_A}</p><p>Crédit : Exemple</p><p>Crédit : Exemple</p><p>Partager</p><p>Partager</p>`),
+      'example.com',
+    );
+    expect(diff.newDuplicates).toEqual(['Crédit : Exemple']);
+  });
+
+  it('détecte une image doublée, la même photo à la taille près (REG-228)', () => {
+    const base = article(`<p>${LONG_A}</p><img src="https://example.com/une.jpg?w=1080">`);
+    const head = article(`<img src="https://example.com/une.jpg?w=1080&amp;crop=a"><img src="https://example.com/une.jpg?w=2400&amp;crop=b"><p>${LONG_A}</p>`);
+    const page = `<html><body><div><img src="/une.jpg?w=1080"></div><div><img src="/une.jpg?w=2400"></div><p>${LONG_A}</p></body></html>`;
+    const diff = compareExtracts(base, head, 'example.com', undefined, page, 'https://example.com/a');
+    expect(diff.duplicatedImages).toEqual(['https://example.com/une.jpg?w=1080&crop=a']);
+    expect(diff.failing).toBe(true);
+  });
+
+  it('ne prend pas pour une image doublée la photo qu’une galerie de la page montre deux fois', () => {
+    const base = article(`<p>${LONG_A}</p><img src="https://example.com/a.jpg">`);
+    const head = article(`<img src="https://example.com/a.jpg"><p>${LONG_A}</p><img src="https://example.com/a.jpg">`);
+    const page = `<html><body><img src="/a.jpg"><p>${LONG_A}</p><img src="/a.jpg"></body></html>`;
+    const diff = compareExtracts(base, head, 'example.com', undefined, page, 'https://example.com/a');
+    expect(diff.duplicatedImages).toEqual([]);
+    expect(diff.failing).toBe(false);
+  });
+
+  it('une image gardée à une autre taille n’est pas perdue', () => {
+    const base = article(`<p>${LONG_A}</p><img src="https://example.com/une.jpg?w=2400">`);
+    const head = article(`<p>${LONG_A}</p><img src="https://example.com/une-1200x675.jpg">`);
+    expect(compareExtracts(base, head, 'example.com').lostImages).toEqual([]);
   });
 
   it('relève les phrases gagnées', () => {
