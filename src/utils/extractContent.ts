@@ -508,7 +508,114 @@ export function resolveLazyImages(root: Element): void {
   for (const button of Array.from(root.querySelectorAll('button'))) {
     if (isZoomButton(button)) button.replaceWith(takeChildren(button));
   }
+  resolveLazyMedia(root);
 }
+
+// ── Médias de l'article (1.9.0, REG-240 à REG-243) ─────────────────────
+// Copie de `resolveLazyMedia` (`server/extract.ts`, qui dit pourquoi :
+// `<picture>` sans `<img>` de Clubic, aperçu flou et éléments personnalisés
+// du blog de Google, vidéo intégrée derrière un voile chez Numerama).
+
+/** Plus grande variante prise pour l'adresse d'un aperçu (au-delà, la plus petite qui la dépasse). */
+const PREVIEW_MAX_WIDTH = 1600;
+/** Un fichier vidéo, tel qu'un attribut le donne. */
+const VIDEO_FILE = /\.(?:mp4|webm|m4v|mov|ogv)(?:[?#]|$)/i;
+/** Un fichier d'image d'affiche. */
+const POSTER_FILE = /\.(?:jpe?g|png|gif|webp|avif)(?:[?#]|$)/i;
+/** Au moins ce texte pour qu'un attribut `quote` soit une citation. */
+const QUOTE_ATTR_MIN = 25;
+
+/** Le candidat d'un `srcset` à largeurs (`450w`) retenu pour `src`, ou `null`. */
+function largestUpTo(srcset: string): string | null {
+  const candidates = srcset.split(',').map((c) => c.trim().split(/\s+/)).filter((parts) => parts[0]);
+  const widths = candidates.map(([address, size]) => ({ address, width: /^(\d+)w$/i.exec(size || '')?.[1] }));
+  if (!widths.length || widths.some((c) => !c.width)) return null;
+  const sized = widths.map((c) => ({ address: c.address, width: Number(c.width) })).sort((a, b) => a.width - b.width);
+  const within = sized.filter((c) => c.width <= PREVIEW_MAX_WIDTH);
+  return webAddress((within.length ? within[within.length - 1] : sized[0]).address);
+}
+
+/** Une vidéo de fond : lecture automatique en boucle, sans contrôles. */
+function isDecorativeVideo(el: Element): boolean {
+  return el.hasAttribute('autoplay') && el.hasAttribute('loop') && !el.hasAttribute('controls');
+}
+
+export function resolveLazyMedia(root: Element): void {
+  const doc = root.ownerDocument!;
+  // Une `<picture>` sans `<img>` : celle de son `<noscript>`.
+  for (const picture of Array.from(root.querySelectorAll('picture')) as Element[]) {
+    if ((Array.from(picture.querySelectorAll('img')) as Element[]).some((img) => !img.closest('noscript'))) continue;
+    const noscript = Array.from(picture.children).find((child) => child.tagName.toLowerCase() === 'noscript') as Element | undefined;
+    const real = noscript ? onlyImage(noscript) : null;
+    if (real && webAddress(real.getAttribute('src'))) noscript!.replaceWith(real);
+  }
+  // Un aperçu flou : la photo est dans `data-srcset`.
+  for (const img of Array.from(root.querySelectorAll('img[data-srcset]')) as Element[]) {
+    if (!isPlaceholderSource(img.getAttribute('srcset'))) continue;
+    const srcset = webAddress(img.getAttribute('data-srcset'));
+    if (!srcset) continue;
+    img.setAttribute('srcset', srcset);
+    const sizes = img.getAttribute('data-sizes');
+    if (sizes && !img.hasAttribute('sizes')) img.setAttribute('sizes', sizes);
+    const best = largestUpTo(srcset);
+    if (best) img.setAttribute('src', best);
+  }
+  // Une vidéo intégrée derrière un voile : son `data-src`.
+  for (const frame of Array.from(root.querySelectorAll('iframe[data-src], iframe[data-lazy-src]')) as Element[]) {
+    const current = frame.getAttribute('src');
+    if (current && !isPlaceholderSource(current) && !/^\s*about:blank\s*$/i.test(current)) continue;
+    const src = webAddress(frame.getAttribute('data-src') || frame.getAttribute('data-lazy-src'));
+    if (src && VIDEO_FRAME.test(src)) frame.setAttribute('src', src);
+  }
+  // Une vidéo chargée au clic (WP Rocket : `div.rll-youtube-player[data-src]`,
+  // le lecteur réel dans un `<noscript>` voisin) : l'iframe du `<noscript>`,
+  // quand c'est une vidéo et que rien à côté n'en montre une.
+  for (const noscript of Array.from(root.querySelectorAll('noscript')) as Element[]) {
+    const frames = Array.from(noscript.querySelectorAll('iframe')) as Element[];
+    if (frames.length !== 1 || noscript.children.length !== 1 || (noscript.textContent || '').trim()) continue;
+    const src = webAddress(frames[0].getAttribute('src'));
+    const parent = noscript.parentElement;
+    if (!src || !VIDEO_FRAME.test(src) || !parent) continue;
+    if ((Array.from(parent.querySelectorAll('iframe')) as Element[]).some((frame) => !frame.closest('noscript'))) continue;
+    noscript.replaceWith(frames[0]);
+  }
+  // Un élément personnalisé qui porte une vidéo ou une citation.
+  for (const el of Array.from(root.querySelectorAll('*')) as Element[]) {
+    const tag = el.tagName.toLowerCase();
+    if (!tag.includes('-') || el.closest('video, audio')) continue;
+    let video: string | null = null;
+    let poster: string | null = null;
+    for (const attr of Array.from(el.attributes)) {
+      const value = webAddress(attr.value);
+      if (!value || !/^(?:https?:)?\/\//i.test(value)) continue;
+      if (!video && VIDEO_FILE.test(value)) video = value;
+      else if (!poster && /poster/i.test(attr.name) && POSTER_FILE.test(value)) poster = value;
+    }
+    if (video && !isDecorativeVideo(el) && !el.querySelector('video')) {
+      const player = doc.createElement('video');
+      player.setAttribute('controls', '');
+      player.setAttribute('preload', 'metadata');
+      player.setAttribute('src', video);
+      if (poster) player.setAttribute('poster', poster);
+      el.insertBefore(player, el.firstChild);
+    }
+    const quote = (el.getAttribute('quote') || '').replace(/\s+/g, ' ').trim();
+    if (quote.length >= QUOTE_ATTR_MIN && !el.querySelector('blockquote')) {
+      const block = doc.createElement('blockquote');
+      const said = doc.createElement('p');
+      said.textContent = quote;
+      block.appendChild(said);
+      const who = ['author-name', 'author-title'].map((name) => (el.getAttribute(name) || '').replace(/\s+/g, ' ').trim()).filter(Boolean);
+      if (who.length) {
+        const by = doc.createElement('p');
+        by.textContent = `— ${who.join(', ')}`;
+        block.appendChild(by);
+      }
+      el.appendChild(block);
+    }
+  }
+}
+
 
 /**
  * Les enfants de `node`, dans l'ordre, déplacés un à un dans un fragment :
@@ -1305,7 +1412,7 @@ function unitOf(el: Element, base: string, lenient: boolean, excluded = false): 
   }
   const media = MEDIA_UNITS.has(tag) ? [el] : leaf ? [] : Array.from(el.querySelectorAll(MEDIA_TAGS)) as Element[];
   for (const one of media) {
-    if (!isMedia(one)) continue;
+    if (!isMedia(one) || (lenient && one.tagName.toLowerCase() === 'video' && isDecorativeVideo(one))) continue;
     const addresses = mediaAddresses(one, base);
     if (addresses.length) images.push(addresses);
   }
@@ -1362,6 +1469,8 @@ function unitsOf(root: Element, base: string, lenient = false): Unit[] {
     const tag = el.tagName.toLowerCase();
     // Ni un contrôle, ni le libellé d'un contrôle : ce n'est pas du texte d'article.
     if (el !== root && ((UNREAD.has(tag) && !(MEDIA_UNITS.has(tag) && isMedia(el))) || (lenient && tag === 'label'))) continue;
+    // Ni une vidéo de fond (lecture automatique en boucle, sans contrôles) : un décor (REG-242).
+    if (lenient && el !== root && tag === 'video' && isDecorativeVideo(el)) continue;
     const excluded = inExcluded || (lenient && el !== root && (panels.has(el) || isByline(el) || isComments(el) || el.hasAttribute('data-nosnippet')));
     if (el !== root && (UNIT_TAGS.has(tag) || looseText(el))) {
       const unit = unitOf(el, base, lenient, excluded);
@@ -1894,9 +2003,25 @@ function placeIn(units: Unit[], index: FrameIndex, needle: string, scan: Scan): 
 /** Au-delà de cette part de texte en liens, un bloc n'est remis que sur preuve. */
 const LINK_SHARE_MAX = 0.5;
 
+/**
+ * Une image seule dans un lien d'agrandissement — le lien mène au fichier de
+ * l'image, ou se dit visionneuse (`lightbox`, `pswp`, `zoom`…) : l'image
+ * d'en-tête d'Ars Technica et de Numerama (REG-244). Ce n'est pas un bloc
+ * « de liens » : elle revient (sans le lien, `remittable` ne copie que
+ * l'image). Une vignette liée vers une autre page reste un lien.
+ */
+function zoomedImage(el: Element, link: Element): boolean {
+  if ((el.textContent || '').trim() || !(el.tagName.toLowerCase() === 'img' || el.querySelector('img'))) return false;
+  const href = (link.getAttribute('href') || '').trim();
+  if (IMAGE_FILE.test(href)) return true;
+  const hints = `${link.getAttribute('class') || ''} ${link.getAttribute('rel') || ''} ${Array.from(link.attributes).map((a) => a.name).join(' ')}`;
+  return /lightbox|pswp|fancybox|zoom/i.test(hints);
+}
+
 /** Le bloc est-il fait à plus de moitié de liens (ou dans un lien) ? */
 function mostlyLinks(el: Element): boolean {
-  if (el.closest('a')) return true;
+  const link = el.closest('a');
+  if (link) return !zoomedImage(el, link);
   let all = 0;
   let linked = 0;
   const stack: Array<[Node, boolean]> = [[el, false]];
@@ -2377,6 +2502,37 @@ function withoutLoss(pass: Pass, parse: (html: string) => Element, base: string)
     }
     wanted.push(i);
   }
+  // La question d'un `<details>` (son `<summary>`) va avec sa réponse, et
+  // seulement avec elle (REG-239) : remise quand un bloc de la réponse est
+  // remis ou lu, jamais seule — la FAQ de Clubic perdait ses questions (elles
+  // n'ont pas le gabarit du corps, leurs réponses si) ; le titre d'un menu
+  // replié revenait seul, sans ses liens.
+  const questionOf = (i: number) => {
+    const summary = units[i].el.closest('summary');
+    const details = summary?.parentElement;
+    return details && details.tagName.toLowerCase() === 'details' && frame.root.contains(details) ? details : null;
+  };
+  const answerOf = (i: number) => {
+    const details = units[i].el.closest('details');
+    return details && !units[i].el.closest('summary') && frame.root.contains(details) ? details : null;
+  };
+  const questions = new Set<number>();
+  for (let k = wanted.length - 1; k >= 0; k--) {
+    if (!proven.has(wanted[k]) && questionOf(wanted[k])) { questions.add(wanted[k]); wanted.splice(k, 1); }
+  }
+  const answered = new Set<Element>();
+  for (const i of [...wanted, ...located]) {
+    const details = answerOf(i);
+    if (details) answered.add(details);
+  }
+  for (let i = 0; i < units.length; i++) {
+    const details = questionOf(i);
+    if (!details || !answered.has(details) || units[i].excluded || isTitle(units[i], title)) continue;
+    // Déjà lue (et pas mise de côté plus haut) : rien à remettre.
+    if (!questions.has(i) && text(i) && imagesRead(kept, units[i])) continue;
+    if (!wanted.includes(i)) wanted.push(i);
+  }
+  wanted.sort((a, b) => a - b);
   // Budget épuisé en chemin : la garde s'abstient en entier plutôt qu'à moitié.
   if (!wanted.length || scan.left <= 0) return pass.article;
 

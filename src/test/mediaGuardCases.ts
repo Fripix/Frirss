@@ -1,0 +1,190 @@
+/**
+ * Les médias de l'article complet (REG-239 à REG-243), écrits une fois pour la
+ * route serveur (`server/extract.ts`) et le repli du navigateur
+ * (`src/utils/extractContent.ts`), qui en porte une copie. Pages écrites à la
+ * main d'après les structures relevées par la mesure des médias
+ * (`scripts/corpus/media.ts`) sur Clubic, Numerama et le blog de Google ; les
+ * formes « qui pourraient casser » sont celles que la consigne de chaque
+ * correctif a nommées avant qu'il soit écrit (`docs/TESTING.md`).
+ */
+import { describe, it, expect } from 'vitest';
+
+interface Extracted { title: string; content: string }
+export interface MediaApi {
+  /** Préfixe des titres (« repli local — » pour le navigateur). */
+  prefix: string;
+  extractArticle: (url: string, html: string) => Extracted | null;
+  guardForTests: (input: { page: string; result: string; title?: string; base?: string }) => { content: string };
+  resolveLazyImages: (root: Element) => void;
+  /** Un document lu par l'analyseur de ce côté (linkedom, DOMParser). */
+  parse: (html: string) => Document;
+}
+
+const URL_ = 'https://example.com/page';
+const sentence = (n: number, topic: string) =>
+  `${topic} ${n} : une phrase inventée assez longue pour que l’extraction la suive et la compte comme du texte d’article.`;
+const paragraph = (n: number, topic = 'Paragraphe') => `<p>${sentence(n, topic)} ${sentence(n + 100, topic)}</p>`;
+const paragraphs = (from: number, count: number, topic?: string) => Array.from({ length: count }, (_, i) => paragraph(from + i, topic)).join('');
+const doc = (main: string, head = '<title>Le titre de l’article</title>') =>
+  `<!doctype html><html><head>${head}</head><body><header><nav><a href="/">Accueil</a></nav></header><main>${main}</main><footer><p>Pied</p></footer></body></html>`;
+
+export function defineMediaCases(api: MediaApi): void {
+  const { prefix, extractArticle, guardForTests, resolveLazyImages, parse } = api;
+  const norm = (s: string | null | undefined) => (s || '').replace(/\s+/g, ' ').trim();
+  const textOf = (html: string) => norm(parse(`<!doctype html><html><body>${html}</body></html>`).body.textContent);
+  const all = (html: string, selector: string) => Array.from(parse(`<!doctype html><html><body>${html}</body></html>`).querySelectorAll(selector)) as Element[];
+  const occurrences = (text: string, needle: string) => text.split(needle).length - 1;
+  const resolved = (html: string) => {
+    const d = parse(`<!doctype html><html><body>${html}</body></html>`);
+    resolveLazyImages(d.documentElement as unknown as Element);
+    return d.body;
+  };
+
+  describe(`${prefix}médias de l’article — pages réelles (REG-239 à REG-243)`, () => {
+    // Clubic : le corps en `div.slate-content` cousins, puis une FAQ dont chaque
+    // question est un `<h3>` dans le `<summary>` d'un `<details>` ouvert, et la
+    // réponse dans un `div.slate-content`. Readability ne prend pas la FAQ ; la
+    // garde remettait les réponses (même gabarit que le corps) sans les questions.
+    const faqPage = () => {
+      const row = (inner: string) => `<div class="grid-default"><div class="row-wrapper row">${inner}</div></div>`;
+      const slate = (inner: string) => row(`<div class="slate-content col-slate-12">${inner}</div>`);
+      const faq = [1, 2, 3].map((n) => row(`<details open="" class="pcndig-0 hwZhOy"><summary class="pcndig-1 eISuem"><div class="collapse"><svg width="26" height="26"><path d="M0 0"></path></svg></div><h3 class="pcndig-2">Question numéro ${n} de la foire aux questions ?</h3></summary><div class="pcndig-3"><div class="row-wrapper row"><div class="slate-content col-slate-12"><p class="sc-9e">${sentence(n, 'Réponse')}</p></div></div></div></details>`)).join('');
+      return doc(`<article><h1>Le titre de l’article</h1>${slate(paragraphs(1, 3))}${slate(paragraphs(4, 3))}${slate('<h2>Vos questions</h2>')}${faq}</article>`);
+    };
+
+    it('les questions d’une FAQ en `<details>` reviennent avec leurs réponses, chacune avant la sienne (Clubic, REG-239)', () => {
+      const html = faqPage();
+      const out = textOf(guardForTests({ page: html, result: `<div class="page">${paragraphs(1, 6)}</div>`, title: 'Le titre de l’article' }).content);
+      for (const n of [1, 2, 3]) {
+        const question = `Question numéro ${n} de la foire aux questions ?`;
+        const answer = sentence(n, 'Réponse');
+        expect(out, question).toContain(question);
+        expect(occurrences(out, question)).toBe(1);
+        expect(out.indexOf(question)).toBeLessThan(out.indexOf(answer));
+      }
+      const full = textOf(extractArticle(URL_, html)!.content);
+      for (const n of [1, 2, 3]) expect(full).toContain(`Question numéro ${n} de la foire aux questions ?`);
+    });
+
+    it('une `<picture>` paresseuse sans `<img>` prend l’image de son `<noscript>` (dossier de Clubic, REG-240)', () => {
+      const figure = (n: number) => `<div class="image-content"><span role="presentation"><div style="display:contents"><picture class="article img-wrapper lazy" data-lazy="{&quot;imageId&quot;:${n}}"><div class="image-loading"><svg width="50" height="50"><circle r="4"></circle></svg></div><noscript><img src="//pic.example.com/abc${n}/2500x1390/smart/photo-${n}.jpg" alt="©Crédit ${n}" width="2500" height="1390"></noscript></picture></div></span><figcaption>©Crédit ${n}</figcaption></div>`;
+      const html = doc(`<article><h1>Le titre de l’article</h1>${paragraphs(1, 3)}${figure(1)}${paragraphs(4, 3)}${figure(2)}${paragraphs(7, 3)}</article>`);
+      const out = extractArticle(URL_, html)!.content;
+      for (const n of [1, 2]) expect(all(out, 'img').map((img) => img.getAttribute('src')), `photo ${n}`).toContain(`https://pic.example.com/abc${n}/2500x1390/smart/photo-${n}.jpg`);
+      const body = resolved('<picture data-lazy="{}"><div></div><noscript><img src="https://pic.example.com/p.jpg" alt="a"></noscript></picture>');
+      expect(body.querySelector('picture > img')?.getAttribute('src')).toBe('https://pic.example.com/p.jpg');
+      expect(body.querySelector('noscript')).toBeNull();
+    });
+
+    it('une vidéo YouTube derrière un voile de consentement prend l’adresse de son `data-src` (Numerama, REG-241)', () => {
+      const html = doc(`<article><h1>Le titre de l’article</h1>${paragraphs(1, 3)}<figure class="wp-block-embed is-provider-youtube"><div class="embed-container embed-container--with-overlay"><div class="embed-container-content"><iframe loading="lazy" title="Bande-annonce" width="500" height="281" data-src="https://www.youtube.com/embed/qb8jZ5zNMrs?feature=oembed" allowfullscreen></iframe></div></div></figure>${paragraphs(4, 3)}</article>`);
+      const out = extractArticle(URL_, html)!.content;
+      expect(all(out, 'iframe').map((f) => f.getAttribute('src'))).toContain('https://www.youtube.com/embed/qb8jZ5zNMrs?feature=oembed');
+    });
+
+    it('une vidéo YouTube chargée au clic (WP Rocket) prend l’iframe de son `<noscript>` (Journal du Geek, REG-241)', () => {
+      const player = '<div class="not-prose video-container"><div class="rll-youtube-player" data-src="https://www.youtube-nocookie.com/embed/0CqlEgWYWUY" data-id="0CqlEgWYWUY"></div><noscript><iframe title="Bande-annonce" width="500" height="281" src="https://www.youtube-nocookie.com/embed/0CqlEgWYWUY?feature=oembed" allowfullscreen></iframe></noscript></div>';
+      const html = doc(`<article><h1>Le titre de l’article</h1>${paragraphs(1, 3)}${player}${paragraphs(4, 3)}</article>`);
+      const frames = all(extractArticle(URL_, html)!.content, 'iframe').map((f) => f.getAttribute('src'));
+      expect(frames).toEqual(['https://www.youtube-nocookie.com/embed/0CqlEgWYWUY?feature=oembed']);
+      const ad = resolved('<div><div class="slot"></div><noscript><iframe src="https://ads.example.net/banner"></iframe></noscript></div>');
+      expect(ad.querySelector('iframe:not(noscript iframe)')).toBeNull();
+    });
+
+    it('les vidéos et les citations que des éléments personnalisés portent dans leurs attributs sont montrées (blog de Google, REG-242)', () => {
+      const video = (n: number) => `<section class="uni-inline-image-section"><uni-inline-image alt-text="Démonstration ${n}" or-mp4-video-url="https://storage.example.com/videos/Demo_${n}.mp4" poster-image-url="https://storage.example.com/images/poster_${n}.width-1200.format-webp.webp"><div slot="caption-slot"><div class="rich-text"><p>${sentence(n, 'Légende de la démonstration')}</p></div></div></uni-inline-image></section>`;
+      const quote = (n: number) => `<uni-media-carousel-slide data-index="${n}"><div slot="content"><script type="application/json">{"by":"By"}</script><uni-quote-media-carousel quote="Citation de client numéro ${n} : nous avons réalisé en un jour ce qui prenait une semaine." author-name="Personne ${n}" author-title="Directrice, Société ${n}"></uni-quote-media-carousel></div></uni-media-carousel-slide>`;
+      const html = doc(`<article><h1>Le titre de l’article</h1>${paragraphs(1, 3)}${video(1)}${paragraphs(4, 2)}${video(2)}${paragraphs(6, 2)}<section><uni-media-carousel>${quote(1)}${quote(2)}</uni-media-carousel></section>${paragraphs(8, 2)}</article>`);
+      const out = extractArticle(URL_, html)!.content;
+      const videos = all(out, 'video').map((v) => v.getAttribute('src'));
+      for (const n of [1, 2]) expect(videos, `vidéo ${n}`).toContain(`https://storage.example.com/videos/Demo_${n}.mp4`);
+      const quotes = all(out, 'blockquote').map((q) => norm(q.textContent));
+      for (const n of [1, 2]) {
+        expect(quotes.some((q) => q.includes(`Citation de client numéro ${n}`) && q.includes(`Personne ${n}, Directrice, Société ${n}`)), `citation ${n}`).toBe(true);
+      }
+      const text = textOf(out);
+      expect(occurrences(text, 'Citation de client numéro 1')).toBe(1);
+    });
+
+    it('l’image d’en-tête dans un lien d’agrandissement revient, sans le lien (Ars Technica, Numerama, REG-244)', () => {
+      const hero = '<div class="ars-lightbox"><div class="ars-lightbox-item"><a class="cursor-zoom-in" data-pswp-width="2121" href="https://cdn.example.com/up/2026/11/hero.jpg" target="_blank"><img class="hidden" src="https://cdn.example.com/up/2026/11/hero-640x427.jpg" alt="Une colline"><img class="intro-image" width="1152" height="648" src="https://cdn.example.com/up/2026/11/hero-1152x648.jpg" alt="Une colline"></a></div></div>';
+      const html = doc(`<article><header><h1>Le titre de l’article</h1><p class="dek">Le chapeau de l’article, assez long pour être suivi par la garde.</p>${hero}</header>${paragraphs(1, 6)}</article>`);
+      const out = guardForTests({ page: html, result: `<div class="page">${paragraphs(1, 6)}</div>`, title: 'Le titre de l’article' }).content;
+      const srcs = all(out, 'img').map((img) => img.getAttribute('src'));
+      expect(srcs).toContain('https://cdn.example.com/up/2026/11/hero-1152x648.jpg');
+      expect(srcs).not.toContain('https://cdn.example.com/up/2026/11/hero-640x427.jpg');
+      expect(all(out, 'a').map((a) => a.getAttribute('href'))).not.toContain('https://cdn.example.com/up/2026/11/hero.jpg');
+      // Bout à bout, Readability garde l'une des deux tailles de la photo : elle est là, une fois.
+      const full = all(extractArticle(URL_, html)!.content, 'img').map((img) => img.getAttribute('src') || '');
+      expect(full.filter((src) => src.includes('/up/2026/11/hero-'))).toHaveLength(1);
+    });
+
+    it('un aperçu flou prend la plus grande variante de son `data-srcset`, jusqu’à 1600 (en-tête du blog de Google, REG-243)', () => {
+      const body = resolved(`<img alt="En-tête" class="uni-progressive-image--blur" src="https://storage.example.com/images/hero.width-200.format-webp.webp" data-sizes="100vw" data-srcset="https://storage.example.com/images/hero.width-450.format-webp.webp 450w, https://storage.example.com/images/hero.width-1600.format-webp.webp 1600w, https://storage.example.com/images/hero.width-2200.format-webp.webp 2200w">`);
+      const img = body.querySelector('img')!;
+      expect(img.getAttribute('src')).toBe('https://storage.example.com/images/hero.width-1600.format-webp.webp');
+      expect(img.getAttribute('srcset')).toContain('hero.width-2200');
+      expect(img.getAttribute('sizes')).toBe('100vw');
+    });
+  });
+
+  describe(`${prefix}médias de l’article — formes qui pourraient casser (REG-239 à REG-243)`, () => {
+    it('un `<details>` de navigation (menu de liens) ne revient pas, ni sa question', () => {
+      const menu = '<details class="menu"><summary>Toutes les rubriques du site</summary><ul><li><a href="/a">Rubrique A du site</a></li><li><a href="/b">Rubrique B du site</a></li></ul></details>';
+      const html = doc(`<article><h1>Le titre de l’article</h1>${paragraphs(1, 3)}${menu}${paragraphs(4, 3)}</article>`);
+      const out = textOf(guardForTests({ page: html, result: `<div class="page">${paragraphs(1, 6)}</div>`, title: 'Le titre de l’article' }).content);
+      expect(out).not.toContain('Toutes les rubriques du site');
+      expect(out).not.toContain('Rubrique A du site');
+    });
+
+    it('une `<picture>` à `srcset` ET `<noscript>` garde une seule image, celle qu’elle montre', () => {
+      const body = resolved('<picture><source srcset="https://cdn.example.com/p-800.webp 800w" type="image/webp"><img src="https://cdn.example.com/p-800.jpg" alt="a"><noscript><img src="https://cdn.example.com/p-800.jpg" alt="a"></noscript></picture>');
+      expect(body.querySelectorAll('picture > img')).toHaveLength(1);
+      expect(body.querySelector('picture > img')!.getAttribute('src')).toBe('https://cdn.example.com/p-800.jpg');
+      const html = doc(`<article><h1>Le titre de l’article</h1>${paragraphs(1, 3)}<figure><picture><source srcset="https://cdn.example.com/p-800.webp 800w" type="image/webp"><img src="https://cdn.example.com/p-800.jpg" alt="a"><noscript><img src="https://cdn.example.com/p-800.jpg" alt="a"></noscript></picture><figcaption>Une légende</figcaption></figure>${paragraphs(4, 3)}</article>`);
+      const imgs = all(extractArticle(URL_, html)!.content, 'img').filter((img) => (img.getAttribute('src') || '').includes('p-800'));
+      expect(imgs).toHaveLength(1);
+    });
+
+    it('une vidéo de fond (lecture automatique, muette, en boucle, sans contrôles) n’est pas ramenée', () => {
+      const html = doc(`<article><div class="hero"><video autoplay muted loop playsinline src="https://cdn.example.com/fond.mp4"></video><uni-hero-video or-mp4-video-url="https://cdn.example.com/fond-2.mp4" autoplay loop></uni-hero-video></div><h1>Le titre de l’article</h1>${paragraphs(1, 6)}</article>`);
+      const out = guardForTests({ page: html, result: `<div class="page">${paragraphs(1, 6)}</div>`, title: 'Le titre de l’article' }).content;
+      expect(out).not.toContain('fond.mp4');
+      expect(out).not.toContain('fond-2.mp4');
+      expect(extractArticle(URL_, html)!.content).not.toContain('fond-2.mp4');
+    });
+
+    it('une vignette liée vers une autre page (carte « à lire ») ne revient pas, même en tête', () => {
+      const card = '<div class="card"><a href="https://example.com/autre-article"><img src="https://cdn.example.com/up/2026/11/carte.jpg" alt="Autre article"></a></div>';
+      const html = doc(`<article><header><h1>Le titre de l’article</h1>${card}</header>${paragraphs(1, 6)}</article>`);
+      const out = guardForTests({ page: html, result: `<div class="page">${paragraphs(1, 6)}</div>`, title: 'Le titre de l’article' }).content;
+      expect(out).not.toContain('carte.jpg');
+    });
+
+    it('un cadre publicitaire à `data-src` reste sans adresse ; un cadre qui a déjà la sienne la garde', () => {
+      const body = resolved('<iframe data-src="https://ads.example.net/banner?slot=1"></iframe><iframe src="https://www.youtube.com/embed/aaaaaaaaaaa" data-src="https://www.youtube.com/embed/bbbbbbbbbbb"></iframe>');
+      const [ad, video] = Array.from(body.querySelectorAll('iframe'));
+      expect(ad.getAttribute('src')).toBeNull();
+      expect(video.getAttribute('src')).toBe('https://www.youtube.com/embed/aaaaaaaaaaa');
+    });
+
+    it('un attribut `quote` court, ou une vidéo dans un élément ordinaire, ne fabrique rien', () => {
+      const body = resolved('<x-card quote="Trop court."></x-card><div data-video="https://cdn.example.com/v.mp4"></div><x-player src="https://cdn.example.com/w.mp4"><video src="https://cdn.example.com/w.mp4"></video></x-player>');
+      expect(body.querySelectorAll('blockquote')).toHaveLength(0);
+      expect(body.querySelectorAll('video')).toHaveLength(1);
+    });
+
+    it('une citation d’attribut est du texte, jamais du balisage', () => {
+      const body = resolved('<x-quote quote="&lt;img src=x onerror=alert(1)&gt; une citation assez longue pour compter" author-name="&lt;b&gt;Nom&lt;/b&gt;"></x-quote>');
+      expect(body.querySelector('blockquote img, blockquote b')).toBeNull();
+      expect(norm(body.querySelector('blockquote')!.textContent)).toContain('<img src=x onerror=alert(1)>');
+    });
+
+    it('un aperçu dont le `data-srcset` n’a pas de largeurs garde son `src` et prend le `srcset`', () => {
+      const body = resolved('<img src="https://cdn.example.com/p-small.jpg" data-srcset="https://cdn.example.com/p.jpg 1x, https://cdn.example.com/p@2x.jpg 2x">');
+      const img = body.querySelector('img')!;
+      expect(img.getAttribute('src')).toBe('https://cdn.example.com/p-small.jpg');
+      expect(img.getAttribute('srcset')).toContain('p@2x.jpg');
+    });
+  });
+}

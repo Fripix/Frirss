@@ -1,9 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { parseHTML } from 'linkedom';
-import { extractArticle, extractWithoutGuard, guardForTests, withoutRepeatsForTests } from '../extract.js';
+import { extractArticle, extractWithoutGuard, guardForTests, resolveLazyImages, withoutRepeatsForTests } from '../extract.js';
 import { repeatLedePageHtml, repeatLightboxPageHtml } from '../../src/test/repeatPageFixtures.js';
 import { headerPageHtml, heroPageHtml, ledePageHtml, shortLandingPageHtml, TOC_ONLY_HEADING, tocPageHtml } from '../../src/test/guardPageFixtures.js';
 import { defineContainerGuardCases } from '../../src/test/containerGuardCases.js';
+import { defineMediaCases } from '../../src/test/mediaGuardCases.js';
 
 // ── Garde de non-perte (REG-220 à REG-222, cycle 1.9.0) ──────────────
 // Le nettoyage et la réunion du corps réparti changeaient le bloc que choisit
@@ -129,6 +130,16 @@ defineContainerGuardCases({
   parse: (html) => parseHTML(html).document as unknown as Document,
 });
 
+// Les médias de l'article (REG-239 à REG-243) : cas partagés avec le repli
+// du navigateur (`src/test/mediaGuardCases.ts`).
+defineMediaCases({
+  prefix: '',
+  extractArticle,
+  guardForTests,
+  resolveLazyImages,
+  parse: (html) => parseHTML(html).document as unknown as Document,
+});
+
 // ── Doublons de l'article complet (REG-225, REG-226) ─────────────────
 // Une page porte parfois deux exemplaires d'un même bloc, dont sa feuille de
 // style ne montre qu'un : le chapeau et la photo d'en-tête de The Verge, une
@@ -161,7 +172,10 @@ describe('extractArticle — doublons : pages réelles (REG-225, REG-226)', () =
       expect(occurrences(textOf(out.content), line)).toBe(1);
     }
     expect(doc.querySelectorAll('div.pswp-caption-content').length).toBe(0);
-    expect(doc.querySelectorAll('img').length).toBe(2);
+    // Les deux figures, et l'image d'en-tête, rangée dans un lien
+    // d'agrandissement : elle revient depuis REG-244 (une seule fois).
+    const srcs = Array.from(doc.querySelectorAll('img')).map((img) => (img as Element).getAttribute('src'));
+    expect(srcs).toEqual(['https://example.com/img/2.jpg', 'https://example.com/img/6.jpg', 'https://example.com/img/7.jpg']);
   });
 });
 

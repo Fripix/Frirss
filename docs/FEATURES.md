@@ -3092,9 +3092,22 @@ libellés disaient « plein écran » jusqu'en 1.8.0) au double-clic. Contenu bi
   porte la photo à la même adresse, l'URL ne change pas et le navigateur ne
   repart pas la chercher ; à une autre taille, c'est celle de l'extrait qui
   reste, chargée à la bascule. Une autre photo, ou une image servie par un
-  script dont la requête est l'identité (`image.php?id=…`), est toujours
-  réinjectée. Épinglé par `src/lib/articleBody.test.ts` et
-  `ReadingPane.body.test.tsx`.
+  script dont la requête est l'identité (`image.php?id=…`), est réinjectée
+  — sauf dans deux cas (REG-245, 1.9.0), pour CE SEUL usage (l'identité
+  stricte, qui décide des doublons de l'extraction, ne change pas) :
+  l'extrait **ouvre sur une image** (`opensOnImage` : une photo avant son
+  troisième bloc de texte, ni icône ni avatar — taille déclarée sous 100,
+  `avatar`, `author`, `logo` dans son nom) : c'est l'image d'en-tête de
+  l'article, celle du flux n'est pas remise, même une autre photo (la
+  vignette carrée 500×500 du flux d'Ars ne s'ajoute plus au-dessus de la
+  photo paysage de la page) ; ou l'extrait porte **la même photo sous une
+  autre adresse du même hôte** (`sameLeadPhoto` : même chemin hors
+  recadrage, taille, format et signature — `crop=` de The Verge —, ou un
+  même numéro d'image de six chiffres au moins dans le chemin, l'un
+  finissant l'autre, pas une date — `/v1/images/2471365/raw` et
+  `/b7c53e582471365/1600x900/smart/…` de Clubic). The Verge et Clubic
+  montraient la photo d'en-tête deux fois. Épinglé par
+  `src/lib/articleBody.test.ts` et `ReadingPane.body.test.tsx`.
 - **Pastille « x min »** : affichée dès qu'il y a un corps, sur le contenu
   **montré** ; sa valeur grandit donc quand l'extraction arrive. Elle n'était
   auparavant cachée que parce qu'il n'y avait rien à mesurer sous le squelette.
@@ -5859,7 +5872,8 @@ serveur de développement en 1.4.4.)*
   les commentaires de Clubic, en classes hachées, sont après l'article.
   **Les blocs** : paragraphe, intertitre, liste, définition, citation, code,
   tableau, figure, image, vidéo, son, cadre vidéo, et le texte écrit sans
-  `<p>`. Ni un voile de consentement, ni ce que la page masque
+  `<p>`. Ni une vidéo de fond (lecture automatique en boucle, sans contrôles :
+  un décor, REG-242), ni un voile de consentement, ni ce que la page masque
   (`hiddenOnPage` : `hidden`, `aria-hidden`, style en ligne, classe de
   masquage que rien ne re-montre à une taille d'écran), ni un contrôle ou
   son libellé ; et **jamais remis, preuve ou pas** : la signature de
@@ -5919,11 +5933,23 @@ serveur de développement en 1.4.4.)*
   de GitHub, Readability garde les cartes « Related posts », et du titre à la
   carte tout devenait un trou (« Tags: », « Table of Contents »). Quand le
   résultat n'a que des cartes ou des liens (Docker), ce sont eux.
+  **La question d'un `<details>`** (son `<summary>`) va avec sa réponse, et
+  seulement avec elle (REG-239) : remise quand un bloc de la réponse est
+  remis ou lu, à sa place, avant elle ; jamais seule. La FAQ d'un bon plan
+  de Clubic perdait ses questions (un `<h3>` dans le `<summary>` : pas le
+  gabarit du corps, quand les réponses en `div.slate-content` l'avaient) ; le
+  titre d'un menu replié dans l'article revenait seul, sans ses liens.
   Un bloc fait **à plus de moitié de liens** (vitrine, liste « liés », fil
   d'Ariane, appel à l'action) n'est remis que **sur preuve** — sauf une liste
   du corps dont chaque entrée porte au moins 5 caractères hors lien, ou qui
   suit un intertitre remis : les vingt offres d'un bon plan de Clubic
-  (« Produit à X € » en lien, puis « au lieu de Y € », REG-236).
+  (« Produit à X € » en lien, puis « au lieu de Y € », REG-236). Une
+  **image seule dans un lien d'agrandissement** — le lien mène au fichier de
+  l'image, ou se dit visionneuse (`lightbox`, `pswp`, `fancybox`, `zoom`) —
+  n'est pas un bloc de liens (`zoomedImage`, REG-244) : l'image d'en-tête
+  d'Ars Technica (dans `a.cursor-zoom-in`) et de Numerama (`rel=lightbox`)
+  revient, sans le lien ; une vignette liée vers une autre page reste un
+  lien.
   **Ce qui revient** : une copie du bloc nettoyée comme Readability nettoie
   le sien (`remittable` : scripts, contrôles, formulaires, voiles, éléments
   masqués, compteurs de commentaires, `[data-nosnippet]`, repli des médias
@@ -6067,6 +6093,45 @@ serveur de développement en 1.4.4.)*
   base64 est une vraie image en ligne et n'est pas touché. Dans le repli,
   avant `absolutizeUrls` : une adresse `data-src` relative est résolue
   contre l'article comme les autres.
+  **Et les médias** (1.9.0, REG-240 à REG-243 — `resolveLazyMedia`, appelée
+  par `resolveLazyImages`, copiée dans le repli ; tests :
+  `src/test/mediaGuardCases.ts`, déclarés des deux côtés). Mesurés par
+  l'outil de corpus (`scripts/corpus/media.ts`) sur l'image `a90032f` :
+  - une `<picture>` **sans `<img>`** prend l'image de son `<noscript>` enfant
+    (Clubic : `<picture data-lazy>`, un cercle de chargement ; les photos d'un
+    dossier ne laissaient que leurs légendes, REG-240) ;
+  - un **aperçu flou** (`src` en `width-200`, la photo dans `data-srcset`,
+    blog de Google) prend le `srcset`, `data-sizes`, et pour `src` sa plus
+    grande variante jusqu'à 1 600 px (au-delà, la plus petite) ; un
+    `data-srcset` sans largeurs ne touche pas au `src` (REG-243) ;
+  - une **vidéo intégrée derrière un voile** (`<iframe data-src>` sans `src`,
+    ou `about:blank` : Numerama) prend son `data-src` (ou `data-lazy-src`), et
+    une vidéo **chargée au clic** (WP Rocket : `div.rll-youtube-player`, le
+    lecteur dans un `<noscript>` voisin — Journal du Geek) l'iframe de son
+    `<noscript>`, quand rien à côté n'en montre une — seulement une vidéo
+    (`VIDEO_FRAME`) ; une publicité reste sans adresse (REG-241) ;
+  - un **élément personnalisé** (balise à tiret) qui porte un fichier vidéo
+    dans un attribut (`or-mp4-video-url` du blog de Google) reçoit une
+    `<video controls>` avec l'affiche qu'il porte (`poster-image-url`), sauf
+    en lecture automatique en boucle sans contrôles ; un attribut `quote` de
+    25 caractères au moins devient une `<blockquote>` (et `author-name`,
+    `author-title` une ligne « — Nom, Fonction »), **posée en texte, jamais
+    en HTML** (REG-242). Les neuf vidéos et huit citations de clients d'un
+    billet de Gemini Omni étaient perdues. ⚠️ L'en-tête d'un panneau de
+    carrousel (`accordion-header`, la légende d'une vidéo du carrousel) reste
+    dans son attribut : non rendu.
+  Mesuré (2026-11-07, 490 pages et les cinq pages du contrôle en direct,
+  mesure absolue des médias de `scripts/corpus/README.md`) : sur 387 pages
+  mesurées (1 784 images, 51 vidéos, 40 vidéos intégrées, 107 citations,
+  71 questions, 81 tableaux dans l'article), les médias manquants passent de
+  316 sur 118 pages (`a90032f` ; 821 sur 256 en 1.8.0) à **160 sur 75**
+  (vidéos 9 → 0, vidéos intégrées 20 → 1, citations 11 → 3, questions 3 → 0,
+  images 269 → 152), sans régression ; texte : aucune page en échec contre
+  `a90032f` ni contre la 1.8.0, aucun doublon nouveau, oracle du flux
+  inchangé (22 phrases). Ce qui reste est surtout de l'habillage dans le
+  conteneur (cartes « à lire » de GitHub, OpenAI, Clubic, Numerama,
+  promotions), des copies d'une visionneuse (Google Research), un tweet et
+  une citation de Clubic, deux tableaux d'un avis du CERT-FR.
   Mesuré (2026-11-06) sur 126 pages (corpus des trois rounds et pages
   fraîches des sites cités) : 19 pages changent, **uniquement par leurs
   images** — Numerama et Frandroid perdent tous leurs cadres blancs (jusqu'à
@@ -6075,7 +6140,11 @@ serveur de développement en 1.4.4.)*
 - **Version de l'extraction** (1.9.0, A-2 — `server/extractVersion.ts` et
   `src/lib/extractVersion.ts`, même valeur vérifiée par
   `server/test/cache.test.ts`). À monter à chaque changement du résultat de
-  l'extraction pour une même page. **13** depuis REG-229 : la page vérifie
+  l'extraction pour une même page. **14** depuis REG-239 : les médias de
+  l'article (questions d'un `<details>`, `<picture>` sans `<img>`, vidéo
+  derrière un voile, vidéos et citations d'éléments personnalisés, aperçu
+  flou, image dans un lien d'agrandissement — REG-239 à REG-244) ; 13 avait
+  accompagné REG-229 : la page vérifie
   Readability (garde de non-perte), l'encadré dans le fil du texte reste
   (REG-232), la vidéo paresseuse prend son adresse (REG-233) ; 12 avait
   accompagné les doublons de mise en page (REG-225, REG-226), 11 la garde du

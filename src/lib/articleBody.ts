@@ -75,7 +75,7 @@ export function displayedHtml(
   // `extractShown`. Sauf si le lecteur l'a demandé (`forced`).
   if (hasRenderableContent(extractedHtml) && !extractShown(rssHtml, extractedHtml, opts.forced)) return rssHtml || '';
   const imgMatch = rssHtml?.match(/<img[^>]+src=["']([^"']+)["']/i);
-  if (imgMatch && !extractedHtml.includes(imgMatch[1]) && !holdsImage(extractedHtml, imgMatch[1])) {
+  if (imgMatch && !extractedHtml.includes(imgMatch[1]) && !holdsImage(extractedHtml, imgMatch[1]) && !opensOnImage(extractedHtml)) {
     return `<img src="${imgMatch[1].replace(/"/g, '&quot;')}" alt="" />` + extractedHtml;
   }
   return extractedHtml;
@@ -85,21 +85,96 @@ export function displayedHtml(
 const unescapeAttr = (value: string) => value.replace(/&amp;/gi, '&').replace(/&#0*38;/g, '&').replace(/&quot;/gi, '"');
 
 /**
- * L'extrait montre-t-il déjà l'image `src`, à la taille près (REG-227) ? Par
- * son `src`, ou par une adresse de son `srcset` (un autre hôte, celui de la
- * page, y porte souvent les tailles de la même photo).
+ * L'extrait montre-t-il déjà l'image `src` ? À la taille près (REG-227), par
+ * son `src` ou une adresse de son `srcset` (un autre hôte, celui de la page, y
+ * porte souvent les tailles de la même photo) ; ou sous une autre adresse de
+ * la même photo (`sameLeadPhoto`, REG-245).
  */
 function holdsImage(html: string, src: string): boolean {
-  const wanted = imageIdentity(unescapeAttr(src));
+  const raw = unescapeAttr(src);
+  const wanted = imageIdentity(raw);
   if (!wanted) return false;
   for (const tag of html.match(/<img\b[^>]*>/gi) ?? []) {
     for (const attr of tag.matchAll(/\s(?:src|srcset|data-src|data-srcset)\s*=\s*(?:"([^"]*)"|'([^']*)')/gi)) {
       const value = unescapeAttr(attr[1] ?? attr[2] ?? '');
       const candidates = /\ssrcset|data-srcset/i.test(attr[0]) ? value.split(',').map((c) => c.trim().split(/\s+/)[0]) : [value];
-      if (candidates.some((c) => imageIdentity(c) === wanted)) return true;
+      if (candidates.some((c) => imageIdentity(c) === wanted || sameLeadPhoto(c, raw))) return true;
     }
   }
   return false;
+}
+
+// ── L'image d'en-tête du flux, en double (REG-245) ───────────────────
+// The Verge donne au flux la photo d'en-tête dans un autre recadrage que la
+// page (`?crop=0,0,100,100` contre `?crop=9.17,0,89.7,74.4&w=376`), Clubic
+// sous une autre adresse (`/v1/images/2471365/raw` contre
+// `/b7c53e582471365/1600x900/smart/…`) : à la taille près, ce sont deux
+// images, et le volet remettait celle du flux au-dessus de celle de l'extrait.
+// Deux règles, pour CE SEUL usage (l'identité stricte de `imageIdentity`,
+// qui décide des doublons de l'extraction, ne change pas) :
+// - l'extrait OUVRE sur une image (`opensOnImage`) : c'est son image
+//   d'en-tête, celle de l'article — celle du flux n'est pas remise, même une
+//   autre photo (une vignette carrée du flux ne remplace pas la photo de la
+//   page) ;
+// - l'extrait porte la même photo (`sameLeadPhoto`) : même hôte, et même
+//   chemin aux paramètres près (recadrage), ou un même numéro d'image dans le
+//   chemin (six chiffres au moins, l'un finissant l'autre ; pas une date).
+
+/** Blocs de texte au-delà desquels une image n'est plus l'image d'en-tête. */
+const LEAD_TEXT_BLOCKS = 3;
+/** Une image déclarée plus petite que ceci est une icône (avatar de l'auteur). */
+const LEAD_ICON_MAX = 100;
+const LEAD_ICON_NAME = /avatar|author|logo|icon|emoji/i;
+
+/** Une image qui n'est pas une icône : ni petite (taille déclarée), ni un avatar ou un logo. */
+function photoTag(tag: string): boolean {
+  for (const name of ['width', 'height']) {
+    const size = parseInt(new RegExp(`\\s${name}\\s*=\\s*["']?(\\d+)`, 'i').exec(tag)?.[1] ?? '', 10);
+    if (Number.isFinite(size) && size > 0 && size < LEAD_ICON_MAX) return false;
+  }
+  const said = /\s(?:alt|class)\s*=\s*(?:"([^"]*)"|'([^']*)')/gi;
+  for (const m of tag.matchAll(said)) if (LEAD_ICON_NAME.test(m[1] ?? m[2] ?? '')) return false;
+  const src = /\ssrc\s*=\s*(?:"([^"]*)"|'([^']*)')/i.exec(tag);
+  return !LEAD_ICON_NAME.test((src?.[1] ?? src?.[2] ?? '').split('?')[0]);
+}
+
+/** L'extrait montre-t-il une photo avant son `LEAD_TEXT_BLOCKS`-ième bloc de texte ? */
+export function opensOnImage(html: string): boolean {
+  let blocks = 0;
+  for (const m of html.matchAll(/<img\b[^>]*>|<\/(?:p|h[1-6]|li|blockquote)\s*>|<(p|h[1-6]|li|blockquote)\b[^>]*>([^<]*)/gi)) {
+    if (m[0].startsWith('<img')) {
+      if (photoTag(m[0])) return true;
+      continue;
+    }
+    // Un bloc compte quand il s'ouvre sur du texte : `<p><a><img></a></p>` n'en est pas un.
+    if (m[1] && m[2].replace(/&nbsp;/gi, ' ').trim() && ++blocks >= LEAD_TEXT_BLOCKS) return false;
+  }
+  return false;
+}
+
+/** Un numéro de 8 chiffres qui est une date (`20261107`) ne désigne pas une image. */
+const DATE_LIKE = /^(?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])$/;
+const ID_MIN_DIGITS = 6;
+/** Paramètres de recadrage, de taille et de format : la même photo autrement servie. */
+const FRAMING_PARAMS = new Set(['crop', 'rect', 'strip', 'gravity', 'focus', 'fit', 'format', 'fm', 'auto', 'w', 'h', 'width', 'height', 'resize', 'quality', 'q', 'dpr', 'key', 'sig', 'signature', 'hash']);
+
+/** `a` et `b` sont-elles la même photo, sous deux adresses du même hôte ? */
+export function sameLeadPhoto(a: string, b: string): boolean {
+  let ua: URL;
+  let ub: URL;
+  try { ua = new URL(a); ub = new URL(b); } catch { return false; }
+  const host = (u: URL) => u.host.toLowerCase().replace(/^www\./, '');
+  if (host(ua) !== host(ub)) return false;
+  const path = (u: URL) => u.pathname.replace(/-\d{2,5}x\d{2,5}(?=\.[a-z0-9]+$)/i, '');
+  // Hors recadrage, taille et format, la requête désigne l'image (`image.php?id=2`).
+  const query = (u: URL) => [...u.searchParams].filter(([key]) => !FRAMING_PARAMS.has(key.toLowerCase())).map(([k, v]) => `${k}=${v}`).sort().join('&');
+  if (path(ua) === path(ub) && query(ua) === query(ub)) return true;
+  const ids = (u: URL) => (u.pathname.match(/\d+/g) ?? []).filter((run) => run.length >= ID_MIN_DIGITS && !DATE_LIKE.test(run));
+  const mine = ids(ub);
+  return ids(ua).some((run) => mine.some((other) => {
+    const [short, long] = run.length <= other.length ? [run, other] : [other, run];
+    return long.endsWith(short);
+  }));
 }
 
 /** Durée de lecture en minutes, jamais inférieure à 1. */

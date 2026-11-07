@@ -48,18 +48,59 @@ describe('displayedHtml', () => {
     expect(out.startsWith('<img src="https://images.example.com/up/velo-300x200.jpg"')).toBe(false);
   });
 
+  // Depuis REG-245, une image dans les premiers blocs de l'extrait est SON
+  // image d'en-tête : l'autre photo du corps est ici placée plus loin.
   it('réinjecte toujours une image de tête qui est une autre photo que celles de l’extrait (REG-227)', () => {
-    const out = displayedHtml(
-      '<img src="https://example.com/up/une-1200x675.jpg"><p>flux</p>',
-      '<figure><img src="https://example.com/up/corps-1200x675.jpg"></figure><p>complet</p>',
+    const rest = '<p>un</p><p>deux</p><p>trois</p><figure><img src="https://example.com/up/corps-1200x675.jpg"></figure><p>complet</p>';
+    const out = displayedHtml('<img src="https://example.com/up/une-1200x675.jpg"><p>flux</p>', rest);
+    expect(out).toBe(`<img src="https://example.com/up/une-1200x675.jpg" alt="" />${rest}`);
+  });
+
+  // REG-245 : The Verge donne au flux la photo d'en-tête dans un autre
+  // recadrage (`crop=`) que la page, Clubic sous une autre adresse
+  // (`/v1/images/2471365/raw` contre `/b7c53e582471365/1600x900/smart/…`) :
+  // le volet la remettait au-dessus de celle de l'extrait, deux fois la photo.
+  it('ne la réinjecte pas quand l’extrait ouvre sur sa propre image d’en-tête, même une autre photo (REG-245)', () => {
+    const verge = displayedHtml(
+      '<img src="https://platform.example.com/wp-content/uploads/sites/2/2026/11/muse.png?quality=90&amp;strip=all&amp;crop=0,0,100,100"><p>flux</p>',
+      '<div><p><a href="/auteur"><img alt="Emma" width="36" height="36" src="https://platform.example.com/author/emma.jpg?w=96"></a></p><p>Le chapeau.</p><p>Par Emma</p><img alt="muse" srcset="https://platform.example.com/wp-content/uploads/sites/2/2026/11/muse.png?quality=90&amp;strip=all&amp;crop=9.1,0,89.7,74.4&amp;w=376 376w"><p>Le corps.</p></div>',
     );
-    expect(out).toBe('<img src="https://example.com/up/une-1200x675.jpg" alt="" /><figure><img src="https://example.com/up/corps-1200x675.jpg"></figure><p>complet</p>');
+    expect(verge.match(/muse\.png/g)).toHaveLength(1);
+    const other = displayedHtml(
+      '<img src="https://example.com/up/une.jpg"><p>flux</p>',
+      `<p>${'Un long chapeau. '.repeat(20)}</p><picture><img src="https://example.com/up/en-tete.jpg"></picture><p>corps</p>`,
+    );
+    expect(other).not.toContain('une.jpg');
+  });
+
+  it('ne la réinjecte pas quand l’extrait porte la même photo sous une autre adresse du même hôte (Clubic, REG-245)', () => {
+    const rest = '<p>un</p><p>deux</p><p>trois</p><p>quatre</p><img src="https://pic.example.com/b7c53e582471365/1600x900/smart/blackfriday.png"><p>fin</p>';
+    expect(displayedHtml('<img src="https://pic.example.com/v1/images/2471365/raw"><p>flux</p>', rest)).toBe(rest);
+    const cropped = '<p>un</p><p>deux</p><p>trois</p><p>quatre</p><img src="https://cdn.example.com/2026/11/muse.png?crop=1,2,3,4&amp;w=376"><p>fin</p>';
+    expect(displayedHtml('<img src="https://cdn.example.com/2026/11/muse.png?crop=0,0,100,100"><p>flux</p>', cropped)).toBe(cropped);
+  });
+
+  it('réinjecte une autre photo : même hôte et même dossier de date, autre hôte et même numéro, icône en tête (REG-245)', () => {
+    const late = (img: string) => `<p>un</p><p>deux</p><p>trois</p>${img}<p>fin</p>`;
+    const sameFolder = late('<img src="https://cdn.example.com/images/20261107/b.jpg">');
+    expect(displayedHtml('<img src="https://cdn.example.com/images/20261107/a.jpg">', sameFolder)).toContain('20261107/a.jpg');
+    const otherHost = late('<img src="https://cdn.other.example/b7c53e582471365/photo.png">');
+    expect(displayedHtml('<img src="https://pic.example.com/v1/images/2471365/raw">', otherHost)).toContain('2471365/raw');
+    const icon = '<p><img src="https://cdn.example.com/avatar.jpg" width="36" height="36"></p><p>un</p><p>deux</p><p>trois</p>';
+    expect(displayedHtml('<img src="https://cdn.example.com/une.jpg">', icon)).toContain('une.jpg');
+  });
+
+  it('ne la réinjecte pas quand le flux donne la même photo plus grande que l’extrait (REG-245)', () => {
+    const rest = '<p>un</p><p>deux</p><p>trois</p><img src="https://example.com/up/photo-640x360.jpg"><p>fin</p>';
+    expect(displayedHtml('<img src="https://example.com/up/photo-1600x900.jpg">', rest)).toBe(rest);
   });
 
   it('réinjecte une image servie par un script dont la requête est l’identité (REG-227)', () => {
+    // L'autre photo est placée après les premiers blocs : en tête, elle serait
+    // l'image d'en-tête de l'extrait (REG-245).
     const out = displayedHtml(
       '<img src="https://example.com/image.php?id=1&amp;w=1200">',
-      '<img src="https://example.com/image.php?id=2&amp;w=1200"><p>complet</p>',
+      '<p>un</p><p>deux</p><p>trois</p><img src="https://example.com/image.php?id=2&amp;w=1200&amp;crop=1"><p>complet</p>',
     );
     expect(out.match(/image\.php/g)).toHaveLength(2);
   });

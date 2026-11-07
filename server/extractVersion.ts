@@ -77,5 +77,12 @@
  *     Docker, les chapeaux de The Verge, la suite des dossiers de Clubic) ;
  *     un encadré dans le fil du texte n'est plus retiré (REG-232) ; une vidéo
  *     paresseuse prend son adresse (REG-233) : les extraits v12 sont refaits.
+ * 14 : 1.9.0 — les médias de l'article : la question d'un `<details>` revient
+ *     avec sa réponse (REG-239), une `<picture>` sans `<img>` prend celle de
+ *     son `<noscript>` (REG-240), une vidéo intégrée derrière un voile prend
+ *     son `data-src` (REG-241), un élément personnalisé montre la vidéo ou la
+ *     citation de ses attributs (REG-242), un aperçu flou prend sa plus grande
+ *     variante (REG-243), l'image d'en-tête dans un lien d'agrandissement
+ *     revient (REG-244) : les extraits v13 sont refaits.
  */
-export const EXTRACT_VERSION = 13;
+export const EXTRACT_VERSION = 14;

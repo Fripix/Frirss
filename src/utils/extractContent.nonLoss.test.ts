@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { extractFromPage, extractFullContent, forgetExtractFailures, guardForTests, withoutRepeatsForTests } from './extractContent';
+import { extractFromPage, extractFullContent, forgetExtractFailures, guardForTests, resolveLazyImages, withoutRepeatsForTests } from './extractContent';
 import { repeatLedePageHtml, repeatLightboxPageHtml } from '../test/repeatPageFixtures';
 import { headerPageHtml, heroPageHtml, ledePageHtml, shortLandingPageHtml, TOC_ONLY_HEADING, tocPageHtml } from '../test/guardPageFixtures';
 import { defineContainerGuardCases } from '../test/containerGuardCases';
+import { defineMediaCases } from '../test/mediaGuardCases';
 
 // Copie, pour le repli du navigateur, de `server/test/extractNonLoss.test.ts` :
 // mêmes pages, mêmes formes, mêmes attentes (la garde est copiée à l'identique).
@@ -149,6 +150,14 @@ defineContainerGuardCases({
   parse: (html) => new DOMParser().parseFromString(html, 'text/html'),
 });
 
+defineMediaCases({
+  prefix: 'repli local — ',
+  extractArticle,
+  guardForTests,
+  resolveLazyImages,
+  parse: (html) => new DOMParser().parseFromString(html, 'text/html'),
+});
+
 // ── Doublons de l'article complet (REG-225, REG-226) ─────────────────
 // Une page porte parfois deux exemplaires d'un même bloc, dont sa feuille de
 // style ne montre qu'un : le chapeau et la photo d'en-tête de The Verge, une
@@ -181,7 +190,10 @@ describe('repli local — doublons : pages réelles (REG-225, REG-226)', () => {
       expect(occurrences(textOf(out.content), line)).toBe(1);
     }
     expect(doc.querySelectorAll('div.pswp-caption-content').length).toBe(0);
-    expect(doc.querySelectorAll('img').length).toBe(2);
+    // Les deux figures, et l'image d'en-tête, rangée dans un lien
+    // d'agrandissement : elle revient depuis REG-244 (une seule fois).
+    const srcs = Array.from(doc.querySelectorAll('img')).map((img) => (img as Element).getAttribute('src'));
+    expect(srcs).toEqual(['https://example.com/img/2.jpg', 'https://example.com/img/6.jpg', 'https://example.com/img/7.jpg']);
   });
 });
 
