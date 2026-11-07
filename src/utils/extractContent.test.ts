@@ -42,6 +42,40 @@ const htmlPage = (body: string) => new Response(body, { status: 200, headers: { 
 // La mémoire des échecs (L-03) vit le temps de la session : chaque test part
 // d'une session neuve, sinon un échec d'un test priverait le suivant de réseau.
 beforeEach(() => { vi.restoreAllMocks(); forgetExtractFailures(); });
+
+/**
+ * Pendant `run`, compte les requêtes de sélecteur et les lectures de
+ * `textContent`, sur les prototypes de jsdom qui les portent — une mesure du
+ * travail fait, que la charge de la machine ne fausse pas (REG-209).
+ */
+function countDomReads(doc: Document, run: () => void): { queries: number; textReads: number } {
+  const ownerOf = (obj: object, name: string): Record<string, unknown> => {
+    let proto: object = obj;
+    while (!Object.prototype.hasOwnProperty.call(proto, name)) proto = Object.getPrototypeOf(proto);
+    return proto as Record<string, unknown>;
+  };
+  const counts = { queries: 0, textReads: 0 };
+  const restores: Array<() => void> = [];
+  for (const name of ['querySelectorAll', 'querySelector']) {
+    const proto = ownerOf(doc.documentElement, name);
+    const original = proto[name] as (...args: unknown[]) => unknown;
+    proto[name] = function (this: unknown, ...args: unknown[]) { counts.queries++; return original.apply(this, args); };
+    restores.push(() => { proto[name] = original; });
+  }
+  const textProto = ownerOf(doc.createTextNode(''), 'textContent');
+  const descriptor = Object.getOwnPropertyDescriptor(textProto, 'textContent')!;
+  Object.defineProperty(textProto, 'textContent', {
+    ...descriptor,
+    get(this: Node) { if (this.nodeType === 3) counts.textReads++; return descriptor.get!.call(this); },
+  });
+  restores.push(() => Object.defineProperty(textProto, 'textContent', descriptor));
+  try {
+    run();
+  } finally {
+    for (const restore of restores) restore();
+  }
+  return counts;
+}
 afterEach(() => { vi.unstubAllGlobals(); });
 
 describe('extractFullContent', () => {
@@ -462,20 +496,22 @@ describe('extractFullContent — repli local : blocs étrangers (M-04)', () => {
 
   // RX-04, voir le serveur : chaque ancêtre d'un lien payant relisait son sous-arbre.
   it('ne relit pas tout le sous-arbre de chaque ancêtre d’un lien payant', () => {
-    // Mesuré contre la même page sans lien payant, qui ne juge aucun encart :
-    // le rapport tient sous la charge, pas un seuil en millisecondes.
-    const timed = (href: string) => {
-      const depth = 200;
-      const doc = new DOMParser().parseFromString(`<html><body><article><p>Un paragraphe d’article.</p></article>${'<div>'.repeat(depth)}<a href="${href}"><img src="/a.png"></a><a href="/libre">x</a>${'<i></i>'.repeat(15_000)}${'</div>'.repeat(depth)}</body></html>`, 'text/html');
-      const started = performance.now();
-      stripBoilerplate(doc.documentElement);
-      const elapsed = performance.now() - started;
-      expect(doc.querySelectorAll('i')).toHaveLength(15_000);
-      return elapsed;
+    // Compté, pas chronométré (voir le serveur) : chaque ancêtre relisait ses
+    // liens et son texte, `depth` requêtes et lectures de plus que la même page
+    // sans lien payant.
+    const depth = 200;
+    const reads = (href: string) => {
+      const doc = new DOMParser().parseFromString(`<html><body><article><p>Un paragraphe d’article.</p></article>${'<div>'.repeat(depth)}<a href="${href}"><img src="/a.png"></a><a href="/libre">x</a>${'<i></i>'.repeat(2_000)}${'</div>'.repeat(depth)}</body></html>`, 'text/html');
+      const counts = countDomReads(doc, () => stripBoilerplate(doc.documentElement));
+      expect(doc.querySelectorAll('i')).toHaveLength(2_000);
+      return counts;
     };
-    const unpaid = timed('https://x.example/?utm_medium=email');
-    const paid = timed('https://x.example/?utm_medium=paid');
-    expect(paid).toBeLessThan(unpaid * 3 + 100);
+    const unpaid = reads('https://x.example/?utm_medium=email');
+    const paid = reads('https://x.example/?utm_medium=paid');
+    expect(unpaid.queries).toBeGreaterThan(0);
+    expect(unpaid.textReads).toBeGreaterThan(0);
+    expect(paid.queries).toBeLessThanOrEqual(unpaid.queries + 2);
+    expect(paid.textReads).toBeLessThanOrEqual(unpaid.textReads + 10);
   });
 
   // Voir le serveur : un court billet dont la photo porte un lien payant n'est pas un encart.

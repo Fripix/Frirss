@@ -15,6 +15,38 @@ const page = `<!doctype html><html><head><title>Titre de la page</title></head>
 <p>Un second paragraphe, lui aussi assez fourni pour peser dans la balance du score de lisibilité calculé par Readability.</p>
 </article></body></html>`;
 
+/**
+ * Pendant `run`, compte les requêtes de sélecteur (`querySelectorAll`,
+ * `querySelector`) et les lectures du texte d'un nœud texte, sur les
+ * prototypes de linkedom qui les portent — une mesure du travail fait, que la
+ * charge de la machine ne fausse pas.
+ */
+function countDomReads(doc: Document, run: () => void): { queries: number; textReads: number } {
+  const ownerOf = (obj: object, name: string): Record<string, unknown> => {
+    let proto: object = obj;
+    while (!Object.prototype.hasOwnProperty.call(proto, name)) proto = Object.getPrototypeOf(proto);
+    return proto as Record<string, unknown>;
+  };
+  const counts = { queries: 0, textReads: 0 };
+  const restores: Array<() => void> = [];
+  for (const name of ['querySelectorAll', 'querySelector']) {
+    const proto = ownerOf(doc.createElement('i'), name);
+    const original = proto[name] as (...args: unknown[]) => unknown;
+    proto[name] = function (this: unknown, ...args: unknown[]) { counts.queries++; return original.apply(this, args); };
+    restores.push(() => { proto[name] = original; });
+  }
+  const textProto = ownerOf(doc.createTextNode(''), 'textContent');
+  const descriptor = Object.getOwnPropertyDescriptor(textProto, 'textContent')!;
+  Object.defineProperty(textProto, 'textContent', { ...descriptor, get(this: unknown) { counts.textReads++; return descriptor.get!.call(this); } });
+  restores.push(() => Object.defineProperty(textProto, 'textContent', descriptor));
+  try {
+    run();
+  } finally {
+    for (const restore of restores) restore();
+  }
+  return counts;
+}
+
 describe('extractArticle', () => {
   it('rend le corps de l’article', () => {
     const out = extractArticle('https://example.com/a', page);
@@ -544,21 +576,26 @@ describe('stripBoilerplate', () => {
   // RX-04 : sur une chaîne d'ancêtres d'un lien payant, chaque niveau relisait
   // tout son sous-arbre (texte, liens) : un coût en profondeur fois taille.
   it('ne relit pas tout le sous-arbre de chaque ancêtre d’un lien payant', () => {
-    // Mesuré contre la même page sans lien payant, qui ne juge aucun encart :
-    // le rapport tient sous la charge, pas un seuil en millisecondes.
-    const timed = (href: string) => {
-      const depth = 240;
-      const { document } = parseHTML(`<html><body><article><p>${long}</p></article>${'<div>'.repeat(depth)}<a href="${href}"><img src="/a.png"></a><a href="/libre">x</a>${'<i></i>'.repeat(55_000)}${'</div>'.repeat(depth)}</body></html>`);
-      const started = performance.now();
-      stripBoilerplate(document.documentElement as unknown as Element);
-      const elapsed = performance.now() - started;
+    // Compté, pas chronométré : sous charge, un rapport de durées échouait
+    // à tort (397 ms contre 296 permis). L'ancienne règle relisait, pour
+    // chaque ancêtre, ses liens (`querySelectorAll`) et son texte : avec
+    // `depth` ancêtres, autant de requêtes et de lectures de plus que la même
+    // page sans lien payant, qui ne juge aucun encart.
+    const depth = 200;
+    const reads = (href: string) => {
+      const { document } = parseHTML(`<html><body><article><p>${long}</p></article>${'<div>'.repeat(depth)}<a href="${href}"><img src="/a.png"></a><a href="/libre">x</a>${'<i></i>'.repeat(2_000)}${'</div>'.repeat(depth)}</body></html>`);
+      const counts = countDomReads(document as unknown as Document, () => stripBoilerplate(document.documentElement as unknown as Element));
       // Un lien libre sous chaque ancêtre : aucun n'est un encart.
-      expect(document.querySelectorAll('i')).toHaveLength(55_000);
-      return elapsed;
+      expect(document.querySelectorAll('i')).toHaveLength(2_000);
+      return counts;
     };
-    const unpaid = timed('https://x.example/?utm_medium=email');
-    const paid = timed('https://x.example/?utm_medium=paid');
-    expect(paid).toBeLessThan(unpaid * 3 + 100);
+    const unpaid = reads('https://x.example/?utm_medium=email');
+    const paid = reads('https://x.example/?utm_medium=paid');
+    // Le compteur compte bien : le nettoyage lit le texte et interroge l'arbre.
+    expect(unpaid.queries).toBeGreaterThan(0);
+    expect(unpaid.textReads).toBeGreaterThan(0);
+    expect(paid.queries).toBeLessThanOrEqual(unpaid.queries + 2);
+    expect(paid.textReads).toBeLessThanOrEqual(unpaid.textReads + 10);
   });
 
   // Relecture des correctifs du quatrième round : un court billet dont la
