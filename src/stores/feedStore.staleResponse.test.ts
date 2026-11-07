@@ -499,6 +499,58 @@ describe('relecture d’une liste finie, du plus ancien au plus récent (D-01)',
     expect(useFeedStore.getState().continuation, 'plus de promesse qu’aucun geste ne peut tenir').toBeNull();
   });
 
+  // RZ-02 : les favoris d'un flux sont filtrés côté client. Les pages du
+  // serveur couvrent tout le flux, la liste n'en garde que les favoris : la
+  // borne tirée de la taille de la liste (4 favoris → 2 pages) s'arrêtait au
+  // milieu de la queue, et la liste se disait finie avant le favori arrivé.
+  it('favoris d’un flux : la traversée ne se borne pas au nombre de favoris, le favori arrivé reste atteignable', async () => {
+    const env = await load();
+    const { api, useFeedStore } = env;
+    const { useUiStore } = await import('./uiStore');
+    useUiStore.setState({ articleOrder: 'oldest' } as never);
+    const stream = [1, 2, 3, 4, 5, 6, 7, 8];
+    const starred = new Set([2, 4, 6, 8]);
+    vi.mocked(api.getStreamContents).mockImplementation((async (_id: string, _n: number, cont: string | null, _x: unknown, opts?: { cacheOnly?: boolean }) => {
+      if (opts?.cacheOnly) return null;
+      const from = cont ? Number(cont.slice(3)) : 0;
+      const next = from + 2 < stream.length ? `at-${from + 2}` : null;
+      return { items: stream.slice(from, from + 2).map((n) => item(n, starred.has(n) ? [STARRED] : [])), continuation: next };
+    }) as never);
+    vi.mocked(api.newestItemId).mockImplementation(async () => String(Math.max(...stream)));
+    useFeedStore.getState().selectView(feed1, 'starred');
+    await settled();
+    while (useFeedStore.getState().continuation) await useFeedStore.getState().loadMore();
+    expect(useFeedStore.getState().articles.map((a) => a.id), 'favoris chargés').toEqual([2, 4, 6, 8].map(hex));
+    stream.push(9, 10);
+    starred.add(10);
+    await useFeedStore.getState().silentRefresh();
+    await settled();
+    let guard = 0;
+    while (useFeedStore.getState().continuation && guard++ < 20) { await useFeedStore.getState().loadMore(); await settled(); }
+    const s = useFeedStore.getState();
+    expect(s.articles.map((a) => a.id), 'le favori arrivé après la relecture est atteint').toEqual([2, 4, 6, 8, 10].map(hex));
+    expect(s.continuation).toBeNull();
+    expect(s.loadingMore).toBe(false);
+  });
+
+  it('favoris d’un flux : une suite qui avance sans fin s’arrête au plafond et garde sa suite', async () => {
+    const env = await load();
+    const { api, useFeedStore } = env;
+    const fav = (n: number) => item(n, [STARRED]);
+    vi.mocked(api.getStreamContents).mockResolvedValue({ items: [fav(2), fav(1)], continuation: 'c0' } as never);
+    useFeedStore.getState().selectView(feed1, 'starred');
+    await settled();
+    let calls = 0;
+    vi.mocked(api.getStreamContents).mockImplementation((async () => {
+      calls++;
+      return { items: [fav(2), fav(1)], continuation: `c${calls}` };
+    }) as never);
+    await useFeedStore.getState().loadMore();
+    expect(calls).toBeLessThanOrEqual(41);
+    expect(useFeedStore.getState().loadingMore).toBe(false);
+    expect(useFeedStore.getState().continuation, 'la suite reste pour le geste suivant').not.toBeNull();
+  });
+
   it('une suite qui tourne en rond sur des articles déjà là s’arrête d’elle-même, et la liste se dit finie', async () => {
     const env = await load();
     const { api, useFeedStore } = env;

@@ -537,6 +537,11 @@ function persistCurrentView(get: () => FeedState): void {
 let listGeneration = 0;
 /** Numéro de la dernière demande de page de suite (`loadMore`, R3T3-2). */
 let loadMoreTicket = 0;
+/**
+ * Pages de doublons traversées d'affilée au plus dans une vue filtrée côté
+ * client (favoris d'un flux), où la taille de la liste ne borne rien (RZ-02).
+ */
+const CLIENT_FILTERED_HOP_LIMIT = 40;
 
 /**
  * La vue « plus anciens d'abord » a-t-elle quelque chose au-delà de son
@@ -2296,7 +2301,16 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     const order = viewOrder(selectedFeed);
     // Bornes de la traversée d'une queue déjà chargée (RO-03) : jamais plus de
     // pages de doublons que la liste n'en contient, jamais deux fois la même suite.
-    const hopLimit = duplicatePageLimit(get().articles.length, PAGE_SIZE);
+    // Les favoris d'un flux sont filtrés côté client (`fetchArticleStream`) :
+    // les pages du serveur couvrent tout le flux, la liste n'en garde que les
+    // favoris, et sa taille ne dit rien du nombre de pages servies — 40 favoris
+    // bornaient à 2 pages une queue qui en comptait 8, et la liste se disait
+    // finie avant un favori arrivé depuis (RZ-02). Là, seul un plafond fixe
+    // garde d'un serveur qui ne finirait pas, et il garde la suite.
+    const clientFiltered = filter === 'starred' && !!selectedFeed;
+    const hopLimit = clientFiltered
+      ? CLIENT_FILTERED_HOP_LIMIT
+      : duplicatePageLimit(get().articles.length, PAGE_SIZE);
     const seen = new Set<string | null>([asked]);
     let hops = 0;
     let probed = false;
@@ -2362,7 +2376,11 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
           // Le rattrapage d'un ✓ s'arrête à sa page (`listTopUp.ts`) : la suite
           // reste, le prochain défilement la reprendra.
           if (opts?.once) { release(); return; }
-          if (hops >= hopLimit || seen.has(asked)) { finish(); return; }
+          if (seen.has(asked)) { finish(); return; }
+          // Une vue filtrée côté client ne sait pas où finit sa queue : au
+          // plafond, la suite reste pour le geste suivant plutôt que de rendre
+          // inatteignable ce qui la suit.
+          if (hops >= hopLimit) { if (clientFiltered) release(); else finish(); return; }
           hops++;
           seen.add(asked);
           continue;

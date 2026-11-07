@@ -6393,7 +6393,13 @@ lui-même.** La chaîne tient en trois temps, et le cache n'en fait pas partie.
    retour d'onglet). Coût restant : quand quelque chose est arrivé, une page
    par 50 articles de queue. Favoris d'un flux (filtrés côté client) : la
    question porte sur tout le flux et peut répondre « arrivé » à tort,
-   jamais l'inverse. Du plus récent au plus ancien, les nouveaux sont dans la
+   jamais l'inverse ; et la taille de la liste ne borne rien, les pages du
+   serveur couvrant tout le flux quand la liste n'en garde que les favoris
+   (40 favoris bornaient à 2 pages une queue de 8, et la liste se disait
+   finie avant un favori arrivé depuis, RZ-02). Là, la traversée n'a qu'un
+   plafond fixe de 40 pages (`CLIENT_FILTERED_HOP_LIMIT`), qui **garde** la
+   suite pour le geste suivant ; la suite déjà vue, elle, finit la liste
+   comme ailleurs. Du plus récent au plus ancien, les nouveaux sont dans la
    page : la liste reste finie. Le compteur de nouveautés (`newInView`) retombe à zéro dans les deux
    sens. **Une page suivante en vol pendant une relecture
    qui remplace tout est jetée** : `loadMore` compare la suite d'avant sa
