@@ -98,6 +98,27 @@ export default [
     },
   },
 
+  // ── Outils TypeScript (Node, lancés par tsx) ───────────────────────
+  {
+    files: ['scripts/**/*.{ts,mts}'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'module',
+      globals: globals.node,
+      parser: tseslint.parser,
+    },
+    plugins: {
+      '@typescript-eslint': tseslint.plugin,
+    },
+    rules: {
+      ...js.configs.recommended.rules,
+      ...tseslint.configs.recommended[2].rules,
+      'no-unused-vars': 'off',
+      'no-undef': 'off',
+      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+    },
+  },
+
   // ── Build/config files (Node) ──────────────────────────────────────
   {
     files: ['*.config.js', 'vite.config.js'],

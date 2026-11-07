@@ -28,7 +28,7 @@ export default defineConfig({
   },
   test: {
     environment: 'node', // default; frontend tests opt into jsdom via a docblock
-    include: ['server/**/*.test.{js,ts}', 'src/**/*.test.{js,jsx,ts,tsx}'],
+    include: ['server/**/*.test.{js,ts}', 'src/**/*.test.{js,jsx,ts,tsx}', 'scripts/**/*.test.ts'],
     setupFiles: ['./server/test/setup.ts'],
     fileParallelism: false, // backend tests share a temp DB → run serially
   },
