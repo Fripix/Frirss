@@ -109,29 +109,54 @@ perdait les paliers d'une page de dons (« Every little bit helps »…) passait
 corpus. Un mot isolé (« Partager », « Lire aussi ») n'est pas un fragment.
 
 Une **image est perdue** quand la photo de la base n'est plus en tête **à la
-taille près** (`imageIdentity`, `src/lib/imageIdentity.ts` : requête d'une
-adresse d'image, suffixe `-1200x675`, paramètres de taille d'un script) ; les
-`data:` sont exclus.
+taille près** (`imageIdentity`, `src/lib/imageIdentity.ts` : seuls les
+paramètres de taille — `w`, `h`, `width`, `height`, `resize`, `fit`, `quality`,
+`q`, `dpr` —, le suffixe `-1200x675` et la signature d'une taille demandée
+sortent ; `step.png?step=2` n'est pas `?step=1`) ; les `data:` sont exclus.
+
+Les phrases se comptent **en tant que phrases** (`sentenceCounts`) : « … 12
+SP5 » n'est pas une copie de « … 12 SP5 LTSS », ni une phrase de la légende
+« See the Pen <la même phrase> [forked] ».
 
 Un **doublon nouveau** fait échouer la page (un doublon visible est un Majeur,
 `docs/TESTING.md`) : une phrase ou un fragment présent **au moins deux fois en
 tête et au plus une fois en base**, même absent de la base ; de même pour une
 image (même photo à la taille près). Avant (REG-228), seule une phrase que la
 base lisait déjà pouvait être « doublée » : le chapeau de The Verge, absent de
-la 1.8.0 et deux fois en tête, passait pour « gagné ». Un doublon que **la page
-montre elle-même** n'en est pas un — un avis du CERT-FR cite chaque bulletin
-dans un tableau puis dans une liste : l'outil relit le texte **visible** de la
-page brute (`pageView` : ni script, style, gabarit, `noscript`, ni élément
-`hidden`, `aria-hidden="true"`, masqué en ligne ou par une classe de masquage
-que rien ne re-montre à une taille d'écran) et y compte les exemplaires
-(`pageCopies`). ⚠️ Une feuille de style externe ne se lit pas : deux
-exemplaires qui **se suivent** dans la page, alignés sur ses blocs (« a b a b »),
-comptent pour un — c'est ainsi que la page de The Verge (chapeau une fois par
-mise en page) et la visionneuse d'Ars Technica (légende puis `<figcaption>`)
-montrent un exemplaire. « (cf. section Documentation) » suivi de l'intertitre
-« Documentation », ou « … 12 SP5 » suivi de « … 12 SP5 LTSS », restent deux.
-Deux images de la même photo côte à côte, sans texte entre elles, comptent
-aussi pour une.
+la 1.8.0 et deux fois en tête, passait pour « gagné ».
+
+Une **copie perdue** fait aussi échouer la page (RD-06) : une phrase, un
+fragment ou une image présent **k ≥ 2 fois en base**, au moins k fois visible
+dans la page, et moins de k fois en tête — un refrain réduit à une fois. Une
+copie en moins n'était jamais une perte. Elle s'accepte comme une phrase
+perdue (`accepted.json`).
+
+Les deux se jugent contre **ce que la page montre** : l'outil relit le texte
+**visible** de la page brute (`pageView` : ni script, style, gabarit,
+`noscript`, ni élément `hidden`, `aria-hidden="true"`, masqué en ligne ou par
+une classe de masquage que rien ne re-montre à une taille d'écran) — un avis
+du CERT-FR cite chaque bulletin dans un tableau puis dans une liste, deux
+exemplaires visibles. ⚠️ Une feuille de style externe ne se lit pas : The Verge
+écrit le chapeau et la signature une fois par mise en page, Ars Technica la
+légende dans sa visionneuse puis dans le `<figcaption>`. Ces copies de mise en
+page ne vivent que dans l'**en-tête** de la page (avant son premier
+paragraphe de corps : un `<p>` hors figure de 200 caractères ou de deux
+phrases ; sans un tel paragraphe, pas d'en-tête) et dans une **figure**, comme
+la règle de l'extraction (`withoutRepeats`). Là seulement elles se confondent
+(`pageCopies`) :
+
+- pour un **doublon nouveau** (`twins`), deux exemplaires qui **se suivent**,
+  alignés sur les blocs (« a b a b ») comptent pour un — le chapeau de The
+  Verge, la légende d'Ars ; deux cartes signées « Par L'équipe Promo »,
+  séparées, restent deux ;
+- pour une **copie perdue** (`layout`), tous les exemplaires de l'en-tête en
+  font un, ceux d'une figure un par figure — la signature de The Verge peut
+  n'apparaître qu'une fois.
+
+Dans le **corps**, chaque exemplaire compte : un refrain que la page montre
+deux fois, une tête fidèle peut le rendre deux fois, et le perdre est un
+échec. Deux images de la même photo côte à côte, sans texte entre elles,
+comptent pour une partout.
 
 Aussi relevés : `null` d'un seul côté, chute de longueur de plus de 20 %, titre
 changé, phrases gagnées, doublons au sens large (une phrase plus fréquente en
@@ -198,8 +223,8 @@ fragments régressés sont signalés, sans bloquer.
 
 | Code | Sens |
 |---|---|
-| 0 | Aucune perte non acceptée, aucun `null` nouveau, aucune image perdue, aucun doublon nouveau |
-| 1 | Au moins une perte non acceptée, un `null` nouveau, une exception nouvelle, une image perdue ou un doublon nouveau (texte ou image) ; une phrase du flux que la tête manque et que la base rendait (avec `--oracle-strict` : toute phrase du flux manquante) |
+| 0 | Aucune perte non acceptée, aucun `null` nouveau, aucune image ni copie perdue, aucun doublon nouveau |
+| 1 | Au moins une perte non acceptée, un `null` nouveau, une exception nouvelle, une image perdue, une copie perdue ou un doublon nouveau (texte ou image) ; une phrase du flux que la tête manque et que la base rendait (avec `--oracle-strict` : toute phrase du flux manquante) |
 | 2 | L'outil lui-même a échoué (argument, ref introuvable, extracteur qui ne se charge pas) |
 
 Logique pure testée dans `lib.test.ts` et `feedOracle.test.ts` (`npx vitest run scripts/corpus`).

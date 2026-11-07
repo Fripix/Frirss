@@ -8,15 +8,29 @@ describe('imageIdentity — la même image à la taille près (REG-225, REG-227)
     expect(imageIdentity(feed)).toBe(imageIdentity(page));
   });
 
-  it('ignore les recadrages et la qualité (structure The Verge)', () => {
+  it('ignore la largeur et la qualité demandées (structure The Verge)', () => {
     const a = 'https://platform.example.com/uploads/2026/07/PHOTO_A.jpg?quality=90&strip=all&crop=0%2C0%2C100%2C100&w=2400';
-    const b = 'https://platform.example.com/uploads/2026/07/PHOTO_A.jpg?quality=90&strip=all&crop=10%2C0%2C80%2C100&w=1080';
+    const b = 'https://platform.example.com/uploads/2026/07/PHOTO_A.jpg?quality=75&strip=all&crop=0%2C0%2C100%2C100&w=1080';
     expect(imageIdentity(a)).toBe(imageIdentity(b));
+  });
+
+  // RD-02 : une requête peut porter l'identité même d'une image qui a une
+  // extension (`step.png?step=2`, `image.jpg?id=5`) ; un recadrage ou un
+  // format est une autre image. Seuls les paramètres de taille sortent.
+  it('garde tout paramètre qui n’est pas une taille, même sur une adresse d’image (RD-02)', () => {
+    expect(imageIdentity('https://example.com/step.png?step=1')).not.toBe(imageIdentity('https://example.com/step.png?step=2'));
+    expect(imageIdentity('https://example.com/image.jpg?id=5')).not.toBe(imageIdentity('https://example.com/image.jpg?id=6'));
+    expect(imageIdentity('https://example.com/a.jpg?crop=0,0,100,50&w=800')).not.toBe(imageIdentity('https://example.com/a.jpg?crop=0,50,100,50&w=800'));
+    expect(imageIdentity('https://example.com/a.jpg?format=webp')).not.toBe(imageIdentity('https://example.com/a.jpg?format=png'));
+    expect(imageIdentity('https://example.com/a.jpg?v=2&w=300')).not.toBe(imageIdentity('https://example.com/a.jpg?v=3&w=300'));
+  });
+
+  it('une signature ne compte qu’avec la taille qu’elle signe', () => {
+    expect(imageIdentity('https://example.com/a.jpg?key=111')).not.toBe(imageIdentity('https://example.com/a.jpg?key=222'));
   });
 
   it('une miniature de srcset est la même image que l’original', () => {
     expect(imageIdentity('https://example.com/a/photo-300x200.jpg')).toBe(imageIdentity('https://example.com/a/photo.jpg'));
-    expect(imageIdentity('https://example.com/a/photo-scaled.jpg')).toBe(imageIdentity('https://example.com/a/photo.jpg'));
   });
 
   it('deux photos différentes restent différentes', () => {

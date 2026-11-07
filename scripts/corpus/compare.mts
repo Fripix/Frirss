@@ -6,9 +6,9 @@
  *     [--accepted <fichier>] [--report <fichier.json>] [--only <motif>] [--jobs N] [--timeout ms] [--oracle-strict]
  *
  * Code de sortie : 1 s'il existe une perte non acceptée, un `null` nouveau,
- * une image perdue ou un doublon nouveau, ou si la tête manque une phrase du
- * flux que la base rendait (avec `--oracle-strict` : une phrase du flux tout
- * court) ; 0 sinon ; 2 si l'outil lui-même échoue.
+ * une image perdue, une copie perdue ou un doublon nouveau, ou si la tête
+ * manque une phrase du flux que la base rendait (avec `--oracle-strict` : une
+ * phrase du flux tout court) ; 0 sinon ; 2 si l'outil lui-même échoue.
  */
 import { execFileSync, fork, type ChildProcess } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
@@ -254,6 +254,7 @@ function printPage(p: PageReport): void {
     for (const s of d.lost) lines.push(`   PERTE   « ${clip(s)} »`);
     if (d.lostFragments.length) lines.push(`   FRAGMENTS « ${clip(d.lostFragments.join(' · '))} »`);
     for (const s of d.lostImages) lines.push(`   IMAGE   ${clip(s)}`);
+    for (const s of d.lostCopies) lines.push(`   COPIE PERDUE « ${clip(s)} »`);
     for (const s of d.newDuplicates) lines.push(`   DOUBLON « ${clip(s)} »`);
     for (const s of d.duplicatedImages) lines.push(`   IMAGE ×2 ${clip(s)}`);
     const tally = [
@@ -263,6 +264,7 @@ function printPage(p: PageReport): void {
       `images perdues ${d.lostImages.length}`,
       `doublons ${d.duplicated.length}`,
       `doublons nouveaux ${d.newDuplicates.length + d.duplicatedImages.length}`,
+      `copies perdues ${d.lostCopies.length}`,
     ];
     if (d.lengthDrop) tally.push('chute > 20 %');
     lines.push(`   ${tally.join(' · ')}`);
@@ -380,6 +382,7 @@ async function main(): Promise<number> {
       duplicated: sum(reports, (r) => r.diff?.duplicated.length ?? 0),
       newDuplicates: sum(reports, (r) => r.diff?.newDuplicates.length ?? 0),
       duplicatedImages: sum(reports, (r) => r.diff?.duplicatedImages.length ?? 0),
+      lostCopies: sum(reports, (r) => r.diff?.lostCopies.length ?? 0),
       pagesWithNewDuplicates: reports.filter((r) => (r.diff?.newDuplicates.length ?? 0) + (r.diff?.duplicatedImages.length ?? 0) > 0).length,
       lengthDrops: reports.filter((r) => r.diff?.lengthDrop).length,
       titleChanges: reports.filter((r) => r.diff?.titleChanged).length,
@@ -389,7 +392,7 @@ async function main(): Promise<number> {
     console.log(
       `\n${totals.pages} pages · ${totals.changed} changent · ${totals.failing} en échec` +
         ` · phrases perdues ${totals.lostSentences}, fragments perdus ${totals.lostFragments}, acceptées ${totals.acceptedSentences}, gagnées ${totals.gainedSentences}` +
-        ` · images perdues ${totals.lostImages} · null nouveaux ${totals.newNull} · erreurs nouvelles ${totals.newErrors}` +
+        ` · images perdues ${totals.lostImages} · copies perdues ${totals.lostCopies} · null nouveaux ${totals.newNull} · erreurs nouvelles ${totals.newErrors}` +
         ` · doublons ${totals.duplicated}, doublons nouveaux ${totals.newDuplicates} et images doublées ${totals.duplicatedImages} sur ${totals.pagesWithNewDuplicates} pages · chutes > 20 % ${totals.lengthDrops} · titres changés ${totals.titleChanges}` +
         ` · délais ${totals.timeouts} · erreurs ${totals.errors} · ${(durationMs / 1000).toFixed(1)} s`,
     );

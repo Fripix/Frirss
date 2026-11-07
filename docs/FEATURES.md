@@ -3081,7 +3081,12 @@ libellés disaient « plein écran » jusqu'en 1.8.0) au double-clic. Contenu bi
   le nœud ne se démonte plus. L'image d'en-tête : `displayedHtml()` réinjecte
   celle du flux quand l'extraction ne porte pas **la même photo, à la taille
   près** (`imageIdentity`, `src/lib/imageIdentity.ts` — par son `src` ou une
-  adresse de son `srcset`, REG-227). Frandroid donne au flux
+  adresse de son `srcset`, REG-227). « À la taille près » : seuls les
+  paramètres de taille sortent de la requête (`w`, `h`, `width`, `height`,
+  `resize`, `fit`, `quality`, `q`, `dpr`), avec le suffixe `-1200x675` de
+  WordPress et la signature (`key`, `sig`) d'une taille demandée ; tout autre
+  paramètre — `step`, `id`, `crop`, `format` — est l'identité de l'image
+  (RD-02). Frandroid donne au flux
   `…-1200x800.jpg?resize=1200,675&key=…` et à la page `….jpg?resize=1200&key=…` :
   comparées telles quelles, la photo s'affichait deux fois. Quand l'extraction
   porte la photo à la même adresse, l'URL ne change pas et le navigateur ne
@@ -5848,7 +5853,7 @@ serveur de développement en 1.4.4.)*
     `visually-hidden`… — que rien ne re-montre à une taille d'écran : un
     chapeau `hidden md:block` se lit en bureau, il revient). ⚠️ Une feuille
     de style externe ne se lit pas : ce qu'elle masque par des classes
-    hachées, la garde ne le sait pas (voir « Doublons qui se suivent ») ;
+    hachées, la garde ne le sait pas (voir « Doublons de mise en page ») ;
   - **il précède l'ouverture du résultat** dans ce conteneur, et le témoin
     contient cette ouverture — il englobe le résultat au lieu de lire
     ailleurs (chez Docker, le témoin ne garde que les billets liés : rien
@@ -5936,33 +5941,52 @@ serveur de développement en 1.4.4.)*
   de corpus ne les comptait pas (REG-228). Les masquages en ligne et les
   images à une autre taille sont des protections, qu'aucune page du corpus
   ne déclenche.
-- **Doublons qui se suivent** (1.9.0, REG-225, REG-226 — `withoutRepeats`,
+- **Doublons de mise en page** (1.9.0, REG-225, REG-226 — `withoutRepeats`,
   `server/extract.ts`, copiée dans le repli de `extractContent.ts` ; tests :
-  `server/test/extractNonLoss.test.ts` › « doublons », sur
-  `src/test/repeatPageFixtures.ts`, dont les fixtures gardent les doublons
-  de la page — un même texte reçoit le même brouillage). Une page porte
-  parfois deux exemplaires d'un même bloc, dont sa feuille de style n'en
-  montre qu'un : The Verge écrit le chapeau et la photo d'en-tête une fois
-  par mise en page (mobile, bureau), en classes hachées ; Ars Technica
-  chaque légende dans sa visionneuse (`div.pswp-caption-content`, masquée
-  par une feuille externe) puis dans le `<figcaption>`. Le HTML ne dit pas
-  lequel est masqué. Dernier tri de l'extraction, après la garde, et sur
-  `extractWithoutGuard` aussi : deux exemplaires qui **se suivent**, sans
-  rien de lisible entre eux (ni texte, ni média), n'en font qu'un — un bloc
-  de texte (une phrase suivie au moins, aucun média) suivi d'un bloc au même
-  texte normalisé perd le second, sauf si c'est la légende (`<figcaption>`),
-  qui reste ; dans une même figure, un bloc que le `<figcaption>` reprend en
-  entier (crédit en plus) sort ; une image suivie de la même photo à la
-  taille près (`imageIdentity`) perd la seconde, avec ce qui ne
-  l'enveloppait qu'elle, sauf si leurs `alt` diffèrent. **Jamais** dans une
-  liste, un tableau ou du code (`REPEAT_EXEMPT`) : un avis du CERT-FR cite
-  chaque bulletin dans un tableau puis dans une liste. Une exergue reprise
-  plus loin, une galerie où la photo revient après une autre ou après sa
-  légende, deux paragraphes voisins dont l'un prolonge l'autre : restent.
-  Mesuré (2026-11-07, 470 pages) : 17 pages changent, toutes de The Verge et
-  d'Ars, chaque texte et chaque photo retirés gardant un exemplaire ; contre
-  la 1.8.0, aucune page en échec, doublons nouveaux compris. Ars doublait
-  déjà en 1.8.0 la légende des figures qu'elle gardait.
+  `server/test/extractNonLoss.test.ts` › « doublons », dont « relecture
+  (RD-01 à RD-07) », sur `src/test/repeatPageFixtures.ts`, dont les fixtures
+  gardent les doublons de la page — un même texte reçoit le même brouillage).
+  Une page porte parfois deux exemplaires d'un même bloc, dont sa feuille de
+  style n'en montre qu'un : The Verge écrit le chapeau et la photo d'en-tête
+  une fois par mise en page (mobile, bureau), en classes hachées ; Ars
+  Technica chaque légende dans sa visionneuse (`div.pswp-caption-content`,
+  masquée par une feuille externe) puis dans le `<figcaption>`. Le HTML ne
+  dit pas lequel est masqué. **Règle du propriétaire : rien de l'article ne
+  manque, un doublon vaut mieux qu'une perte.** Une répétition voulue
+  (refrain, anaphore, réplique) se lit dans le corps ; une copie de mise en
+  page, dans l'en-tête ou une figure. Dernier tri de l'extraction, après la
+  garde (et sur `extractWithoutGuard`) :
+  - **en-tête** — avant le premier paragraphe du corps (un `<p>` hors figure
+    d'au moins 200 caractères ou de deux phrases suivies), parmi les quatre
+    premiers blocs de texte : deux blocs au **même texte exact** (casse et
+    ponctuation comprises — « ce soir ? » n'est pas « ce soir ! »), qui se
+    suivent sans rien de lisible entre eux et **ne sont pas frères** (une
+    copie de mise en page vit dans un autre conteneur ; deux paragraphes
+    frères identiques sont une répétition écrite) : le second sort, sauf si
+    lui seul porte un lien ; trois copies en laissent une ;
+  - **figure** — un bloc que le `<figcaption>` de la même figure reprend en
+    entier (crédit en plus) sort, qu'il soit avant ou après la légende ;
+  - **jamais** dans le corps, ni un intertitre (`h1`–`h6`), une citation, un
+    bloc qui est, contient ou se trouve dans une liste, un tableau ou du code
+    (RD-04 : un avis du CERT-FR enveloppé dans un `<div>`, des onglets de
+    code), ni un bloc qui porte un média ;
+  - **images**, où qu'elles soient — une image suivie, sans rien de lisible
+    entre elles, d'une image **identique** sort, avec ce qui ne l'enveloppait
+    qu'elle : même photo à la taille près (`imageIdentity`), même `srcset`,
+    même adresse paresseuse (`data-lazy-src`, `data-src` : RD-03, deux photos
+    peuvent partager un repli), même texte de remplacement (RD-02 :
+    `alt=""` face à un `alt` n'est pas une copie). N copies en laissent une.
+  ⚠️ **Coût** : une seule passe sur l'arbre, chaque retrait remonte au plus la
+  profondeur (RD-07 : relire les enfants du parent à chaque retrait coûtait
+  4,5 s pour 20 000 images ; test par comptage du travail).
+  Mesuré (2026-11-07, 490 pages) : 12 pages changent, toutes de The Verge et
+  d'Ars — 12 textes (chapeaux d'en-tête, légendes de visionneuse) et 25
+  images retirés, chacun gardant un exemplaire ; aucune phrase, copie ni
+  image perdue contre la version précédente ; contre la 1.8.0, aucune page en
+  échec, doublons nouveaux et copies perdues compris. La page d'accueil de The
+  Verge garde ses images en double : leurs deux exemplaires n'ont pas le même
+  `srcset` (deux recadrages), et un doublon vaut mieux qu'une perte. Ars
+  doublait déjà en 1.8.0 la légende des figures qu'elle gardait.
 - **Images paresseuses résolues avant toute passe** (1.9.0, troisième round,
   A1 — `resolveLazyImages`, `server/extract.ts`, copiée dans le repli de
   `extractContent.ts` ; tests : `server/test/extract.test.ts` › « images

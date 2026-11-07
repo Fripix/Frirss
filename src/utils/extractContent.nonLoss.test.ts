@@ -525,8 +525,8 @@ describe('repli local — doublons : formes qui pourraient casser (REG-225, REG-
     expect(occurrences(textOf(outside), s('Paragraphe'))).toBe(2);
   });
 
-  it('la même photo en deux recadrages côte à côte n’en fait qu’une', () => {
-    const out = dedupe(`<div><div><img src="https://example.com/une.jpg?w=1080&amp;crop=a"></div><div><img src="https://example.com/une.jpg?w=2400&amp;crop=b"></div></div>${p('Corps')}`);
+  it('la même photo en deux largeurs côte à côte n’en fait qu’une', () => {
+    const out = dedupe(`<div><div><img src="https://example.com/une.jpg?w=1080&amp;crop=a"></div><div><img src="https://example.com/une.jpg?w=2400&amp;crop=a"></div></div>${p('Corps')}`);
     expect(out.match(/une\.jpg/g)).toHaveLength(1);
   });
 
@@ -546,6 +546,121 @@ describe('repli local — doublons : formes qui pourraient casser (REG-225, REG-
   it('rien de répété : le HTML est rendu tel quel', () => {
     const html = `<div id="readability-page-1" class="page">${p('Un')}${p('Deux')}<img src="https://example.com/a.jpg"></div>`;
     expect(withoutRepeatsForTests(html)).toBe(html);
+  });
+});
+
+// Relecture du correctif (RD-01 à RD-07) : rien de l'article ne doit manquer,
+// un doublon vaut mieux qu'une perte. Le texte ne se retire que dans
+// l'en-tête (avant le premier paragraphe du corps) et dans une figure.
+describe('repli local — doublons : relecture (RD-01 à RD-07)', () => {
+  const s = (word: string) => `${word} : une phrase inventée assez longue pour compter comme une phrase suivie.`;
+  const p = (word: string) => `<p>${s(word)}</p>`;
+  const corps = `<p>${s('Premier paragraphe du corps')} ${s('Et sa deuxième phrase')}</p>`;
+  const dedupe = (inner: string) => withoutRepeatsForTests(`<div id="readability-page-1" class="page">${inner}</div>`);
+
+  it('RD-01 : un refrain, une anaphore ou une réplique répétée dans le corps reste deux fois', () => {
+    const refrain = `<p>Et je chante encore sous la pluie de novembre, mon amour.</p>`;
+    expect(occurrences(textOf(dedupe(`${corps}${refrain}${refrain}${p('Fin')}`)), 'Et je chante encore')).toBe(2);
+    expect(occurrences(textOf(dedupe(`${corps}${p('Jamais')}${p('Jamais')}`)), s('Jamais'))).toBe(2);
+  });
+
+  it('RD-01 : un refrain répété reste deux fois dans un vrai article', () => {
+    const filler = Array.from({ length: 8 }, (_, i) => `<p>Paragraphe de corps numéro ${i}, qui raconte la soirée avec assez de détails pour que Readability retienne le texte.</p>`).join('');
+    const refrain = '<p>Et je chante encore sous la pluie de novembre, mon amour,<br>Et la ville se tait quand tu passes près de moi.</p>';
+    const html = `<html><head><title>Chanson</title></head><body><article><h1>Chanson</h1>${filler}${refrain}${refrain}<p>Fin de la chanson, et un dernier mot de l’auteur pour conclure.</p>${filler}</article></body></html>`;
+    expect(occurrences(textOf(extractArticle('https://example.com/chanson', html)!.content), 'Et je chante encore')).toBe(2);
+  });
+
+  it('RD-01 : deux répliques qui ne diffèrent que par la ponctuation ou la casse restent deux, même en tête', () => {
+    const out = dedupe('<p>— Tu viens avec nous au concert de ce soir ?</p><p>— Tu viens avec nous au concert de ce soir !</p>' + corps);
+    expect(occurrences(textOf(out), 'au concert de ce soir')).toBe(2);
+    const casse = dedupe(`<p>${s('Chapeau')}</p><p>${s('Chapeau').toUpperCase()}</p>${corps}`);
+    expect(textOf(casse)).toContain(s('Chapeau').toUpperCase());
+  });
+
+  it('RD-01 : le chapeau doublé en tête, avant le premier paragraphe du corps, n’apparaît qu’une fois', () => {
+    const out = dedupe(`<div>${p('Chapeau')}</div><div>${p('Chapeau')}<p>Par Camille</p></div>${corps}${p('Chapeau')}`);
+    // En tête : une fois ; repris plus loin dans le corps : il reste.
+    expect(occurrences(textOf(out), s('Chapeau'))).toBe(2);
+    expect(textOf(out).indexOf(s('Chapeau'))).toBeLessThan(textOf(out).indexOf('Par Camille'));
+  });
+
+  it('RD-04 : un bloc qui enveloppe un tableau, une liste ou du code n’est jamais retiré', () => {
+    const line = 'CERTFR-2026-AVI-0001 bulletin de sécurité Exemple du mois';
+    const wrapped = dedupe(`<div class="w"><table><tr><td>${line}</td></tr></table></div><div class="w"><ul><li>${line}</li></ul></div>`);
+    expect(occurrences(textOf(wrapped), line)).toBe(2);
+    const code = 'pip install requests beautifulsoup4 lxml --upgrade';
+    const tabs = dedupe(`<div class="highlight"><pre><code>${code}</code></pre></div><div class="highlight"><pre><code>${code}</code></pre></div>`);
+    expect(occurrences(textOf(tabs), code)).toBe(2);
+  });
+
+  it('RD-05 : trois exemplaires en tête, chacun dans sa mise en page, n’en font qu’un', () => {
+    const out = dedupe(`<div class="a">${p('Chapeau')}</div><div class="b">${p('Chapeau')}</div><div class="c">${p('Chapeau')}</div>${corps}`);
+    expect(occurrences(textOf(out), s('Chapeau'))).toBe(1);
+  });
+
+  it('RD-01 : deux paragraphes frères identiques, même en tête, restent deux (répétition écrite)', () => {
+    const out = dedupe(`${p('Encore')}${p('Encore')}${corps}`);
+    expect(occurrences(textOf(out), s('Encore'))).toBe(2);
+  });
+
+  it('RD-05 : l’exemplaire qui porte un lien reste', () => {
+    const out = dedupe(`${p('Chapeau')}<p><a href="https://example.com/rapport">${s('Chapeau')}</a></p>${corps}`);
+    expect(occurrences(textOf(out), s('Chapeau'))).toBe(1);
+    expect(out).toContain('https://example.com/rapport');
+  });
+
+  it('RD-05 : un intertitre n’est jamais retiré', () => {
+    const titre = '<h2>Mise à jour du 5 novembre à 14 heures, ce qui change</h2>';
+    expect(occurrences(textOf(dedupe(`${titre}${titre}${corps}`)), 'Mise à jour du 5 novembre')).toBe(2);
+  });
+
+  it('RD-05 : une légende placée avant l’image reste, la copie de la visionneuse sort', () => {
+    const out = dedupe(`<figure><figcaption>${s('Légende')}</figcaption><div class="cap">${s('Légende')}</div><img src="https://example.com/a.jpg"></figure>${corps}`);
+    expect(occurrences(textOf(out), s('Légende'))).toBe(1);
+    expect(out).toContain('<figcaption>');
+  });
+
+  it('RD-05 : une légende et le paragraphe du corps qui la reprend, hors de la figure, restent', () => {
+    const out = dedupe(`${corps}<figure><img src="https://example.com/a.jpg"><figcaption>${s('Le pont au coucher du soleil')}</figcaption></figure>${p('Le pont au coucher du soleil')}`);
+    expect(occurrences(textOf(out), s('Le pont au coucher du soleil'))).toBe(2);
+  });
+
+  it('RD-02 : deux images d’une même adresse qui ne diffèrent que par un paramètre d’identité restent deux', () => {
+    const out = dedupe(`<figure><img src="https://example.com/step.png?step=1" alt=""></figure><figure><img src="https://example.com/step.png?step=2" alt=""></figure>`);
+    expect(out.match(/<img/g)).toHaveLength(2);
+  });
+
+  it('RD-02 : une image sans texte de remplacement n’est pas retirée face à une image qui en a un', () => {
+    expect(dedupe(`<img src="https://example.com/x.jpg" alt=""><img src="https://example.com/x.jpg" alt="Vue de près">`).match(/<img/g)).toHaveLength(2);
+    expect(dedupe(`<img src="https://example.com/x.jpg"><img src="https://example.com/x.jpg" alt="Vue de près">`).match(/<img/g)).toHaveLength(2);
+  });
+
+  it('RD-03 : deux images au même repli mais aux `srcset` différents restent deux', () => {
+    const out = dedupe(`<img src="https://example.com/fallback.jpg" srcset="https://example.com/a.jpg 800w"><img src="https://example.com/fallback.jpg" srcset="https://example.com/b.jpg 800w">`);
+    expect(out.match(/<img/g)).toHaveLength(2);
+    const lazy = dedupe(`<img src="https://example.com/fallback.jpg" data-lazy-src="https://example.com/a.jpg"><img src="https://example.com/fallback.jpg" data-lazy-src="https://example.com/b.jpg">`);
+    expect(lazy.match(/<img/g)).toHaveLength(2);
+  });
+
+  it('RD-05 : une suite de N copies de la même photo n’en laisse qu’une', () => {
+    const imgs = Array.from({ length: 5 }, () => '<div><img src="https://example.com/a.jpg?w=800" alt="A"></div>').join('');
+    expect(dedupe(`${imgs}${corps}`).match(/<img/g)).toHaveLength(1);
+  });
+
+  // RD-07 : chaque retrait relisait tous les enfants du parent — 20 000
+  // images d'un même bloc coûtaient 4,5 s. Le travail se compte : il doit
+  // croître comme la page, pas comme son carré.
+  it('RD-07 : le travail croît comme le nombre d’images, pas comme son carré', () => {
+    const work = (n: number) => {
+      const stats = { visits: 0 };
+      withoutRepeatsForTests(`<div><p>${s('Introduction')}</p>${'<img src="https://example.com/a.jpg">'.repeat(n)}</div>`, undefined, stats);
+      return stats.visits;
+    };
+    const small = work(1000);
+    const big = work(4000);
+    expect(small).toBeGreaterThan(0);
+    expect(big).toBeLessThan(small * 4 * 1.5);
   });
 });
 

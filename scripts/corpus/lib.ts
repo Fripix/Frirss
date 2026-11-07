@@ -352,6 +352,16 @@ export function isFragment(sentence: string): boolean {
   return [...normalizeText(sentence)].length >= 12;
 }
 
+/** Combien de fois chaque phrase normalisée revient, en tant que phrase. */
+function sentenceCounts(html: string): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const s of splitSentences(html)) {
+    const n = normalizeText(s);
+    if (n) counts.set(n, (counts.get(n) ?? 0) + 1);
+  }
+  return counts;
+}
+
 /** Au-delà de ces caractères de fragments perdus (non acceptés), la page échoue. */
 export const LOST_FRAGMENTS_LIMIT = 60;
 
@@ -373,19 +383,24 @@ function occurrences(haystack: string, needle: string): number {
 // Visible : ni script, style, gabarit, `noscript` ; ni un élément `hidden`,
 // `aria-hidden="true"`, en `display:none` ou `visibility:hidden` en ligne, ni
 // sous une classe de masquage que rien ne re-montre à une taille d'écran.
-// Une feuille de style externe ne se lit pas : The Verge écrit le chapeau une
-// fois par mise en page, Ars Technica chaque légende dans sa visionneuse puis
-// dans le `<figcaption>`, et la feuille n'en montre qu'un. Deux exemplaires
-// qui SE SUIVENT dans la page, sans rien entre eux, comptent donc pour un
-// (`pageCopies`), comme deux images de la même photo côte à côte.
+// Une feuille de style externe ne se lit pas : The Verge écrit le chapeau et
+// la signature une fois par mise en page, Ars Technica chaque légende dans sa
+// visionneuse puis dans le `<figcaption>`, et la feuille n'en montre qu'un. Ces
+// copies de mise en page ne vivent que dans l'en-tête (avant le premier
+// paragraphe du corps) et dans une figure, comme pour `withoutRepeats` de
+// l'extraction : là seulement elles se confondent (`pageCopies`) ; dans le
+// corps, chaque exemplaire compte — un refrain, la page le montre deux fois
+// (RD-06).
+// Deux images de la même photo côte à côte, sans texte entre elles, comptent
+// aussi pour une.
 
 /** Éléments jamais rendus, ou dont le texte n'est pas celui de la page. */
 const PAGE_UNREAD = new Set(['script', 'style', 'template', 'noscript', 'head', 'title', 'svg', 'canvas', 'iframe', 'object', 'select', 'textarea']);
 /** Classes de masquage courantes ; un jeton qui ne fait qu'en contenir le mot n'en est pas une. */
 const PAGE_HIDING_CLASSES = new Set(['hidden', 'invisible', 'd-none', 'is-hidden', 'sr-only', 'visually-hidden', 'screen-reader-text']);
-const PAGE_SHOWN_AT_SOME_SIZE = /^(?:[a-z0-9-]+:)+(?:block|flex|grid|inline|inline-block|inline-flex|inline-grid|table|table-cell|table-row|contents|flow-root|list-item|visible|not-sr-only)$|^d-(?:sm|md|lg|xl|xxl)-(?:block|flex|grid|inline|inline-block|inline-flex|table|table-cell|table-row)$/;
 /** Au-delà, deux exemplaires ne « se suivent » plus : ce sont deux passages de la page. */
 const TWIN_MAX_SPAN = 4000;
+const PAGE_SHOWN_AT_SOME_SIZE = /^(?:[a-z0-9-]+:)+(?:block|flex|grid|inline|inline-block|inline-flex|inline-grid|table|table-cell|table-row|contents|flow-root|list-item|visible|not-sr-only)$|^d-(?:sm|md|lg|xl|xxl)-(?:block|flex|grid|inline|inline-block|inline-flex|table|table-cell|table-row)$/;
 
 interface DomLike {
   nodeType: number;
@@ -409,21 +424,45 @@ export interface PageView {
   norm: string;
   /** Positions, dans `norm`, de l'espace qui ouvre chaque bloc. */
   starts: Set<number>;
+  /**
+   * La zone de chaque bloc, par sa position dans `norm` : `h` avant le premier
+   * paragraphe du corps (l'en-tête), `fN` dans la N-ième `<figure>`, `b` dans
+   * le corps. Seules l'en-tête et une figure portent des copies de mise en
+   * page (RD-06, comme `withoutRepeats` de l'extraction).
+   */
+  zones: Map<number, string>;
   /** Pour chaque image (identité à la taille près), ses exemplaires visibles, voisins confondus. */
   images: Map<string, number>;
 }
 
-/** Marque de fin d'un bloc, dans la pile du parcours. */
+/** Marques de fin d'un bloc et d'une figure, dans la pile du parcours. */
 const BLOCK_END: DomLike = { nodeType: -1, textContent: null };
+const FIGURE_END: DomLike = { nodeType: -2, textContent: null };
+/** Un paragraphe de cette longueur ouvre le corps de la page (comme `BODY_MIN` de l'extraction). */
+const PAGE_BODY_MIN = 200;
 
 /** Le texte et les images que la page brute montre (voir plus haut). */
 export function pageView(html: string, pageUrl?: string): PageView {
   const { document } = parseHTML(html);
   const blocks: string[] = [];
+  const blockZones: string[] = [];
+  const openBlocks: string[] = [];
+  const figures: number[] = [];
+  let figureCount = 0;
+  let bodyStarted = false;
   let current = '';
   const flush = () => {
     const n = normalizeText(current);
-    if (n) blocks.push(n);
+    if (n) {
+      let zone = figures.length ? `f${figures[figures.length - 1]}` : bodyStarted ? 'b' : 'h';
+      // Le premier paragraphe du corps : un `<p>` hors figure assez long, ou de deux phrases.
+      if (zone === 'h' && openBlocks[openBlocks.length - 1] === 'p' && (current.trim().length >= PAGE_BODY_MIN || splitBlock(current).filter(isTracked).length >= 2)) {
+        bodyStarted = true;
+        zone = 'b';
+      }
+      blocks.push(n);
+      blockZones.push(zone);
+    }
     current = '';
   };
   const images = new Map<string, number>();
@@ -432,7 +471,8 @@ export function pageView(html: string, pageUrl?: string): PageView {
   const stack: DomLike[] = [document.documentElement as unknown as DomLike];
   while (stack.length) {
     const node = stack.pop()!;
-    if (node === BLOCK_END) { flush(); continue; }
+    if (node === BLOCK_END) { flush(); openBlocks.pop(); continue; }
+    if (node === FIGURE_END) { figures.pop(); continue; }
     if (node.nodeType === 3) {
       const text = node.textContent || '';
       if (text.trim()) textSinceImage = true;
@@ -451,8 +491,13 @@ export function pageView(html: string, pageUrl?: string): PageView {
       }
       continue;
     }
+    if (tag === 'figure') {
+      figures.push(++figureCount);
+      stack.push(FIGURE_END);
+    }
     if (PAGE_BLOCK.test(tag)) {
       flush();
+      openBlocks.push(tag);
       stack.push(BLOCK_END);
     }
     const children = Array.from(node.childNodes ?? []);
@@ -460,36 +505,71 @@ export function pageView(html: string, pageUrl?: string): PageView {
   }
   flush();
   const starts = new Set<number>();
+  const zones = new Map<number, string>();
   let at = 0;
-  for (const block of blocks) {
+  blocks.forEach((block, i) => {
     starts.add(at);
+    // Sans paragraphe de corps (une page d'accueil, une liste), pas d'en-tête :
+    // deux cartes signées « Par l'équipe » sont deux textes.
+    zones.set(at, blockZones[i] === 'h' && !bodyStarted ? 'b' : blockZones[i]);
     at += block.length + 1;
-  }
-  return { norm: ` ${blocks.join(' ')} `, starts, images };
+  });
+  return { norm: ` ${blocks.join(' ')} `, starts, zones, images };
 }
 
 /**
- * Exemplaires de ` n ` dans le texte de la page : une occurrence qui suit la
- * précédente en la répétant tout entière (« a b a b »), alignée sur les blocs
- * (chaque exemplaire commence et finit avec un bloc), est le même exemplaire.
- * Alignée : « (cf. section Documentation) » suivi de l'intertitre
- * « Documentation », ou « … 12 SP5 » suivi de « … 12 SP5 LTSS », sont deux textes.
+ * Exemplaires de ` n ` que la page montre. Dans le corps, chacun compte. Dans
+ * l'en-tête et dans une figure, les copies de mise en page se confondent :
+ * - `layout` (copies perdues) : tous les exemplaires de l'en-tête en font un,
+ *   ceux d'une figure un par figure — la signature de The Verge, écrite dans
+ *   chaque mise en page, peut n'apparaître qu'une fois ;
+ * - `twins` (doublons nouveaux) : seulement une occurrence qui suit la
+ *   précédente en la répétant tout entière (« a b a b »), alignée sur les
+ *   blocs (le passage répété commence et finit avec un bloc, l'occurrence au
+ *   même endroit de son bloc). Deux cartes signées « Par L'équipe Promo »
+ *   sont deux textes ; « (cf. section Documentation) » suivi de l'intertitre
+ *   « Documentation » aussi ; la seconde phrase d'une légende que la
+ *   visionneuse et le `<figcaption>` portent toutes deux est une copie.
  */
-export function pageCopies(view: Pick<PageView, 'norm' | 'starts'>, needle: string): number {
-  const { norm, starts } = view;
+export function pageCopies(view: Pick<PageView, 'norm' | 'starts' | 'zones'>, needle: string, mode: 'layout' | 'twins' = 'twins'): number {
+  const { norm, starts, zones } = view;
+  let sorted = SORTED_STARTS.get(starts);
+  if (!sorted) SORTED_STARTS.set(starts, (sorted = [...starts].sort((a, b) => a - b)));
+  /** Le début du bloc qui contient la position `at`. */
+  const blockOf = (at: number) => {
+    let lo = 0;
+    let hi = sorted.length - 1;
+    while (lo < hi) {
+      const mid = (lo + hi + 1) >> 1;
+      if (sorted[mid] <= at) lo = mid;
+      else hi = mid - 1;
+    }
+    return sorted[lo] ?? 0;
+  };
+  const zoneOf = (at: number) => zones.get(blockOf(at)) ?? 'b';
+  const twins = (a: number, b: number) => {
+    const blockA = blockOf(a);
+    const blockB = blockOf(b);
+    const zone = zones.get(blockA);
+    if (!zone || zone === 'b' || zone !== zones.get(blockB) || blockA === blockB) return false;
+    if (a - blockA !== b - blockB || blockB - blockA > TWIN_MAX_SPAN) return false;
+    const end = 2 * blockB - blockA;
+    return (starts.has(end) || end >= norm.length - 1) && norm.startsWith(norm.slice(blockA, blockB), blockB);
+  };
   let count = 0;
   let previous = -1;
+  const layouts = new Set<string>();
   const step = Math.max(1, needle.length - 1);
   for (let i = norm.indexOf(needle); i !== -1; i = norm.indexOf(needle, i + step)) {
-    if (previous >= 0 && starts.has(previous) && starts.has(i) && (starts.has(2 * i - previous) || 2 * i - previous >= norm.length - 1) && i - previous <= TWIN_MAX_SPAN && norm.startsWith(norm.slice(previous, i), i)) {
-      previous = i;
-      continue;
-    }
-    count++;
+    const zone = zoneOf(i);
+    if (mode === 'layout' && zone !== 'b') layouts.add(zone);
+    else if (!(mode === 'twins' && previous >= 0 && twins(previous, i))) count++;
     previous = i;
   }
-  return count;
+  return count + layouts.size;
 }
+
+const SORTED_STARTS = new WeakMap<Set<number>, number[]>();
 
 // ── Retraits acceptés ──────────────────────────────────────────────────
 
@@ -591,6 +671,13 @@ export interface PageDiff {
   newDuplicates: string[];
   /** Même règle pour une image (son identité à la taille près, `imageIdentity`) : un `src` par image. */
   duplicatedImages: string[];
+  /**
+   * Copies perdues (RD-06) : une phrase, un fragment ou une image (un `src`)
+   * présent k ≥ 2 fois en base et au moins k fois visible dans la page, mais
+   * moins de k fois en tête — un refrain réduit à une fois. Fait échouer la
+   * page, sauf retrait accepté.
+   */
+  lostCopies: string[];
   /** Images de la base dont la photo (à la taille près) n'est plus en tête. */
   lostImages: string[];
   acceptedImages: { text: string; reason: string }[];
@@ -601,7 +688,7 @@ export interface PageDiff {
   titleChanged: { base: string; head: string } | null;
   /** Quelque chose diffère. */
   changed: boolean;
-  /** Perte non acceptée, `null` nouveau, image perdue ou doublon nouveau : bloque le commit. */
+  /** Perte non acceptée, `null` nouveau, image perdue, copie perdue ou doublon nouveau : bloque le commit. */
   failing: boolean;
 }
 
@@ -680,9 +767,31 @@ export function compareExtracts(
   // que s'il y a un candidat.
   const newDuplicates: string[] = [];
   const duplicatedImages: string[] = [];
+  const lostCopies: string[] = [];
   if (base && head) {
     let view: PageView | null | undefined;
     const shown = () => (view === undefined ? (view = page ? pageView(page, pageUrl) : null) : view);
+    // Les phrases comptées en tant que phrases : « … 12 SP5 » n'est pas une
+    // copie de « … 12 SP5 LTSS », ni un titre de la phrase « Voir le Pen <titre> ».
+    const baseSentences = sentenceCounts(base.content);
+    const headSentences = sentenceCounts(head.content);
+    // Copies perdues : la page est relue si la tête en a moins que la base.
+    const seenCopies = new Set<string>();
+    for (const s of splitSentences(base.content)) {
+      if (!isTracked(s) && !isFragment(s)) continue;
+      const n = normalizeText(s);
+      if (seenCopies.has(n)) continue;
+      seenCopies.add(n);
+      const needle = ` ${n} `;
+      const k = baseSentences.get(n) ?? 0;
+      // Découpée autrement en tête, une phrase s'y lit encore dans le texte.
+      if (k < 2 || (headSentences.get(n) ?? 0) >= k || occurrences(headNorm, needle) >= k) continue;
+      const v = shown();
+      if (v && pageCopies(v, needle, 'layout') < k) continue;
+      const rule = accepted.match(s, host);
+      if (rule) acceptedList.push({ text: s, reason: rule.reason });
+      else lostCopies.push(s);
+    }
     const seenTwice = new Set<string>();
     for (const s of splitSentences(head.content)) {
       if (!isTracked(s) && !isFragment(s)) continue;
@@ -690,9 +799,9 @@ export function compareExtracts(
       if (seenTwice.has(n)) continue;
       seenTwice.add(n);
       const needle = ` ${n} `;
-      if (occurrences(headNorm, needle) < 2 || occurrences(baseNorm, needle) > 1) continue;
+      if ((headSentences.get(n) ?? 0) < 2 || occurrences(baseNorm, needle) > 1) continue;
       const v = shown();
-      if (v && pageCopies(v, needle) > 1) continue;
+      if (v && pageCopies(v, needle, 'twins') > 1) continue;
       newDuplicates.push(s);
     }
     const tally = (html: string) => {
@@ -708,11 +817,20 @@ export function compareExtracts(
       return counts;
     };
     const baseImages = tally(base.content);
-    for (const [identity, { n, src }] of tally(head.content)) {
+    const headImages = tally(head.content);
+    for (const [identity, { n, src }] of headImages) {
       if (n < 2 || (baseImages.get(identity)?.n ?? 0) > 1) continue;
       const v = shown();
       if (v && (v.images.get(identity) ?? 0) > 1) continue;
       duplicatedImages.push(src);
+    }
+    for (const [identity, { n, src }] of baseImages) {
+      if (n < 2 || (headImages.get(identity)?.n ?? 0) >= n) continue;
+      const v = shown();
+      if (v && (v.images.get(identity) ?? 0) < n) continue;
+      const rule = accepted.match(src, host);
+      if (rule) acceptedImages.push({ text: src, reason: rule.reason });
+      else lostCopies.push(src);
     }
   }
 
@@ -732,6 +850,7 @@ export function compareExtracts(
     duplicated.length > 0 ||
     newDuplicates.length > 0 ||
     duplicatedImages.length > 0 ||
+    lostCopies.length > 0 ||
     lostImages.length > 0 ||
     acceptedImages.length > 0 ||
     lengthDrop ||
@@ -748,6 +867,7 @@ export function compareExtracts(
     duplicated,
     newDuplicates,
     duplicatedImages,
+    lostCopies,
     lostImages,
     acceptedImages,
     baseLength,
@@ -761,7 +881,8 @@ export function compareExtracts(
       lostImages.length > 0 ||
       fragmentsWeigh(lostFragments) ||
       newDuplicates.length > 0 ||
-      duplicatedImages.length > 0,
+      duplicatedImages.length > 0 ||
+      lostCopies.length > 0,
   };
 }
 

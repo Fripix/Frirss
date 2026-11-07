@@ -510,9 +510,9 @@ export function guardForTests(input: { page: string; result: string; witness: st
 }
 
 /** `withoutRepeats` sur un HTML donné (tests de ses règles) : le HTML rendu, inchangé si rien n'est répété. */
-export function withoutRepeatsForTests(html: string, base = 'https://example.com/a'): string {
+export function withoutRepeatsForTests(html: string, base = 'https://example.com/a', stats?: RepeatStats): string {
   const root = parseFragment(html);
-  return withoutRepeats(root, base) ? root.innerHTML : html;
+  return withoutRepeats(root, base, stats) ? root.innerHTML : html;
 }
 
 /** Le corps d'un document neuf qui porte `html` — pour relire un résultat. */
@@ -1217,51 +1217,73 @@ function withoutLoss(strict: Pass, witness: () => string | null, parse: (html: s
 // garde l'en-tête de ces pages, l'article complet les montrait tous les deux
 // (Ars le faisait déjà en 1.8.0 pour les figures qu'elle gardait).
 //
-// Règle : deux exemplaires qui SE SUIVENT, sans rien de lisible entre eux
-// (ni texte, ni média), n'en font qu'un :
-// - un bloc de texte (une phrase suivie au moins, aucun média) dont le
-//   suivant, ou le premier bloc de celui-ci, porte exactement le même texte
-//   normalisé : le second sort — sauf s'il est la légende (`<figcaption>`) et
-//   le premier non, alors c'est le premier ;
-// - une image dont la suivante est la même photo à la taille près
-//   (`imageIdentity`) : la seconde sort, avec ce qui ne l'enveloppait qu'elle.
-// Jamais dans une liste, un tableau, du code (`REPEAT_EXEMPT`) : un avis du
-// CERT-FR cite chaque bulletin dans un tableau puis dans une liste, et la
-// page les montre tous les deux. Une exergue reprise plus loin, une galerie
-// où la même photo revient après une autre ou après sa légende ne se suivent
-// pas : elles restent.
+// Règle du propriétaire : rien de l'article ne doit manquer, un doublon vaut
+// mieux qu'une perte. Une répétition voulue — refrain, anaphore, réplique —
+// se lit dans le corps ; une copie de mise en page, dans l'en-tête ou dans
+// une figure. Le texte ne se retire donc que là (relecture, RD-01) :
+// - EN-TÊTE : avant le premier paragraphe du corps (un `<p>` hors figure
+//   d'au moins `BODY_MIN` caractères ou de deux phrases suivies), et parmi
+//   les `HEADER_MAX_LEAVES` premiers blocs de texte. Deux blocs au même texte
+//   EXACT (casse et ponctuation comprises, blancs réduits — « ce soir ? »
+//   n'est pas « ce soir ! »), qui se suivent sans rien de lisible entre eux
+//   et ne sont pas frères (une copie de mise en page vit dans un autre
+//   conteneur ; deux paragraphes frères identiques sont une répétition
+//   écrite) : le second sort, sauf si lui seul porte un lien (alors c'est le
+//   premier) ;
+// - FIGURE : dans une même `<figure>`, un bloc que son `<figcaption>` reprend
+//   en entier (même texte, ou le même suivi d'un crédit) sort, où qu'il soit
+//   dans la figure ; la légende reste.
+// Jamais un intertitre (`h1`–`h6`), une citation, ni un bloc qui est,
+// contient ou se trouve dans une liste, un tableau, du code
+// (`REPEAT_EXEMPT`, RD-04 : un avis du CERT-FR enveloppé dans un `<div>`),
+// ni un bloc qui porte un média (`REPEAT_MEDIA`).
+//
+// Une IMAGE suivie, sans rien de lisible entre elles, d'une image identique
+// sort, où qu'elle soit : même photo à la taille près (`imageIdentity`), même
+// `srcset` et même adresse paresseuse (RD-03 : un même repli peut porter deux
+// photos), même texte de remplacement (RD-02 : `alt=""` face à un `alt` n'est
+// pas une copie). N copies en laissent une (RD-05). Une seule passe sur
+// l'arbre, chaque retrait remontant au plus la profondeur (RD-07 : relire
+// les enfants du parent à chaque retrait coûtait 4,5 s pour 20 000 images).
 //
 // Même règle dans le repli du navigateur (`src/utils/extractContent.ts`) ;
 // toute modification de l'une va avec l'autre, et avec `EXTRACT_VERSION`.
 
-/** Où un doublon reste : une page les y montre tous les deux. */
-const REPEAT_EXEMPT = 'li, td, th, dt, dd, caption, table, ul, ol, dl, pre, code';
+/** Un bloc qui est, contient ou se trouve dans l'un d'eux n'est jamais retiré pour son texte. */
+const REPEAT_EXEMPT = 'li, td, th, dt, dd, caption, table, ul, ol, dl, pre, code, h1, h2, h3, h4, h5, h6, blockquote, q';
 /** Un média : un bloc qui en porte un n'est jamais retiré pour son texte. */
 const REPEAT_MEDIA = 'img, picture, video, audio, iframe, object, embed, svg, canvas';
+/** Un paragraphe de cette longueur ouvre le corps de l'article. */
+const BODY_MIN = 200;
+/** L'en-tête : au plus ces premiers blocs de texte. */
+const HEADER_MAX_LEAVES = 4;
+/** Blocs de texte comptés pour situer l'en-tête. */
+const TEXT_LEAVES = 'p, h1, h2, h3, h4, h5, h6, li, blockquote, figcaption, dt, dd, td, th';
+
+/** Travail de `withoutRepeats`, compté pour les tests (RD-07). */
+export interface RepeatStats { visits: number }
 
 /** Copie de `src/lib/imageIdentity.ts`, qui dit les règles : la même photo à la taille près. */
-const IMAGE_PATH = /\.(?:jpe?g|png|webp|gif|avif|jxl|bmp|tiff?|svg)$/i;
-const SIZE_SUFFIX = /-(?:\d{2,5}x\d{2,5}|scaled)(?=\.[a-z0-9]+$)/i;
-const SIZE_PARAMS = new Set(['resize', 'w', 'h', 'width', 'height', 'quality', 'q', 'crop', 'fit', 'dpr', 'strip', 'auto', 'fm', 'format', 'webp', 'ssl', 'zoom']);
+const SIZE_SUFFIX = /-\d{2,5}x\d{2,5}(?=\.[a-z0-9]+$)/i;
+const SIZE_PARAMS = new Set(['w', 'h', 'width', 'height', 'resize', 'fit', 'quality', 'q', 'dpr']);
+const SIGNATURES = new Set(['key', 'sig', 'signature']);
 
 export function imageIdentity(address: string | null | undefined, base?: string): string | null {
   const raw = (address || '').trim();
   if (!raw || /^data:/i.test(raw)) return null;
   let url: URL;
   try { url = base ? new URL(raw, base) : new URL(raw); } catch { return null; }
-  const path = url.pathname.replace(SIZE_SUFFIX, '');
-  let query = '';
-  if (!IMAGE_PATH.test(url.pathname)) {
-    const kept = [...url.searchParams].filter(([key]) => !SIZE_PARAMS.has(key.toLowerCase()));
-    if (kept.length) query = `?${new URLSearchParams(kept).toString()}`;
-  }
-  return `${url.host.toLowerCase()}${path}${query}`;
+  const params = [...url.searchParams];
+  const sized = params.some(([key]) => SIZE_PARAMS.has(key.toLowerCase()));
+  const kept = params.filter(([key]) => !SIZE_PARAMS.has(key.toLowerCase()) && !(sized && SIGNATURES.has(key.toLowerCase())));
+  const query = kept.length ? `?${new URLSearchParams(kept).toString()}` : '';
+  return `${url.host.toLowerCase()}${url.pathname.replace(SIZE_SUFFIX, '')}${query}`;
 }
 
-/** Le texte normalisé de `el` (`blocksOf`), et s'il porte une phrase suivie. */
-function repeatText(el: Element): { text: string; tracked: boolean } {
+/** Le texte exact de `el` (blancs réduits seulement), et s'il porte une phrase suivie. */
+function exactText(el: Element): { text: string; tracked: boolean } {
   const blocks = blocksOf(el);
-  return { text: normalized(blocks.join(' ')), tracked: blocks.some((block) => sentencesOf(block).some(isTracked)) };
+  return { text: blocks.join(' '), tracked: blocks.some((block) => sentencesOf(block).some(isTracked)) };
 }
 
 /** Le premier nœud lisible après `node` (son sous-arbre exclu) et dans `root`, ou `null`. */
@@ -1278,57 +1300,127 @@ function firstReadableChild(el: Element): Node | null {
   return null;
 }
 
-/** Retire de `root` ses doublons qui se suivent (voir plus haut). Vrai si quelque chose a changé. */
-export function withoutRepeats(root: Element, base: string): boolean {
+/** Un bloc qui peut perdre son texte : ni média, ni exempté, ni dans un exempté, n'en contenant pas. */
+function textCandidate(el: Element): boolean {
+  return !el.matches(REPEAT_MEDIA) && !el.querySelector(REPEAT_MEDIA) && !el.closest(REPEAT_EXEMPT) && !el.querySelector(REPEAT_EXEMPT);
+}
+
+/** Ce qui identifie une image face à sa voisine (RD-02, RD-03) ; `null` sans adresse. */
+function imageKey(img: Element, base: string): string | null {
+  const identity = imageIdentity(img.getAttribute('src'), base);
+  if (!identity) return null;
+  const set = (value: string | null) => (value || '').split(',').map((c) => imageIdentity(c.trim().split(/\s+/)[0], base)).filter(Boolean).sort().join(' ');
+  const alt = img.getAttribute('alt');
+  return [identity, set(img.getAttribute('srcset')), set(img.getAttribute('data-srcset')),
+    imageIdentity(img.getAttribute('data-lazy-src') ?? img.getAttribute('data-src'), base) ?? '',
+    alt === null ? '\u0000' : alt.replace(/\s+/g, ' ').trim()].join('\u0001');
+}
+
+/** Retire de `root` ses copies d'en-tête, de figure, et ses images répétées (voir plus haut). Vrai si quelque chose a changé. */
+export function withoutRepeats(root: Element, base: string, stats: RepeatStats = { visits: 0 }): boolean {
   let changed = false;
-  const texts = new Map<Element, { text: string; tracked: boolean }>();
-  const textOf = (el: Element) => {
-    let known = texts.get(el);
-    if (!known) texts.set(el, known = repeatText(el));
-    return known;
+
+  // Une seule passe : ce qui se lit sous chaque nœud, l'ordre des éléments
+  // (entrée, sortie), et les images qui répètent leur voisine.
+  const readable = new Map<Node, number>();
+  const order = new Map<Element, [number, number]>();
+  const twins: Element[] = [];
+  let index = 0;
+  let previous: string | null = null;
+  const leaf = (el: Element, count: number) => { readable.set(el, count); order.set(el, [index, index]); index++; };
+  const stack: Array<[Node, boolean]> = [[root, false]];
+  while (stack.length) {
+    const [node, exiting] = stack.pop()!;
+    stats.visits++;
+    if (node.nodeType === 3) {
+      const text = (node.textContent || '').trim() ? 1 : 0;
+      readable.set(node, text);
+      if (text) previous = null;
+      continue;
+    }
+    if (node.nodeType !== 1) { readable.set(node, 0); continue; }
+    const el = node as Element;
+    if (exiting) {
+      let sum = 0;
+      for (let child = el.firstChild; child; child = child.nextSibling) { sum += readable.get(child) ?? 0; stats.visits++; }
+      readable.set(el, sum);
+      order.get(el)![1] = index++;
+      continue;
+    }
+    const tag = el.tagName.toLowerCase();
+    if (INVISIBLE.has(tag)) { leaf(el, 0); continue; }
+    if (tag === 'img') {
+      leaf(el, 1);
+      const key = imageKey(el, base);
+      if (key && key === previous) twins.push(el);
+      else previous = key;
+      continue;
+    }
+    if (el.matches(REPEAT_MEDIA)) { leaf(el, 1); previous = null; continue; }
+    order.set(el, [index++, -1]);
+    stack.push([el, true]);
+    for (let child = el.lastChild; child; child = child.previousSibling) stack.push([child, false]);
+  }
+  const remove = (gone: Element) => {
+    const count = readable.get(gone) ?? 0;
+    for (let up = gone.parentElement; up && up !== root; up = up.parentElement) { readable.set(up, (readable.get(up) ?? 0) - count); stats.visits++; }
+    gone.remove();
+    changed = true;
   };
-  const candidate = (el: Element) => !el.matches(REPEAT_MEDIA) && !el.querySelector(REPEAT_MEDIA) && !el.closest(REPEAT_EXEMPT);
-  for (const first of Array.from(root.querySelectorAll('*')) as Element[]) {
-    if (!first.isConnected || !candidate(first) || normalizedLength(first.textContent || '') < TRACKED_MIN_NO_SPACE) continue;
-    const own = textOf(first);
-    if (!own.tracked) continue;
-    const figure = first.closest('figure');
-    let next = nextReadable(first, root);
-    while (next && next.nodeType === 1) {
-      const el = next as Element;
-      if (candidate(el)) {
-        const text = textOf(el).text;
-        const caption = !!el.closest('figcaption') && !first.closest('figcaption');
-        // La légende de la visionneuse, dans la même figure, que le
-        // `<figcaption>` reprend en entier (crédit en plus) : elle sort.
-        const inCaption = caption && !!figure && el.closest('figure') === figure && text.startsWith(`${own.text} `);
-        if (text === own.text || inCaption) {
-          (caption ? first : el).remove();
-          changed = true;
+  for (const img of twins) {
+    // Ce qui n'enveloppait que la copie sort avec elle (un `<picture>`, un lien).
+    let gone = img;
+    while (gone.parentElement && gone.parentElement !== root && (readable.get(gone.parentElement) ?? 0) === (readable.get(gone) ?? 0)) { gone = gone.parentElement; stats.visits++; }
+    remove(gone);
+  }
+
+  // L'en-tête : ce qui précède le premier paragraphe du corps, au plus les
+  // premiers blocs de texte.
+  let headerEnd = Infinity;
+  let leaves = 0;
+  for (const block of Array.from(root.querySelectorAll(TEXT_LEAVES)) as Element[]) {
+    stats.visits++;
+    if (!block.isConnected || block.closest('figure')) continue;
+    const blocks = blocksOf(block);
+    const text = blocks.join(' ');
+    if (!text) continue;
+    const opensBody = block.tagName.toLowerCase() === 'p' && (text.length >= BODY_MIN || blocks.flatMap(sentencesOf).filter(isTracked).length >= 2);
+    if (opensBody || ++leaves > HEADER_MAX_LEAVES) { headerEnd = order.get(block)?.[0] ?? -1; break; }
+  }
+  const inHeader = (el: Element) => (order.get(el)?.[1] ?? Infinity) < headerEnd && !el.closest('figure');
+  const linked = (el: Element) => el.matches('a[href]') || !!el.querySelector('a[href]');
+  if (headerEnd > 0) {
+    for (const first of Array.from(root.querySelectorAll('*')) as Element[]) {
+      if ((order.get(first)?.[0] ?? Infinity) >= headerEnd) break;
+      stats.visits++;
+      if (!first.isConnected || !inHeader(first) || !textCandidate(first)) continue;
+      const own = exactText(first);
+      if (!own.tracked) continue;
+      // Chaque copie qui suit, l'une après l'autre (RD-05 : trois en laissent une).
+      for (let search = true; search && first.isConnected;) {
+        search = false;
+        for (let next = nextReadable(first, root); next && next.nodeType === 1; next = firstReadableChild(next as Element)) {
+          const el = next as Element;
+          stats.visits++;
+          if (!inHeader(el) || el.parentElement === first.parentElement || !textCandidate(el) || exactText(el).text !== own.text) continue;
+          if (linked(el) && !linked(first)) remove(first);
+          else { remove(el); search = true; }
           break;
         }
       }
-      next = firstReadableChild(el);
     }
   }
-  for (const img of Array.from(root.querySelectorAll('img')) as Element[]) {
-    if (!img.isConnected) continue;
-    const identity = imageIdentity(img.getAttribute('src'), base);
-    if (!identity) continue;
-    // La suite, en descendant : le premier élément lisible, jusqu'au média.
-    let next = nextReadable(img, root);
-    while (next && next.nodeType === 1 && !(next as Element).matches(REPEAT_MEDIA)) next = firstReadableChild(next as Element);
-    if (!next || next.nodeType !== 1 || (next as Element).tagName.toLowerCase() !== 'img') continue;
-    const twin = next as Element;
-    if (imageIdentity(twin.getAttribute('src'), base) !== identity) continue;
-    // Deux textes de remplacement différents : la page les présente comme deux images.
-    const alt = (el: Element) => normalized(el.getAttribute('alt') || '');
-    if (alt(img) && alt(twin) && alt(img) !== alt(twin)) continue;
-    // Ce qui n'enveloppait que la seconde sort avec elle (un `<picture>`, un lien).
-    let gone: Element = twin;
-    while (gone.parentElement && gone.parentElement !== root && Array.from(gone.parentElement.childNodes).every((child) => child === gone || !isReadable(child))) gone = gone.parentElement;
-    gone.remove();
-    changed = true;
+
+  // La figure : un bloc que son `<figcaption>` reprend en entier.
+  for (const figure of Array.from(root.querySelectorAll('figure')) as Element[]) {
+    const captions = (Array.from(figure.querySelectorAll('figcaption')) as Element[]).map((caption) => exactText(caption).text).filter(Boolean);
+    if (!captions.length) continue;
+    for (const block of Array.from(figure.querySelectorAll('*')) as Element[]) {
+      stats.visits++;
+      if (!block.isConnected || block.closest('figcaption') || block.querySelector('figcaption') || !textCandidate(block)) continue;
+      const own = exactText(block);
+      if (own.tracked && captions.some((caption) => caption === own.text || caption.startsWith(`${own.text} `))) remove(block);
+    }
   }
   return changed;
 }

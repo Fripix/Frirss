@@ -211,7 +211,9 @@ describe('compareExtracts', () => {
 
   it('ne prend pas pour un doublon une phrase que la page montre deux fois, à deux endroits (CERT-FR : liste et tableau)', () => {
     const line = 'Bulletin de sécurité Exemple 123 du 02 novembre 2026';
-    const page = `<html><body><table><tr><td>${line}</td></tr></table><h2>Documentation</h2><ul><li><p>${line}</p></li></ul></body></html>`;
+    // Comme un avis : le tableau en tête, le résumé ouvre le corps, la liste après.
+    const resume = `<p>${LONG_B} ${LONG_C} Le résumé de l’avis ouvre le corps de la page.</p>`;
+    const page = `<html><body><table><tr><td>${line}</td></tr></table>${resume}<h2>Documentation</h2><ul><li><p>${line}</p></li></ul></body></html>`;
     const diff = compareExtracts(article(`<p>${LONG_A}</p><p>${line}</p>`), article(`<p>${LONG_A}</p><p>${line}</p><p>${line}</p>`), 'example.com', undefined, page);
     expect(diff.newDuplicates).toEqual([]);
     expect(diff.failing).toBe(false);
@@ -230,11 +232,12 @@ describe('compareExtracts', () => {
       `<template><p>${LONG_A}</p></template>`,
       `<script>var x = "${LONG_A}";</script>`,
     ]) {
-      const page = `<html><body><p>${LONG_A}</p><h2>Autre chose ici</h2>${hidden}</body></html>`;
+      // Dans le corps : là, chaque exemplaire visible compte.
+      const page = `<html><body><p>${LONG_B} ${LONG_C} Un premier paragraphe ouvre le corps.</p><p>${LONG_A}</p><h2>Autre chose ici</h2>${hidden}</body></html>`;
       expect(compareExtracts(base, head, 'example.com', undefined, page).failing, hidden).toBe(true);
     }
     // Masqué seulement à certaines tailles d'écran : la page le montre.
-    const responsive = `<html><body><p>${LONG_A}</p><h2>Autre chose ici</h2><div class="hidden md:block"><p>${LONG_A}</p></div></body></html>`;
+    const responsive = `<html><body><p>${LONG_B} ${LONG_C} Un premier paragraphe ouvre le corps.</p><p>${LONG_A}</p><h2>Autre chose ici</h2><div class="hidden md:block"><p>${LONG_A}</p></div></body></html>`;
     expect(compareExtracts(base, head, 'example.com', undefined, responsive).failing).toBe(false);
   });
 
@@ -247,7 +250,7 @@ describe('compareExtracts', () => {
     const caption = `<div class="cap">${LONG_A}<div>${credit}</div></div><figcaption>${LONG_A} <span>${credit}</span></figcaption>`;
     const dek = `<div><p>${LONG_A}</p></div><div><div><p>${LONG_A}</p></div></div>`;
     for (const twins of [dek, caption]) {
-      const page = `<html><body><h1>Un titre</h1>${twins}<p>${LONG_B}</p></body></html>`;
+      const page = `<html><body><h1>Un titre</h1>${twins}<p>${LONG_B} ${LONG_C} Un premier paragraphe ouvre le corps.</p></body></html>`;
       const diff = compareExtracts(article(`<p>${LONG_B}</p>`), article(`<p>${LONG_A}</p><p>${LONG_A}</p><p>${LONG_B}</p>`), 'example.com', undefined, page);
       expect(diff.newDuplicates, twins).toEqual([LONG_A]);
     }
@@ -277,6 +280,15 @@ describe('compareExtracts', () => {
     expect(diff.newDuplicates).toEqual([]);
   });
 
+  it('sans paragraphe de corps (page d’accueil), deux cartes à la même signature sont deux textes', () => {
+    const page = `<html><body><ul><li><a>Une offre</a><p>Par L’équipe Promo</p></li><li><a>Une autre offre</a><p>Par L’équipe Promo</p></li></ul></body></html>`;
+    const diff = compareExtracts(article('<p>Accueil</p>'), article('<p>Par L’équipe Promo</p><p>Par L’équipe Promo</p>'), 'example.com', undefined, page);
+    expect(diff.newDuplicates).toEqual([]);
+    // Avant un paragraphe de corps aussi (Les Numériques) : séparées, elles ne sont pas des copies voisines.
+    const withBody = page.replace('</ul>', `</ul><p>${LONG_B} ${LONG_C} Un long texte de pied ouvre ici le corps de la page.</p>`);
+    expect(compareExtracts(article('<p>Accueil</p>'), article('<p>Par L’équipe Promo</p><p>Par L’équipe Promo</p>'), 'example.com', undefined, withBody).newDuplicates).toEqual([]);
+  });
+
   it('suit aussi les fragments courts doublés, pas un mot isolé', () => {
     const diff = compareExtracts(
       article(`<p>${LONG_A}</p><p>Crédit : Exemple</p><p>Partager</p>`),
@@ -288,7 +300,7 @@ describe('compareExtracts', () => {
 
   it('détecte une image doublée, la même photo à la taille près (REG-228)', () => {
     const base = article(`<p>${LONG_A}</p><img src="https://example.com/une.jpg?w=1080">`);
-    const head = article(`<img src="https://example.com/une.jpg?w=1080&amp;crop=a"><img src="https://example.com/une.jpg?w=2400&amp;crop=b"><p>${LONG_A}</p>`);
+    const head = article(`<img src="https://example.com/une.jpg?w=1080&amp;crop=a"><img src="https://example.com/une.jpg?w=2400&amp;crop=a"><p>${LONG_A}</p>`);
     const page = `<html><body><div><img src="/une.jpg?w=1080"></div><div><img src="/une.jpg?w=2400"></div><p>${LONG_A}</p></body></html>`;
     const diff = compareExtracts(base, head, 'example.com', undefined, page, 'https://example.com/a');
     expect(diff.duplicatedImages).toEqual(['https://example.com/une.jpg?w=1080&crop=a']);
@@ -302,6 +314,94 @@ describe('compareExtracts', () => {
     const diff = compareExtracts(base, head, 'example.com', undefined, page, 'https://example.com/a');
     expect(diff.duplicatedImages).toEqual([]);
     expect(diff.failing).toBe(false);
+  });
+
+  // RD-06 : une copie en moins n'était jamais une perte. Un refrain que la page
+  // montre deux fois dans son corps, que la base rendait deux fois et la tête
+  // une seule, est du texte d'article perdu.
+  const BODY = `<p>${LONG_B} ${LONG_C} Et une phrase de plus pour que ce paragraphe ouvre bien le corps de l’article.</p>`;
+  it('signale une copie perdue : deux fois dans la base et dans le corps de la page, une fois en tête (RD-06)', () => {
+    const page = `<html><body><article>${BODY}<p>${LONG_A}</p><p>${LONG_A}</p></article></body></html>`;
+    const diff = compareExtracts(article(`${BODY}<p>${LONG_A}</p><p>${LONG_A}</p>`), article(`${BODY}<p>${LONG_A}</p>`), 'example.com', undefined, page);
+    expect(diff.lostCopies).toEqual([LONG_A]);
+    expect(diff.failing).toBe(true);
+    expect(diff.changed).toBe(true);
+  });
+
+  it('accepte une copie perdue qui correspond à une règle', () => {
+    const page = `<html><body><article>${BODY}<p>${LONG_A}</p><p>${LONG_A}</p></article></body></html>`;
+    const accepted = compileAccepted([{ pattern: 'première phrase de cet article', reason: 'test' }]);
+    const diff = compareExtracts(article(`${BODY}<p>${LONG_A}</p><p>${LONG_A}</p>`), article(`${BODY}<p>${LONG_A}</p>`), 'example.com', accepted, page);
+    expect(diff.lostCopies).toEqual([]);
+    expect(diff.failing).toBe(false);
+  });
+
+  it('une copie d’en-tête que la page ne montre qu’une fois peut disparaître (chapeau de deux mises en page)', () => {
+    const page = `<html><body><article><div><p>${LONG_A}</p></div><div><p>${LONG_A}</p></div>${BODY}</article></body></html>`;
+    const diff = compareExtracts(article(`<p>${LONG_A}</p><p>${LONG_A}</p>${BODY}`), article(`<p>${LONG_A}</p>${BODY}`), 'example.com', undefined, page);
+    expect(diff.lostCopies).toEqual([]);
+    expect(diff.failing).toBe(false);
+  });
+
+  // The Verge : la signature dans chaque mise en page de l'en-tête, séparées
+  // par le chapeau — la page n'en montre qu'une.
+  it('les exemplaires d’une signature dans l’en-tête, même éloignés, comptent pour un', () => {
+    const page = `<html><body><article><div><p>Par Camille Exemple</p><p>${LONG_A}</p></div><div><p>${LONG_C}</p><p>Par Camille Exemple</p></div>${BODY}</article></body></html>`;
+    const diff = compareExtracts(article(`<p>Par Camille Exemple</p><p>Par Camille Exemple</p>${BODY}`), article(`<p>Par Camille Exemple</p>${BODY}`), 'example.com', undefined, page);
+    expect(diff.lostCopies).toEqual([]);
+  });
+
+  // Smashing Magazine : la phrase « Never mind… » se lit aussi DANS la légende
+  // « See the Pen Never mind… [forked] » — ce n'est pas une copie d'elle.
+  it('une phrase reprise à l’intérieur d’une autre n’en est pas une copie', () => {
+    const page = `<html><body><article>${BODY}<p>${LONG_A}</p><figure><figcaption>Voir l’exemple ${LONG_A} [copie]</figcaption></figure></article></body></html>`;
+    const diff = compareExtracts(
+      article(`${BODY}<p>${LONG_A}</p><figure><figcaption>Voir l’exemple ${LONG_A} [copie]</figcaption></figure>`),
+      article(`${BODY}<p>${LONG_A}</p>`),
+      'example.com', compileAccepted([{ pattern: 'Voir l’exemple', reason: 'intégration retirée' }]), page,
+    );
+    expect(diff.lostCopies).toEqual([]);
+  });
+
+  // Ars : la légende de deux phrases dans la visionneuse puis dans le
+  // `<figcaption>` ; la seconde phrase n'ouvre aucun bloc.
+  it('une copie de légende dans une même figure peut disparaître, seconde phrase comprise', () => {
+    const caption = `${LONG_A} ${LONG_C}`;
+    const page = `<html><body><article>${BODY}<figure><img src="/a.jpg"><div class="cap">${caption}<div>Crédit : Exemple</div></div><figcaption>${caption} <span>Crédit : Exemple</span></figcaption></figure></article></body></html>`;
+    const diff = compareExtracts(
+      article(`${BODY}<figure><div>${caption}</div><figcaption>${caption}</figcaption></figure>`),
+      article(`${BODY}<figure><figcaption>${caption}</figcaption></figure>`),
+      'example.com', undefined, page,
+    );
+    expect(diff.lostCopies).toEqual([]);
+  });
+
+  it('une tête fidèle qui rend deux exemplaires voisins que le corps de la page montre n’échoue pas (RD-06)', () => {
+    const page = `<html><body><article>${BODY}<p>${LONG_A}</p><p>${LONG_A}</p></article></body></html>`;
+    const diff = compareExtracts(article(`${BODY}<p>${LONG_A}</p>`), article(`${BODY}<p>${LONG_A}</p><p>${LONG_A}</p>`), 'example.com', undefined, page);
+    expect(diff.newDuplicates).toEqual([]);
+    expect(diff.failing).toBe(false);
+  });
+
+  it('signale une image dont une copie montrée par la page est perdue (RD-06)', () => {
+    const page = `<html><body><article><img src="/a.jpg">${BODY}<img src="/a.jpg"></article></body></html>`;
+    const diff = compareExtracts(
+      article(`<img src="https://example.com/a.jpg">${BODY}<img src="https://example.com/a.jpg">`),
+      article(`<img src="https://example.com/a.jpg">${BODY}`),
+      'example.com', undefined, page, 'https://example.com/a',
+    );
+    expect(diff.lostCopies).toEqual(['https://example.com/a.jpg']);
+    expect(diff.failing).toBe(true);
+  });
+
+  it('signale une image perdue qui ne diffère que par un paramètre d’identité (RD-06)', () => {
+    const diff = compareExtracts(
+      article(`<p>${LONG_A}</p><img src="https://example.com/step.png?step=1"><img src="https://example.com/step.png?step=2">`),
+      article(`<p>${LONG_A}</p><img src="https://example.com/step.png?step=1">`),
+      'example.com',
+    );
+    expect(diff.lostImages).toEqual(['https://example.com/step.png?step=2']);
+    expect(diff.failing).toBe(true);
   });
 
   it('une image gardée à une autre taille n’est pas perdue', () => {
