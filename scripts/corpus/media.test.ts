@@ -152,8 +152,28 @@ describe('judgeMedia : retraits acceptés', () => {
 describe('pageMedia : vignettes', () => {
   it('une image dont toutes les adresses demandent une petite taille est une vignette (carte, avatar)', () => {
     const html = article(`<img src="https://cdn.example.com/carte-192x192.jpg"><img src="https://cdn.example.com/auteur.jpg?w=150">
-      <img src="https://cdn-avatars.example.com/u/1.png"><img src="https://cdn.example.com/photo-1200x675.jpg" srcset="https://cdn.example.com/photo-150x150.jpg 150w">`);
+      <img class="avatar" src="https://cdn-avatars.example.com/u/1.png"><img src="https://cdn.example.com/photo-1200x675.jpg" srcset="https://cdn.example.com/photo-150x150.jpg 150w">`);
     expect(kinds(html)).toEqual(['image:cdn.example.com/photo.jpg']);
+  });
+
+  it('RM-06 : une grande image n’est pas écartée par un mot de son texte de remplacement ou de son adresse', () => {
+    const html = article(`<figure><img src="https://cdn.example.com/2026/11/nouveau-logo-de-la-marque.jpg" alt="Le nouveau logo" width="1200" height="800"></figure>
+      <figure><img src="https://cdn.example.com/2026/11/pixel-10.jpg" alt="Le Pixel 10" width="1200" height="675"></figure>
+      <figure><img src="https://cdn.example.com/2026/11/ecran.jpg?w=240" width="1536" height="864"></figure>
+      <img class="site-logo" src="https://cdn.example.com/marque.png">`);
+    expect(kinds(html)).toEqual(['image:cdn.example.com/2026/11/nouveau-logo-de-la-marque.jpg', 'image:cdn.example.com/2026/11/pixel-10.jpg', 'image:cdn.example.com/2026/11/ecran.jpg']);
+  });
+
+  it('RM-06 : un conteneur qui porte « author » dans une de ses classes n’écarte pas l’article ; un bloc de signature, si', () => {
+    const big = `<main><div class="entry-content author-box">${P.repeat(8)}<img src="https://cdn.example.com/photo.jpg"></div></main>`;
+    expect(kinds(page(big))).toEqual(['image:cdn.example.com/photo.jpg']);
+    const note = article('<div class="author-note"><figure><img src="https://cdn.example.com/terrain.jpg" width="1200" height="800"></figure></div><div class="post-author"><img src="https://cdn.example.com/moi.jpg"></div>');
+    expect(kinds(note)).toEqual(['image:cdn.example.com/terrain.jpg']);
+  });
+
+  it('RM-07 : une vidéo de fond se définit comme dans l’extraction — lecture automatique en boucle, sans contrôles, muette ou non', () => {
+    const html = article('<video autoplay loop playsinline src="https://cdn.example.com/fond.mp4"></video><video controls src="https://cdn.example.com/demo.mp4"></video>');
+    expect(kinds(html)).toEqual(['video:cdn.example.com/demo.mp4']);
   });
 
   it('la photo de l’auteur (signature) n’est pas un média de l’article', () => {

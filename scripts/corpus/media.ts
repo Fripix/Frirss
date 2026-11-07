@@ -121,13 +121,31 @@ function urlSize(address: string): number | null {
 /** Sous cette taille demandée par TOUTES ses adresses, une image est une vignette (carte, avatar). */
 const THUMB_MAX = 250;
 
+/** Une image déclarée au moins aussi grande que ceci n'est jamais une icône ni une vignette (RM-06). */
+const LARGE_MIN = 300;
+
+function declaredSize(el: El): number | null {
+  const sizes = ['width', 'height'].map((name) => parseInt(el.getAttribute(name) || '', 10)).filter((n) => Number.isFinite(n) && n > 0);
+  return sizes.length ? Math.max(...sizes) : null;
+}
+
 function iconLike(el: El, addresses: string[]): boolean {
   const first = addresses[0];
   if (/\.svg(?:[?#]|$)/i.test(first) || /^data:image\/svg/i.test(first)) return true;
   if (declaredSmall(el)) return true;
+  // Une grande image déclarée est une photo, quels que soient son nom et sa requête (RM-06 :
+  // « Pixel 10 », « nouveau logo », un `?w=240` sur une image de 1536 px).
+  const declared = declaredSize(el);
+  if (declared !== null && declared >= LARGE_MIN) return false;
   if (addresses.every((a) => { const size = urlSize(a); return size !== null && size < THUMB_MAX; })) return true;
-  return ICON_NAME.test(`${el.getAttribute('class') || ''} ${el.getAttribute('alt') || ''} ${first.split('?')[0]}`);
+  // Le nom ne juge que la classe, d'une image petite ou sans taille.
+  return ICON_NAME.test(el.getAttribute('class') || '');
 }
+
+/** Le bloc de la signature : un nom de classe ou d'id fait d'« author » ou de « byline » (pas un mot du milieu). */
+const BYLINE_TOKEN = /^(?:[a-z]+[-_])?(?:author|authors|byline)(?:[-_](?:bio|box|info|avatar|photo|image|img|picture|name|meta|card|profile|wrapper|block|details))?$/i;
+/** Au-delà de ce texte, un bloc qui s'appelle « author-box » est un conteneur, pas une signature. */
+const BYLINE_TEXT_MAX = 600;
 
 /** Identifiant d'une vidéo intégrée (YouTube, Vimeo, Dailymotion), ou `null`. */
 export function embedId(address: string | null): string | null {
@@ -180,9 +198,9 @@ function readText(el: El): string {
 /** Éléments en ligne : leur texte se colle à celui de leurs voisins. */
 const INLINE = new Set(['a', 'abbr', 'b', 'bdi', 'bdo', 'cite', 'code', 'data', 'dfn', 'em', 'i', 'kbd', 'mark', 'q', 's', 'samp', 'small', 'span', 'strong', 'sub', 'sup', 'time', 'u', 'var', 'wbr', 'font']);
 
-/** Une vidéo décorative (fond animé) : lecture automatique, muette, en boucle, sans contrôles. */
+/** Une vidéo de fond : lecture automatique en boucle, sans contrôles — `isDecorativeVideo` de l'extraction (RM-07). */
 export function isDecorativeVideo(el: El): boolean {
-  return el.hasAttribute('autoplay') && el.hasAttribute('muted') && el.hasAttribute('loop') && !el.hasAttribute('controls');
+  return el.hasAttribute('autoplay') && el.hasAttribute('loop') && !el.hasAttribute('controls');
 }
 
 // ── Le conteneur de l'article dans la page ─────────────────────────────
@@ -238,6 +256,13 @@ function titleOutside(document: Doc, container: El): El | null {
     if (t && (named.includes(t) || t.includes(named))) return h1;
   }
   return null;
+}
+
+/** La signature de l'auteur : `rel=author`, `itemprop=author`, ou un bloc court nommé comme elle (RM-06). */
+function isBylineBlock(el: El): boolean {
+  if (/(?:^|\s)author(?:\s|$)/i.test(el.getAttribute('rel') || '') || /author/i.test(el.getAttribute('itemprop') || '')) return true;
+  const tokens = `${el.getAttribute('class') || ''} ${el.getAttribute('id') || ''}`.split(/\s+/).filter(Boolean);
+  return tokens.some((t) => BYLINE_TOKEN.test(t)) && textLength(el) <= BYLINE_TEXT_MAX;
 }
 
 // ── Les médias d'un arbre ──────────────────────────────────────────────
@@ -326,7 +351,7 @@ function collect(root: El, w: Walk, from?: El | null, until?: El | null): MediaI
       const tokens = `${el.getAttribute('class') || ''} ${el.getAttribute('id') || ''}`.toLowerCase().split(/[^a-z0-9]+/);
       if (el !== root && tokens.some((t) => OUTSIDE_TOKENS.has(t))) return;
       // La signature de l'auteur (sa photo), comme `BYLINE_SIGNALS` de l'extraction.
-      if (el !== root && (/author|byline/i.test(`${el.getAttribute('class') || ''} ${el.getAttribute('id') || ''} ${el.getAttribute('itemprop') || ''}`) || /(?:^|\s)author(?:\s|$)/i.test(el.getAttribute('rel') || ''))) return;
+      if (el !== root && isBylineBlock(el)) return;
     } else if (['script', 'style', 'template', 'noscript'].includes(tag)) {
       return;
     }

@@ -241,13 +241,16 @@ dominant, sinon `<article>` dominant, sinon `<main>` ou `[role=main]` unique ;
 remonté jusqu'au `<h1>` du titre de la page s'il grossit peu, sans ce qui suit
 le conteneur ; aucun : pas de mesure), hors éléments masqués, navigation,
 pied, formulaires, encarts (`aside`), blocs « related », commentaires,
-partage, lettre, et signature de l'auteur (`author`, `byline`). Y sont
+partage, lettre, et signature de l'auteur (`rel=author`, `itemprop=author`, ou
+un bloc court — 600 caractères au plus — dont une classe ou l'id est fait
+d'`author` ou de `byline` : `post-author`, `author-box` ; un conteneur
+`entry-content author-box` de tout l'article n'en est pas un). Y sont
 comptés :
 
 | Sorte | Ce qui compte | Identité |
 |---|---|---|
-| `image` | `<img>` par toutes ses adresses (`src`, `srcset`, `data-src`, `data-srcset`, sources de sa `<picture>`), l'image du `<noscript>` d'une `<picture>` qui n'en montre pas d'autre ; ni icône, logo, avatar (nom, `.svg`, taille déclarée sous 100), ni vignette (toutes ses adresses demandent moins de 250 px : `-192x192`, `w=150`, `/size/w30/`), ni `data:` | `imageIdentity`, à la taille près ; une image écrite deux fois n'en fait qu'une |
-| `video`, `audio` | `<video>`, `<audio>` (`src`, `<source>`, `data-src`) ; un élément personnalisé dont un attribut est un fichier vidéo ; jamais une vidéo de fond (`autoplay muted loop` sans `controls`) | l'adresse |
+| `image` | `<img>` par toutes ses adresses (`src`, `srcset`, `data-src`, `data-srcset`, sources de sa `<picture>`), l'image du `<noscript>` d'une `<picture>` qui n'en montre pas d'autre ; ni icône, logo, avatar (`.svg`, taille déclarée sous 100, ou — pour une image petite ou sans taille — le nom dans sa classe), ni vignette (toutes ses adresses demandent moins de 250 px : `-192x192`, `w=150`, `/size/w30/`), ni `data:` ; une image déclarée d'au moins 300 px compte toujours, quels que soient son texte de remplacement et son adresse (« Pixel 10 », « nouveau logo ») | `imageIdentity`, à la taille près ; une image écrite deux fois n'en fait qu'une |
+| `video`, `audio` | `<video>`, `<audio>` (`src`, `<source>`, `data-src`) ; un élément personnalisé dont un attribut est un fichier vidéo ; jamais une vidéo de fond (`autoplay loop` sans `controls`, comme `isDecorativeVideo` de l'extraction) | l'adresse |
 | `embed` | `<iframe>` YouTube, Vimeo, Dailymotion, par `src` ou `data-src` | `youtube:<id>`… |
 | `tweet` | `blockquote.twitter-tweet` | `tweet:<id>` |
 | `quote` | `<blockquote>` (le plus extérieur, 20 caractères au moins, pas une intégration sociale) ; un attribut `quote` d'élément personnalisé | ses 60 premiers caractères normalisés |
