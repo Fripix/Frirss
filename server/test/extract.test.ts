@@ -4,6 +4,7 @@ import {
   aroundTheList, extractArticle, EXTRACT_MAX_PENDING, ExtractorBusyError, extractPending, joinSplitBody, resolveLazyImages, stripBoilerplate, withExtractSlot,
 } from '../extract.js';
 import { advisoryPageHtml, ADVISORY_BODY_MARKER } from '../../src/test/advisoryPageFixture.js';
+import { CONSENT_VEIL_MARKER, EMBEDDED_TWEETS, embeddedTweetsPageHtml } from '../../src/test/embedConsentFixture.js';
 import { INLINE_IMAGE, LAZY_IMAGES, lazyImagePageHtml } from '../../src/test/lazyImagePageFixture.js';
 import { blogPageHtml, BLOG_BODY_MARKER, newsPageHtml, pressPageHtml, shortPostPageHtml } from '../../src/test/boilerplatePageFixtures.js';
 import { splitBodyAcrossEmbedPageHtml, splitBodyAcrossHeadingsPageHtml, splitBodyAcrossImagesPageHtml, splitBodyPageHtml, splitBodyWithBioPageHtml } from '../../src/test/splitBodyPageFixtures.js';
@@ -320,6 +321,20 @@ describe('extractArticle — blocs étrangers (M-04)', () => {
     expect(out!.content.match(/<img/g)?.length).toBe(3);
   });
 
+  // V2-02 : le voile retiré avant Readability laissait le conteneur du
+  // message presque fait de liens ; Readability l'écartait, message compris.
+  it('garde les messages intégrés derrière un voile de consentement, sans le voile (structure Numerama)', () => {
+    const out = extractArticle('https://example.com/ocarina', embeddedTweetsPageHtml());
+    expect(out!.content.match(/<blockquote/g)?.length).toBe(2);
+    for (const handle of EMBEDDED_TWEETS) expect(out!.content).toContain(`https://x.com/${handle}/status/`);
+    expect(textOf(out!.content)).toContain('Paragraphe 8');
+    expect(textOf(out!.content)).not.toContain(CONSENT_VEIL_MARKER);
+    expect(out!.content).not.toContain('J’accepte tout');
+    expect(out!.content).not.toContain('data-frirss');
+    // La longueur annoncée est celle du texte rendu, voile retiré.
+    expect(out!.length).toBe((parseHTML(`<html><body>${out!.content}</body></html>`).document.body.textContent || '').length);
+  });
+
   it('ne ramasse ni fil d’Ariane, ni commentaires, ni crédits d’un billet court (structure Schneier)', () => {
     const out = extractArticle('https://example.com/blog', blogPageHtml());
     const text = textOf(out!.content);
@@ -355,6 +370,8 @@ describe('stripBoilerplate', () => {
   const strip = (body: string) => {
     const { document } = parseHTML(`<html><body>${body}</body></html>`);
     stripBoilerplate(document.documentElement as unknown as Element);
+    // Un voile de consentement n'est que marqué : il sort après Readability (V2-02).
+    for (const veil of Array.from(document.querySelectorAll('[data-frirss-veil]'))) veil.remove();
     return (document.body.textContent || '').replace(/\s+/g, ' ').trim();
   };
   const long = 'Un paragraphe d’article assez long pour peser bien plus que tout le reste de la page réunie, et même davantage encore.';

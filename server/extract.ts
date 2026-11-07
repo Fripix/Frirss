@@ -499,6 +499,8 @@ export function extractArticle(url: string, html: string): ExtractedArticle | nu
     }
   }
 
+  // Les voiles de consentement sortent ici, après toutes les passes (V2-02).
+  ({ content, length } = withoutVeils({ content, length }));
   return {
     title: parsed.title || '',
     content,
@@ -870,8 +872,33 @@ const BOILERPLATE_TOKENS = new Set([
  * mot `consent` ; il est retiré, quelle que soit sa longueur, s'il n'est pas
  * le billet et ne porte ni citation ni média. Un gestionnaire qui enveloppe
  * l'intégration ET son voile garde la citation du message (RX-03).
+ * ⚠️ Retiré APRÈS Readability, pas avant (V2-02) : il est souvent le frère du
+ * message intégré, et son long texte presque sans lien est ce qui gardait le
+ * conteneur du message sous le seuil de densité de liens de Readability.
+ * Retiré avant, le conteneur n'était plus que le message — un texte court fait
+ * de liens (mot-dièse, image, date) — et Readability l'écartait, message
+ * compris : les deux tweets intégrés d'un article de Numerama disparaissaient.
+ * Le voile est donc seulement marqué (`VEIL_ATTR`, sur lui et chacun de ses
+ * descendants : Readability remplace parfois un bloc par son seul enfant, sans
+ * ses attributs) ; `withoutVeils` le retire du résultat.
  */
 const CONSENT_TOKEN = 'consent';
+const VEIL = 'veil';
+const VEIL_ATTR = 'data-frirss-veil';
+
+function markVeil(el: Element): void {
+  el.setAttribute(VEIL_ATTR, '');
+  for (const inner of Array.from(el.querySelectorAll('*'))) inner.setAttribute(VEIL_ATTR, '');
+}
+
+/** Le résultat de Readability sans les voiles marqués ; tel quel s'il n'en porte aucun. */
+function withoutVeils<T extends { content: string; length: number }>(result: T): T {
+  if (!result.content.includes(VEIL_ATTR)) return result;
+  const { document } = parseHTML(`<!doctype html><html><head></head><body>${result.content}</body></html>`);
+  for (const veil of Array.from(document.body.querySelectorAll(`[${VEIL_ATTR}]`))) veil.remove();
+  const textContent = document.body.textContent || '';
+  return { ...result, content: document.body.innerHTML, length: textContent.length, textContent };
+}
 const EMBEDDED_CONTENT = 'blockquote, img, picture, video, audio, iframe, figure';
 /**
  * Le bouton « retour en haut » : un nom ENTIER de classe ou d'id
@@ -901,7 +928,7 @@ const POWERED_BY_MAX_LENGTH = 120;
 /** Texte lisible d'un billet, mesuré une fois par nettoyage (voir `stripBoilerplate`). */
 type PostLength = (post: Element) => number;
 
-function isBoilerplate(el: Element, insideArticle: boolean, postLength: PostLength, paid: Map<Node, LinkCounts>): boolean {
+function isBoilerplate(el: Element, insideArticle: boolean, postLength: PostLength, paid: Map<Node, LinkCounts>): boolean | typeof VEIL {
   const tag = el.tagName.toLowerCase();
   const role = (el.getAttribute('role') || '').toLowerCase();
   if (BOILERPLATE_TAGS.has(tag) || BOILERPLATE_ROLES.has(role)) return true;
@@ -916,7 +943,7 @@ function isBoilerplate(el: Element, insideArticle: boolean, postLength: PostLeng
     // Ni le billet ni le conteneur principal ne sont jugés « courts »,
     // « formulaire » ou « voile » : ce sont eux qu'on extrait.
     if (!isPostContainer(tag, role)) {
-      if (tokens.includes(CONSENT_TOKEN) && !el.querySelector(EMBEDDED_CONTENT)) return true;
+      if (tokens.includes(CONSENT_TOKEN) && !el.querySelector(EMBEDDED_CONTENT)) return VEIL;
       if (tokens.includes('newsletter') && el.querySelector(FORM_CONTROLS) && !carriesMostOfItsPost(el, postLength)) return true;
       if (tokens.some((token) => SHORT_BLOCK_TOKENS.has(token))
         && visibleTextLength(el, READABILITY_CHAR_THRESHOLD) < READABILITY_CHAR_THRESHOLD) return true;
@@ -1107,9 +1134,16 @@ export function stripBoilerplate(root: Element): void {
   const stack: Array<[Element, boolean]> = Array.from(root.children, (child) => [child, false]);
   while (stack.length) {
     const [el, insideArticle] = stack.pop()!;
-    if (isBoilerplate(el, insideArticle, postLength, paid)) {
+    const verdict = isBoilerplate(el, insideArticle, postLength, paid);
+    if (verdict) {
       const length = visibleTextLength(el);
       if (length < total * MAIN_CONTAINER_MIN_SHARE && !carriesByline(el)) {
+        // Un voile reste jusqu'après Readability (V2-02) : son texte compte
+        // encore, comme pour Readability.
+        if (verdict === VEIL) {
+          markVeil(el);
+          continue;
+        }
         if (posts.size) forgetText(posts, el, length);
         el.remove();
         continue;

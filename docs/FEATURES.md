@@ -5555,7 +5555,30 @@ serveur de développement en 1.4.4.)*
   (`<article>`, `<main>`, `[role=main]`), ou s'il porte une citation ou un
   média (`blockquote`, `img`, `picture`, `video`, `audio`, `iframe`,
   `figure`) : un gestionnaire qui enveloppe l'intégration ET son voile
-  emportait la citation du message (relecture des correctifs, RX-03). Un
+  emportait la citation du message (relecture des correctifs, RX-03).
+  ⚠️ **Le voile sort APRÈS Readability, pas avant** (V2-02, vu en direct).
+  Retiré avant toute passe comme les autres blocs, il emportait les messages
+  intégrés : son long texte presque sans lien était ce qui gardait le
+  conteneur du message (`div.embed-container`, son parent commun avec la
+  citation) sous le seuil de densité de liens de Readability ; sans lui, ce
+  conteneur n'était plus qu'un court texte fait de liens (mot-dièse, image,
+  date) et Readability l'écartait, citation comprise. Un article de Numerama
+  sur l'ocarina perdait ainsi ses deux tweets intégrés (4 liens de tweets
+  rendus sur 6, aucune citation). Le voile est donc seulement **marqué**
+  (`data-frirss-veil`, sur lui et chacun de ses descendants : Readability
+  remplace parfois un bloc par son seul enfant, sans ses attributs) ;
+  Readability et toutes les passes le voient comme en 1.8.0, puis
+  `withoutVeils` le retire du résultat final et recalcule sa longueur. Son
+  texte compte donc encore dans les mesures faites avant Readability (moitié
+  du billet, conteneur principal). Mesuré (2026-11-07) : l'article de
+  l'ocarina retrouve ses 2 citations et 6 liens de tweets, sans voile ; sur
+  les 275 pages du corpus, 9 pages de Numerama changent, sans un caractère de
+  texte de plus ni de moins — leur `<div>` racine passe en minuscules, et une
+  garde un `<div>` d'emballage de plus autour de son tweet ; les 8 iframes
+  derrière un voile restent, aucun voile ne reste (tests : « garde les
+  messages intégrés derrière un voile de consentement, sans le voile
+  (structure Numerama) », serveur et repli, sur
+  `src/test/embedConsentFixture.ts`). Un
   court bloc (moins de 500 caractères lisibles) dont **tous** les liens sont
   payants (`utm_medium=paid…` dans l'adresse) et dont l'un enveloppe une
   image est un encart publicitaire — celui de BleepingComputer en fin

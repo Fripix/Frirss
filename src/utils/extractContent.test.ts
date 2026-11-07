@@ -19,6 +19,7 @@ import {
   SERVER_EXTRACT_TIMEOUT_MS,
 } from './extractContent';
 import { advisoryPageHtml, ADVISORY_BODY_MARKER } from '../test/advisoryPageFixture';
+import { CONSENT_VEIL_MARKER, EMBEDDED_TWEETS, embeddedTweetsPageHtml } from '../test/embedConsentFixture';
 import { blogPageHtml, BLOG_BODY_MARKER, newsPageHtml, pressPageHtml, shortPostPageHtml } from '../test/boilerplatePageFixtures';
 import { INLINE_IMAGE, LAZY_IMAGES, lazyImagePageHtml } from '../test/lazyImagePageFixture';
 import { splitBodyAcrossEmbedPageHtml, splitBodyAcrossHeadingsPageHtml, splitBodyAcrossImagesPageHtml, splitBodyPageHtml, splitBodyWithBioPageHtml } from '../test/splitBodyPageFixtures';
@@ -284,6 +285,18 @@ describe('extractFullContent — repli local : blocs étrangers (M-04)', () => {
     return htmlPage(html);
   }));
   const textOf = (html: string) => (new DOMParser().parseFromString(html, 'text/html').body.textContent || '').replace(/\s+/g, ' ').trim();
+
+  // V2-02, voir le serveur.
+  it('garde les messages intégrés derrière un voile de consentement, sans le voile (structure Numerama)', async () => {
+    fallbackOn(embeddedTweetsPageHtml());
+    const out = await extractFullContent('https://example.com/ocarina');
+    expect(out.content.match(/<blockquote/g)?.length).toBe(2);
+    for (const handle of EMBEDDED_TWEETS) expect(out.content).toContain(`https://x.com/${handle}/status/`);
+    expect(textOf(out.content)).toContain('Paragraphe 8');
+    expect(textOf(out.content)).not.toContain(CONSENT_VEIL_MARKER);
+    expect(out.content).not.toContain('J’accepte tout');
+    expect(out.content).not.toContain('data-frirss');
+  });
 
   it('ne ramasse pas les mentions légales de la lettre d’information du rail (structure The Verge)', async () => {
     const html = newsPageHtml();

@@ -533,8 +533,33 @@ const BOILERPLATE_ROLES = new Set(['navigation', 'contentinfo']);
 const BOILERPLATE_TOKENS = new Set([
   'related', 'comment', 'comments', 'breadcrumb', 'breadcrumbs', 'footer',
 ]);
-/** Voile de consentement d'un contenu intégré : sans citation ni média, hors billet (A4-03, RX-03, voir le serveur). */
+/**
+ * Voile de consentement d'un contenu intégré : sans citation ni média, hors
+ * billet (A4-03, RX-03, voir le serveur). Seulement marqué, sur lui et ses
+ * descendants, puis retiré APRÈS Readability (`withoutVeils`) : retiré avant,
+ * le conteneur du message intégré, son frère, n'était plus que des liens et
+ * Readability l'écartait (V2-02, voir le serveur).
+ */
 const CONSENT_TOKEN = 'consent';
+const VEIL = 'veil';
+const VEIL_ATTR = 'data-frirss-veil';
+
+function markVeil(el: Element): void {
+  el.setAttribute(VEIL_ATTR, '');
+  for (const inner of Array.from(el.querySelectorAll('*'))) inner.setAttribute(VEIL_ATTR, '');
+}
+
+/** Le HTML rendu par Readability sans les voiles marqués, et la longueur de son texte. */
+function withoutVeils(content: string, length: number): { content: string; length: number } {
+  if (!content.includes(VEIL_ATTR)) return { content, length };
+  const doc = new DOMParser().parseFromString(content, 'text/html');
+  try {
+    for (const veil of Array.from(doc.body.querySelectorAll(`[${VEIL_ATTR}]`))) veil.remove();
+    return { content: doc.body.innerHTML, length: (doc.body.textContent || '').length };
+  } finally {
+    releaseDocument(doc);
+  }
+}
 const EMBEDDED_CONTENT = 'blockquote, img, picture, video, audio, iframe, figure';
 /** Bouton « retour en haut » : un nom entier de classe ou d'id, jamais un morceau découpé (RX-02, voir le serveur). */
 const BACK_TO_TOP_NAME = /^(?:top|(?:back|go|scroll)?-?to-?top|scroll-?top|back-?top)(?:-(?:button|btn|link|anchor|arrow|icon))?$/;
@@ -560,7 +585,7 @@ const INVISIBLE = new Set(['script', 'style', 'template', 'noscript']);
 /** Texte lisible d'un billet, mesuré une fois par nettoyage (B-02, voir le serveur). */
 type PostLength = (post: Element) => number;
 
-function isBoilerplate(el: Element, insideArticle: boolean, postLength: PostLength, paid: Map<Node, LinkCounts>): boolean {
+function isBoilerplate(el: Element, insideArticle: boolean, postLength: PostLength, paid: Map<Node, LinkCounts>): boolean | typeof VEIL {
   const tag = el.tagName.toLowerCase();
   const role = (el.getAttribute('role') || '').toLowerCase();
   if (BOILERPLATE_TAGS.has(tag) || BOILERPLATE_ROLES.has(role)) return true;
@@ -572,7 +597,7 @@ function isBoilerplate(el: Element, insideArticle: boolean, postLength: PostLeng
   if (!NAMED_EXEMPT.has(tag)) {
     if (tokens.some((token) => BOILERPLATE_TOKENS.has(token))) return true;
     if (!isPostContainer(tag, role)) {
-      if (tokens.includes(CONSENT_TOKEN) && !el.querySelector(EMBEDDED_CONTENT)) return true;
+      if (tokens.includes(CONSENT_TOKEN) && !el.querySelector(EMBEDDED_CONTENT)) return VEIL;
       if (tokens.includes('newsletter') && el.querySelector(FORM_CONTROLS) && !carriesMostOfItsPost(el, postLength)) return true;
       if (tokens.some((token) => SHORT_BLOCK_TOKENS.has(token))
         && visibleTextLength(el, SHORT_BLOCK_MAX) < SHORT_BLOCK_MAX) return true;
@@ -712,9 +737,15 @@ export function stripBoilerplate(root: Element): void {
   const stack: Array<[Element, boolean]> = Array.from(root.children, (child) => [child, false]);
   while (stack.length) {
     const [el, insideArticle] = stack.pop()!;
-    if (isBoilerplate(el, insideArticle, postLength, paid)) {
+    const verdict = isBoilerplate(el, insideArticle, postLength, paid);
+    if (verdict) {
       const length = visibleTextLength(el);
       if (length < total * MAIN_CONTAINER_MIN_SHARE && !carriesByline(el)) {
+        // Un voile reste jusqu’après Readability (V2-02, voir le serveur).
+        if (verdict === VEIL) {
+          markVeil(el);
+          continue;
+        }
         if (posts.size) forgetText(posts, el, length);
         el.remove();
         continue;
@@ -1153,7 +1184,9 @@ async function extractOnce(url: string): Promise<ExtractedContent> {
     throw new NoContentError();
   }
 
-  const cleanContent = sanitizeExtracted(result.content);
+  // Les voiles de consentement sortent ici, après toutes les passes (V2-02).
+  const unveiled = withoutVeils(result.content, result.length || 0);
+  const cleanContent = sanitizeExtracted(unveiled.content);
 
   return {
     title: result.title || '',
@@ -1161,6 +1194,6 @@ async function extractOnce(url: string): Promise<ExtractedContent> {
     excerpt: result.excerpt || '',
     byline: result.byline || '',
     siteName: result.siteName || '',
-    length: result.length || 0,
+    length: unveiled.length,
   };
 }
