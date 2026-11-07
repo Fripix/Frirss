@@ -462,7 +462,9 @@ function isPlaceholderSource(value: string | null): boolean {
 }
 
 function webAddress(value: string | null): string | null {
-  const v = value?.trim();
+  // Le navigateur ôte les tabulations et retours de ligne d'une adresse avant
+  // d'en lire le schéma : `java&#9;script:` est `javascript:` (RC-09).
+  const v = value?.replace(/[\t\n\r]/g, '').trim();
   if (!v) return null;
   const scheme = /^([a-z][a-z0-9+.-]*):/i.exec(v)?.[1].toLowerCase();
   return !scheme || scheme === 'http' || scheme === 'https' ? v : null;
@@ -1112,6 +1114,7 @@ const READABILITY_CHAR_THRESHOLD = 500;
 class Unit {
   private normCache?: string;
   private trackedCache?: string[];
+  private shortCache?: string[];
   /**
    * `blocks` : le texte lisible, par bloc. `images` : une liste d'adresses par
    * image ou média (`src`, puis, dans la page, les variantes en réserve).
@@ -1127,9 +1130,31 @@ class Unit {
   get norm(): string {
     return this.normCache ??= ` ${normalized(this.blocks.join(' '))} `;
   }
+  /** Ses blocs (coupés aux fins de bloc et aux `<br>`), normalisés. */
+  get parts(): string[] {
+    return this.blocks.map(normalized).filter(Boolean);
+  }
   /** Phrases suivies, normalisées — calculées à la première lecture. */
   get tracked(): string[] {
     return this.trackedCache ??= this.blocks.flatMap(sentencesOf).filter(isTracked);
+  }
+  /**
+   * Le texte (normalisé) de chaque entrée courte d'un bloc qui en contient —
+   * une entrée de liste, une cellule sans phrase suivie (« Price: 499 € ») :
+   * le bloc n'est lu que si elles le sont aussi (RC-04).
+   */
+  get shortLeaves(): string[] {
+    if (this.shortCache) return this.shortCache;
+    const out: string[] = [];
+    if (!this.el.firstElementChild) return this.shortCache = out;
+    for (const leaf of Array.from(this.el.querySelectorAll(LEAF_BLOCKS)) as Element[]) {
+      if (Array.from(leaf.children).some((child) => BLOCKS.has(child.tagName.toLowerCase()))) continue;
+      const blocks = blocksOf(leaf);
+      if (blocks.flatMap(sentencesOf).some(isTracked)) continue;
+      const text = normalized(blocks.join(' '));
+      if (text) out.push(text);
+    }
+    return this.shortCache = out;
   }
 }
 
@@ -1270,13 +1295,15 @@ function mediaAddresses(media: Element, base: string): string[] {
 
 function unitOf(el: Element, base: string, lenient: boolean, excluded = false): Unit {
   const images: string[][] = [];
-  const imgs = el.tagName.toLowerCase() === 'img' ? [el] : Array.from(el.querySelectorAll('img')) as Element[];
+  const tag = el.tagName.toLowerCase();
+  const leaf = !el.firstElementChild;
+  const imgs = tag === 'img' ? [el] : leaf ? [] : Array.from(el.querySelectorAll('img')) as Element[];
   for (const img of imgs) {
     if (isIcon(img)) continue;
     const addresses = imageAddresses(img, base, lenient);
     if (addresses.length) images.push(addresses);
   }
-  const media = el.matches(MEDIA_TAGS) ? [el] : Array.from(el.querySelectorAll(MEDIA_TAGS)) as Element[];
+  const media = MEDIA_UNITS.has(tag) ? [el] : leaf ? [] : Array.from(el.querySelectorAll(MEDIA_TAGS)) as Element[];
   for (const one of media) {
     if (!isMedia(one)) continue;
     const addresses = mediaAddresses(one, base);
@@ -1297,6 +1324,15 @@ function looseText(el: Element): boolean {
     else if (node.nodeType === 1 && BLOCKS.has((node as Element).tagName.toLowerCase())) return false;
   }
   return text;
+}
+
+/** `el.matches(BYLINE_SIGNALS)`, lu sur les attributs : un sélecteur par élément coûte sa compilation. */
+function isByline(el: Element): boolean {
+  if (/(?:^|\s)author(?:\s|$)/i.test(el.getAttribute('rel') || '')) return true;
+  if ((el.getAttribute('itemprop') || '').includes('author')) return true;
+  const name = el.getAttribute('class') || '';
+  const id = el.getAttribute('id') || '';
+  return ['byline', 'author', 'dateline', 'writtenby'].some((word) => name.includes(word)) || ['byline', 'author'].some((word) => id.includes(word));
 }
 
 /** Mots d'une classe ou d'un id qui désignent les commentaires (jamais remis). */
@@ -1326,7 +1362,7 @@ function unitsOf(root: Element, base: string, lenient = false): Unit[] {
     const tag = el.tagName.toLowerCase();
     // Ni un contrôle, ni le libellé d'un contrôle : ce n'est pas du texte d'article.
     if (el !== root && ((UNREAD.has(tag) && !(MEDIA_UNITS.has(tag) && isMedia(el))) || (lenient && tag === 'label'))) continue;
-    const excluded = inExcluded || (lenient && el !== root && (panels.has(el) || el.matches(BYLINE_SIGNALS) || isComments(el)));
+    const excluded = inExcluded || (lenient && el !== root && (panels.has(el) || isByline(el) || isComments(el) || el.hasAttribute('data-nosnippet')));
     if (el !== root && (UNIT_TAGS.has(tag) || looseText(el))) {
       const unit = unitOf(el, base, lenient, excluded);
       if (unit.norm.trim() || unit.images.length) units.push(unit);
@@ -1461,10 +1497,15 @@ function articleContainer(doc: Document): Element | null {
 function withItsTitle(doc: Document, container: Element): Element {
   const own = () => container.cloneNode(true) as Element;
   const memo = new Map<Element, boolean>();
+  // Le titre que la page se donne (`og:title`, sinon `<title>`) : seul un
+  // `<h1>` qui le porte est celui de l'article — pas le logo du site (RC-08).
+  const named = ((doc.querySelector('meta[property="og:title"]') as unknown as Element | null)?.getAttribute('content') || doc.title || '');
+  const pageTitle = ` ${normalized(named)} `;
   const titles = Array.from(doc.querySelectorAll('h1'))
     .filter((h1) => (h1.textContent || '').trim() && !insideHidden(h1, memo, hiddenOnPage));
-  if (!titles.length || titles.some((h1) => container.contains(h1))) return own();
-  const title = titles[0];
+  if (titles.some((h1) => container.contains(h1))) return own();
+  const title = titles.find((h1) => titleLike(normalized(h1.textContent || ''), pageTitle));
+  if (!title) return own();
   let up = container.parentElement;
   while (up && !up.contains(title)) up = up.parentElement;
   if (!up || ['body', 'html'].includes(up.tagName.toLowerCase())) return own();
@@ -1578,91 +1619,166 @@ function evidenceOf(doc: Document): string[] {
 interface Kept { sentences: Set<string>; blocks: Set<string>; text: KeptText; images: Set<string> }
 
 /**
- * Le texte normalisé d'un résultat (` mot mot … `), et où s'y lit chaque mot
- * et chaque paire de mots, relevé à la demande. Chercher un texte ne relit que
- * les occurrences de l'un de ses mots, jamais tout le texte, et le trouve même
- * quand son dernier mot y est collé à un voisin (deux `<span>` sans blanc :
- * « Foire aux questions » suivi de « Contenu… ») :
+ * Le texte normalisé d'un résultat, et où s'y lit chaque mot et chaque paire
+ * de mots, relevé à la demande. Il est fait de MORCEAUX — le résultat, puis
+ * chaque bloc remis —, chacun relevé une fois et jamais recollé aux autres :
+ * mille blocs remis ne font pas relire mille fois un texte qui grossit (RC-01,
+ * relecture de REG-229 : une page de 1,7 Mo dépassait le délai du worker).
+ * Chercher un texte ne relit que les occurrences de l'un de ses mots :
  * - quatre mots ou plus : par la plus rare de ses paires de mots intérieurs,
- *   des mots entiers du résultat (le premier peut aussi y être collé) — mille
- *   phrases qui commencent pareil ne se relisent pas mille fois l'une l'autre ;
- * - deux ou trois : par son premier mot ;
- * - un seul : par ses trois premières lettres.
+ *   des mots entiers du résultat (le premier et le dernier peuvent y être
+ *   collés à un voisin) — mille phrases qui commencent pareil ne se relisent
+ *   pas l'une l'autre ;
+ * - moins de quatre : par son premier mot, en mots ENTIERS, dans le texte
+ *   coupé à chaque bord d'élément (`splitText`) — « écran » ne se lit pas dans
+ *   « écrans », « 2 gb » pas dans « 2 gbps » (RC-02), mais deux `<span>` collés
+ *   (« Foire aux questions » puis « Contenu… ») se lisent chacun.
  */
 class KeptText {
+  /** Morceaux du texte entier (mots collés compris), et du texte coupé aux bords d'éléments. */
+  private whole: string[] = [];
+  private split: string[] = [];
+  private wholeDone = 0;
+  private splitDone = 0;
   private pairs = new Map<string, number[]>();
   private words = new Map<string, number[]>();
-  private prefixes = new Map<string, number[]>();
-  private indexed = 0;
-  private seen = 0;
-  constructor(public norm: string) {}
-  append(text: string): void {
-    this.norm += `${text} `;
+  /** Où commence chaque bloc du premier morceau (le résultat) : un morceau ajouté est un seul bloc. */
+  private starts: number[] = [];
+  /** `blocks` : les blocs du résultat, normalisés ; `split` : son texte coupé aux bords d'éléments. */
+  constructor(blocks: string[], split: string) {
+    let at = 1;
+    for (const block of blocks) { this.starts.push(at); at += block.length + 1; }
+    this.append(blocks.join(' '), split);
   }
-  /** Le texte normalisé `needle` se lit-il dans le résultat (mots entiers ou non) ? */
-  find(needle: string, scan: Scan): boolean {
-    this.extend(scan);
-    const words = needle.split(' ');
-    let at: number[] | undefined;
-    let offset = 0;
-    if (words.length >= 4) {
-      // La plus rare de ses paires de mots entiers (ni le premier ni le dernier).
-      let before = words[0].length + 1;
-      at = [];
-      for (let k = 1; k + 1 < words.length - 1; k++) {
-        const here = this.pairs.get(`${words[k]} ${words[k + 1]}`) ?? [];
-        if (k === 1 || here.length < at.length) { at = here; offset = before; }
-        if (!here.length) break;
-        before += words[k].length + 1;
-      }
-    } else if (words.length >= 2) {
-      at = this.words.get(words[0]);
-    } else {
-      at = this.prefixes.get(needle.slice(0, PREFIX));
+  /** Ajoute un morceau (normalisé, sans espaces au bord). */
+  append(whole: string, split: string): void {
+    this.whole.push(` ${whole} `);
+    this.split.push(` ${split} `);
+  }
+  /** Le rang du bloc du résultat qui porte la position `at` du premier morceau. */
+  private blockAt(at: number): number {
+    let lo = 0;
+    let hi = this.starts.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (this.starts[mid] <= at) lo = mid + 1;
+      else hi = mid;
     }
-    for (const position of at ?? []) {
+    return lo - 1;
+  }
+  /** Le texte normalisé `needle` se lit-il dans le résultat ? */
+  find(needle: string, scan: Scan): boolean {
+    const words = needle.split(' ');
+    if (words.length < 4) {
+      this.indexSplit(scan);
+      for (const position of this.words.get(words[0]) ?? []) {
+        if (scan.left <= 0) return true;
+        scan.left -= needle.length;
+        const [chunk, offset] = decode(position);
+        if (this.split[chunk].startsWith(`${needle} `, offset)) return true;
+      }
+      return false;
+    }
+    return this.findWhole(needle, words, scan, (chunk, start) => this.whole[chunk].startsWith(needle, start));
+  }
+  /**
+   * `head` puis `tail` se lisent-ils dans un même bloc du résultat, dans cet
+   * ordre, à moins de `span` caractères l'un de l'autre (RC-05) ?
+   */
+  near(head: string, tail: string, span: number, scan: Scan): boolean {
+    const words = head.split(' ');
+    if (words.length < 4) return false;
+    return this.findWhole(head, words, scan, (chunk, start) => {
+      if (!this.whole[chunk].startsWith(head, start)) return false;
+      scan.left -= span;
+      const found = this.whole[chunk].slice(start + head.length, start + span).indexOf(tail);
+      if (found < 0) return false;
+      // Dans le même bloc : le début et la fin d'un même paragraphe.
+      return chunk > 0 || this.blockAt(start) === this.blockAt(start + head.length + found + tail.length - 1);
+    });
+  }
+  private findWhole(needle: string, words: string[], scan: Scan, test: (chunk: number, start: number) => boolean): boolean {
+    this.indexWhole(scan);
+    // La plus rare de ses paires de mots entiers (ni le premier ni le dernier).
+    let before = words[0].length + 1;
+    let at: number[] = [];
+    let offset = 0;
+    for (let k = 1; k + 1 < words.length - 1; k++) {
+      const here = this.pairs.get(`${words[k]} ${words[k + 1]}`) ?? [];
+      if (k === 1 || here.length < at.length) { at = here; offset = before; }
+      if (!here.length) break;
+      before += words[k].length + 1;
+    }
+    for (const position of at) {
       // Budget épuisé : lu — la garde n'y touche plus, et s'abstiendra.
       if (scan.left <= 0) return true;
       scan.left -= needle.length;
-      const start = position - offset;
-      if (start >= 0 && this.norm.startsWith(needle, start)) return true;
+      const [chunk, start] = decode(position);
+      if (start - offset >= 0 && test(chunk, start - offset)) return true;
     }
     return false;
   }
-  /** Relève les mots du texte ajouté depuis le dernier relevé. */
-  private extend(scan: Scan): void {
-    if (this.norm.length === this.seen) return;
-    this.seen = this.norm.length;
-    const note = (map: Map<string, number[]>, key: string, position: number) => {
-      const at = map.get(key);
-      if (at) at.push(position);
-      else map.set(key, [position]);
-    };
-    // Un relevé reprend au dernier mot du précédent, déjà relevé : seule sa
-    // paire avec le premier mot ajouté est neuve.
-    let previous = -1;
-    let previousWord = '';
-    const resumed = this.indexed > 0;
-    for (let i = this.norm.indexOf(' ', Math.max(0, this.indexed - 1)); i >= 0 && i < this.norm.length - 1;) {
-      const end = this.norm.indexOf(' ', i + 1);
-      if (end < 0) break;
-      const word = this.norm.slice(i + 1, end);
-      if (previous >= 0) note(this.pairs, `${previousWord} ${word}`, previous);
-      if (previous >= 0 || !resumed) {
-        note(this.words, word, i + 1);
-        note(this.prefixes, word.slice(0, PREFIX), i + 1);
+  private indexWhole(scan: Scan): void {
+    for (; this.wholeDone < this.whole.length; this.wholeDone++) {
+      const chunk = this.whole[this.wholeDone];
+      scan.left -= chunk.length;
+      let previous = -1;
+      let previousWord = '';
+      for (let i = 0; i < chunk.length - 1;) {
+        const end = chunk.indexOf(' ', i + 1);
+        if (end < 0) break;
+        const word = chunk.slice(i + 1, end);
+        if (previous >= 0) note(this.pairs, `${previousWord} ${word}`, encode(this.wholeDone, previous));
+        previous = i + 1;
+        previousWord = word;
+        i = end;
       }
-      previous = i + 1;
-      previousWord = word;
-      i = end;
     }
-    scan.left -= this.norm.length - this.indexed;
-    this.indexed = previous >= 0 ? previous : this.norm.length - 1;
+  }
+  private indexSplit(scan: Scan): void {
+    for (; this.splitDone < this.split.length; this.splitDone++) {
+      const chunk = this.split[this.splitDone];
+      scan.left -= chunk.length;
+      for (let i = 0; i < chunk.length - 1;) {
+        const end = chunk.indexOf(' ', i + 1);
+        if (end < 0) break;
+        note(this.words, chunk.slice(i + 1, end), encode(this.splitDone, i + 1));
+        i = end;
+      }
+    }
   }
 }
-/** Un mot seul se cherche par ses premières lettres. */
-const PREFIX = 3;
 
+/** Une position : le morceau et le rang dans le morceau, en un nombre. */
+const CHUNK_SPAN = 2 ** 24;
+const encode = (chunk: number, offset: number) => chunk * CHUNK_SPAN + offset;
+const decode = (position: number): [number, number] => [Math.floor(position / CHUNK_SPAN), position % CHUNK_SPAN];
+
+function note(map: Map<string, number[]>, key: string, position: number): void {
+  const at = map.get(key);
+  if (at) at.push(position);
+  else map.set(key, [position]);
+}
+
+/**
+ * Le texte de `el` coupé à chaque bord d'élément, normalisé : deux `<span>`
+ * collés y sont deux mots (textes de repli et contrôles exclus).
+ */
+function splitText(el: Element): string {
+  const parts: string[] = [];
+  // `null` : la fin d'un élément.
+  const stack: Array<Node | null> = [el];
+  while (stack.length) {
+    const node = stack.pop();
+    if (node === null || node === undefined) { parts.push(' '); continue; }
+    if (node.nodeType === 3) { parts.push(node.textContent || ''); continue; }
+    if (node.nodeType !== 1 || UNREAD.has((node as Element).tagName.toLowerCase())) continue;
+    parts.push(' ');
+    stack.push(null);
+    for (let child = node.lastChild; child; child = child.previousSibling) stack.push(child);
+  }
+  return normalized(parts.join(''));
+}
 /** L'identité d'une adresse absolue (`imageIdentity`), ou l'adresse elle-même. */
 const sameImage = (address: string) => imageIdentity(address) ?? address;
 
@@ -1678,7 +1794,7 @@ function keptOf(root: Element, base: string): Kept {
   return {
     sentences: new Set(blocks.flatMap(sentencesOf)),
     blocks: new Set(blocks.map(normalized)),
-    text: new KeptText(` ${normalized(blocks.join(' '))} `),
+    text: new KeptText(blocks.map(normalized).filter(Boolean), splitText(root)),
     images,
   };
 }
@@ -1799,8 +1915,77 @@ function mostlyLinks(el: Element): boolean {
   return all > 0 && linked > LINK_SHARE_MAX * all;
 }
 
+/** La SUITE du corps a le gabarit de l'un de ses derniers blocs lus. */
+const SUITE_BOUNDS = 3;
+
+/** Une carte : au plus ce texte, à au plus tant de niveaux au-dessus du bloc. */
+const CARD_TEXT_MAX = 600;
+const CARD_DEPTH = 3;
+const CARD_NODES = 400;
+/** Le titre d'une carte : un intertitre qui mène ailleurs. */
+const CARD_HEADING = 'h2 a[href], h3 a[href], h4 a[href], a[href] h2, a[href] h3, a[href] h4';
+
+/**
+ * Le bloc est-il dans une carte — un court ensemble que titre un intertitre
+ * menant à une autre page (RC-07) ? Une ancre vers la page même (`#…`) n'en
+ * fait pas une.
+ */
+function inCard(el: Element, root: Element, memo: Map<Element, boolean>): boolean {
+  let depth = 0;
+  for (let up = el.parentElement; up && up !== root && depth < CARD_DEPTH; up = up.parentElement, depth++) {
+    let known = memo.get(up);
+    if (known === undefined) {
+      // Court d'abord (au plus `CARD_NODES` nœuds lus) : un grand bloc n'est pas une carte.
+      known = shortBlock(up) && (Array.from(up.querySelectorAll(CARD_HEADING)) as Element[])
+        .some((found) => !((found.closest('a') ?? found.querySelector('a'))?.getAttribute('href') || '').trim().startsWith('#'));
+      memo.set(up, known);
+    }
+    if (known) return true;
+  }
+  return false;
+}
+
+/** Le bloc porte-t-il au plus `CARD_TEXT_MAX` caractères, lus en au plus `CARD_NODES` nœuds ? */
+function shortBlock(root: Element): boolean {
+  let length = 0;
+  let nodes = 0;
+  const stack: Node[] = [root];
+  while (stack.length) {
+    if (++nodes > CARD_NODES) return false;
+    const node = stack.pop()!;
+    if (node.nodeType === 3) {
+      length += (node.textContent || '').replace(/\s+/g, ' ').trim().length;
+      if (length > CARD_TEXT_MAX) return false;
+      continue;
+    }
+    if (node.nodeType !== 1 || INVISIBLE.has((node as Element).tagName.toLowerCase())) continue;
+    for (let child = node.firstChild; child; child = child.nextSibling) stack.push(child);
+  }
+  return true;
+}
+
+/** Le texte hors lien qu'une entrée doit porter pour qu'une liste soit du corps (RC-03). */
+const ENTRY_TEXT_MIN = 5;
+
+/** Chaque entrée de la liste porte-t-elle du texte hors de ses liens ? */
+function entriesCarryText(list: Element): boolean {
+  const entries = Array.from(list.children).filter((child) => child.tagName.toLowerCase() === 'li');
+  return entries.length > 0 && entries.every((entry) => {
+    let own = 0;
+    const stack: Node[] = [entry];
+    while (stack.length) {
+      const node = stack.pop()!;
+      if (node.nodeType === 3) own += (node.textContent || '').replace(/\s+/g, '').length;
+      else if (node.nodeType === 1 && !['a', ...UNREAD].includes((node as Element).tagName.toLowerCase())) {
+        for (let child = node.firstChild; child; child = child.nextSibling) stack.push(child);
+      }
+    }
+    return own >= ENTRY_TEXT_MIN;
+  });
+}
+
 /** Ce que Readability retire d'un bloc, et que la copie remise ne porte donc pas non plus. */
-const NOT_REMITTED = 'script, style, noscript, template, button, input, select, textarea, label, link, meta, dialog, form, object, embed';
+const NOT_REMITTED_TAGS = new Set(['script', 'style', 'noscript', 'template', 'button', 'input', 'select', 'textarea', 'label', 'link', 'meta', 'dialog', 'form', 'object', 'embed']);
 /** Attributs de présentation que Readability retire (`_cleanStyles`), et la classe (`_cleanClasses`). */
 const PRESENTATION = ['class', 'style', 'align', 'background', 'bgcolor', 'border', 'cellpadding', 'cellspacing', 'frame', 'hspace', 'rules', 'valign', 'vspace'];
 
@@ -1817,13 +2002,18 @@ function placeholderImage(src: string | null): boolean {
  */
 function remittable(el: Element, base: string): Element {
   const copy = el.cloneNode(true) as Element;
-  for (const gone of Array.from(copy.querySelectorAll(`${NOT_REMITTED}, [${VEIL_ATTR}]`)) as Element[]) gone.remove();
-  // Ni ce que la page masque, ni un compteur de commentaires glissé dans le bloc.
-  for (const inner of Array.from(copy.querySelectorAll('*')) as Element[]) if (hiddenOnPage(inner) || isComments(inner)) inner.remove();
-  for (const node of [copy, ...Array.from(copy.querySelectorAll('*')) as Element[]]) {
+  const inside = copy.firstElementChild ? Array.from(copy.querySelectorAll('*')) as Element[] : [];
+  for (const inner of inside) {
+    // Ni un contrôle, un script, un voile ; ni ce que la page masque, ni un
+    // compteur de commentaires glissé dans le bloc, ni ce que la page soustrait
+    // aux extraits des moteurs (RC-10).
+    if (NOT_REMITTED_TAGS.has(inner.tagName.toLowerCase()) || inner.hasAttribute(VEIL_ATTR)
+      || hiddenOnPage(inner) || isComments(inner) || inner.hasAttribute('data-nosnippet')) inner.remove();
+  }
+  for (const node of [copy, ...inside.filter((inner) => copy.contains(inner))]) {
     // Le repli d'un média ne se montre pas (« CodePen Embed Fallback », « Your
     // browser does not support the audio element ») : seules ses sources restent.
-    if (node.matches(MEDIA_TAGS)) {
+    if (MEDIA_UNITS.has(node.tagName.toLowerCase())) {
       for (const child of Array.from(node.childNodes)) {
         if (child.nodeType !== 1 || !MEDIA_PARTS.has((child as Element).tagName.toLowerCase())) child.remove();
       }
@@ -1874,6 +2064,10 @@ function readableBlock(child: Element): boolean {
  * une phrase perdue reste entier : un doublon plutôt qu'une perte.
  */
 function withoutWhatIsRead(el: Element, base: string, alreadyRead: (unit: Unit) => boolean, images: Set<string>): void {
+  // `alreadyRead` : lue TELLE QUELLE — ses phrases comme phrases du résultat,
+  // ou son texte comme un bloc du résultat (RC-02 : « 4 GB » lu dans « 4 GB of
+  // RAM », l'entrée d'un avis lue dans son résumé, sortaient de la copie).
+  if (!el.firstElementChild) return;
   const leaves = Array.from(el.querySelectorAll(LEAF_BLOCKS)) as Element[];
   for (let i = leaves.length - 1; i >= 0; i--) {
     const leaf = leaves[i];
@@ -1896,6 +2090,50 @@ function withoutWhatIsRead(el: Element, base: string, alreadyRead: (unit: Unit) 
   }
 }
 
+/** Phrases d'un bloc du résultat, et occurrences de chacune, qui votent pour sa place. */
+const PLACE_SENTENCES = 8;
+const PLACE_CANDIDATES = 16;
+
+/** Un bloc du résultat et le bloc du conteneur où il se situe (-1 : introuvable). */
+interface Placed { el: Element; place: number }
+
+/** Le bloc qui porte le résultat de Readability (`div.page`), ou la racine. */
+const resultPage = (root: Element) => (root.children.length === 1 ? root.firstElementChild! : root);
+
+/** Chaque bloc du résultat, dans son ordre, et sa place dans le conteneur. */
+function locate(root: Element, index: FrameIndex, base: string): Placed[] {
+  const placed: Placed[] = [];
+  let previous = -1;
+  for (const unit of unitsOf(resultPage(root), base)) {
+    // Le bloc du conteneur qui porte le plus de ses phrases ; à égalité, le
+    // premier après le bloc précédent (RC-06 : une phrase reprise dans un
+    // encadré « Key points » plus haut ne déplace pas le paragraphe).
+    const votes = new Map<number, number>();
+    for (const s of unit.tracked.slice(0, PLACE_SENTENCES)) {
+      for (const at of (index.all.get(s) ?? []).slice(0, PLACE_CANDIDATES)) votes.set(at, (votes.get(at) ?? 0) + 1);
+    }
+    let place = -1;
+    let best = 0;
+    for (const [at, count] of [...votes].sort((a, b) => a[0] - b[0])) {
+      const better = count > best || (count === best && place <= previous && at > previous);
+      if (better) { place = at; best = count; }
+    }
+    if (place < 0 && !unit.tracked.length) {
+      const at = index.allBlocks.get(unit.norm.trim()) ?? [];
+      place = at.find((i) => i > previous) ?? at[0] ?? -1;
+    }
+    if (place < 0) {
+      for (const addresses of unit.images) {
+        const at = addresses.map((address) => index.images.get(sameImage(address))?.[0]).find((i) => i !== undefined);
+        if (at !== undefined) { place = at; break; }
+      }
+    }
+    placed.push({ el: unit.el, place });
+    if (place >= 0) previous = place;
+  }
+  return placed;
+}
+
 /**
  * Verse les blocs remis dans le résultat, chacun à sa place dans l'ordre de
  * la page (RG-03) : avant le premier bloc du résultat qui le suit dans le
@@ -1905,25 +2143,8 @@ function withoutWhatIsRead(el: Element, base: string, alreadyRead: (unit: Unit) 
  * Readability a retouché) suit le bloc qui le suit : rien ne s'insère entre
  * eux (la date d'une carte reste sur sa carte, Docker).
  */
-function placeInResult(root: Element, picked: Array<{ el: Element; place: number }>, index: FrameIndex, base: string): void {
-  const page = root.children.length === 1 ? root.firstElementChild! : root;
-  // Chaque bloc du résultat et sa place dans le conteneur (-1 : introuvable), dans l'ordre du résultat.
-  const placed: Array<{ el: Element; place: number }> = [];
-  for (const unit of unitsOf(page, base)) {
-    let place = -1;
-    for (const s of unit.tracked) {
-      const at = index.all.get(s);
-      if (at) { place = at[0]; break; }
-    }
-    if (place < 0 && !unit.tracked.length) place = index.allBlocks.get(unit.norm.trim())?.[0] ?? -1;
-    if (place < 0) {
-      for (const addresses of unit.images) {
-        const at = addresses.map((address) => index.images.get(sameImage(address))?.[0]).find((i) => i !== undefined);
-        if (at !== undefined) { place = at; break; }
-      }
-    }
-    placed.push({ el: unit.el, place });
-  }
+function placeInResult(root: Element, picked: Array<{ el: Element; place: number }>, placed: Placed[]): void {
+  const page = resultPage(root);
   // Les blocs situés, chacun avec ce qui le précède et le suit d'introuvable :
   // on insère avant le premier, ou après le dernier.
   const own: Array<{ place: number; lead: Element; trail: Element }> = [];
@@ -1976,6 +2197,8 @@ function placeInResult(root: Element, picked: Array<{ el: Element; place: number
 
 /** Les premiers et les derniers mots d'une phrase retouchée, que le résultat lit encore. */
 const RETOUCH_WORDS = 5;
+/** Ce que Readability peut ôter du milieu d'une phrase retouchée (un appel de note) ; au-delà, elle est perdue. */
+const RETOUCH_SLACK = 40;
 
 /** Les premiers mots du titre qui reconnaissent son `<h1>`. */
 const TITLE_WORDS = 5;
@@ -1986,12 +2209,20 @@ const TITLE_WORDS = 5;
  * titre trop long (« … après avoir é... », Les Numériques).
  */
 function isTitle(unit: Unit, title: string): boolean {
-  if (unit.el.tagName.toLowerCase() !== 'h1') return false;
-  const own = unit.norm.trim();
+  return unit.el.tagName.toLowerCase() === 'h1' && titleLike(unit.norm.trim(), title);
+}
+
+/**
+ * Le texte normalisé `own` est-il le titre `title` (normalisé, encadré
+ * d'espaces) ? Il commence par ses premiers mots, ou le titre le contient en
+ * entier — à partir de trois mots : un nom de site seul (« TechDaily ») que
+ * `<title>` répète n'est pas le titre.
+ */
+function titleLike(own: string, title: string): boolean {
   const words = title.trim().split(' ').filter(Boolean);
   if (!own || !words.length) return false;
   const opening = words.slice(0, Math.max(1, Math.min(TITLE_WORDS, words.length - 1))).join(' ');
-  return own.startsWith(opening) || reads(title, own);
+  return own.startsWith(opening) || (own.split(' ').length >= 3 && reads(title, own));
 }
 
 /** Le résultat de Readability, sans perte de ce que le conteneur de la page porte (voir plus haut). */
@@ -2002,17 +2233,26 @@ function withoutLoss(pass: Pass, parse: (html: string) => Element, base: string)
   const root = parse(pass.article.content);
   const kept = keptOf(root, base);
   const title = ` ${normalized(pass.article.title)} `;
-  const scan: Scan = { left: SCAN_FACTOR * (kept.text.norm.length + frameLength(units)) + SCAN_FLOOR };
+  const scan: Scan = { left: SCAN_FACTOR * (normalizedLength(pass.textContent) + frameLength(units)) + SCAN_FLOOR };
   const index = indexOf(units);
   // Ce que `reader` lit (le titre, que le lecteur affiche à part, compris).
   const sentenceRead = (reader: Kept, s: string) => reads(title, s) || holds(reader, s, scan);
   const textRead = (reader: Kept, unit: Unit) => {
-    if (unit.tracked.length) return unit.tracked.every((s) => sentenceRead(reader, s));
+    if (unit.tracked.length) {
+      return unit.tracked.every((s) => sentenceRead(reader, s))
+        && unit.shortLeaves.every((t) => reads(title, t) || readsWithin(reader, t, scan));
+    }
     const text = unit.norm.trim();
     return !text || reads(title, text) || readsWithin(reader, text, scan);
   };
   const imagesRead = (reader: Kept, unit: Unit) => unit.images.every((variants) => variants.some((address) => reader.images.has(sameImage(address))));
   const fullyRead = (reader: Kept) => (unit: Unit) => textRead(reader, unit) && imagesRead(reader, unit);
+  // Une entrée ne sort d'une copie remise que lue telle quelle (RC-02).
+  const asIs = (unit: Unit) => {
+    if (!imagesRead(kept, unit)) return false;
+    if (unit.tracked.length) return unit.tracked.every((s) => kept.sentences.has(s) || reads(title, s));
+    return unit.parts.every((part) => kept.blocks.has(part) || reads(title, part));
+  };
 
   // Les blocs que le résultat lit : tout le texte, ou un paragraphe retouché
   // (plus bas) — un bloc d'au moins 25 caractères est une borne du corps lu.
@@ -2026,10 +2266,13 @@ function withoutLoss(pass: Pass, parse: (html: string) => Element, base: string)
   // phrase que Readability a touchée en son milieu (un appel de note retiré).
   // Une phrase dont le début ou la fin ne se lit pas est perdue : le
   // paragraphe revient.
+  // Le début et la fin se lisent dans un même passage du résultat, dans
+  // l'ordre, à moins de la longueur de la phrase plus `RETOUCH_SLACK` (RC-05 :
+  // lus n'importe où, « passera de 3 à 5 % » se perdait).
   const nearlyRead = (s: string) => {
     const words = s.split(' ');
-    return words.length > RETOUCH_WORDS
-      && readsWithin(kept, words.slice(0, RETOUCH_WORDS).join(' '), scan) && readsWithin(kept, words.slice(-RETOUCH_WORDS).join(' '), scan);
+    return words.length > 2 * RETOUCH_WORDS
+      && kept.text.near(words.slice(0, RETOUCH_WORDS).join(' '), words.slice(-RETOUCH_WORDS).join(' '), s.length + RETOUCH_SLACK, scan);
   };
   const retouched = (i: number) => {
     const unit = units[i];
@@ -2037,7 +2280,31 @@ function withoutLoss(pass: Pass, parse: (html: string) => Element, base: string)
     const unread = unit.tracked.filter((s) => !sentenceRead(kept, s));
     return unread.length * 2 <= unit.tracked.length && unread.every(nearlyRead);
   };
-  const bound = (i: number) => units[i].norm.trim().length >= TRACKED_MIN && (text(i) || retouched(i));
+  // Les bornes du corps lu sont les blocs du conteneur où se situe un bloc du
+  // résultat (`locate`), d'au moins 25 caractères et pas faits de liens —
+  // pas un bloc dont le résultat lit le texte ailleurs (RC-07 : sur le blog de
+  // GitHub, l'extrait d'une carte « liés » qui reprend le chapeau faisait du
+  // titre à la carte un seul trou, « Tags: » et « Table of Contents » compris).
+  const placedInResult = locate(root, index, base);
+  const located = new Set(placedInResult.map((mine) => mine.place).filter((place) => place >= 0));
+  // Une carte (« liés », « More on Git ») que Readability a gardée n'est une
+  // borne que si le résultat n'a rien d'autre, et un bloc fait de liens que
+  // s'il n'a que cela : chez Docker, il n'a que les cartes (une liste de
+  // liens), et c'est ce qui les précède qui est l'article.
+  // Ni un `<h1>` (le titre de la page, qu'une carte reprend : Docker), ni le texte du titre.
+  const headline = (i: number) => units[i].el.tagName.toLowerCase() === 'h1' || titleLike(units[i].norm.trim(), title);
+  const body = (i: number) => located.has(i) && units[i].norm.trim().length >= TRACKED_MIN && !mostlyLinks(units[i].el) && !headline(i);
+  const cards = new Map<number, boolean>();
+  const cardHolders = new Map<Element, boolean>();
+  const card = (i: number) => {
+    let known = cards.get(i);
+    if (known === undefined) cards.set(i, known = inCard(units[i].el, frame.root, cardHolders));
+    return known;
+  };
+  const plain = units.some((_, i) => body(i) && !card(i));
+  const anyBody = units.some((_, i) => body(i));
+  const loose = (i: number) => located.has(i) && units[i].norm.trim().length >= TRACKED_MIN && !headline(i);
+  const bound = (i: number) => (anyBody ? body(i) && !(plain && card(i)) : loose(i));
   const first = units.findIndex((_, i) => bound(i));
   let last = -1;
   for (let i = units.length - 1; i >= 0 && last < 0; i--) if (bound(i)) last = i;
@@ -2047,10 +2314,13 @@ function withoutLoss(pass: Pass, parse: (html: string) => Element, base: string)
     const name = (el?.getAttribute('class') || '').trim();
     return el && name ? `${el.tagName.toLowerCase()}.${name}` : null;
   };
+  // Celui des DERNIERS blocs lus : le chapeau de GitHub a la classe des
+  // extraits de ses cartes « liés », qui ne sont pas la suite du corps (RC-07).
   const parents = new Set<Element | null>();
   const shapes = new Set<string>();
-  for (let i = first; first >= 0 && i <= last; i++) {
+  for (let i = last, n = 0; i >= first && first >= 0 && n < SUITE_BOUNDS; i--) {
     if (!bound(i)) continue;
+    n++;
     parents.add(units[i].el.parentElement);
     const own = shape(units[i].el.parentElement);
     if (own) shapes.add(own);
@@ -2065,17 +2335,46 @@ function withoutLoss(pass: Pass, parse: (html: string) => Element, base: string)
     if (at >= 0) proven.add(at);
   }
 
+  // L'en-tête de l'article (RC-08) : ce qui précède son titre n'en est que
+  // dans le même habillage que lui — l'ancêtre le plus large du `<h1>` qui ne
+  // contient pas le corps lu (le surtitre d'Ars, le crédit de l'image de
+  // TechCrunch) ; un bandeau « tendances » placé avant, dans le `<main>`, non.
+  const heading = first < 0 ? -1 : units.findIndex((unit, i) => i < first && isTitle(unit, title));
+  let header: Element | null = null;
+  if (heading >= 0) {
+    header = units[heading].el;
+    while (header.parentElement && header.parentElement !== frame.root && !header.parentElement.contains(units[first].el)) header = header.parentElement;
+  }
+  const inHeader = (i: number) => heading < 0 || i > heading || header!.contains(units[i].el);
+  // Une liste du corps (trou ou suite) dont chaque entrée porte du texte hors
+  // lien (« au lieu de 149 € »), ou qui suit un intertitre remis, est du corps
+  // même faite de liens (RC-03 : les vingt offres d'un bon plan de Clubic).
+  const LIST = /^(?:ul|ol)$/i;
+  const HEADING_TAG = /^h[1-6]$/i;
+  const bodyList = (i: number) => first < i && LIST.test(units[i].el.tagName)
+    && ((wanted[wanted.length - 1] === i - 1 && HEADING_TAG.test(units[i - 1].el.tagName)) || entriesCarryText(units[i].el));
   const wanted: number[] = [];
+  /** Les blocs remis entiers, sans en ôter ce que le résultat lit déjà. */
+  const whole = new Set<number>();
   for (let i = 0; i < units.length; i++) {
     const unit = units[i];
     if (unit.excluded || isTitle(unit, title)) continue;
     if (!proven.has(i)) {
       if (first < 0) continue;
       const parent = unit.el.parentElement;
-      const placed = i <= last || short || parents.has(parent) || shapes.has(shape(parent) ?? '');
-      if (!placed || mostlyLinks(unit.el)) continue;
+      const suite = i > last && (short || parents.has(parent) || shapes.has(shape(parent) ?? '')) && !card(i);
+      const placed = (i < first ? inHeader(i) : i <= last) || suite;
+      if (!placed || (mostlyLinks(unit.el) && !bodyList(i))) continue;
     }
-    if ((text(i) && imagesRead(kept, unit)) || retouched(i)) continue;
+    if ((text(i) && imagesRead(kept, unit)) || retouched(i)) {
+      // Un intertitre remis ne reste pas orphelin : le bloc qui le suit, que
+      // le résultat lit ailleurs sans l'avoir à cette place (un encadré « Key
+      // points » qui reprend une phrase du corps), revient avec lui, entier —
+      // la page le montre deux fois.
+      const heading = wanted[wanted.length - 1] === i - 1 && HEADING_TAG.test(units[i - 1].el.tagName);
+      if (heading && !located.has(i) && !HEADING_TAG.test(unit.el.tagName)) { wanted.push(i); whole.add(i); }
+      continue;
+    }
     wanted.push(i);
   }
   // Budget épuisé en chemin : la garde s'abstient en entier plutôt qu'à moitié.
@@ -2085,19 +2384,19 @@ function withoutLoss(pass: Pass, parse: (html: string) => Element, base: string)
   const read = fullyRead(kept);
   for (const i of wanted) {
     // Un bloc remis est lu : son double plus loin (un chapeau écrit pour deux mises en page) ne revient pas.
-    if (read(units[i])) continue;
+    if (!whole.has(i) && read(units[i])) continue;
     const copy = remittable(units[i].el, base);
-    withoutWhatIsRead(copy, base, read, kept.images);
+    if (!whole.has(i)) withoutWhatIsRead(copy, base, asIs, kept.images);
     const left = unitOf(copy, base, false);
-    if ((!left.norm.trim() && !left.images.length) || read(left)) continue;
+    if ((!left.norm.trim() && !left.images.length) || (!whole.has(i) && read(left))) continue;
     for (const s of left.tracked) kept.sentences.add(s);
     kept.blocks.add(left.norm.trim());
     for (const addresses of left.images) for (const address of addresses) kept.images.add(sameImage(address));
-    kept.text.append(left.norm.trim());
+    kept.text.append(left.norm.trim(), splitText(copy));
     picked.push({ el: copy, place: i });
   }
   if (!picked.length || scan.left <= 0) return pass.article;
-  placeInResult(root, picked, index, base);
+  placeInResult(root, picked, placedInResult);
   return { ...pass.article, content: root.innerHTML, length: (root.textContent || '').length };
 }
 

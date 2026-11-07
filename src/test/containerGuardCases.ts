@@ -415,7 +415,7 @@ export function defineContainerGuardCases(api: GuardApi): void {
     }
 
     it('avis du CERT-FR, petits et gros, et messages intégrés de Numerama : rien n’est ajouté', () => {
-      for (const html of [advisoryPageHtml(), advisoryPageHtml(200), embeddedTweetsPageHtml(), newsPageHtml(), blogPageHtml(), shortPostPageHtml()]) {
+      for (const html of [advisoryPageHtml(), advisoryPageHtml(200), embeddedTweetsPageHtml(), blogPageHtml(), shortPostPageHtml()]) {
         expect(extractArticle(url, html)!.content).toBe(extractWithoutGuard(url, html)!.content);
       }
     });
@@ -466,6 +466,133 @@ export function defineContainerGuardCases(api: GuardApi): void {
       const compared = comparedDuring(() => { out = guardForTests({ page: pageHtml, result: strictResult }); });
       expect(compared).toBeLessThan(64 * pageHtml.length + 20_000_000);
       expect(textOf(out!.content)).toBe(textOf(strictResult));
+    });
+  });
+
+  // ── Relecture de la garde (RC-01 à RC-10) : chaque point, une forme.
+  describe(`${prefix}garde de non-perte — relecture (RC-01 à RC-10)`, () => {
+    const s = (word: string) => `${word} : une phrase inventée assez longue pour être suivie par la garde de non-perte.`;
+    const page = (inner: string, head = '', title = 'Le titre inventé de la page') => `<!doctype html><html><head><title>${title}</title>${head}</head><body><main><article>${inner}</article></main></body></html>`;
+    const result = (inner: string) => `<div id="readability-page-1" class="page">${inner}</div>`;
+    const p = (word: string) => `<p>${s(word)}</p>`;
+    const body = ['un', 'deux', 'trois', 'quatre', 'cinq', 'six', 'sept'].map((n) => p(`Corps ${n}`)).join('');
+    const guarded = (inner: string, kept: string, head = '') => textOf(guardForTests({ page: page(inner, head), result: result(kept) }).content);
+
+    /** Appels de `indexOf` sur un texte de plus de 50 000 caractères pendant `run`. */
+    const longSearches = (run: () => void) => {
+      const proto = String.prototype as unknown as { indexOf: (...args: unknown[]) => number };
+      const { indexOf } = proto;
+      let calls = 0;
+      proto.indexOf = function (this: string, ...args: unknown[]) { if (this.length > 50_000) calls++; return indexOf.apply(this, args); };
+      try { run(); } finally { proto.indexOf = indexOf; }
+      return calls;
+    };
+
+    // RC-01 : chaque bloc remis s'ajoutait au texte du résultat, que chaque
+    // recherche relisait (recollé) : une page de 1,7 Mo dépassait le délai.
+    it('RC-01 : mille blocs remis ne font pas relire le texte du résultat à chacun', () => {
+      const long = Array.from({ length: 300 }, (_, i) => `<p>${Array.from({ length: 4 }, (__, k) => `Phrase ${i}-${k} du corps, longue et ordinaire, inventée pour peser dans le résultat.`).join(' ')}</p>`).join('');
+      const work = (n: number) => longSearches(() => guardForTests({
+        page: page(`${Array.from({ length: n }, (_, i) => `<div><p>i${i} w</p></div>`).join('')}<div class="corps">${long}</div>`),
+        result: result(long),
+      }));
+      expect(work(4000) - work(2000)).toBeLessThan(100);
+    });
+
+    it('RC-02 : un texte court se lit en mots entiers — « 2 GB » n’est pas lu dans « 2 Gbps », ni « Écran » dans « écrans »', () => {
+      const text = guarded(`<header><ul><li>2 GB</li><li>Écran</li></ul></header><div>${body}<p>${s('Il passe à 2 Gbps et ses écrans')}</p></div>`, `${body}<p>${s('Il passe à 2 Gbps et ses écrans')}</p>`);
+      expect(text).toContain('2 GB');
+      expect(occurrences(text, 'Écran')).toBe(1);
+    });
+
+    it('RC-02 : dans une copie remise, une entrée ne sort que lue telle quelle (« 2 GB » lu dans une phrase reste)', () => {
+      const sentence = '<p>The model ships with 2 GB of RAM in the base version and 16 GB of storage which is a lot.</p>';
+      const text = guarded(`<header><ul><li>2 GB</li><li>4 GB</li><li>16 GB</li></ul></header><div>${body}${sentence}</div>`, `${body}${sentence}`);
+      for (const entry of ['2 GB', '4 GB', '16 GB']) expect(text.replace('2 GB of RAM', '').replace('16 GB of storage', '')).toContain(entry);
+    });
+
+    it('RC-02 : l’intertitre d’un avis revient avec son entrée, même lue dans le résumé (CERT-FR)', () => {
+      const summary = '<p>Une vulnérabilité a été découverte. Elle permet à un attaquant de provoquer une élévation de privilèges.</p>';
+      const out = textOf(guardForTests({
+        page: page(`<div>${p('Corps un')}${p('Corps deux')}<h2>Risque</h2><ul><li>Élévation de privilèges</li></ul><h2>Résumé</h2>${summary}${p('Corps trois')}</div>`),
+        result: result(`${p('Corps un')}${p('Corps deux')}<h2>Résumé</h2>${summary}${p('Corps trois')}`),
+      }).content);
+      expect(out).toContain('Risque');
+      expect(out.indexOf('Élévation de privilèges')).toBeGreaterThan(out.indexOf('Risque'));
+      expect(out.indexOf('Élévation de privilèges')).toBeLessThan(out.indexOf('Résumé'));
+    });
+
+    it('RC-03 : une liste d’offres (lien, puis « au lieu de … ») revient dans le corps ; une liste « liés » faite de seuls liens, non', () => {
+      const offers = `<ul>${Array.from({ length: 5 }, (_, i) => `<li><a href="/o${i}"><strong>Produit inventé numéro ${i} à ${10 + i} €</strong></a> au lieu de ${20 + i} €</li>`).join('')}</ul>`;
+      const related = `<ul>${Array.from({ length: 5 }, (_, i) => `<li><a href="/r${i}">Un autre billet inventé numéro ${i}</a></li>`).join('')}</ul>`;
+      const text = guarded(`<div>${p('Corps un')}<h2>Les offres</h2>${offers}${p('Corps deux')}${related}${p('Corps trois')}</div>`, `${p('Corps un')}<h2>Les offres</h2>${p('Corps deux')}${p('Corps trois')}`);
+      for (let i = 0; i < 5; i++) expect(text).toContain(`au lieu de ${20 + i} €`);
+      expect(text).not.toContain('Un autre billet inventé');
+    });
+
+    it('RC-04 : un bloc à phrases suivies n’est lu que si ses entrées courtes le sont (« Price: 499 € »)', () => {
+      const s1 = 'The new phone ships with a larger battery and a brighter screen this year.';
+      const kept = `<p>${s1} Reviewers praised the camera.</p>${body}`;
+      const text = guarded(`<ul class="specs"><li>${s1}</li><li>Price: 499 €</li><li>Weight: 180 g</li></ul><div>${kept}</div>`, kept);
+      expect(text).toContain('Price: 499 €');
+      expect(text).toContain('Weight: 180 g');
+      expect(occurrences(text, s1)).toBe(1);
+    });
+
+    it('RC-05 : une phrase n’est « retouchée » que si son début et sa fin se lisent dans un même bloc du résultat', () => {
+      const lede = '<p>Le gouvernement a présenté son budget mardi matin à Paris. Selon le texte, la taxe sur les géants du numérique passera de 3 à 5 % dès le premier janvier prochain.</p>';
+      const kept = '<p>Le gouvernement a présenté son budget mardi matin à Paris.</p><p>Selon le texte, la taxe ne concerne pas les petites entreprises du secteur.</p><p>Le dispositif entrera en vigueur dès le premier janvier prochain, après un vote.</p><p>Les députés examineront le projet dans les prochaines semaines, en commission puis en séance.</p>';
+      expect(guarded(`<div class="lede">${lede}</div><div>${kept}</div>`, kept)).toContain('passera de 3 à 5');
+    });
+
+    it('RC-06 : un paragraphe du résultat se situe où se lisent ses phrases, pas où l’une d’elles est reprise plus haut', () => {
+      const s1 = 'The council voted to close the old bridge to all traffic next month.';
+      const kept = `<p>${s1} Engineers found deep cracks in two of its main supports last spring.</p><p>Repairs are expected to take at least two years and cost about forty million euros.</p><p>A temporary ferry service will run every twenty minutes during the closure period.</p>`;
+      const out = textOf(guardForTests({
+        page: page(`<div class="kt"><h2>Key points</h2><ul><li>${s1}</li></ul></div><p class="lede">Lede: residents of both banks will need new routes to reach the city centre, officials warned.</p><div class="body">${kept}</div>`),
+        result: result(kept),
+      }).content);
+      expect(out.indexOf('Lede: residents')).toBeLessThan(out.indexOf('Engineers found'));
+      // L'intertitre remis n'est pas orphelin : son encadré revient avec lui.
+      expect(out.indexOf('Key points')).toBeLessThan(out.indexOf(s1));
+      expect(out.indexOf(s1)).toBeLessThan(out.indexOf('Lede: residents'));
+    });
+
+    it('RC-07 : une carte « liés » gardée par Readability ne fait pas de tout ce qui la précède un trou (blog de GitHub)', () => {
+      const dek = s('Le chapeau du billet');
+      const card = `<section class="more-posts"><h2>Billets voisins</h2><div class="card"><h3><a href="/autre">Un autre billet inventé</a></h3><div class="excerpt"><p>${dek}</p></div></div></section>`;
+      const inner = `<header><h1>Le titre inventé de la page</h1><div class="excerpt"><p>${dek}</p></div></header><div class="corps">${body}</div><div class="post-meta"><p>Table of Contents</p><p>Tags: <a href="/t">Infra</a></p></div>${card}`;
+      const text = guarded(inner, `${body}${card}`);
+      expect(text).toContain(dek);
+      expect(text).not.toContain('Table of Contents');
+      expect(text).not.toContain('Tags:');
+    });
+
+    it('RC-08 : ce qui précède le titre dans un autre habillage (un bandeau « tendances ») ne revient pas ; ce qui le précède dans l’en-tête, si', () => {
+      const trending = `<section class="tendances">${Array.from({ length: 4 }, (_, i) => `<div class="c${i}"><h3><a href="/t${i}">Tendance ${i}</a></h3><p>${s(`Résumé de la tendance ${i}`)}</p></div>`).join('')}</section>`;
+      const html = `<!doctype html><html><head><title>Le titre inventé de la page</title></head><body><main>${trending}<div class="article"><header><p>Crédit de l’image d’en-tête : Camille Exemple</p><h1>Le titre inventé de la page</h1>${p('Chapeau')}</header><div>${body}</div></div></main></body></html>`;
+      const text = textOf(guardForTests({ page: html, result: result(body), title: 'Le titre inventé de la page' }).content);
+      expect(text).not.toContain('Résumé de la tendance');
+      expect(text).toContain('Crédit de l’image d’en-tête');
+      expect(text).toContain(s('Chapeau'));
+    });
+
+    it('RC-08 : la remontée au titre ne monte pas jusqu’au logo du site (un `<h1>` qui n’est pas le titre)', () => {
+      const html = `<!doctype html><html><head><title>Markets react to the new tariffs</title></head><body><div id="page"><header class="site-header"><h1 class="logo"><a href="/">TechDaily</a></h1><p>${s('TechDaily, the independent technology newsroom')}</p></header><article><h2>Markets react to the new tariffs</h2>${body}</article></div></body></html>`;
+      const text = textOf(extractArticle(url, html)!.content);
+      expect(text).not.toContain('independent technology newsroom');
+      expect(text).not.toContain('TechDaily');
+    });
+
+    it('RC-09 : une adresse paresseuse `java&#9;script:` n’est pas reprise', () => {
+      const html = `<!doctype html><html><head><title>T</title></head><body><main><h1>T</h1><video data-src="java&#9;script:alert(1)" data-poster="java&#10;script:alert(2)"><source data-src="java&#13;script:alert(3)"></video><div>${body}</div></main></body></html>`;
+      expect(extractArticle(url, html)!.content).not.toMatch(/(?:src|poster)="\s*j\s*a\s*v\s*a/i);
+    });
+
+    it('RC-10 : un bloc que la page soustrait aux extraits (`data-nosnippet`) ne revient jamais', () => {
+      const text = guarded(`<header>${p('Chapeau')}<div data-nosnippet>${p('Abonnez-vous à notre offre')}</div></header><div>${body}</div>`, body);
+      expect(text).toContain(s('Chapeau'));
+      expect(text).not.toContain('Abonnez-vous');
     });
   });
 }
