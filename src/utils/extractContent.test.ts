@@ -13,6 +13,8 @@ import {
   ExtractorCrashedError,
   UpstreamRefusedError,
   forgetExtractFailures,
+  joinSplitBody,
+  resolveLazyImages,
   FALLBACK_EXTRACT_TIMEOUT_MS,
   FALLBACK_MAX_HTML_BYTES,
   RATE_LIMIT_MAX_WAIT_MS,
@@ -298,6 +300,38 @@ describe('extractFullContent — repli local : blocs étrangers (M-04)', () => {
     expect(out.content).not.toContain('data-frirss');
   });
 
+  // RW-01, voir le serveur.
+  it('retire le texte nu d’un voile de consentement, que Readability range dans un paragraphe neuf', async () => {
+    const para = (i: number) => `<p>Paragraphe ${i} de l’article, qui raconte ce que les joueurs font déjà du nouveau jeu, avec des détails, des chiffres et des citations pour peser dans la balance.</p>`;
+    const words = 'Ce contenu est bloqué car vous n’avez pas accepté les cookies et autres traceurs. Pour pouvoir le visualiser, vous devez accepter l’usage opéré par le fournisseur avec vos données, qui pourront être utilisées pour des finalités publicitaires et de mesure d’audience.';
+    const veils = {
+      bare: `<div class="embed-consent">VOILE ${words} <a href="#">En savoir plus</a> <button>Accepter</button></div>`,
+      nested: `<div class="embed-consent"><div class="embed-consent-text">VOILE ${words} <a href="#">En savoir plus</a></div><button>Accepter</button></div>`,
+      besideTweet: `<figure class="wp-block-embed"><div class="embed-container"><div class="embed-container-content"><blockquote class="twitter-tweet"><p>TWEET Un message <a href="https://t.co/x">pic</a></p>&mdash; X <a href="https://x.com/a/status/1">date</a></blockquote></div><div class="embed-consent">VOILE ${words} <a href="#">En savoir plus</a> <button>Accepter</button></div></div></figure>`,
+    };
+    for (const [name, veil] of Object.entries(veils)) {
+      fallbackOn(`<!doctype html><html><head><title>T</title></head><body><main><article><h1>T</h1><div class="article-content">${[1, 2, 3].map(para).join('')}${veil}${[4, 5, 6].map(para).join('')}</div></article></main></body></html>`);
+      const out = await extractFullContent(`https://example.com/voile-${name}`);
+      const text = textOf(out.content);
+      expect(text, name).toContain('Paragraphe 6');
+      expect(text, name).not.toContain('VOILE');
+      expect(text, name).not.toContain('En savoir plus');
+      expect(out.content, name).not.toContain('data-frirss');
+      if (name === 'besideTweet') expect(text, name).toContain('TWEET');
+    }
+  });
+
+  // RW-02, voir le serveur.
+  it('ne retire pas un paragraphe que la page marque elle-même comme voile', async () => {
+    const para = (i: number, attrs = '') => `<p${attrs}>Paragraphe ${i} de l’article, qui raconte ce que les joueurs font déjà du nouveau jeu, avec des détails, des chiffres et des citations.</p>`;
+    const veil = '<div class="embed-consent"><p>VOILE Ce contenu est bloqué, acceptez les cookies pour le voir, merci beaucoup.</p></div>';
+    fallbackOn(`<html><head><title>T</title></head><body><article><div class="c">${para(1)}${para(2, ' data-frirss-veil')}${para(3)}${para(4)}${para(5)}${veil}</div></article></body></html>`);
+    const text = textOf((await extractFullContent('https://example.com/marque')).content);
+    expect(text).toContain('Paragraphe 2');
+    expect(text).toContain('Paragraphe 5');
+    expect(text).not.toContain('VOILE');
+  });
+
   it('ne ramasse pas les mentions légales de la lettre d’information du rail (structure The Verge)', async () => {
     const html = newsPageHtml();
     const page = new DOMParser().parseFromString(html, 'text/html');
@@ -501,6 +535,41 @@ describe('extractFullContent — repli local : corps réparti en plusieurs blocs
     for (const block of blocks) expect(text).toContain(block);
     expect(text.indexOf(blocks[0])).toBeLessThan(text.indexOf(blocks[2]));
   });
+
+  // RW-03, voir le serveur : trois déplacements passaient tous leurs nœuds en
+  // arguments. Les fonctions sont appelées seules : sous jsdom, Readability
+  // est quadratique sur 150 000 nœuds (8 s pour 20 000, avant ce correctif
+  // aussi), là où le navigateur ne l'est pas.
+  it('réunit un corps réparti dont un bloc porte des centaines de milliers de nœuds, sans dépasser la pile', () => {
+    const html = splitBodyPageHtml();
+    const blocks = blocksOf(html);
+    const at = html.lastIndexOf('<div class="post-content');
+    const open = html.indexOf('>', at) + 1;
+    const doc = new DOMParser().parseFromString(html.slice(0, open) + '<!---->'.repeat(150_000) + html.slice(open), 'text/html');
+    expect(() => joinSplitBody(doc.documentElement)).not.toThrow();
+    const joined = doc.querySelectorAll('div.post-content');
+    expect(joined.length).toBeLessThan(blocks.length);
+    const text = norm(doc.body.textContent);
+    for (const block of blocks) expect(text).toContain(block);
+  }, 30_000);
+
+  it('verse un intercalaire et déballe un bouton d’agrandissement de centaines de milliers de nœuds, sans dépasser la pile', () => {
+    const many = '<!---->'.repeat(150_000);
+    const para = (s: string) => `<p>${s} — un paragraphe d’article assez long pour compter comme du texte.</p>`;
+    const gap = new DOMParser().parseFromString(`<html><body><article><div class="grid"><div class="col"><div class="post-content">${para('UN')}</div></div></div>
+      <div class="post-content">LIAISON sans paragraphe.${many}</div>
+      <div class="grid"><div class="col"><div class="post-content">${para('DEUX')}</div></div></div></article></body></html>`, 'text/html');
+    const before = (gap.body.textContent || '').replace(/\s+/g, '');
+    expect(() => joinSplitBody(gap.documentElement)).not.toThrow();
+    expect(gap.querySelectorAll('.post-content').length).toBeLessThan(3);
+    expect((gap.body.textContent || '').replace(/\s+/g, '')).toBe(before);
+
+    const zoom = new DOMParser().parseFromString(`<html><body><p>AVANT</p><button aria-label="Agrandir l’image"><img src="https://example.com/a.jpg">${many}</button><p>APRES</p></body></html>`, 'text/html');
+    expect(() => resolveLazyImages(zoom.documentElement)).not.toThrow();
+    expect(zoom.querySelectorAll('button').length).toBe(0);
+    expect(Array.from(zoom.body.children, (el) => el.tagName)).toEqual(['P', 'IMG', 'P']);
+    expect(zoom.body.childNodes.length).toBe(150_003);
+  }, 30_000);
 
   it('garde tout le corps réparti sans la notice de l’auteur qui le suit (structure Ars Technica)', async () => {
     const html = splitBodyWithBioPageHtml();

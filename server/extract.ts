@@ -748,8 +748,20 @@ export function resolveLazyImages(root: Element): void {
     if (srcset && isPlaceholderSource(source.getAttribute('srcset'))) source.setAttribute('srcset', srcset);
   }
   for (const button of Array.from(root.querySelectorAll('button')) as Element[]) {
-    if (isZoomButton(button)) button.replaceWith(...Array.from(button.childNodes));
+    if (isZoomButton(button)) button.replaceWith(takeChildren(button));
   }
+}
+
+/**
+ * Les enfants de `node`, dans l'ordre, déplacés un à un dans un fragment.
+ * Jamais en arguments (`append(...nœuds)`, `replaceWith(...nœuds)`) :
+ * quelques centaines de milliers de nœuds dépassent la pile (RW-03, comme
+ * RZ-06).
+ */
+function takeChildren(node: Node): DocumentFragment {
+  const fragment = node.ownerDocument!.createDocumentFragment();
+  while (node.firstChild) fragment.appendChild(node.firstChild);
+  return fragment;
 }
 
 // Seuls les boutons d'AGRANDISSEMENT sont déballés (relecture du troisième
@@ -881,14 +893,32 @@ const BOILERPLATE_TOKENS = new Set([
  * Le voile est donc seulement marqué (`VEIL_ATTR`, sur lui et chacun de ses
  * descendants : Readability remplace parfois un bloc par son seul enfant, sans
  * ses attributs) ; `withoutVeils` le retire du résultat.
+ * Son texte nu est enveloppé d'un `<span>` marqué (RW-01) : Readability range
+ * le texte d'un `<div>` dans un `<p>` neuf, qui ne porte pas la marque, puis
+ * remplace le `<div>` par ce `<p>` — le texte survivait au retrait.
+ * La marque est à FriRSS : `stripBoilerplate` efface d'abord celle qu'une page
+ * porterait déjà, qui ferait retirer son texte (RW-02).
  */
 const CONSENT_TOKEN = 'consent';
 const VEIL = 'veil';
 const VEIL_ATTR = 'data-frirss-veil';
+/** Ni texte brut, ni contenu étranger : un `<span>` n'y a pas sa place. */
+const VEIL_TEXT_UNWRAPPED = 'script, style, textarea, title, noscript, template, svg, math';
 
 function markVeil(el: Element): void {
-  el.setAttribute(VEIL_ATTR, '');
-  for (const inner of Array.from(el.querySelectorAll('*'))) inner.setAttribute(VEIL_ATTR, '');
+  const all = [el];
+  for (const inner of Array.from(el.querySelectorAll('*'))) all.push(inner);
+  for (const holder of all) {
+    holder.setAttribute(VEIL_ATTR, '');
+    if (holder.closest(VEIL_TEXT_UNWRAPPED)) continue;
+    for (const node of Array.from(holder.childNodes)) {
+      if (node.nodeType !== 3 || !(node.textContent || '').trim()) continue;
+      const span = holder.ownerDocument.createElement('span');
+      span.setAttribute(VEIL_ATTR, '');
+      holder.insertBefore(span, node);
+      span.appendChild(node);
+    }
+  }
 }
 
 /** Le résultat de Readability sans les voiles marqués ; tel quel s'il n'en porte aucun. */
@@ -1119,6 +1149,9 @@ function visibleTextLength(root: Element, stopAt = Infinity): number {
 
 /** Retire de `root` (jamais `root` lui-même) les blocs étrangers à l'article. */
 export function stripBoilerplate(root: Element): void {
+  // La marque du voile est à FriRSS (RW-02).
+  root.removeAttribute(VEIL_ATTR);
+  for (const el of Array.from(root.querySelectorAll(`[${VEIL_ATTR}]`)) as Element[]) el.removeAttribute(VEIL_ATTR);
   const total = visibleTextLength(root);
   // Texte des billets déjà mesurés (B-02), tenu à jour à chaque retrait :
   // un billet se mesure tel qu'il reste, comme quand chaque bloc le relisait.
@@ -1372,7 +1405,7 @@ function partOfBody(node: Node, members: Set<Element>, budget: Budget): boolean 
  */
 function pourGap(node: Node, body: Element, members: Set<Element>, holders: Set<Node>): void {
   if (members.has(node as Element)) {
-    body.append(...Array.from(node.childNodes));
+    body.append(takeChildren(node));
   } else if (holders.has(node)) {
     for (const child of Array.from(node.childNodes)) pourGap(child, body, members, holders);
   } else if (isReadable(node)) {
@@ -1445,7 +1478,7 @@ export function joinSplitBody(root: Element): void {
           return;
         }
         for (const node of gaps[i]) pourGap(node, body, members, holders);
-        body.append(...Array.from(block.childNodes));
+        body.append(takeChildren(block));
         block.remove();
       });
     }

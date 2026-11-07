@@ -5570,7 +5570,16 @@ serveur de développement en 1.4.4.)*
   Readability et toutes les passes le voient comme en 1.8.0, puis
   `withoutVeils` le retire du résultat final et recalcule sa longueur. Son
   texte compte donc encore dans les mesures faites avant Readability (moitié
-  du billet, conteneur principal). Mesuré (2026-11-07) : l'article de
+  du billet, conteneur principal). ⚠️ **Son texte nu est enveloppé d'un
+  `<span>` marqué** (RW-01, relecture) : Readability range le texte posé à
+  même un `<div>` dans un `<p>` neuf, qui ne porte pas la marque, puis
+  remplace le `<div>` par ce `<p>` — un voile sans `<p>` (« Ce contenu est
+  bloqué… <a>En savoir plus</a> <button>Accepter</button> ») restait entier
+  dans l'article. Seul en reste désormais un `<p>` vide, sans hauteur. Pas
+  dans `script`, `style`, `textarea`, `title`, `noscript`, `template`, `svg`
+  ni `math`, où un `<span>` n'a pas sa place. **La marque est à FriRSS** :
+  `stripBoilerplate` efface d'abord un `data-frirss-veil` écrit par la page
+  elle-même, qui faisait retirer son texte (RW-02). Mesuré (2026-11-07) : l'article de
   l'ocarina retrouve ses 2 citations et 6 liens de tweets, sans voile ; sur
   les 275 pages du corpus, 9 pages de Numerama changent, sans un caractère de
   texte de plus ni de moins — leur `<div>` racine passe en minuscules, et une
@@ -8480,7 +8489,11 @@ qu'elle rend (voir *Extraction du contenu complet*).
   le repli les lisait. ⚠️ Les nœuds se déplacent **un par un**, jamais
   passés en arguments (`prepend(...nœuds)`) : 200 000 commentaires `<!---->`
   après un `<head>` jamais fermé (1,4 Mo) dépassaient la pile — « Maximum
-  call stack size exceeded », un 502 et le repli (RZ-06). Une page ordinaire — un seul élément racine,
+  call stack size exceeded », un 502 et le repli (RZ-06). Même règle,
+  serveur et repli (RW-03), pour le contenu d'un bloc versé dans un corps
+  réparti (`joinSplitBody`, `pourGap`) et d'un bouton d'agrandissement
+  déballé (`resolveLazyImages`) : 150 000 commentaires dans le dernier bloc
+  d'un article d'Ars Technica (1 Mo) dépassaient la pile. Une page ordinaire — un seul élément racine,
   `<html>`, qui ne porte que `<head>` et `<body>` (et des blancs ou
   commentaires), rien ne débordant de `<head>` — n'est pas touchée. Mesuré
   (2026-11-07) : 41 des 275 pages du corpus passent par là (un `<script>`

@@ -473,7 +473,7 @@ function onlyImage(el: Element): Element | null {
   return images.length === 1 ? images[0] : null;
 }
 
-function resolveLazyImages(root: Element): void {
+export function resolveLazyImages(root: Element): void {
   for (const img of Array.from(root.querySelectorAll('img'))) {
     if (!isPlaceholderSource(img.getAttribute('src'))) continue;
     const src = webAddress(img.getAttribute('data-src'));
@@ -494,8 +494,18 @@ function resolveLazyImages(root: Element): void {
     if (srcset && isPlaceholderSource(source.getAttribute('srcset'))) source.setAttribute('srcset', srcset);
   }
   for (const button of Array.from(root.querySelectorAll('button'))) {
-    if (isZoomButton(button)) button.replaceWith(...Array.from(button.childNodes));
+    if (isZoomButton(button)) button.replaceWith(takeChildren(button));
   }
+}
+
+/**
+ * Les enfants de `node`, dans l'ordre, déplacés un à un dans un fragment :
+ * jamais en arguments, la pile déborde (RW-03, voir le serveur).
+ */
+function takeChildren(node: Node): DocumentFragment {
+  const fragment = node.ownerDocument!.createDocumentFragment();
+  while (node.firstChild) fragment.appendChild(node.firstChild);
+  return fragment;
 }
 
 // Seuls les boutons d'agrandissement sont déballés, jamais une icône (copie
@@ -538,15 +548,30 @@ const BOILERPLATE_TOKENS = new Set([
  * billet (A4-03, RX-03, voir le serveur). Seulement marqué, sur lui et ses
  * descendants, puis retiré APRÈS Readability (`withoutVeils`) : retiré avant,
  * le conteneur du message intégré, son frère, n'était plus que des liens et
- * Readability l'écartait (V2-02, voir le serveur).
+ * Readability l'écartait (V2-02, voir le serveur). Son texte nu est enveloppé
+ * d'un `<span>` marqué (RW-01), et la marque qu'une page porterait déjà est
+ * effacée d'abord (RW-02) : voir le serveur.
  */
 const CONSENT_TOKEN = 'consent';
 const VEIL = 'veil';
 const VEIL_ATTR = 'data-frirss-veil';
+/** Ni texte brut, ni contenu étranger : un `<span>` n'y a pas sa place. */
+const VEIL_TEXT_UNWRAPPED = 'script, style, textarea, title, noscript, template, svg, math';
 
 function markVeil(el: Element): void {
-  el.setAttribute(VEIL_ATTR, '');
-  for (const inner of Array.from(el.querySelectorAll('*'))) inner.setAttribute(VEIL_ATTR, '');
+  const all = [el];
+  for (const inner of Array.from(el.querySelectorAll('*'))) all.push(inner);
+  for (const holder of all) {
+    holder.setAttribute(VEIL_ATTR, '');
+    if (holder.closest(VEIL_TEXT_UNWRAPPED)) continue;
+    for (const node of Array.from(holder.childNodes)) {
+      if (node.nodeType !== Node.TEXT_NODE || !(node.textContent || '').trim()) continue;
+      const span = holder.ownerDocument.createElement('span');
+      span.setAttribute(VEIL_ATTR, '');
+      holder.insertBefore(span, node);
+      span.appendChild(node);
+    }
+  }
 }
 
 /** Le HTML rendu par Readability sans les voiles marqués, et la longueur de son texte. */
@@ -724,6 +749,9 @@ function visibleTextLength(root: Element, stopAt = Infinity): number {
 
 /** Retire de `root` (jamais `root` lui-même) les blocs étrangers à l'article. */
 export function stripBoilerplate(root: Element): void {
+  // La marque du voile est à FriRSS (RW-02, voir le serveur).
+  root.removeAttribute(VEIL_ATTR);
+  for (const el of Array.from(root.querySelectorAll(`[${VEIL_ATTR}]`))) el.removeAttribute(VEIL_ATTR);
   const total = visibleTextLength(root);
   // Billets déjà mesurés, tenus à jour à chaque retrait (B-02, voir le serveur).
   const posts = new Map<Element, number>();
@@ -877,7 +905,7 @@ function partOfBody(node: Node, members: Set<Element>, budget: Budget): boolean 
 /** Verse un intercalaire dans le corps : le contenu d'un bloc du groupe, sans ses gabarits (voir le serveur). */
 function pourGap(node: Node, body: Element, members: Set<Element>, holders: Set<Node>): void {
   if (members.has(node as Element)) {
-    body.append(...Array.from(node.childNodes));
+    body.append(takeChildren(node));
   } else if (holders.has(node)) {
     for (const child of Array.from(node.childNodes)) pourGap(child, body, members, holders);
   } else if (isReadable(node)) {
@@ -885,7 +913,7 @@ function pourGap(node: Node, body: Element, members: Set<Element>, holders: Set<
   }
 }
 
-function joinSplitBody(root: Element): void {
+export function joinSplitBody(root: Element): void {
   const groups = new Map<string, Element[]>();
   for (const el of Array.from(root.querySelectorAll('[class]'))) {
     const name = (el.getAttribute('class') || '').replace(/\s+/g, ' ').trim();
@@ -935,7 +963,7 @@ function joinSplitBody(root: Element): void {
           return;
         }
         for (const node of gaps[i]) pourGap(node, body, members, holders);
-        body.append(...Array.from(block.childNodes));
+        body.append(takeChildren(block));
         block.remove();
       });
     }

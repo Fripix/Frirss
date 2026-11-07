@@ -295,6 +295,16 @@ describe('resolveLazyImages', () => {
       <button class="lightbox-trigger"><img src="https://example.com/b.jpg"></button>`);
     expect(html).not.toContain('<button');
   });
+
+  // RW-03 (même famille que REG-215) : le contenu du bouton passait en arguments.
+  it('déballe un bouton d’agrandissement de centaines de milliers de nœuds, sans dépasser la pile', () => {
+    const { document } = parseHTML(`<html><body><p>AVANT</p><button aria-label="Agrandir l’image"><img src="https://example.com/a.jpg">${'<!---->'.repeat(150_000)}</button><p>APRES</p></body></html>`);
+    expect(() => resolveLazyImages(document.documentElement as unknown as Element)).not.toThrow();
+    expect(document.querySelectorAll('button').length).toBe(0);
+    // Dans l'ordre : l'image reste entre les deux paragraphes.
+    expect(Array.from(document.body.children as ArrayLike<Element>, (el) => el.tagName)).toEqual(['P', 'IMG', 'P']);
+    expect(document.body.childNodes.length).toBe(150_003);
+  }, 30_000);
 });
 
 // ── M-04 (campagne 1.9.0, second round) : blocs étrangers ────────────
@@ -333,6 +343,41 @@ describe('extractArticle — blocs étrangers (M-04)', () => {
     expect(out!.content).not.toContain('data-frirss');
     // La longueur annoncée est celle du texte rendu, voile retiré.
     expect(out!.length).toBe((parseHTML(`<html><body>${out!.content}</body></html>`).document.body.textContent || '').length);
+  });
+
+  // RW-01 : un texte nu (sans `<p>`) dans le voile, Readability le range
+  // dans un `<p>` neuf, sans la marque, qui remplace ensuite le `<div>`.
+  it('retire le texte nu d’un voile de consentement, que Readability range dans un paragraphe neuf', () => {
+    const para = (i: number) => `<p>Paragraphe ${i} de l’article, qui raconte ce que les joueurs font déjà du nouveau jeu, avec des détails, des chiffres et des citations pour peser dans la balance.</p>`;
+    const words = 'Ce contenu est bloqué car vous n’avez pas accepté les cookies et autres traceurs. Pour pouvoir le visualiser, vous devez accepter l’usage opéré par le fournisseur avec vos données, qui pourront être utilisées pour des finalités publicitaires et de mesure d’audience.';
+    const veils = {
+      bare: `<div class="embed-consent">VOILE ${words} <a href="#">En savoir plus</a> <button>Accepter</button></div>`,
+      nested: `<div class="embed-consent"><div class="embed-consent-text">VOILE ${words} <a href="#">En savoir plus</a></div><button>Accepter</button></div>`,
+      besideTweet: `<figure class="wp-block-embed"><div class="embed-container"><div class="embed-container-content"><blockquote class="twitter-tweet"><p>TWEET Un message <a href="https://t.co/x">pic</a></p>&mdash; X <a href="https://x.com/a/status/1">date</a></blockquote></div><div class="embed-consent">VOILE ${words} <a href="#">En savoir plus</a> <button>Accepter</button></div></div></figure>`,
+    };
+    for (const [name, veil] of Object.entries(veils)) {
+      const html = `<!doctype html><html><head><title>T</title></head><body><main><article><h1>T</h1><div class="article-content">${[1, 2, 3].map(para).join('')}${veil}${[4, 5, 6].map(para).join('')}</div></article></main></body></html>`;
+      const out = extractArticle('https://example.com/a', html)!;
+      const text = textOf(out.content);
+      expect(text, name).toContain('Paragraphe 6');
+      expect(text, name).not.toContain('VOILE');
+      expect(text, name).not.toContain('En savoir plus');
+      expect(out.content, name).not.toContain('data-frirss');
+      if (name === 'besideTweet') expect(text, name).toContain('TWEET');
+      expect(out.length, name).toBe((parseHTML(`<html><body>${out.content}</body></html>`).document.body.textContent || '').length);
+    }
+  });
+
+  // RW-02 : la marque du voile est à FriRSS ; une page qui la porte déjà ne
+  // fait retirer aucun de ses paragraphes.
+  it('ne retire pas un paragraphe que la page marque elle-même comme voile', () => {
+    const para = (i: number, attrs = '') => `<p${attrs}>Paragraphe ${i} de l’article, qui raconte ce que les joueurs font déjà du nouveau jeu, avec des détails, des chiffres et des citations.</p>`;
+    const veil = '<div class="embed-consent"><p>VOILE Ce contenu est bloqué, acceptez les cookies pour le voir, merci beaucoup.</p></div>';
+    const html = `<html><head><title>T</title></head><body><article><div class="c">${para(1)}${para(2, ' data-frirss-veil')}${para(3)}${para(4)}${para(5)}${veil}</div></article></body></html>`;
+    const text = textOf(extractArticle('https://example.com/a', html)!.content);
+    expect(text).toContain('Paragraphe 2');
+    expect(text).toContain('Paragraphe 5');
+    expect(text).not.toContain('VOILE');
   });
 
   it('ne ramasse ni fil d’Ariane, ni commentaires, ni crédits d’un billet court (structure Schneier)', () => {
@@ -634,6 +679,20 @@ describe('extractArticle — corps réparti en plusieurs blocs', () => {
     expect(text.indexOf(blocks[1])).toBeLessThan(text.indexOf(blocks[2]));
   });
 
+  // RW-03 (même famille que REG-215) : 150 000 commentaires dans le dernier
+  // bloc, une page de 1 Mo, faisaient déborder la pile en le réunissant.
+  it('réunit un corps réparti dont un bloc porte des centaines de milliers de nœuds, sans dépasser la pile', () => {
+    const html = splitBodyPageHtml();
+    const blocks = blocksOf(html);
+    const at = html.lastIndexOf('<div class="post-content');
+    const open = html.indexOf('>', at) + 1;
+    const heavy = html.slice(0, open) + '<!---->'.repeat(150_000) + html.slice(open);
+    let out: ReturnType<typeof extractArticle> = null;
+    expect(() => { out = extractArticle('https://example.com/ars', heavy); }).not.toThrow();
+    const text = textOf(out!.content);
+    for (const block of blocks) expect(text).toContain(block);
+  }, 30_000);
+
   it('garde tout le corps réparti sans la notice de l’auteur qui le suit (structure Ars Technica)', () => {
     const html = splitBodyWithBioPageHtml();
     const blocks = blocksOf(html);
@@ -740,6 +799,26 @@ describe('joinSplitBody', () => {
     expect((blocks[0] as Element).textContent).not.toContain('Notice');
     expect(after).toBe(before);
   });
+
+  // RW-03 (même famille que REG-215) : le contenu d'un bloc versé passait en
+  // arguments ; au-delà de quelques centaines de milliers de nœuds, la pile déborde.
+  it('verse un bloc de centaines de milliers de nœuds, intercalaire ou suivant, sans dépasser la pile', () => {
+    const many = '<!---->'.repeat(150_000);
+    const pages = {
+      gap: `<article><div class="grid"><div class="col"><div class="post-content">${para('UN')}</div></div></div>
+        <div class="post-content">LIAISON sans paragraphe.${many}</div>
+        <div class="grid"><div class="col"><div class="post-content">${para('DEUX')}</div></div></div></article>`,
+      next: `<article><div class="grid"><div class="col"><div class="post-content">${para('UN')}</div></div></div>
+        <div class="grid"><div class="col"><div class="post-content">${many}${para('DEUX')}</div></div></div></article>`,
+    };
+    for (const [name, body] of Object.entries(pages)) {
+      let result: ReturnType<typeof run> | null = null;
+      expect(() => { result = run(body); }, name).not.toThrow();
+      const { document, before, after } = result!;
+      expect(document.querySelectorAll('.post-content').length, name).toBeLessThan(name === 'gap' ? 3 : 2);
+      expect(after, name).toBe(before);
+    }
+  }, 30_000);
 
   // Relecture du correctif : des blocs vides de même classe encadrant un long
   // vide faisaient parcourir ce vide une fois par groupe (54 s pour 1 000
