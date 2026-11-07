@@ -3096,17 +3096,27 @@ libellés disaient « plein écran » jusqu'en 1.8.0) au double-clic. Contenu bi
   — sauf dans deux cas (REG-245, 1.9.0), pour CE SEUL usage (l'identité
   stricte, qui décide des doublons de l'extraction, ne change pas) :
   l'extrait **ouvre sur une image** (`opensOnImage` : une photo avant son
-  troisième bloc de texte, ni icône ni avatar — taille déclarée sous 100,
-  `avatar`, `author`, `logo` dans son nom) : c'est l'image d'en-tête de
+  troisième bloc de texte — un bloc compte pour son texte visible, au moins
+  20 caractères, quelle que soit sa première balise (`<p><strong>`,
+  `<p><span>`, `<div>`) : une date, « | », une signature n'en sont pas ; une
+  photo a une taille connue d'au moins 100 px — attributs, `srcset` à
+  largeurs, taille dans l'adresse —, et n'est ni un `.svg`, ni un pixel de
+  suivi, ni un avatar ou un logo par son nom : relecture, RM-03) : c'est l'image d'en-tête de
   l'article, celle du flux n'est pas remise, même une autre photo (la
   vignette carrée 500×500 du flux d'Ars ne s'ajoute plus au-dessus de la
   photo paysage de la page) ; ou l'extrait porte **la même photo sous une
   autre adresse du même hôte** (`sameLeadPhoto` : même chemin hors
-  recadrage, taille, format et signature — `crop=` de The Verge —, ou un
-  même numéro d'image de six chiffres au moins dans le chemin, l'un
-  finissant l'autre, pas une date — `/v1/images/2471365/raw` et
+  recadrage, taille, format et signature — `crop=` de The Verge —, ou le
+  numéro de l'image du flux — le segment qui suit `images/`, sinon le
+  dernier nombre de son nom de fichier, de six à neuf chiffres, ni une date
+  ni une heure — à la fin d'un nombre de l'adresse d'UNE SEULE image de
+  l'extrait — `/v1/images/2471365/raw` et
   `/b7c53e582471365/1600x900/smart/…` de Clubic). The Verge et Clubic
-  montraient la photo d'en-tête deux fois. Épinglé par
+  montraient la photo d'en-tête deux fois. ⚠️ Un numéro de dossier
+  (l'article chez Les Numériques, le site chez Squarespace,
+  `v<horodatage>` chez Cloudinary) est commun à toutes les photos d'un
+  article : le prendre pour celui de la photo faisait perdre la photo du
+  flux (relecture, RM-01). Dans le doute, elle est remise. Épinglé par
   `src/lib/articleBody.test.ts` et `ReadingPane.body.test.tsx`.
 - **Pastille « x min »** : affichée dès qu'il y a un corps, sur le contenu
   **montré** ; sa valeur grandit donc quand l'extraction arrive. Elle n'était
@@ -6099,7 +6109,8 @@ serveur de développement en 1.4.4.)*
   l'outil de corpus (`scripts/corpus/media.ts`) sur l'image `a90032f` :
   - une `<picture>` **sans `<img>`** prend l'image de son `<noscript>` enfant
     (Clubic : `<picture data-lazy>`, un cercle de chargement ; les photos d'un
-    dossier ne laissaient que leurs légendes, REG-240) ;
+    dossier ne laissaient que leurs légendes, REG-240), sauf si une image
+    voisine montre déjà la même photo, `data-*` compris (relecture, RM-05) ;
   - un **aperçu flou** (`src` en `width-200`, la photo dans `data-srcset`,
     blog de Google) prend le `srcset`, `data-sizes`, et pour `src` sa plus
     grande variante jusqu'à 1 600 px (au-delà, la plus petite) ; un
@@ -6108,18 +6119,27 @@ serveur de développement en 1.4.4.)*
     ou `about:blank` : Numerama) prend son `data-src` (ou `data-lazy-src`), et
     une vidéo **chargée au clic** (WP Rocket : `div.rll-youtube-player`, le
     lecteur dans un `<noscript>` voisin — Journal du Geek) l'iframe de son
-    `<noscript>`, quand rien à côté n'en montre une — seulement une vidéo
-    (`VIDEO_FRAME`) ; une publicité reste sans adresse (REG-241) ;
+    `<noscript>`, quand rien à côté n'en montre une — relevé une fois par
+    parent (relecture, RM-02 : 15 000 `<noscript>` dépassaient le délai du
+    worker) — seulement une vidéo (`VIDEO_FRAME`) ; une publicité reste sans
+    adresse (REG-241) ;
   - un **élément personnalisé** (balise à tiret) qui porte un fichier vidéo
     dans un attribut (`or-mp4-video-url` du blog de Google) reçoit une
     `<video controls>` avec l'affiche qu'il porte (`poster-image-url`), sauf
     en lecture automatique en boucle sans contrôles ; un attribut `quote` de
     25 caractères au moins devient une `<blockquote>` (et `author-name`,
     `author-title` une ligne « — Nom, Fonction »), **posée en texte, jamais
-    en HTML** (REG-242). Les neuf vidéos et huit citations de clients d'un
+    en HTML** (REG-242) ; ni sur un élément dont un ancêtre à tiret porte la
+    même valeur (éléments imbriqués qui se la passent), ni une citation que
+    l'élément montre déjà dans son texte (relecture, RM-04). Les neuf vidéos et huit citations de clients d'un
     billet de Gemini Omni étaient perdues. ⚠️ L'en-tête d'un panneau de
     carrousel (`accordion-header`, la légende d'une vidéo du carrousel) reste
-    dans son attribut : non rendu.
+    dans son attribut : non rendu. ⚠️ Limites connues (relecture, RM-08 et
+    RM-09, laissées en idées) : une question de FAQ dont la réponse n'est
+    pas remise (une réponse courte, sous 25 caractères, ou faite de liens,
+    après le corps dans un autre gabarit) ne revient pas, sa réponse non
+    plus ; une image dans un lien vers une autre page qui porte un attribut
+    `data-zoom-*` passe pour une image agrandie et revient (habillage, Mineur).
   Mesuré (2026-11-07, 490 pages et les cinq pages du contrôle en direct,
   mesure absolue des médias de `scripts/corpus/README.md`) : sur 387 pages
   mesurées (1 784 images, 51 vidéos, 40 vidéos intégrées, 107 citations,

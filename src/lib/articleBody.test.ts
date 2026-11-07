@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { buildArticleBody, displayedHtml, readingMinutes } from './articleBody';
+import { buildArticleBody, displayedHtml, opensOnImage, readingMinutes } from './articleBody';
 import { rememberImageSize, forgetMeasuredSizes } from './imageAspect';
 
 const labels = { play: 'Lire', open: 'Ouvrir' };
@@ -51,7 +51,7 @@ describe('displayedHtml', () => {
   // Depuis REG-245, une image dans les premiers blocs de l'extrait est SON
   // image d'en-tête : l'autre photo du corps est ici placée plus loin.
   it('réinjecte toujours une image de tête qui est une autre photo que celles de l’extrait (REG-227)', () => {
-    const rest = '<p>un</p><p>deux</p><p>trois</p><figure><img src="https://example.com/up/corps-1200x675.jpg"></figure><p>complet</p>';
+    const rest = '<p>Le premier paragraphe du corps.</p><p>Le deuxième paragraphe du corps.</p><p>Le troisième paragraphe du corps.</p><figure><img src="https://example.com/up/corps-1200x675.jpg"></figure><p>complet</p>';
     const out = displayedHtml('<img src="https://example.com/up/une-1200x675.jpg"><p>flux</p>', rest);
     expect(out).toBe(`<img src="https://example.com/up/une-1200x675.jpg" alt="" />${rest}`);
   });
@@ -68,30 +68,73 @@ describe('displayedHtml', () => {
     expect(verge.match(/muse\.png/g)).toHaveLength(1);
     const other = displayedHtml(
       '<img src="https://example.com/up/une.jpg"><p>flux</p>',
-      `<p>${'Un long chapeau. '.repeat(20)}</p><picture><img src="https://example.com/up/en-tete.jpg"></picture><p>corps</p>`,
+      `<p>${'Un long chapeau. '.repeat(20)}</p><picture><img src="https://example.com/up/en-tete.jpg" width="1200" height="675"></picture><p>corps</p>`,
     );
     expect(other).not.toContain('une.jpg');
   });
 
   it('ne la réinjecte pas quand l’extrait porte la même photo sous une autre adresse du même hôte (Clubic, REG-245)', () => {
-    const rest = '<p>un</p><p>deux</p><p>trois</p><p>quatre</p><img src="https://pic.example.com/b7c53e582471365/1600x900/smart/blackfriday.png"><p>fin</p>';
+    const rest = '<p>Le premier paragraphe du corps.</p><p>Le deuxième paragraphe du corps.</p><p>Le troisième paragraphe du corps.</p><p>Le quatrième paragraphe du corps.</p><img src="https://pic.example.com/b7c53e582471365/1600x900/smart/blackfriday.png"><p>fin</p>';
     expect(displayedHtml('<img src="https://pic.example.com/v1/images/2471365/raw"><p>flux</p>', rest)).toBe(rest);
-    const cropped = '<p>un</p><p>deux</p><p>trois</p><p>quatre</p><img src="https://cdn.example.com/2026/11/muse.png?crop=1,2,3,4&amp;w=376"><p>fin</p>';
+    const cropped = '<p>Le premier paragraphe du corps.</p><p>Le deuxième paragraphe du corps.</p><p>Le troisième paragraphe du corps.</p><p>Le quatrième paragraphe du corps.</p><img src="https://cdn.example.com/2026/11/muse.png?crop=1,2,3,4&amp;w=376"><p>fin</p>';
     expect(displayedHtml('<img src="https://cdn.example.com/2026/11/muse.png?crop=0,0,100,100"><p>flux</p>', cropped)).toBe(cropped);
   });
 
   it('réinjecte une autre photo : même hôte et même dossier de date, autre hôte et même numéro, icône en tête (REG-245)', () => {
-    const late = (img: string) => `<p>un</p><p>deux</p><p>trois</p>${img}<p>fin</p>`;
+    const late = (img: string) => `<p>Le premier paragraphe du corps.</p><p>Le deuxième paragraphe du corps.</p><p>Le troisième paragraphe du corps.</p>${img}<p>fin</p>`;
     const sameFolder = late('<img src="https://cdn.example.com/images/20261107/b.jpg">');
     expect(displayedHtml('<img src="https://cdn.example.com/images/20261107/a.jpg">', sameFolder)).toContain('20261107/a.jpg');
     const otherHost = late('<img src="https://cdn.other.example/b7c53e582471365/photo.png">');
     expect(displayedHtml('<img src="https://pic.example.com/v1/images/2471365/raw">', otherHost)).toContain('2471365/raw');
-    const icon = '<p><img src="https://cdn.example.com/avatar.jpg" width="36" height="36"></p><p>un</p><p>deux</p><p>trois</p>';
+    const icon = '<p><img src="https://cdn.example.com/avatar.jpg" width="36" height="36"></p><p>Le premier paragraphe du corps.</p><p>Le deuxième paragraphe du corps.</p><p>Le troisième paragraphe du corps.</p>';
     expect(displayedHtml('<img src="https://cdn.example.com/une.jpg">', icon)).toContain('une.jpg');
   });
 
+  // RM-01 : un numéro de DOSSIER (l'article, le site, un horodatage) est
+  // commun à toutes les photos de l'article : il ne désigne pas la photo du
+  // flux. Les Numériques perdait ainsi la photo du flux que l'extrait n'avait pas.
+  it('réinjecte la photo du flux quand le numéro commun est celui du dossier, du site ou d’une heure (RM-01)', () => {
+    const late = (img: string) => `<p>Le premier paragraphe du corps.</p><p>Le deuxième paragraphe du corps.</p><p>Le troisième paragraphe du corps.</p><p>Le quatrième paragraphe du corps.</p>${img}<p>fin</p>`;
+    const cases: Array<[string, string]> = [
+      ['https://cdn.example.com/optim/test/26/266748/01bbd4d7-humidificateur__400_400.jpg', 'https://cdn.example.com/optim/test/26/266748/9e96ef1c-vue-de-dos__1200_675.jpg'],
+      ['https://images.example.com/content/v1/5c2e9f8a1234567b8c9d0e1f/1730987654321-ABCDEF/hero.jpg', 'https://images.example.com/content/v1/5c2e9f8a1234567b8c9d0e1f/1730987600000-XYZ/inline-chart.jpg'],
+      ['https://cdn.example.com/articles/2471365/hero.jpg', 'https://cdn.example.com/articles/2471365/photo-2.jpg'],
+      ['https://site.example/wp-content/uploads/2026/11/IMG_20261105_143012.jpg', 'https://site.example/wp-content/uploads/2026/11/PXL_20261104_143012.jpg'],
+      ['https://res.example.com/demo/image/upload/v1730987654/news/hero.jpg', 'https://res.example.com/demo/image/upload/v1730987654/news/other.jpg'],
+    ];
+    for (const [feed, inside] of cases) {
+      expect(displayedHtml(`<img src="${feed}"><p>flux</p>`, late(`<img src="${inside}">`)), feed).toContain(feed);
+    }
+  });
+
+  it('un numéro d’image que deux images de l’extrait partagent ne prouve rien : la photo du flux revient (RM-01)', () => {
+    const two = '<p>Le premier paragraphe du corps.</p><p>Le deuxième paragraphe du corps.</p><p>Le troisième paragraphe du corps.</p><img src="https://pic.example.com/aa12471365/800x450/smart/a.png"><p>x</p><img src="https://pic.example.com/bb92471365/800x450/smart/b.png"><p>fin</p>';
+    expect(displayedHtml('<img src="https://pic.example.com/v1/images/2471365/raw">', two)).toContain('/v1/images/2471365/raw');
+  });
+
+  // RM-03 : un bloc compte pour son texte visible, quelle que soit sa première balise ;
+  // une image sans taille connue, un logo `.svg`, un pixel de suivi ne sont pas une photo d'en-tête.
+  it('n’est pas « ouvert sur une image » quand les paragraphes s’ouvrent sur une balise, ni par un pixel ou un logo (RM-03)', () => {
+    const s = (n: number) => `Phrase ${n} : un texte de paragraphe assez long pour compter.`;
+    const strong = `<div>${[1, 2, 3, 4, 5, 6].map((n) => `<p><strong>Point ${n}.</strong> ${s(n)}</p>`).join('')}<figure><img src="https://cdn.example.com/chart.png" width="800" height="400"></figure></div>`;
+    expect(opensOnImage(strong)).toBe(false);
+    const span = `<div>${[1, 2, 3, 4].map((n) => `<p><span>${s(n)}</span></p>`).join('')}<p><img src="https://cdn.example.com/inline.png" width="800" height="400"></p></div>`;
+    expect(opensOnImage(span)).toBe(false);
+    const divs = `${[1, 2, 3].map((n) => `<div>${s(n)}</div>`).join('')}<img src="https://cdn.example.com/late.png" width="800" height="400">`;
+    expect(opensOnImage(divs)).toBe(false);
+    expect(opensOnImage(`<div><img src="https://feeds.example.com/~r/site/~4/abcdef"><p>${s(1)}</p></div>`)).toBe(false);
+    expect(opensOnImage(`<p>${s(1)}</p><img src="https://cdn.example.com/build/img/svg/logo-google.svg"><p>${s(2)}</p>`)).toBe(false);
+    expect(opensOnImage(`<p>${s(1)}</p><img src="https://cdn.example.com/p.gif" width="1" height="1"><p>${s(2)}</p>`)).toBe(false);
+    expect(displayedHtml('<img src="https://cdn.example.com/hero-photo.jpg"><p>flux</p>', strong)).toContain('hero-photo');
+    // Une photo de taille connue (attributs, `srcset` à largeurs, taille dans l'adresse) en tête l'est toujours.
+    expect(opensOnImage('<p><strong>Chapeau</strong> du billet.</p><img src="https://cdn.example.com/x/1600x900/smart/h.png">')).toBe(true);
+    expect(opensOnImage('<p>Chapeau.</p><img srcset="https://cdn.example.com/h.png?w=376 376w">')).toBe(true);
+    // Une date, un séparateur, une signature ne sont pas des blocs de texte : l'en-tête du blog de Google.
+    expect(opensOnImage('<div><p>Nov 05, 2026</p><span>|</span><p>Le chapeau du billet, une phrase entière qui le résume.</p><img src="https://cdn.example.com/hero.width-1600.format-webp.webp"></div>')).toBe(true);
+  });
+
   it('ne la réinjecte pas quand le flux donne la même photo plus grande que l’extrait (REG-245)', () => {
-    const rest = '<p>un</p><p>deux</p><p>trois</p><img src="https://example.com/up/photo-640x360.jpg"><p>fin</p>';
+    const rest = '<p>Le premier paragraphe du corps.</p><p>Le deuxième paragraphe du corps.</p><p>Le troisième paragraphe du corps.</p><img src="https://example.com/up/photo-640x360.jpg"><p>fin</p>';
     expect(displayedHtml('<img src="https://example.com/up/photo-1600x900.jpg">', rest)).toBe(rest);
   });
 
@@ -100,7 +143,7 @@ describe('displayedHtml', () => {
     // l'image d'en-tête de l'extrait (REG-245).
     const out = displayedHtml(
       '<img src="https://example.com/image.php?id=1&amp;w=1200">',
-      '<p>un</p><p>deux</p><p>trois</p><img src="https://example.com/image.php?id=2&amp;w=1200&amp;crop=1"><p>complet</p>',
+      '<p>Le premier paragraphe du corps.</p><p>Le deuxième paragraphe du corps.</p><p>Le troisième paragraphe du corps.</p><img src="https://example.com/image.php?id=2&amp;w=1200&amp;crop=1"><p>complet</p>',
     );
     expect(out.match(/image\.php/g)).toHaveLength(2);
   });

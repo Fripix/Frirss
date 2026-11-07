@@ -2567,14 +2567,56 @@ function isDecorativeVideo(el: Element): boolean {
   return el.hasAttribute('autoplay') && el.hasAttribute('loop') && !el.hasAttribute('controls');
 }
 
+/** Un ancêtre à tiret porte-t-il la même valeur dans un attribut (éléments imbriqués qui se la passent, RM-04) ? */
+function carriedAbove(el: Element, value: string): boolean {
+  const wanted = value.trim();
+  for (let up = el.parentElement; up; up = up.parentElement) {
+    if (!up.tagName.includes('-')) continue;
+    if (Array.from(up.attributes).some((attr) => attr.value.trim() === wanted || webAddress(attr.value) === wanted)) return true;
+  }
+  return false;
+}
+
+/** Les identités (à la taille près) des adresses d'une image, `data-*` compris. */
+function lazyIdentities(img: Element): string[] {
+  const out: string[] = [];
+  const values = [img.getAttribute('src'), img.getAttribute('data-src'), ...srcsetAddresses(img.getAttribute('srcset')), ...srcsetAddresses(img.getAttribute('data-srcset'))];
+  for (const value of values) {
+    const address = webAddress(value);
+    const id = address ? imageIdentity(address, 'https://frirss.invalid/') : null;
+    if (id && !out.includes(id)) out.push(id);
+  }
+  return out;
+}
+
 export function resolveLazyMedia(root: Element): void {
   const doc = root.ownerDocument!;
-  // Une `<picture>` sans `<img>` : celle de son `<noscript>`.
+  // Une `<picture>` sans `<img>` : celle de son `<noscript>` — sauf si une
+  // image voisine (même parent) montre déjà la même photo, à la taille près
+  // (RM-05 : une `<img data-src>` sœur, lazysizes). Les photos voisines sont
+  // relevées une fois par parent.
+  const shownNear = new Map<Element, Set<string>>();
+  const near = (parent: Element) => {
+    let known = shownNear.get(parent);
+    if (!known) {
+      known = new Set<string>();
+      for (const img of Array.from(parent.querySelectorAll('img')) as Element[]) {
+        if (!img.closest('noscript')) for (const id of lazyIdentities(img)) known.add(id);
+      }
+      shownNear.set(parent, known);
+    }
+    return known;
+  };
   for (const picture of Array.from(root.querySelectorAll('picture')) as Element[]) {
     if ((Array.from(picture.querySelectorAll('img')) as Element[]).some((img) => !img.closest('noscript'))) continue;
     const noscript = Array.from(picture.children).find((child) => child.tagName.toLowerCase() === 'noscript') as Element | undefined;
     const real = noscript ? onlyImage(noscript) : null;
-    if (real && webAddress(real.getAttribute('src'))) noscript!.replaceWith(real);
+    if (!real || !webAddress(real.getAttribute('src'))) continue;
+    const ids = lazyIdentities(real);
+    const around = picture.parentElement ? near(picture.parentElement) : new Set<string>();
+    if (ids.some((id) => around.has(id))) continue;
+    noscript!.replaceWith(real);
+    for (const id of ids) around.add(id);
   }
   // Un aperçu flou : la photo est dans `data-srcset`.
   for (const img of Array.from(root.querySelectorAll('img[data-srcset]')) as Element[]) {
@@ -2597,14 +2639,20 @@ export function resolveLazyMedia(root: Element): void {
   // Une vidéo chargée au clic (WP Rocket : `div.rll-youtube-player[data-src]`,
   // le lecteur réel dans un `<noscript>` voisin) : l'iframe du `<noscript>`,
   // quand c'est une vidéo et que rien à côté n'en montre une.
+  // « Rien à côté » est relevé une fois par parent (RM-02 : relire le parent
+  // pour chacun de 15 000 `<noscript>` dépassait le délai du worker).
+  const showsFrame = new Map<Element, boolean>();
   for (const noscript of Array.from(root.querySelectorAll('noscript')) as Element[]) {
     const frames = Array.from(noscript.querySelectorAll('iframe')) as Element[];
     if (frames.length !== 1 || noscript.children.length !== 1 || (noscript.textContent || '').trim()) continue;
     const src = webAddress(frames[0].getAttribute('src'));
     const parent = noscript.parentElement;
     if (!src || !VIDEO_FRAME.test(src) || !parent) continue;
-    if ((Array.from(parent.querySelectorAll('iframe')) as Element[]).some((frame) => !frame.closest('noscript'))) continue;
+    let shown = showsFrame.get(parent);
+    if (shown === undefined) showsFrame.set(parent, shown = (Array.from(parent.querySelectorAll('iframe')) as Element[]).some((frame) => !frame.closest('noscript')));
+    if (shown) continue;
     noscript.replaceWith(frames[0]);
+    showsFrame.set(parent, true);
   }
   // Un élément personnalisé qui porte une vidéo ou une citation.
   for (const el of Array.from(root.querySelectorAll('*')) as Element[]) {
@@ -2618,7 +2666,7 @@ export function resolveLazyMedia(root: Element): void {
       if (!video && VIDEO_FILE.test(value)) video = value;
       else if (!poster && /poster/i.test(attr.name) && POSTER_FILE.test(value)) poster = value;
     }
-    if (video && !isDecorativeVideo(el) && !el.querySelector('video')) {
+    if (video && !isDecorativeVideo(el) && !el.querySelector('video') && !carriedAbove(el, video)) {
       const player = doc.createElement('video');
       player.setAttribute('controls', '');
       player.setAttribute('preload', 'metadata');
@@ -2627,7 +2675,10 @@ export function resolveLazyMedia(root: Element): void {
       el.insertBefore(player, el.firstChild);
     }
     const quote = (el.getAttribute('quote') || '').replace(/\s+/g, ' ').trim();
-    if (quote.length >= QUOTE_ATTR_MIN && !el.querySelector('blockquote')) {
+    // Ni deux fois (un parent à tiret la porte aussi), ni sur un texte que
+    // l'élément montre déjà (RM-04).
+    if (quote.length >= QUOTE_ATTR_MIN && !el.querySelector('blockquote') && !carriedAbove(el, el.getAttribute('quote') || '')
+      && !normalized(el.textContent || '').includes(normalized(quote))) {
       const block = doc.createElement('blockquote');
       const said = doc.createElement('p');
       said.textContent = quote;

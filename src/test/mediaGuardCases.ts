@@ -146,11 +146,12 @@ export function defineMediaCases(api: MediaApi): void {
       expect(imgs).toHaveLength(1);
     });
 
-    it('une vidéo de fond (lecture automatique, muette, en boucle, sans contrôles) n’est pas ramenée', () => {
-      const html = doc(`<article><div class="hero"><video autoplay muted loop playsinline src="https://cdn.example.com/fond.mp4"></video><uni-hero-video or-mp4-video-url="https://cdn.example.com/fond-2.mp4" autoplay loop></uni-hero-video></div><h1>Le titre de l’article</h1>${paragraphs(1, 6)}</article>`);
+    it('une vidéo de fond (lecture automatique en boucle, sans contrôles) n’est pas ramenée', () => {
+      const html = doc(`<article><div class="hero"><video autoplay muted loop playsinline src="https://cdn.example.com/fond.mp4"></video><video autoplay loop src="https://cdn.example.com/fond-3.mp4"></video><uni-hero-video or-mp4-video-url="https://cdn.example.com/fond-2.mp4" autoplay loop></uni-hero-video></div><h1>Le titre de l’article</h1>${paragraphs(1, 6)}</article>`);
       const out = guardForTests({ page: html, result: `<div class="page">${paragraphs(1, 6)}</div>`, title: 'Le titre de l’article' }).content;
       expect(out).not.toContain('fond.mp4');
       expect(out).not.toContain('fond-2.mp4');
+      expect(out).not.toContain('fond-3.mp4');
       expect(extractArticle(URL_, html)!.content).not.toContain('fond-2.mp4');
     });
 
@@ -178,6 +179,34 @@ export function defineMediaCases(api: MediaApi): void {
       const body = resolved('<x-quote quote="&lt;img src=x onerror=alert(1)&gt; une citation assez longue pour compter" author-name="&lt;b&gt;Nom&lt;/b&gt;"></x-quote>');
       expect(body.querySelector('blockquote img, blockquote b')).toBeNull();
       expect(norm(body.querySelector('blockquote')!.textContent)).toContain('<img src=x onerror=alert(1)>');
+    });
+
+    it('RM-02 : mille `<noscript>` vidéo sous un même parent ne relisent pas mille fois ce parent', () => {
+      const d = parse(`<!doctype html><html><body><div id="box">${'<noscript><iframe src="https://www.youtube.com/embed/abcdefghijk"></iframe></noscript>'.repeat(1000)}</div></body></html>`);
+      const box = d.getElementById('box') as unknown as Element & { querySelectorAll: (s: string) => unknown };
+      let reads = 0;
+      const original = box.querySelectorAll.bind(box);
+      box.querySelectorAll = (selector: string) => { reads++; return original(selector); };
+      resolveLazyImages(d.documentElement as unknown as Element);
+      expect(reads).toBeLessThanOrEqual(2);
+      // Le premier lecteur est sorti de son `<noscript>`, les suivants y restent (rien à côté n'en montrait).
+      expect(Array.from(d.querySelectorAll('#box > iframe'))).toHaveLength(1);
+    });
+
+    it('RM-04 : une citation que l’élément montre déjà, ou que son parent porte aussi, n’est pas doublée ; une vidéo non plus', () => {
+      const Q = 'Cette citation de client est assez longue pour être une vraie citation.';
+      const shown = resolved(`<x-testimonial quote="${Q}" author-name="Jeanne"><figure><p class="said">${Q}</p><figcaption>Jeanne</figcaption></figure></x-testimonial>`);
+      expect(shown.querySelectorAll('blockquote')).toHaveLength(0);
+      const nested = resolved(`<x-quote-card quote="${Q}"><x-quote quote="${Q}"></x-quote></x-quote-card><x-video-card or-mp4-video-url="https://cdn.example.com/demo.mp4"><x-video-player or-mp4-video-url="https://cdn.example.com/demo.mp4"></x-video-player></x-video-card>`);
+      expect(nested.querySelectorAll('blockquote')).toHaveLength(1);
+      expect(nested.querySelectorAll('video')).toHaveLength(1);
+      const html = doc(`<article><h1>Le titre de l’article</h1>${paragraphs(1, 4)}<x-testimonial quote="${Q}" author-name="Jeanne"><figure><p class="said">${Q}</p><figcaption>Jeanne</figcaption></figure></x-testimonial>${paragraphs(10, 3)}</article>`);
+      expect(occurrences(textOf(extractArticle(URL_, html)!.content), Q)).toBe(1);
+    });
+
+    it('RM-05 : l’image du `<noscript>` d’une `<picture>` vide ne double pas une image voisine de la même photo', () => {
+      const body = resolved('<figure><picture data-lazy><noscript><img src="https://cdn.example.com/b.jpg" alt="B"></noscript></picture><img class="lazyload" data-src="https://cdn.example.com/b.jpg?w=800" alt="B"><figcaption>Légende B</figcaption></figure>');
+      expect(body.querySelectorAll('img:not(noscript img)')).toHaveLength(1);
     });
 
     it('un aperçu dont le `data-srcset` n’a pas de largeurs garde son `src` et prend le `srcset`', () => {
