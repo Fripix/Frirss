@@ -79,6 +79,9 @@ describe('repli local — garde de non-perte : pages réelles (REG-220, REG-221)
     const out = await viaFallback('https://example.com/google', html);
     const text = textOf(out.content);
     expect(text).toContain(abstract);
+    // Ni le nom ni la fonction de l'auteur (RG-04).
+    expect(text).not.toContain(norm(pick(html, '.uni-article-hero__author-name')?.textContent));
+    expect(text).not.toContain(norm(pick(html, '.uni-article-hero__author-title')?.textContent));
     expect(out.content).toContain(`https://example.com${hero}`);
     // Tout le corps réparti reste, après l'en-tête.
     const blocks = (Array.from(parseHTML(html).document.querySelectorAll('div.rich-text p')) as Element[]).map((p) => norm(p.textContent)).filter((t) => t.length > 40);
@@ -107,14 +110,22 @@ describe('repli local — garde de non-perte : pages réelles (REG-220, REG-221)
 
   it('rend, sous le seuil, ce que le conteneur de la page porte aussi après le résultat (page courte)', async () => {
     const html = shortLandingPageHtml();
+    const { document } = parseHTML(html);
     const intro = norm(pick(html, 'div.header p')?.textContent);
     const question = norm(pick(html, 'main > h2')?.textContent);
-    const lastTier = norm(pick(html, 'div.donate ul', 2)?.textContent);
+    // Chaque palier, ses intitulés courts compris (RG-01, voir le serveur).
+    const tiers = (Array.from(document.querySelectorAll('div.donate h2, div.donate li')) as Element[]).map((el) => norm(el.textContent));
+    expect(tiers).toHaveLength(9);
     const out = await viaFallback('https://example.com/', html);
     const text = textOf(out.content);
     expect(text).toContain(intro);
     expect(text).toContain(question);
-    expect(text).toContain(lastTier);
+    let from = text.indexOf(question);
+    for (const tier of tiers) {
+      const at = text.indexOf(tier, from);
+      expect(at, tier).toBeGreaterThan(from);
+      from = at;
+    }
     // Dans l'ordre de la page, et sans le pied.
     expect(text.indexOf(intro)).toBeLessThan(text.indexOf(question));
     expect(text).not.toContain(norm(pick(html, 'footer')?.textContent).slice(0, 20));
@@ -289,6 +300,80 @@ describe('repli local — garde de non-perte : les pages déjà corrigées ne bo
       expect(extractArticle('https://example.com/page', page).content).toBe(extractWithoutGuard('https://example.com/page', page).content);
     });
   }
+});
+
+// Relecture de la garde (RG-01 à RG-05) : chaque point, une forme.
+describe('repli local — garde de non-perte : relecture', () => {
+  const s = (word: string) => `${word} : une phrase inventée assez longue pour être suivie par la garde de non-perte.`;
+  const page = (inner: string) => `<!doctype html><html><head><title>T</title></head><body><main><article>${inner}</article></main></body></html>`;
+  const result = (inner: string) => `<div id="readability-page-1" class="page">${inner}</div>`;
+  const p = (word: string) => `<p>${s(word)}</p>`;
+  const body = ['un', 'deux', 'trois', 'quatre', 'cinq', 'six', 'sept'].map((n) => p(`Corps ${n}`)).join('');
+
+  it('RG-01 : remet la suite entière du témoin, blocs courts compris entre deux blocs perdus', () => {
+    const out = guardForTests({
+      page: page(`<header>${p('Chapeau')}<p>6 nov. 2026</p>${p('Sous-titre')}</header><div>${body}</div>`),
+      result: result(body),
+      witness: result(`${p('Chapeau')}<p>6 nov. 2026</p>${p('Sous-titre')}${body}`),
+    });
+    const text = textOf(out.content);
+    expect(text).toContain('6 nov. 2026');
+    expect(text.indexOf(s('Chapeau'))).toBeLessThan(text.indexOf('6 nov. 2026'));
+    expect(text.indexOf('6 nov. 2026')).toBeLessThan(text.indexOf(s('Sous-titre')));
+  });
+
+  it('RG-04 : la signature de l’auteur ne revient pas, même dans la suite remise', () => {
+    const out = guardForTests({
+      page: page(`<header>${p('Chapeau')}<div class="hero__author"><p>Camille Exemple</p>${p('Fonction de l’auteur')}</div><figure><img src="/une.jpg" width="1200"></figure></header><div>${body}</div>`),
+      result: result(body),
+      witness: result(`${p('Chapeau')}<p>Camille Exemple</p>${p('Fonction de l’auteur')}<figure><img src="https://example.com/une.jpg" width="1200"></figure>${body}`),
+    });
+    const text = textOf(out.content);
+    expect(text).toContain(s('Chapeau'));
+    expect(out.content).toContain('https://example.com/une.jpg');
+    expect(text).not.toContain('Camille Exemple');
+    expect(text).not.toContain('Fonction de l’auteur');
+  });
+
+  it('RG-02 : un bloc remis ne double pas ce que le résultat lit déjà (légende d’une image perdue, entrée de liste)', () => {
+    const caption = s('Légende de l’image');
+    const out = guardForTests({
+      page: page(`<header><figure><img src="/une.jpg" width="1200"><figcaption>${caption}</figcaption></figure><ul><li>${s('Point lu')}</li><li>${s('Point perdu')}</li></ul></header><div>${body}<p>${caption}</p><p>${s('Point lu')}</p></div>`),
+      result: result(`${body}<p>${caption}</p><p>${s('Point lu')}</p>`),
+      witness: result(`<figure><img src="https://example.com/une.jpg" width="1200"><figcaption>${caption}</figcaption></figure><ul><li>${s('Point lu')}</li><li>${s('Point perdu')}</li></ul>${body}`),
+    });
+    const text = textOf(out.content);
+    expect(out.content).toContain('https://example.com/une.jpg');
+    expect(text).toContain(s('Point perdu'));
+    expect(occurrences(text, caption)).toBe(1);
+    expect(occurrences(text, s('Point lu'))).toBe(1);
+  });
+
+  it('RG-03 : un bloc remis prend sa place dans l’ordre de la page, après ce que le résultat gardait avant lui', () => {
+    const out = guardForTests({
+      page: page(`<figure><img src="/une.jpg" width="1200"></figure>${p('Chapeau')}<div>${body}</div>`),
+      result: result(`<figure><img src="https://example.com/une.jpg" width="1200"></figure>${body}`),
+      witness: result(`<figure><img src="https://example.com/une.jpg" width="1200"></figure>${p('Chapeau')}${body}`),
+    });
+    const html = out.content;
+    expect(html.indexOf('une.jpg')).toBeLessThan(html.indexOf(s('Chapeau')));
+    expect(html.indexOf(s('Chapeau'))).toBeLessThan(html.indexOf(s('Corps un')));
+  });
+
+  // RG-05 : quand le nettoyage a retiré une part coûteuse de la page (un pied
+  // fait de chaînes imbriquées), relire la page intacte coûterait bien plus
+  // que la passe nettoyée : la garde renonce au témoin.
+  it('RG-05 : renonce au témoin quand la page intacte coûterait bien plus à lire que la page nettoyée', () => {
+    // Presque sans texte : le nettoyage retire le pied (il ne porte pas la moitié du texte).
+    const chain = `${'<div>'.repeat(200)}a${'</div>'.repeat(200)}`;
+    const html = headerPageHtml().replace(/<\/body>/i, `<footer>${chain.repeat(60)}</footer></body>`);
+    const guarded = countPasses(() => extractArticle('https://example.com/ars', html));
+    const strict = countPasses(() => extractWithoutGuard('https://example.com/ars', html));
+    expect(guarded).toBe(strict);
+    // Sans ce pied, la même page demande son témoin.
+    const light = headerPageHtml();
+    expect(countPasses(() => extractArticle('https://example.com/ars', light))).toBe(countPasses(() => extractWithoutGuard('https://example.com/ars', light)) + 1);
+  });
 });
 
 describe('repli local — garde de non-perte : coût', () => {

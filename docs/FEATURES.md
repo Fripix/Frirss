@@ -5806,7 +5806,7 @@ serveur de développement en 1.4.4.)*
   page n'a moins de texte, sauf les sept d'Ars, qui perdent exactement la
   notice de l'auteur, le compteur de commentaires et, sur la Rocket Report,
   l'en-tête que ramassait la seconde passe.
-- **Garde de non-perte** (1.9.0, REG-220 à REG-222 — `withoutLoss`,
+- **Garde de non-perte** (1.9.0, REG-220 à REG-224 — `withoutLoss`,
   `server/extract.ts`, copiée à l'identique dans le repli de
   `extractContent.ts` ; tests : `server/test/extractNonLoss.test.ts` et
   `extractContent.nonLoss.test.ts`, sur `src/test/guardPageFixtures.ts` —
@@ -5823,16 +5823,18 @@ serveur de développement en 1.4.4.)*
   choix qu'aucune mesure par règle ne voyait (corpus de 470 pages : 6 pages,
   8 phrases et 2 images perdues, toutes nées du cycle).
   La garde ne retouche aucune règle : elle compare le résultat à un
-  **témoin**, la page lue **intacte** comme en 1.8.0 (seuil 50), où les blocs
-  que le nettoyage aurait retirés sont seulement **marqués**
-  (`stripBoilerplate` en mode `mark`, attribut `data-frirss-strip`, comme le
-  voile, V2-02) puis ôtés du témoin. Ce que le témoin garde et que le
-  résultat n'a pas y est remis, à trois conditions :
+  **témoin**, la page lue **intacte** comme en 1.8.0 (seuil 50, ni nettoyage
+  ni réunion). Ce que le témoin garde et que le résultat n'a pas y est remis,
+  à trois conditions :
   - **c'est de l'article** : il se lit dans le conteneur que la page désigne
     (`findMainContainer`, celui de la seconde passe : un `<article>` unique,
-    sinon un `<main>` ou un `[role=main]` unique) — rien sur une page de
-    liste, rien hors du conteneur (lien d'évitement, accroche du site,
-    colonne voisine) ;
+    sinon un `<main>` ou un `[role=main]` unique), lu dans la page
+    **nettoyée** — rien sur une page de liste, rien hors du conteneur (lien
+    d'évitement, accroche du site, colonne voisine), rien de ce que le
+    nettoyage retire (lettre d'information, « Related », pied), rien d'un
+    voile de consentement, rien de la **signature de l'auteur**
+    (`BYLINE_SIGNALS` : nom et fonction de l'auteur du blog de Google, qui
+    revenaient — REG-223) ;
   - **il précède l'ouverture du résultat** dans ce conteneur, et le témoin
     contient cette ouverture — il englobe le résultat au lieu de lire
     ailleurs (chez Docker, le témoin ne garde que les billets liés : rien
@@ -5841,15 +5843,26 @@ serveur de développement en 1.4.4.)*
     longue » faute de mieux, L-04) : REG-221. Revers assumé, testé : sur un
     tel résultat, ce que le témoin lit dans le conteneur après lui revient,
     parasite compris ;
-  - **c'est une phrase suivie** (25 caractères, 8 dans une écriture sans
-    espaces — la règle du corpus) ou une image qui n'est pas une icône
-    (`isIcon`) : une date, une rubrique, un portrait d'auteur ne déclenchent
-    rien.
-  Ce qui est remis : le **bloc entier** (paragraphe, figure, liste) tel que
-  le témoin l'a rendu, en tête du résultat (en fin, pour un résultat court),
-  dans l'ordre de la page. Une phrase que le résultat lit déjà n'est jamais
-  remise : un chapeau repris en premier paragraphe, ou doublé pour mobile
-  (The Verge), n'apparaît qu'une fois. L'**ouverture** du résultat est le
+  - **une suite, pas des blocs isolés** : elle va du premier au dernier bloc
+    du témoin qui porte une phrase suivie (25 caractères, 8 dans une
+    écriture sans espaces — la règle du corpus) ou une image qui n'est pas
+    une icône (`isIcon`), absente du résultat ; une date, une rubrique, un
+    portrait d'auteur seuls ne déclenchent rien, mais les blocs courts
+    **entre** deux blocs remis reviennent avec eux (REG-223 : la page courte
+    perdait ses intitulés « 2 GB » et ses lignes de palier, que la 1.8.0
+    rendait). Un bloc court se place par son texte **exact** dans le
+    conteneur (« by Brad Bourque » ne se place pas dans « See all by Brad
+    Bourque »).
+  Ce qui est remis : chaque bloc de la suite (paragraphe, figure, liste) tel
+  que le témoin l'a rendu, **à sa place dans l'ordre de la page** — avant le
+  premier bloc du résultat qui le suit dans le conteneur, sinon après le
+  dernier qui le précède (REG-223 : un chapeau passait devant l'image
+  d'en-tête que le résultat gardait). Un bloc que le résultat lit déjà tout
+  entier n'est pas remis : un chapeau repris en premier paragraphe, ou doublé
+  pour mobile (The Verge), n'apparaît qu'une fois. Dans un bloc remis, un
+  bloc terminal déjà lu est retiré (REG-223 : la légende d'une image perdue,
+  une entrée de liste). ⚠️ Un paragraphe qui mêle une phrase déjà lue et une
+  phrase perdue revient **entier** : un doublon plutôt qu'une perte. L'**ouverture** du résultat est le
   bloc du conteneur qui porte sa première phrase et ouvre une suite de huit
   blocs gardés (`openingIn`) : un chapeau répété plus haut ne la déplace pas.
   ⚠️ **Ce qui suit le corps n'est jamais remis** quand le résultat dépasse
@@ -5871,9 +5884,22 @@ serveur de développement en 1.4.4.)*
   seulement quand le conteneur porte, avant l'ouverture (ou après, sous le
   seuil), une phrase ou une image absente du résultat — mesure faite sur la
   page avant Readability. Mesuré (2026-11-07, 470 pages, en série) : témoin
-  demandé sur 243 pages, 768 passes au lieu de 525, 14,2 s au lieu de 8,2 ;
+  demandé sur 243 pages, 768 passes au lieu de 525, 12,6 s au lieu de 7,9 ;
   la page la plus lourde (3 Mo) 1,2 s au lieu de 0,5 ; le témoin ne remet
-  quelque chose que sur cinq pages. Les recherches de phrases sont bornées :
+  quelque chose que sur cinq pages.
+  ⚠️ **La garde renonce au témoin quand la page intacte coûte bien plus que
+  la page nettoyée** (REG-224, `readingCost` : la somme des carrés des
+  profondeurs, Readability coûtant le cube de la profondeur) — plus de deux
+  fois (`WITNESS_MAX_COST_RATIO`) **et** plus de 8 millions
+  (`WITNESS_COST_FLOOR`). Un pied fait de chaînes imbriquées, retiré par le
+  nettoyage, faisait payer au témoin la page entière : 2,2 s au lieu de
+  0,67 en 1.8.0. Le rapport seul ne suffit pas : 228 pages du corpus le
+  dépassent (menus du blog de Google : 4,09) pour un coût dérisoire ; la
+  plus coûteuse du corpus (Wikipédia, 3 Mo) pèse 5,7 millions, le pied
+  piégé 160 millions. La première version marquait en plus chaque bloc
+  étranger dans le témoin, en enveloppant chacun de ses textes : un pied de
+  57 000 éléments en devenait 114 000 ; le témoin lit désormais la page
+  brute, et l'exclusion se fait par le conteneur nettoyé. Les recherches de phrases sont bornées :
   au plus seize candidats d'ouverture, et un budget de texte relu
   (`Scan` : 32 fois le texte du conteneur et du résultat, plus 8 millions
   de caractères) ; épuisé, la garde s'abstient **en entier** (tests « relit
@@ -5881,13 +5907,12 @@ serveur de développement en 1.4.4.)*
   plus quand rien ne manque avant le corps », par comptage des passes).
   Aucune borne existante n'est relâchée (délai du worker, profondeur,
   éléments).
-  Mesuré sur le corpus (2026-11-07) : contre la 1.8.0, une seule page en
-  échec, une page anonymisée dont la « phrase » perdue est le texte du
-  formulaire de lettre du rail ; contre la version d'avant la garde, sept
-  pages changent, toutes en gagnant (chapeau, image et légende d'en-tête de
-  The Verge, d'Ars et du blog de Google, paliers de la page courte,
-  intertitre du sommaire ; les sommaires de deux articles de Clubic
-  reviennent comme en 1.8.0).
+  Mesuré sur le corpus (2026-11-07, fragments courts suivis) : contre la
+  1.8.0, aucune page en échec, phrase, fragment ni image ; contre la version
+  d'avant la garde, sept pages changent, toutes en gagnant (chapeau, image et
+  légende d'en-tête de The Verge, d'Ars et du blog de Google, paliers de la
+  page courte, intertitre du sommaire ; les sommaires de deux articles de
+  Clubic reviennent comme en 1.8.0).
 - **Images paresseuses résolues avant toute passe** (1.9.0, troisième round,
   A1 — `resolveLazyImages`, `server/extract.ts`, copiée dans le repli de
   `extractContent.ts` ; tests : `server/test/extract.test.ts` › « images
