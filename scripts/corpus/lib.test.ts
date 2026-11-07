@@ -404,6 +404,29 @@ describe('compareExtracts', () => {
     expect(diff.failing).toBe(true);
   });
 
+  // REG-243 : l'aperçu flou d'une image (`width-200`) remplacé par sa variante
+  // `width-1600`, que la base portait déjà dans son `data-srcset`.
+  it('une image gardée dans l’une des variantes que la base lui connaissait (`srcset`, `data-srcset`) n’est pas perdue', () => {
+    const base = article(`<p>${LONG_A}</p><img src="https://cdn.example.com/hero.width-200.webp" data-srcset="https://cdn.example.com/hero.width-450.webp 450w, https://cdn.example.com/hero.width-1600.webp 1600w">`);
+    const head = article(`<p>${LONG_A}</p><img src="https://cdn.example.com/hero.width-1600.webp" srcset="https://cdn.example.com/hero.width-450.webp 450w, https://cdn.example.com/hero.width-1600.webp 1600w">`);
+    expect(compareExtracts(base, head, 'example.com').lostImages).toEqual([]);
+    // Une variante qu'aucune image de la tête ne montre (un `data-*` seul) ne compte pas.
+    const hidden = article(`<p>${LONG_A}</p><img data-srcset="https://cdn.example.com/hero.width-1600.webp 1600w">`);
+    expect(compareExtracts(base, hidden, 'example.com').lostImages).toEqual(['https://cdn.example.com/hero.width-200.webp']);
+  });
+
+  it('compte l’image qu’une `<picture>` paresseuse ne montre que par son `<noscript>` : deux cartes de la page, deux images (Clubic)', () => {
+    const card = (n: number) => `<div class="carte-${n}"><picture data-lazy="{}"><div class="loading"></div><noscript><img src="https://pic.example.com/v1/images/22/raw?width=180"></noscript></picture><p>Carte ${n}</p></div>`;
+    const page = `<html><body><p>${LONG_A}</p>${card(1)}<p>${LONG_B}</p>${card(2)}</body></html>`;
+    const base = article(`<p>${LONG_A}</p><p>${LONG_B}</p>`);
+    const head = article(`<p>${LONG_A}</p><img src="https://pic.example.com/v1/images/22/raw?width=180"><p>Carte 1</p><p>${LONG_B}</p><img src="https://pic.example.com/v1/images/22/raw?width=180"><p>Carte 2</p>`);
+    const diff = compareExtracts(base, head, 'example.com', undefined, page, 'https://example.com/a');
+    expect(diff.duplicatedImages).toEqual([]);
+    // Une seule carte dans la page : la seconde copie est un doublon.
+    const once = `<html><body><p>${LONG_A}</p>${card(1)}<p>${LONG_B}</p></body></html>`;
+    expect(compareExtracts(base, head, 'example.com', undefined, once, 'https://example.com/a').duplicatedImages).toHaveLength(1);
+  });
+
   it('une image gardée à une autre taille n’est pas perdue', () => {
     const base = article(`<p>${LONG_A}</p><img src="https://example.com/une.jpg?w=2400">`);
     const head = article(`<p>${LONG_A}</p><img src="https://example.com/une-1200x675.jpg">`);

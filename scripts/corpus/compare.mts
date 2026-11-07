@@ -3,12 +3,14 @@
  * de pages capturées (`capture.mts`). Mode d'emploi : `scripts/corpus/README.md`.
  *
  *   npx tsx scripts/corpus/compare.mts --corpus <dossier> --base <ref|chemin> --head <ref|chemin>
- *     [--accepted <fichier>] [--report <fichier.json>] [--only <motif>] [--jobs N] [--timeout ms] [--oracle-strict]
+ *     [--accepted <fichier>] [--report <fichier.json>] [--only <motif>] [--jobs N] [--timeout ms] [--oracle-strict] [--media-strict]
  *
  * Code de sortie : 1 s'il existe une perte non acceptée, un `null` nouveau,
  * une image perdue, une copie perdue ou un doublon nouveau, ou si la tête
  * manque une phrase du flux que la base rendait (avec `--oracle-strict` : une
- * phrase du flux tout court) ; 0 sinon ; 2 si l'outil lui-même échoue.
+ * phrase du flux tout court), ou si la tête perd un média de l'article que la
+ * base montrait (avec `--media-strict` : un média manquant tout court) ; 0
+ * sinon ; 2 si l'outil lui-même échoue.
  */
 import { execFileSync, fork, type ChildProcess } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
@@ -28,6 +30,7 @@ import {
   type PageDiff,
 } from './lib.ts';
 import { buildFeedOracle, judgeOracle, takeFlag, type OracleVerdict } from './feedOracle.ts';
+import { judgeMedia, MEDIA_KINDS, pageMedia, type MediaItem, type MediaKind, type MediaVerdict } from './media.ts';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const WORKER = path.join(HERE, 'extract-worker.mts');
@@ -213,6 +216,8 @@ interface PageReport {
   diff: PageDiff | null;
   /** Mesure contre le contenu du flux (`feedFile`), absente sans contenu de flux. */
   oracle?: OracleReport;
+  /** Mesure absolue des médias de l'article (`media.ts`), absente sans conteneur. */
+  media?: MediaVerdict;
 }
 
 interface OracleReport {
@@ -278,8 +283,10 @@ function printPage(p: PageReport): void {
 
 async function main(): Promise<number> {
   const strictFlag = takeFlag(process.argv.slice(2), 'oracle-strict');
-  const args = parseArgs(strictFlag.argv);
+  const mediaFlag = takeFlag(strictFlag.argv, 'media-strict');
+  const args = parseArgs(mediaFlag.argv);
   const oracleStrict = strictFlag.present;
+  const mediaStrict = mediaFlag.present;
   for (const key of ['corpus', 'base', 'head']) if (!args[key]) throw new Error(`--${key} est obligatoire`);
   const corpus = path.resolve(args.corpus);
   const jobs = Math.max(1, Number(args.jobs) || Math.min(4, Math.max(1, Math.floor(availableParallelism() / 2))));
@@ -359,6 +366,17 @@ async function main(): Promise<number> {
           // La page brute : un doublon qu'elle montre elle-même n'en est pas un (REG-228).
           report.diff = compareExtracts(b.result, h.result, report.host, accepted, readFileSync(file, 'utf8'), url);
         }
+        const items = pageMedia(readFileSync(file, 'utf8'), url);
+        if (items && items.length) {
+          report.media = judgeMedia(
+            items,
+            b.kind === 'ok' ? (b.result?.content ?? null) : undefined,
+            h.kind === 'ok' ? (h.result?.content ?? null) : undefined,
+            url,
+            accepted,
+            report.host,
+          );
+        }
         return report;
       }),
     );
@@ -398,6 +416,7 @@ async function main(): Promise<number> {
     );
 
     const oracleTotals = printOracle(reports, oracleStrict);
+    const mediaTotals = printMedia(reports, mediaStrict);
 
     if (args.report) {
       const full = {
@@ -407,14 +426,15 @@ async function main(): Promise<number> {
         accepted: args.accepted ?? null,
         finishedAt: new Date().toISOString(),
         durationMs: Math.round(durationMs),
-        totals: { ...totals, oracle: oracleTotals },
+        totals: { ...totals, oracle: oracleTotals, media: mediaTotals },
         oracleStrict,
+        mediaStrict,
         pages: reports,
       };
       writeFileSync(args.report, JSON.stringify(full, null, 2) + '\n');
       console.log(`rapport : ${path.resolve(args.report)}`);
     }
-    return totals.failing > 0 || oracleTotals.failingPages > 0 ? 1 : 0;
+    return totals.failing > 0 || oracleTotals.failingPages > 0 || mediaTotals.failingPages > 0 ? 1 : 0;
   } finally {
     stop();
   }
@@ -495,6 +515,56 @@ function printOracle(reports: PageReport[], strict: boolean) {
       ` · régressions ${totals.regressions} sur ${totals.regressedPages} pages (fragments ${totals.fragmentRegressions})` +
       (strict ? ` · strict : ${totals.failingPages} pages en échec` : ''),
   );
+  return totals;
+}
+
+// ── Médias ─────────────────────────────────────────────────────────────
+
+const MEDIA_EXAMPLES = 6;
+
+/** Détail par page puis synthèse de la mesure des médias ; rend les totaux. */
+function printMedia(reports: PageReport[], strict: boolean) {
+  const measured = reports.filter((r) => r.media);
+  const failingOf = (r: PageReport) => !!r.media && (r.media.regressions.length > 0 || (strict && (r.media.headMissing?.length ?? 0) > 0));
+  const byKind = (pick: (v: MediaVerdict) => MediaItem[] | null) => {
+    const out = Object.fromEntries(MEDIA_KINDS.map((k) => [k, 0])) as Record<MediaKind, number>;
+    for (const r of measured) for (const item of pick(r.media!) ?? []) out[item.kind]++;
+    return out;
+  };
+  const pageCounts = Object.fromEntries(MEDIA_KINDS.map((k) => [k, sum(measured, (r) => r.media!.page[k])])) as Record<MediaKind, number>;
+  const side = (pick: (v: MediaVerdict) => MediaItem[] | null) => ({
+    pages: measured.filter((r) => (pick(r.media!)?.length ?? 0) > 0).length,
+    missing: sum(measured, (r) => pick(r.media!)?.length ?? 0),
+    byKind: byKind(pick),
+  });
+  const totals = {
+    measured: measured.length,
+    page: pageCounts,
+    base: side((v) => v.baseMissing),
+    head: side((v) => v.headMissing),
+    accepted: sum(measured, (r) => r.media!.accepted.length),
+    regressions: sum(measured, (r) => r.media!.regressions.length),
+    regressedPages: measured.filter((r) => r.media!.regressions.length > 0).length,
+    failingPages: measured.filter(failingOf).length,
+  };
+  const shown = measured.filter((r) => (r.media!.headMissing?.length ?? 0) > 0 || (r.media!.baseMissing?.length ?? 0) > 0);
+  shown.sort((a, b) => Number(failingOf(b)) - Number(failingOf(a)) || (b.media!.headMissing?.length ?? 0) - (a.media!.headMissing?.length ?? 0) || a.host.localeCompare(b.host));
+  if (shown.length) console.log('\n══ médias : pages où il en manque ══');
+  const kinds = (list: MediaItem[] | null) => (list ? MEDIA_KINDS.filter((k) => list.some((m) => m.kind === k)).map((k) => `${k} ${list.filter((m) => m.kind === k).length}`).join(', ') || '0' : '?');
+  for (const r of shown) {
+    const v = r.media!;
+    console.log(`── ${r.host || '?'}  ${r.file}  base manque ${kinds(v.baseMissing)} · tête manque ${kinds(v.headMissing)}${v.regressions.length ? ` · RÉGRESSIONS ${v.regressions.length}` : ''}`);
+    console.log(`   ${r.url}`);
+    for (const m of v.regressions) console.log(`   RÉGRESSION ${m.kind} ${clip(m.label)}`);
+    const others = (v.headMissing ?? []).filter((m) => !v.regressions.includes(m));
+    for (const m of others.slice(0, MEDIA_EXAMPLES)) console.log(`   manque  ${m.kind} ${clip(m.label)}`);
+    if (others.length > MEDIA_EXAMPLES) console.log(`   … et ${others.length - MEDIA_EXAMPLES} autres`);
+  }
+  const fmt = (o: Record<MediaKind, number>) => MEDIA_KINDS.filter((k) => o[k]).map((k) => `${k} ${o[k]}`).join(', ') || '0';
+  console.log(`\nmédias : ${totals.measured} pages mesurées · dans l'article : ${fmt(totals.page)}`);
+  console.log(`médias (base) : ${totals.base.missing} manquants sur ${totals.base.pages} pages (${fmt(totals.base.byKind)})`);
+  console.log(`médias (tête) : ${totals.head.missing} manquants sur ${totals.head.pages} pages (${fmt(totals.head.byKind)})`);
+  console.log(`médias : acceptés ${totals.accepted} · régressions ${totals.regressions} sur ${totals.regressedPages} pages${strict ? ` · strict : ${totals.failingPages} pages en échec` : ''}`);
   return totals;
 }
 

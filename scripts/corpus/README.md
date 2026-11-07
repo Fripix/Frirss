@@ -26,7 +26,7 @@ npx tsx scripts/corpus/capture.mts --feeds feeds.txt --out <corpus> --backfill [
 # Comparer deux versions de l'extracteur
 npx tsx scripts/corpus/compare.mts --corpus <corpus> --base <ref|chemin> --head <ref|chemin> \
   [--accepted <corpus>/accepted.json] [--report rapport.json] [--only <motif>] [--jobs 4] [--timeout 15000] \
-  [--oracle-strict]
+  [--oracle-strict] [--media-strict]
 ```
 
 Avant de commiter une règle : `--base HEAD --head server/extract.ts` (la copie de
@@ -109,7 +109,9 @@ perdait les paliers d'une page de dons (« Every little bit helps »…) passait
 corpus. Un mot isolé (« Partager », « Lire aussi ») n'est pas un fragment.
 
 Une **image est perdue** quand la photo de la base n'est plus en tête **à la
-taille près** (`imageIdentity`, `src/lib/imageIdentity.ts` : seuls les
+taille près**, ni sous l'une des variantes que la base lui connaissait
+(`srcset`, `data-srcset` : un aperçu flou `width-200` remplacé par sa variante
+`width-1600` n'est pas perdu, REG-243 ; `imageVariants`) (`imageIdentity`, `src/lib/imageIdentity.ts` : seuls les
 paramètres de taille — `w`, `h`, `width`, `height`, `resize`, `fit`, `quality`,
 `q`, `dpr` —, le suffixe `-1200x675` et la signature d'une taille demandée
 sortent ; `step.png?step=2` n'est pas `?step=1`) ; les `data:` sont exclus.
@@ -152,6 +154,10 @@ la règle de l'extraction (`withoutRepeats`). Là seulement elles se confondent
 - pour une **copie perdue** (`layout`), tous les exemplaires de l'en-tête en
   font un, ceux d'une figure un par figure — la signature de The Verge peut
   n'apparaître qu'une fois.
+
+Une `<picture>` paresseuse sans `<img>` (Clubic) ne montre que l'image de son
+`<noscript>` : celle-là compte comme une image de la page (deux cartes qui
+portent le même logo sont deux images).
 
 Dans le **corps**, chaque exemplaire compte : un refrain que la page montre
 deux fois, une tête fidèle peut le rendre deux fois, et le perdre est un
@@ -219,12 +225,68 @@ fragments régressés sont signalés, sans bloquer.
 - Le flux ne couvre que les pages dont l'item y est encore (ou qu'on a gardé),
   et il ne dit rien des images.
 
+### Mesure absolue : les médias
+
+**Pourquoi.** Le texte est mesuré (phrases, oracle du flux), les images ne
+l'étaient que par rapport à la base. Le contrôle en direct de l'image
+`a90032f` a trouvé ce que la base perdait aussi, donc invisible : les
+questions d'une FAQ de Clubic (leurs réponses restaient), les photos d'un
+dossier de Clubic (une `<picture>` paresseuse sans `<img>`), une vidéo YouTube
+de Numerama (adresse dans `data-src` seulement), les vidéos et citations du
+blog de Google (portées par les attributs d'éléments personnalisés).
+
+**Quoi** (`media.ts`). Dans la page brute, le **conteneur de l'article**
+(comme `articleContainer` de l'extraction : `[itemprop=articleBody]`
+dominant, sinon `<article>` dominant, sinon `<main>` ou `[role=main]` unique ;
+remonté jusqu'au `<h1>` du titre de la page s'il grossit peu, sans ce qui suit
+le conteneur ; aucun : pas de mesure), hors éléments masqués, navigation,
+pied, formulaires, encarts (`aside`), blocs « related », commentaires,
+partage, lettre, et signature de l'auteur (`author`, `byline`). Y sont
+comptés :
+
+| Sorte | Ce qui compte | Identité |
+|---|---|---|
+| `image` | `<img>` par toutes ses adresses (`src`, `srcset`, `data-src`, `data-srcset`, sources de sa `<picture>`), l'image du `<noscript>` d'une `<picture>` qui n'en montre pas d'autre ; ni icône, logo, avatar (nom, `.svg`, taille déclarée sous 100), ni vignette (toutes ses adresses demandent moins de 250 px : `-192x192`, `w=150`, `/size/w30/`), ni `data:` | `imageIdentity`, à la taille près ; une image écrite deux fois n'en fait qu'une |
+| `video`, `audio` | `<video>`, `<audio>` (`src`, `<source>`, `data-src`) ; un élément personnalisé dont un attribut est un fichier vidéo ; jamais une vidéo de fond (`autoplay muted loop` sans `controls`) | l'adresse |
+| `embed` | `<iframe>` YouTube, Vimeo, Dailymotion, par `src` ou `data-src` | `youtube:<id>`… |
+| `tweet` | `blockquote.twitter-tweet` | `tweet:<id>` |
+| `quote` | `<blockquote>` (le plus extérieur, 20 caractères au moins, pas une intégration sociale) ; un attribut `quote` d'élément personnalisé | ses 60 premiers caractères normalisés |
+| `details` | `<details>` dont le `<summary>` porte du texte (sa feuille de style ignorée) | le texte de la question |
+| `table` | `<table>` le plus extérieur, deux lignes au moins, pas `role=presentation` | ses 60 premiers caractères |
+
+Puis, dans chaque extrait, ce qu'il **montre** : seulement `src` et `srcset`
+(le volet retire les `data-*`), une vidéo intégrée par son `src`, une
+citation dans une `<blockquote>`, un tableau dans une `<table>`, une question
+par son texte (en `<summary>` ou en intertitre).
+
+**Rapport.** Les pages où il en manque (base et tête, par sorte, avec les
+régressions), puis :
+
+```
+médias : N pages mesurées · dans l'article : image …, video …
+médias (base) : M manquants sur P pages (image …)
+médias (tête) : …
+médias : acceptés A · régressions R sur Q pages
+```
+
+`--report` porte le détail (`pages[].media`, `totals.media`). Un média dont
+l'adresse absolue (ou le texte) correspond à `accepted.json` est **accepté**
+(habillage : publicité, lecteur de synthèse vocale), ni manquant ni régressé.
+
+**Échec.** La tête ne montre plus un média que la base montrait
+(régression). Avec `--media-strict`, la tête manque un média tout court.
+
+**Limites.** Le conteneur peut porter de l'habillage que les filtres ne
+voient pas (cartes « à lire » sans le mot `related`, logos de produits) : il
+compte comme manquant. Un média que la page ne crée qu'en JavaScript, sans
+trace dans le HTML, est invisible.
+
 ## Codes de sortie
 
 | Code | Sens |
 |---|---|
 | 0 | Aucune perte non acceptée, aucun `null` nouveau, aucune image ni copie perdue, aucun doublon nouveau |
-| 1 | Au moins une perte non acceptée, un `null` nouveau, une exception nouvelle, une image perdue, une copie perdue ou un doublon nouveau (texte ou image) ; une phrase du flux que la tête manque et que la base rendait (avec `--oracle-strict` : toute phrase du flux manquante) |
+| 1 | Au moins une perte non acceptée, un `null` nouveau, une exception nouvelle, une image perdue, une copie perdue ou un doublon nouveau (texte ou image) ; une phrase du flux que la tête manque et que la base rendait (avec `--oracle-strict` : toute phrase du flux manquante) ; un média de l'article que la base montrait et plus la tête (avec `--media-strict` : tout média manquant) |
 | 2 | L'outil lui-même a échoué (argument, ref introuvable, extracteur qui ne se charge pas) |
 
-Logique pure testée dans `lib.test.ts` et `feedOracle.test.ts` (`npx vitest run scripts/corpus`).
+Logique pure testée dans `lib.test.ts`, `feedOracle.test.ts` et `media.test.ts` (`npx vitest run scripts/corpus`).

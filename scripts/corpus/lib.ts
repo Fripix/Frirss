@@ -411,7 +411,14 @@ interface DomLike {
   hasAttribute?(name: string): boolean;
 }
 
-function hiddenInPage(el: DomLike): boolean {
+/** Un `<noscript>` enfant d'une `<picture>` qui n'a pas d'autre `<img>`. */
+function lazyPictureFallback(node: DomLike): boolean {
+  const parent = (node as DomLike & { parentElement?: DomLike | null }).parentElement;
+  if (!parent || (parent.tagName || '').toLowerCase() !== 'picture') return false;
+  return !Array.from(parent.childNodes ?? []).some((child) => (child.tagName || '').toLowerCase() === 'img');
+}
+
+export function hiddenInPage(el: DomLike): boolean {
   if (el.hasAttribute!('hidden') || el.getAttribute!('aria-hidden') === 'true') return true;
   const style = el.getAttribute!('style') || '';
   if (/(?:^|;)\s*(?:display\s*:\s*none|visibility\s*:\s*hidden)\b/i.test(style)) return true;
@@ -481,6 +488,12 @@ export function pageView(html: string, pageUrl?: string): PageView {
     }
     if (node.nodeType !== 1) continue;
     const tag = (node.tagName || '').toLowerCase();
+    // Une `<picture>` paresseuse sans `<img>` ne montre que celle de son
+    // `<noscript>` (Clubic) : son image compte, pas son texte.
+    if (tag === 'noscript' && lazyPictureFallback(node)) {
+      for (const child of Array.from(node.childNodes ?? [])) if ((child.tagName || '').toLowerCase() === 'img') stack.push(child);
+      continue;
+    }
     if (PAGE_UNREAD.has(tag) || hiddenInPage(node)) continue;
     if (tag === 'img') {
       const identity = imageIdentity(node.getAttribute!('src'), pageUrl);
@@ -649,6 +662,27 @@ export function imageSources(html: string): string[] {
   return out;
 }
 
+/**
+ * Les adresses de chaque image d'un extrait : son `src`, puis les candidats de
+ * son `srcset` (et de son `data-srcset` quand `reserve`). Le `src` en tête
+ * (`imageSources` le donne) ; une image sans `src` commence par son `srcset`.
+ */
+export function imageVariants(html: string, reserve: boolean): string[][] {
+  const out: string[][] = [];
+  for (const m of html.matchAll(/<img\b[^>]*>/gi)) {
+    const src = attr(m[0], 'src')?.trim();
+    const list: string[] = src && !/^data:/i.test(src) ? [src] : [];
+    for (const name of reserve ? ['srcset', 'data-srcset'] : ['srcset']) {
+      for (const candidate of (attr(m[0], name) || '').split(/,\s+|,(?=\S+\s+\d)/)) {
+        const address = candidate.trim().split(/\s+/)[0];
+        if (address && !/^data:/i.test(address) && !list.includes(address)) list.push(address);
+      }
+    }
+    out.push(list);
+  }
+  return out;
+}
+
 export interface PageDiff {
   baseNull: boolean;
   headNull: boolean;
@@ -755,8 +789,16 @@ export function compareExtracts(
   const acceptedImages: PageDiff['acceptedImages'] = [];
   if (base && head) {
     const headImages = new Set(imageSources(head.content).map((src) => imageIdentity(src, pageUrl) ?? src));
+    // Ce que la tête MONTRE aussi par un `srcset` ; et, de chaque image de la
+    // base, les variantes qu'elle se connaissait (`srcset`, `data-srcset`) :
+    // un aperçu flou `width-200` remplacé par sa variante `width-1600` n'est
+    // pas une photo perdue (REG-243).
+    for (const variants of imageVariants(head.content, false)) for (const v of variants) headImages.add(imageIdentity(v, pageUrl) ?? v);
+    const known = new Map<string, string[]>();
+    for (const variants of imageVariants(base.content, true)) if (variants.length) known.set(variants[0], variants);
     for (const src of imageSources(base.content)) {
       if (headImages.has(imageIdentity(src, pageUrl) ?? src)) continue;
+      if ((known.get(src) ?? []).some((v) => headImages.has(imageIdentity(v, pageUrl) ?? v))) continue;
       const rule = accepted.match(src, host);
       if (rule) acceptedImages.push({ text: src, reason: rule.reason });
       else lostImages.push(src);
