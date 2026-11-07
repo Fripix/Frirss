@@ -494,6 +494,15 @@ export function resolveLazyImages(root: Element): void {
     const srcset = webAddress(source.getAttribute('data-srcset'));
     if (srcset && isPlaceholderSource(source.getAttribute('srcset'))) source.setAttribute('srcset', srcset);
   }
+  // Une vidéo paresseuse (REG-233, voir le serveur).
+  for (const media of Array.from(root.querySelectorAll('video[data-src], audio[data-src], source[data-src]'))) {
+    const src = webAddress(media.getAttribute('data-src'));
+    if (src && isPlaceholderSource(media.getAttribute('src'))) media.setAttribute('src', src);
+  }
+  for (const video of Array.from(root.querySelectorAll('video[data-poster]'))) {
+    const poster = webAddress(video.getAttribute('data-poster'));
+    if (poster && isPlaceholderSource(video.getAttribute('poster'))) video.setAttribute('poster', poster);
+  }
   for (const button of Array.from(root.querySelectorAll('button'))) {
     if (isZoomButton(button)) button.replaceWith(takeChildren(button));
   }
@@ -645,11 +654,13 @@ const INVISIBLE = new Set(['script', 'style', 'template', 'noscript']);
 /** Texte lisible d'un billet, mesuré une fois par nettoyage (B-02, voir le serveur). */
 type PostLength = (post: Element) => number;
 
-function isBoilerplate(el: Element, insideArticle: boolean, postLength: PostLength, paid: Map<Node, LinkCounts>, headingIds: () => Set<string>): boolean | typeof VEIL {
+function isBoilerplate(el: Element, insideArticle: boolean, postLength: PostLength, paid: Map<Node, LinkCounts>, headingIds: () => Set<string>, inFlow: (el: Element) => boolean): boolean | typeof VEIL {
   const tag = el.tagName.toLowerCase();
   const role = (el.getAttribute('role') || '').toLowerCase();
   if ((BOILERPLATE_TAGS.has(tag) || BOILERPLATE_ROLES.has(role)) && !isTableOfContents(el, headingIds)) return true;
-  if (!insideArticle && (tag === 'aside' || role === 'complementary' || (el.getAttribute('id') || '').toLowerCase() === 'secondary')) return true;
+  if (!insideArticle && (el.getAttribute('id') || '').toLowerCase() === 'secondary') return true;
+  // Un encadré dans le fil du texte reste (REG-232, voir le serveur).
+  if (!insideArticle && (tag === 'aside' || role === 'complementary') && !inFlow(el)) return true;
   if (el.hasAttribute('data-slug-hash') && hasCaptionSibling(el)) return true;
   const tokens = `${withoutTaxonomy(el.getAttribute('class'))} ${el.getAttribute('id') || ''}`.toLowerCase().split(/[^a-z0-9]+/);
   // Bouton « retour en haut » (A4-03, RX-02, voir le serveur).
@@ -757,6 +768,17 @@ function carriesMostOfItsPost(el: Element, postLength: PostLength, length?: numb
   return (length ?? visibleTextLength(el, half)) >= half;
 }
 
+/** Un paragraphe frère de cette longueur dit qu'un encadré est dans le fil du texte (REG-232). */
+const TEXT_FLOW_MIN = 80;
+
+/** Un encadré DANS le fil du texte : un frère est un paragraphe d'au moins `TEXT_FLOW_MIN` caractères (voir le serveur). */
+function inTextFlow(el: Element): boolean {
+  for (let sibling = el.parentElement?.firstElementChild; sibling; sibling = sibling.nextElementSibling) {
+    if (sibling.tagName.toLowerCase() === 'p' && visibleTextLength(sibling, TEXT_FLOW_MIN) >= TEXT_FLOW_MIN) return true;
+  }
+  return false;
+}
+
 function hasCaptionSibling(el: Element): boolean {
   for (let sibling = el.parentElement?.firstElementChild; sibling; sibling = sibling.nextElementSibling) {
     if (sibling !== el && sibling.tagName.toLowerCase() === 'figcaption') return true;
@@ -841,11 +863,18 @@ export function stripBoilerplate(root: Element): void {
   const paid = paidLinkAncestors(root);
   // Les cibles d'un sommaire (REG-222), relevées au premier `<nav>` rencontré.
   const headingIds = headingIdsUnder(root);
+  // Le fil du texte d'un parent, jugé une fois (voir le serveur).
+  const flows = new Map<Element | null, boolean>();
+  const inFlow = (el: Element) => {
+    let known = flows.get(el.parentElement);
+    if (known === undefined) flows.set(el.parentElement, known = inTextFlow(el));
+    return known;
+  };
   const stack: Array<[Element, boolean]> = Array.from(root.children, (child) => [child, false]);
   while (stack.length) {
     const [el, insideArticle] = stack.pop()!;
     if (CODE.has(el.tagName.toLowerCase())) continue;
-    const verdict = isBoilerplate(el, insideArticle, postLength, paid, headingIds);
+    const verdict = isBoilerplate(el, insideArticle, postLength, paid, headingIds, inFlow);
     if (verdict) {
       const length = visibleTextLength(el);
       if (length < total * MAIN_CONTAINER_MIN_SHARE && !carriesByline(el)) {
@@ -1062,50 +1091,32 @@ export function joinSplitBody(root: Element): void {
   }
 }
 
-// ── Garde de non-perte (REG-220 à REG-222) ───────────────────────────
-// Copie de la garde de `server/extract.ts`, qui dit pourquoi : le nettoyage et
-// la réunion du corps réparti changent le bloc que choisit Readability, et le
-// chapeau, l'image ou la légende d'en-tête, frères du corps, sortaient (The
-// Verge, Ars Technica, blog de Google). Le résultat est comparé à un témoin —
-// la page lue intacte à 50, comme en 1.8.0 — et ce que le témoin garde dans le
-// conteneur de l'article NETTOYÉ, avant l'ouverture du résultat (après aussi,
-// quand le résultat est sous le seuil), y est remis, en suite contiguë et à sa
-// place dans la page.
-// Règles, seuils et bornes identiques ; toute modification de l'une va avec
-// l'autre, et avec `EXTRACT_VERSION`.
+// ── Garde de non-perte : la page vérifie Readability (REG-229) ────────
+// Copie de la garde de `server/extract.ts`, qui dit pourquoi : Readability
+// choisit et nettoie, la page vérifie. Les blocs du conteneur de l'article
+// (lu dans la page nettoyée, avant Readability) que le résultat ne lit pas
+// sont remis à leur place sur preuve (JSON-LD, description), dans l'en-tête,
+// dans un trou du corps, dans la suite de même gabarit, ou après un résultat
+// court ; jamais ce qui est masqué, la signature, les commentaires, un panneau
+// de réglages, ni ce que le résultat lit déjà. Règles, seuils et bornes
+// identiques ; toute modification de l'une va avec l'autre, et avec
+// `EXTRACT_VERSION`.
 const READABILITY_CHAR_THRESHOLD = 500;
 
-/** Seuil du témoin : celui de la 1.8.0, dont le corpus mesure les pertes. */
-const WITNESS_CHAR_THRESHOLD = 50;
-
 /**
- * Le témoin est lu sauf si la page intacte coûte à la fois plus de ce multiple
- * de la page nettoyée ET plus de `WITNESS_COST_FLOOR` (`readingCost`, RG-05) :
- * quand le nettoyage a retiré une part coûteuse (un pied de chaînes
- * imbriquées : 0,67 s de Readability contre 47 ms), la garde y renonce plutôt
- * que de payer la page entière une seconde fois. Le rapport seul ne suffit
- * pas : mesuré sur 470 pages (2026-11-07), 228 dépassent 2 — menus et pieds
- * de The Verge (2,04), du blog de Google (4,09) — pour un coût dérisoire.
+ * Un bloc de texte ou de média, lu dans la page ou dans un résultat.
+ * `excluded` : dans la page, sous la signature de l'auteur (`BYLINE_SIGNALS`),
+ * dans les commentaires (`isComments`) ou un panneau de réglages
+ * (`controlPanels`) — la garde ne le remet jamais.
  */
-const WITNESS_MAX_COST_RATIO = 2;
-/**
- * En deçà, le témoin coûte ce que coûte une vraie page : la plus coûteuse du
- * corpus (Wikipédia, 3 Mo, 0,5 s) pèse 5,7 millions ; le pied piégé de la
- * relecture, 160 millions.
- */
-const WITNESS_COST_FLOOR = 8_000_000;
-
-/** Un bloc de texte ou de média, lu dans la page ou dans un résultat. */
 class Unit {
   private normCache?: string;
   private trackedCache?: string[];
   /**
    * `blocks` : le texte lisible, par bloc. `images` : une liste d'adresses par
-   * image (`src`, puis, dans la page, les variantes qu'elle a en réserve).
-   * `byline` : le bloc est, dans la page, sous la signature de l'auteur
-   * (`BYLINE_SIGNALS`) — la garde ne le remet jamais (RG-04).
+   * image ou média (`src`, puis, dans la page, les variantes en réserve).
    */
-  constructor(readonly el: Element, private readonly blocks: string[], readonly images: string[][], readonly byline = false) {}
+  constructor(readonly el: Element, private readonly blocks: string[], readonly images: string[][], readonly excluded = false) {}
   /** Longueur du texte brut. */
   get size(): number {
     let length = 0;
@@ -1122,16 +1133,33 @@ class Unit {
   }
 }
 
-type FrameUnits = Unit[];
+/** Le conteneur de l'article, découpé en blocs, et les phrases que la page certifie. */
+interface Frame { root: Element; units: Unit[]; evidence: string[] }
 
 /** Éléments lus comme un seul bloc. */
-const UNIT_TAGS = new Set(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'dl', 'blockquote', 'pre', 'table', 'figure', 'picture', 'img']);
+const UNIT_TAGS = new Set(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'dl', 'blockquote', 'pre', 'table', 'figure', 'picture', 'img', 'video', 'audio', 'iframe']);
+/** Médias : un bloc à eux seuls, sans texte lisible (le texte de repli ne se lit pas). */
+const MEDIA_TAGS = 'video, audio, iframe';
+const MEDIA_UNITS = new Set(['video', 'audio', 'iframe']);
+/** Ce qui reste d'un média remis : ses sources et ses pistes. */
+const MEDIA_PARTS = new Set(['source', 'track']);
+/**
+ * Un cadre intégré qui est une vidéo : `allowedVideoRegex` de Readability
+ * 0.6.0, ce qu'il garde lui-même. Un autre cadre (CodePen, publicité,
+ * formulaire) ne se remet pas : le lecteur le retire de toute façon.
+ */
+const VIDEO_FRAME = /\/\/(www\.)?((dailymotion|youtube|youtube-nocookie|player\.vimeo|v\.qq|bilibili|live\.bilibili)\.com|(archive|upload\.wikimedia)\.org|player\.twitch\.tv)/i;
+
+/** Un média qui se lit : une vidéo, un son, ou un cadre qui est une vidéo. */
+function isMedia(el: Element): boolean {
+  return el.tagName.toLowerCase() !== 'iframe' || VIDEO_FRAME.test(el.getAttribute('src') || '');
+}
 /** Ce qui ne se lit pas : scripts, textes de repli des médias, contrôles. */
 const UNREAD = new Set(['script', 'style', 'template', 'noscript', 'audio', 'video', 'object', 'iframe', 'svg', 'canvas', 'button', 'select', 'textarea']);
 /** Fins de bloc, pour découper les phrases comme le corpus. */
 const BLOCK_ENDS = new Set(['p', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'td', 'th', 'blockquote', 'figcaption', 'br', 'div', 'tr', 'dt', 'dd', 'pre', 'figure', 'section', 'article', 'header', 'footer', 'aside', 'ul', 'ol', 'dl', 'table', 'caption']);
 /** Un élément de bloc : un texte qui le contient n'est pas un paragraphe à lui seul. */
-const BLOCKS = new Set([...UNIT_TAGS, ...BLOCK_ENDS].filter((tag) => tag !== 'br' && tag !== 'img'));
+const BLOCKS = new Set([...UNIT_TAGS, ...BLOCK_ENDS].filter((tag) => tag !== 'br' && tag !== 'img' && !MEDIA_UNITS.has(tag)));
 const SPACED_ENDS = new Set(['.', '!', '?', '…', '؟']);
 const WIDE_ENDS = new Set(['。', '！', '？']);
 const CLOSERS = new Set(['"', "'", '”', '’', '»', ')', ']', '）', '」', '』', '》', '〉', '】']);
@@ -1139,13 +1167,6 @@ const NO_SPACE_SCRIPT = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p
 /** Une phrase plus courte ne compte pas (dates, rubriques, « Credit: ») — la règle du corpus. */
 const TRACKED_MIN = 25;
 const TRACKED_MIN_NO_SPACE = 8;
-/**
- * Bornes de la recherche de l'ouverture (`openingIn`) : une page faite de la
- * même phrase répétée ne coûte pas le carré de sa taille. Seize occurrences et
- * huit blocs suffisent à séparer un chapeau répété du début du corps.
- */
-const OPENING_CANDIDATES = 16;
-const OPENING_LOOKAHEAD = 8;
 
 /** Forme comparable : NFKC, minuscules, ponctuation et blancs réduits à une espace. */
 function normalized(text: string): string {
@@ -1215,21 +1236,39 @@ function absolute(value: string | null, base: string): string | null {
   try { return new URL(v, base).href; } catch { return null; }
 }
 
-/** Les adresses d'une image : `src`, puis, dans la page (`lenient`), celles qu'elle a en réserve. */
+/** Une adresse de fichier image, telle qu'une page la range dans un attribut `data-*`. */
+const IMAGE_FILE = /\.(?:jpe?g|png|gif|webp|avif)(?:[?#]|$)/i;
+
+/** Les candidats d'un `srcset` : leurs adresses, sans les largeurs. */
+function srcsetAddresses(value: string | null): string[] {
+  return (value || '').split(',').map((candidate) => candidate.trim().split(/\s+/)[0]).filter(Boolean);
+}
+
+/** Les adresses d'une image : `src`, `srcset`, puis, dans la page (`lenient`), celles qu'elle a en réserve. */
 function imageAddresses(img: Element, base: string, lenient: boolean): string[] {
-  const values = [img.getAttribute('src')];
+  const values: Array<string | null> = [img.getAttribute('src'), ...srcsetAddresses(img.getAttribute('srcset'))];
   if (lenient) {
-    values.push(img.getAttribute('data-src'));
-    for (const holder of [img, ...(img.parentElement?.tagName.toLowerCase() === 'picture' ? Array.from(img.parentElement.children) : [])]) {
-      for (const attr of ['srcset', 'data-srcset']) {
-        for (const candidate of (holder.getAttribute(attr) || '').split(',')) values.push(candidate.trim().split(/\s+/)[0]);
+    for (const attr of Array.from(img.attributes)) {
+      if (!attr.name.startsWith('data-')) continue;
+      for (const candidate of srcsetAddresses(attr.value)) if (IMAGE_FILE.test(candidate)) values.push(candidate);
+    }
+    if (img.parentElement?.tagName.toLowerCase() === 'picture') {
+      for (const source of Array.from(img.parentElement.children)) {
+        for (const attr of ['srcset', 'data-srcset']) values.push(...srcsetAddresses(source.getAttribute(attr)));
       }
     }
   }
   return values.map((value) => absolute(value, base)).filter((value): value is string => !!value);
 }
 
-function unitOf(el: Element, base: string, lenient: boolean, byline = false): Unit {
+/** Les adresses d'un média (`video`, `audio`, `iframe`) : le sien, puis celles de ses `<source>`. */
+function mediaAddresses(media: Element, base: string): string[] {
+  const values: Array<string | null> = [media.getAttribute('src')];
+  for (const source of Array.from(media.querySelectorAll('source'))) values.push(source.getAttribute('src'));
+  return values.map((value) => absolute(value, base)).filter((value): value is string => !!value);
+}
+
+function unitOf(el: Element, base: string, lenient: boolean, excluded = false): Unit {
   const images: string[][] = [];
   const imgs = el.tagName.toLowerCase() === 'img' ? [el] : Array.from(el.querySelectorAll('img')) as Element[];
   for (const img of imgs) {
@@ -1237,7 +1276,13 @@ function unitOf(el: Element, base: string, lenient: boolean, byline = false): Un
     const addresses = imageAddresses(img, base, lenient);
     if (addresses.length) images.push(addresses);
   }
-  return new Unit(el, blocksOf(el), images, byline);
+  const media = el.matches(MEDIA_TAGS) ? [el] : Array.from(el.querySelectorAll(MEDIA_TAGS)) as Element[];
+  for (const one of media) {
+    if (!isMedia(one)) continue;
+    const addresses = mediaAddresses(one, base);
+    if (addresses.length) images.push(addresses);
+  }
+  return new Unit(el, blocksOf(el), images, excluded);
 }
 
 /**
@@ -1254,33 +1299,369 @@ function looseText(el: Element): boolean {
   return text;
 }
 
-/** Les blocs de `root`, dans l'ordre. `lenient` : une image se reconnaît à toutes ses adresses (page). */
+/** Mots d'une classe ou d'un id qui désignent les commentaires (jamais remis). */
+const COMMENT_TOKENS = new Set(['comment', 'comments', 'commentaire', 'commentaires', 'disqus', 'respond']);
+
+/** Les commentaires d'un billet, ou leur compteur : par leur nom, ou par schema.org. */
+function isComments(el: Element): boolean {
+  const tokens = `${el.getAttribute('class') || ''} ${el.getAttribute('id') || ''}`.toLowerCase().split(/[^a-z0-9]+/);
+  if (tokens.some((token) => COMMENT_TOKENS.has(token))) return true;
+  return /comment/i.test(el.getAttribute('itemtype') || '') || /(?:^|\s)comments?(?:\s|$)/i.test(el.getAttribute('itemprop') || '');
+}
+
+/**
+ * Les blocs de `root`, dans l'ordre. `lenient` (la page) : une image se
+ * reconnaît à toutes ses adresses, et ni un voile (V2-02), ni ce que la page
+ * masque (REG-225) n'est un bloc ; la signature de l'auteur, les
+ * commentaires et les panneaux de réglages (`controlPanels`) sont marqués
+ * (`excluded`).
+ */
 function unitsOf(root: Element, base: string, lenient = false): Unit[] {
   const units: Unit[] = [];
+  const panels = lenient ? controlPanels(root) : new Set<Element>();
   const stack: Array<[Element, boolean]> = [[root, false]];
   while (stack.length) {
-    const [el, inByline] = stack.pop()!;
-    // Dans la page, un voile de consentement n'est pas de l'article (V2-02),
-    // ni rien de ce que la page masque (REG-225) : la garde ne le remet jamais.
+    const [el, inExcluded] = stack.pop()!;
     if (lenient && (el.hasAttribute(VEIL_ATTR) || (el !== root && hiddenOnPage(el)))) continue;
-    const byline = inByline || (lenient && el !== root && el.matches(BYLINE_SIGNALS));
     const tag = el.tagName.toLowerCase();
-    if (el !== root && (UNIT_TAGS.has(tag) || looseText(el))) { units.push(unitOf(el, base, lenient, byline)); continue; }
-    if (UNREAD.has(tag)) continue;
-    for (let child = el.lastElementChild; child; child = child.previousElementSibling) stack.push([child, byline]);
+    // Ni un contrôle, ni le libellé d'un contrôle : ce n'est pas du texte d'article.
+    if (el !== root && ((UNREAD.has(tag) && !(MEDIA_UNITS.has(tag) && isMedia(el))) || (lenient && tag === 'label'))) continue;
+    const excluded = inExcluded || (lenient && el !== root && (panels.has(el) || el.matches(BYLINE_SIGNALS) || isComments(el)));
+    if (el !== root && (UNIT_TAGS.has(tag) || looseText(el))) {
+      const unit = unitOf(el, base, lenient, excluded);
+      if (unit.norm.trim() || unit.images.length) units.push(unit);
+      continue;
+    }
+    for (let child = el.lastElementChild; child; child = child.previousElementSibling) stack.push([child, excluded]);
   }
   return units;
 }
 
-/** Les blocs du conteneur de l'article, lus dans la page avant Readability (`null` sans conteneur). */
-function frameOf(container: Element | null, base: string): FrameUnits | null {
-  // Un conteneur que la page masque n'a rien à remettre (REG-225, voir le serveur).
-  if (!container || insideHidden(container, new Map(), hiddenOnPage)) return null;
-  return unitsOf(container, base, true);
+/** Un champ de saisie ou une liste de choix (pas un champ caché). */
+const CONTROL_TAGS = new Set(['select', 'textarea', 'input']);
+/** Un bloc qui porte un contrôle et moins de texte que ceci est un panneau de réglages. */
+const PANEL_TEXT_MAX = 300;
+
+/**
+ * Les panneaux de réglages sous `root` : un bloc qui porte un champ ou une
+ * liste de choix, et peu de texte (le réglage du texte d'Ars Technica, « Story
+ * text », « * Subscribers only »). Ce n'est pas de l'article : la garde ne
+ * le remet jamais. Une passe, des enfants vers les parents.
+ */
+function controlPanels(root: Element): Set<Element> {
+  const order: Element[] = [];
+  const stack: Element[] = [root];
+  while (stack.length) {
+    const el = stack.pop()!;
+    order.push(el);
+    for (let child = el.firstElementChild; child; child = child.nextElementSibling) stack.push(child);
+  }
+  const below = new Map<Element, { control: boolean; text: number }>();
+  const panels = new Set<Element>();
+  for (let i = order.length - 1; i >= 0; i--) {
+    const el = order[i];
+    const tag = el.tagName.toLowerCase();
+    let control = CONTROL_TAGS.has(tag) && !(tag === 'input' && (el.getAttribute('type') || '').trim().toLowerCase() === 'hidden');
+    let text = 0;
+    for (let node = el.firstChild; node; node = node.nextSibling) {
+      if (node.nodeType === 3) {
+        if (!UNREAD.has(tag)) text += (node.textContent || '').replace(/\s+/g, ' ').trim().length;
+        continue;
+      }
+      const child = node.nodeType === 1 ? below.get(node as Element) : undefined;
+      if (!child) continue;
+      below.delete(node as Element);
+      control ||= child.control;
+      if (!UNREAD.has(tag)) text += child.text;
+    }
+    below.set(el, { control, text });
+    if (control && text < PANEL_TEXT_MAX && el !== root) panels.add(el);
+  }
+  return panels;
 }
 
-/** Ce que garde un résultat : ses phrases, son texte normalisé, ses images (par leur identité, REG-225). */
-interface Kept { sentences: Set<string>; norm: string; images: Set<string> }
+// ── Le conteneur que la page désigne ─────────────────────────────────
+
+/** Un `[itemprop=articleBody]` plus court n'est pas un corps. */
+const ITEMPROP_MIN = 200;
+/** Un `<article>` qui porte moins de cette part du texte de la page n'est pas l'article. */
+const ARTICLE_MIN_SHARE = 0.35;
+/** Des `<article>` qui portent ensemble cette part du `<main>` en font une page de liste. */
+const LIST_SHARE = 0.5;
+/** Le conteneur retenu porte au moins ce multiple du texte du suivant. */
+const DOMINANCE = 2;
+/** Remonté jusqu'au titre seulement si l'ancêtre porte au plus 1,25 fois le texte, plus 1 500 caractères. */
+const CLIMB_GROWTH = 1.25;
+const CLIMB_SLACK = 1500;
+
+/** Longueur du texte lisible de `root` : ni script, ni style, ni ce que la page masque. */
+function readableLength(root: Element): number {
+  let length = 0;
+  const stack: Node[] = [root];
+  while (stack.length) {
+    const node = stack.pop()!;
+    if (node.nodeType === 3) {
+      length += (node.textContent || '').replace(/\s+/g, ' ').trim().length;
+      continue;
+    }
+    if (node.nodeType !== 1) continue;
+    const el = node as Element;
+    if (INVISIBLE.has(el.tagName.toLowerCase()) || (el !== root && hiddenOnPage(el))) continue;
+    for (let child = el.firstChild; child; child = child.nextSibling) stack.push(child);
+  }
+  return length;
+}
+
+/** Les éléments de `found` qui ne sont dans aucun autre de même sélecteur. */
+function outermost(found: Element[], selector: string): Element[] {
+  return found.filter((el) => !el.parentElement?.closest(selector));
+}
+
+/** Les éléments de `found`, du plus long texte au plus court. */
+function byLength(found: Element[]): Array<{ el: Element; length: number }> {
+  return found.map((el) => ({ el, length: readableLength(el) })).sort((a, b) => b.length - a.length);
+}
+
+/**
+ * Le conteneur de l'article : un `[itemprop=articleBody]` dominant, sinon un
+ * `<article>` de premier niveau qui porte au moins 35 % du texte de la page
+ * et deux fois le suivant, sinon un `<main>` ou un `[role=main]` unique.
+ * `null` sur une page de liste — plusieurs `<article>` sans dominant, qui
+ * portent ensemble au moins la moitié du texte du `<main>` : elle ne désigne
+ * aucun article. Quelques cartes « à lire aussi » en `<article>` sous le
+ * corps (DeepMind) ne font pas une page de liste.
+ */
+function articleContainer(doc: Document): Element | null {
+  const root = doc.documentElement;
+  if (!root) return null;
+  const itemprop = '[itemprop~="articleBody"]';
+  const bodies = byLength(outermost(Array.from(root.querySelectorAll(itemprop)) as Element[], itemprop)).filter((body) => body.length >= ITEMPROP_MIN);
+  if (bodies.length) return bodies[0].length >= DOMINANCE * (bodies[1]?.length ?? 0) ? bodies[0].el : null;
+  const articles = byLength(outermost(Array.from(root.querySelectorAll('article')) as Element[], 'article'));
+  if (articles.length) {
+    const [first, second] = articles;
+    if (first.length > 0 && first.length >= ARTICLE_MIN_SHARE * readableLength(root) && first.length >= DOMINANCE * (second?.length ?? 0)) return first.el;
+  }
+  let main: Element | null = null;
+  for (const selector of ['main', '[role="main"]']) {
+    const found = root.querySelectorAll(selector);
+    if (found.length === 1) { main = found[0] as Element; break; }
+  }
+  if (!main || articles.length < 2) return main;
+  let listed = 0;
+  for (const article of articles) listed += article.length;
+  return listed < LIST_SHARE * readableLength(main) ? main : null;
+}
+
+/**
+ * Une copie du conteneur, remontée jusqu'au titre de l'article (le premier
+ * `<h1>` que la page montre) quand il ne le contient pas et que l'ancêtre
+ * commun grossit peu : c'est là que vivent le chapeau et l'image d'en-tête.
+ */
+function withItsTitle(doc: Document, container: Element): Element {
+  const own = () => container.cloneNode(true) as Element;
+  const memo = new Map<Element, boolean>();
+  const titles = Array.from(doc.querySelectorAll('h1'))
+    .filter((h1) => (h1.textContent || '').trim() && !insideHidden(h1, memo, hiddenOnPage));
+  if (!titles.length || titles.some((h1) => container.contains(h1))) return own();
+  const title = titles[0];
+  let up = container.parentElement;
+  while (up && !up.contains(title)) up = up.parentElement;
+  if (!up || ['body', 'html'].includes(up.tagName.toLowerCase())) return own();
+  // L'ancêtre commun, sans ce qui suit le conteneur : l'en-tête est AVANT le
+  // corps, et ce qui le suit dans l'ancêtre (les commentaires de Clubic, des
+  // vidéos, une lettre) n'est pas de l'article.
+  const path: number[] = [];
+  for (let el: Element = container; el !== up; el = el.parentElement!) path.push(Array.from(el.parentElement!.childNodes).indexOf(el));
+  const copy = up.cloneNode(true) as Element;
+  let node: Node = copy;
+  for (let k = path.length - 1; k >= 0; k--) {
+    const child = node.childNodes[path[k]];
+    while (child.nextSibling) child.nextSibling.remove();
+    node = child;
+  }
+  return readableLength(copy) <= CLIMB_GROWTH * readableLength(container) + CLIMB_SLACK ? copy : own();
+}
+
+/**
+ * Le conteneur de l'article, lu dans la page avant Readability (qui modifie le
+ * document) : une copie, ses blocs, et les phrases que la page certifie.
+ * `null` sans conteneur, ou s'il est masqué.
+ */
+function frameOf(doc: Document, base: string): Frame | null {
+  const found = articleContainer(doc);
+  if (!found || insideHidden(found, new Map(), hiddenOnPage)) return null;
+  const root = withItsTitle(doc, found);
+  const units = unitsOf(root, base, true);
+  if (!units.length) return null;
+  return { root, units, evidence: evidenceOf(doc) };
+}
+
+// ── Les preuves : ce que la page certifie être l'article ─────────────
+
+/** Un objet schema.org de ce type porte l'article. */
+const ARTICLE_TYPE = /article|posting|report/i;
+/** Au-delà, une preuve n'est plus lue (une page faite pour coûter). */
+const EVIDENCE_MAX = 200_000;
+/** Profondeur d'un objet JSON-LD au-delà de laquelle il n'est plus lu. */
+const EVIDENCE_DEPTH = 6;
+/** Les `<meta>` qui résument l'article. */
+const SUMMARY_META = new Set(['og:description', 'description', 'twitter:description']);
+
+/** Les textes d'un objet JSON-LD de type article : `articleBody`, `description`. */
+function ldTexts(data: unknown, out: string[], depth = 0): void {
+  if (!data || typeof data !== 'object' || depth > EVIDENCE_DEPTH) return;
+  if (Array.isArray(data)) {
+    for (const item of data) ldTexts(item, out, depth + 1);
+    return;
+  }
+  const o = data as Record<string, unknown>;
+  const types = ([] as unknown[]).concat(o['@type'] ?? []).map(String);
+  if (types.some((type) => ARTICLE_TYPE.test(type)) || typeof o.articleBody === 'string') {
+    for (const key of ['articleBody', 'description']) if (typeof o[key] === 'string') out.push(o[key] as string);
+  }
+  // Pas `itemListElement` : la liste d'autres billets d'une page n'est pas l'article.
+  for (const key of ['@graph', 'mainEntity', 'mainEntityOfPage']) ldTexts(o[key], out, depth + 1);
+}
+
+const ENTITIES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ' };
+
+/** Les phrases d'un texte brut : retours à la ligne, balises, « fin.Début » collés. */
+function plainSentences(text: string): string[] {
+  const decoded = text
+    .replace(/<[^>]*>/g, '\n')
+    .replace(/&(?:#(\d{1,7})|#x([0-9a-f]{1,6})|([a-z]{2,6}));/gi, (whole, dec, hex, name) => {
+      const code = dec ? parseInt(dec, 10) : hex ? parseInt(hex, 16) : -1;
+      if (code >= 0) return code <= 0x10ffff ? String.fromCodePoint(code) : whole;
+      return ENTITIES[name.toLowerCase()] ?? whole;
+    });
+  return decoded
+    .split(/\r?\n+/)
+    .flatMap((line) => line.replace(/([.!?…:»”"])(?=[\p{Lu}«“])/gu, '$1\n').split('\n'))
+    .flatMap(sentencesOf)
+    .filter(isTracked);
+}
+
+/** Les phrases que la page certifie être l'article (JSON-LD, `<meta>` de résumé), sans doublon. */
+function evidenceOf(doc: Document): string[] {
+  const texts: string[] = [];
+  for (const script of Array.from(doc.querySelectorAll('script'))) {
+    if ((script.getAttribute('type') || '').trim().toLowerCase() !== 'application/ld+json') continue;
+    const raw = (script.textContent || '').trim().replace(/^<!\[CDATA\[|\]\]>$/g, '');
+    if (!raw || raw.length > EVIDENCE_MAX) continue;
+    try { ldTexts(JSON.parse(raw), texts); } catch { /* un JSON-LD illisible ne prouve rien */ }
+  }
+  for (const meta of Array.from(doc.querySelectorAll('meta'))) {
+    const name = (meta.getAttribute('property') || meta.getAttribute('name') || '').trim().toLowerCase();
+    const content = meta.getAttribute('content');
+    if (SUMMARY_META.has(name) && content) texts.push(content);
+  }
+  let left = EVIDENCE_MAX;
+  const sentences = new Set<string>();
+  for (const text of texts) {
+    if (left <= 0) break;
+    const part = text.slice(0, left);
+    left -= part.length;
+    for (const sentence of plainSentences(part)) sentences.add(sentence);
+  }
+  return [...sentences];
+}
+
+// ── La remise ────────────────────────────────────────────────────────
+
+/**
+ * Ce que garde un résultat : ses phrases, ses blocs, son texte normalisé
+ * (`text`), ses images et médias — par leur identité à la taille près
+ * (`imageIdentity`, REG-225) : la photo que le résultat montre en 1200 × 675
+ * n'est pas absente parce que la page la lit en 2400.
+ */
+interface Kept { sentences: Set<string>; blocks: Set<string>; text: KeptText; images: Set<string> }
+
+/**
+ * Le texte normalisé d'un résultat (` mot mot … `), et où s'y lit chaque mot
+ * et chaque paire de mots, relevé à la demande. Chercher un texte ne relit que
+ * les occurrences de l'un de ses mots, jamais tout le texte, et le trouve même
+ * quand son dernier mot y est collé à un voisin (deux `<span>` sans blanc :
+ * « Foire aux questions » suivi de « Contenu… ») :
+ * - quatre mots ou plus : par la plus rare de ses paires de mots intérieurs,
+ *   des mots entiers du résultat (le premier peut aussi y être collé) — mille
+ *   phrases qui commencent pareil ne se relisent pas mille fois l'une l'autre ;
+ * - deux ou trois : par son premier mot ;
+ * - un seul : par ses trois premières lettres.
+ */
+class KeptText {
+  private pairs = new Map<string, number[]>();
+  private words = new Map<string, number[]>();
+  private prefixes = new Map<string, number[]>();
+  private indexed = 0;
+  private seen = 0;
+  constructor(public norm: string) {}
+  append(text: string): void {
+    this.norm += `${text} `;
+  }
+  /** Le texte normalisé `needle` se lit-il dans le résultat (mots entiers ou non) ? */
+  find(needle: string, scan: Scan): boolean {
+    this.extend(scan);
+    const words = needle.split(' ');
+    let at: number[] | undefined;
+    let offset = 0;
+    if (words.length >= 4) {
+      // La plus rare de ses paires de mots entiers (ni le premier ni le dernier).
+      let before = words[0].length + 1;
+      at = [];
+      for (let k = 1; k + 1 < words.length - 1; k++) {
+        const here = this.pairs.get(`${words[k]} ${words[k + 1]}`) ?? [];
+        if (k === 1 || here.length < at.length) { at = here; offset = before; }
+        if (!here.length) break;
+        before += words[k].length + 1;
+      }
+    } else if (words.length >= 2) {
+      at = this.words.get(words[0]);
+    } else {
+      at = this.prefixes.get(needle.slice(0, PREFIX));
+    }
+    for (const position of at ?? []) {
+      // Budget épuisé : lu — la garde n'y touche plus, et s'abstiendra.
+      if (scan.left <= 0) return true;
+      scan.left -= needle.length;
+      const start = position - offset;
+      if (start >= 0 && this.norm.startsWith(needle, start)) return true;
+    }
+    return false;
+  }
+  /** Relève les mots du texte ajouté depuis le dernier relevé. */
+  private extend(scan: Scan): void {
+    if (this.norm.length === this.seen) return;
+    this.seen = this.norm.length;
+    const note = (map: Map<string, number[]>, key: string, position: number) => {
+      const at = map.get(key);
+      if (at) at.push(position);
+      else map.set(key, [position]);
+    };
+    // Un relevé reprend au dernier mot du précédent, déjà relevé : seule sa
+    // paire avec le premier mot ajouté est neuve.
+    let previous = -1;
+    let previousWord = '';
+    const resumed = this.indexed > 0;
+    for (let i = this.norm.indexOf(' ', Math.max(0, this.indexed - 1)); i >= 0 && i < this.norm.length - 1;) {
+      const end = this.norm.indexOf(' ', i + 1);
+      if (end < 0) break;
+      const word = this.norm.slice(i + 1, end);
+      if (previous >= 0) note(this.pairs, `${previousWord} ${word}`, previous);
+      if (previous >= 0 || !resumed) {
+        note(this.words, word, i + 1);
+        note(this.prefixes, word.slice(0, PREFIX), i + 1);
+      }
+      previous = i + 1;
+      previousWord = word;
+      i = end;
+    }
+    scan.left -= this.norm.length - this.indexed;
+    this.indexed = previous >= 0 ? previous : this.norm.length - 1;
+  }
+}
+/** Un mot seul se cherche par ses premières lettres. */
+const PREFIX = 3;
 
 /** L'identité d'une adresse absolue (`imageIdentity`), ou l'adresse elle-même. */
 const sameImage = (address: string) => imageIdentity(address) ?? address;
@@ -1288,105 +1669,80 @@ const sameImage = (address: string) => imageIdentity(address) ?? address;
 function keptOf(root: Element, base: string): Kept {
   const images = new Set<string>();
   for (const img of Array.from(root.querySelectorAll('img')) as Element[]) {
-    const src = absolute(img.getAttribute('src'), base);
-    if (src) images.add(sameImage(src));
+    for (const address of imageAddresses(img, base, false)) images.add(sameImage(address));
+  }
+  for (const media of Array.from(root.querySelectorAll(MEDIA_TAGS)) as Element[]) {
+    for (const address of mediaAddresses(media, base)) images.add(sameImage(address));
   }
   const blocks = blocksOf(root);
-  return { sentences: new Set(blocks.flatMap(sentencesOf)), norm: ` ${normalized(blocks.join(' '))} `, images };
+  return {
+    sentences: new Set(blocks.flatMap(sentencesOf)),
+    blocks: new Set(blocks.map(normalized)),
+    text: new KeptText(` ${normalized(blocks.join(' '))} `),
+    images,
+  };
 }
 
 /**
  * Caractères que la garde peut encore relire en cherchant une phrase dans un
- * texte (`holds`, `placed`). Une phrase se trouve d'abord entière, dans un
+ * texte (`holds`, `placeIn`). Une phrase se trouve d'abord entière, dans un
  * index ; la recherche dans le texte ne sert qu'aux phrases découpées
  * autrement. Sur une page faite pour cela — des milliers de phrases absentes,
  * chacune cherchée dans 2 Mo —, ce budget épuisé, la garde s'abstient :
- * le résultat reste celui de la passe nettoyée.
+ * le résultat reste celui de Readability.
  */
 interface Scan { left: number }
 /** Le budget : ce multiple du texte lu (conteneur et résultat), plus une part fixe pour les petites pages. */
 const SCAN_FACTOR = 32;
 const SCAN_FLOOR = 8_000_000;
 
-/** `reads`, en décomptant du budget ce que la recherche a parcouru. */
+/**
+ * `needle` se lit-il dans `haystack`, en décomptant du budget ce que la
+ * recherche a parcouru ? Sans exiger des mots entiers : deux `<span>` collés
+ * (« Foire aux questions » puis « Contenu… ») se lisent d'un seul tenant dans
+ * le résultat, et un bloc qu'on y croirait absent serait remis en double.
+ */
 function scanned(haystack: string, needle: string, scan: Scan): boolean {
-  const found = haystack.indexOf(` ${needle} `);
+  const found = haystack.indexOf(needle);
   scan.left -= found < 0 ? haystack.length : found + needle.length;
   return found >= 0;
 }
 
-/** Le résultat lit-il cette phrase ? Budget épuisé : oui — la garde n'y touche plus. */
-function holds(kept: Kept, sentence: string, scan: Scan): boolean {
-  if (kept.sentences.has(sentence)) return true;
+/** Le résultat lit-il ce texte normalisé ? Budget épuisé : oui — la garde n'y touche plus. */
+function readsWithin(kept: Kept, text: string, scan: Scan): boolean {
+  if (kept.blocks.has(text)) return true;
   if (scan.left <= 0) return true;
-  return scanned(kept.norm, sentence, scan);
+  return kept.text.find(text, scan);
 }
 
-/**
- * Le bloc du conteneur où commence le résultat : parmi ceux qui portent sa
- * première phrase, celui qui ouvre la plus longue suite de blocs que le
- * résultat garde. Une phrase répétée (un chapeau repris en premier paragraphe,
- * un titre répété dans la page) ne déplace donc pas l'ouverture. -1 si aucun.
- */
-function openingIn(frame: FrameUnits, opening: string, missing: (unit: Unit) => boolean): number {
-  let best = -1;
-  let bestRun = -1;
-  let candidates = 0;
-  for (let i = 0; i < frame.length && candidates < OPENING_CANDIDATES; i++) {
-    if (!reads(frame[i].norm, opening)) continue;
-    candidates++;
-    const end = Math.min(frame.length, i + OPENING_LOOKAHEAD);
-    let j = i;
-    while (j < end && !missing(frame[j])) j++;
-    // Une suite entière : c'est l'ouverture, sans lire plus loin.
-    if (j === end) return i;
-    if (j - i > bestRun) { best = i; bestRun = j - i; }
-  }
-  return best;
-}
-
-/** La première phrase suivie de `root`, sans lire au-delà. */
-function firstTracked(root: Element): string | undefined {
-  const stack: Element[] = [root];
-  while (stack.length) {
-    const el = stack.pop()!;
-    const tag = el.tagName.toLowerCase();
-    if (el !== root && (UNIT_TAGS.has(tag) || looseText(el))) {
-      const found = blocksOf(el).flatMap(sentencesOf).find(isTracked);
-      if (found) return found;
-      continue;
-    }
-    if (UNREAD.has(tag)) continue;
-    for (let child = el.lastElementChild; child; child = child.previousElementSibling) stack.push(child);
-  }
-  return undefined;
+/** Le résultat lit-il cette phrase ? */
+function holds(kept: Kept, sentence: string, scan: Scan): boolean {
+  return kept.sentences.has(sentence) || readsWithin(kept, sentence, scan);
 }
 
 /** Longueur du texte brut du conteneur — pour le budget, sans normaliser. */
-function frameLength(frame: FrameUnits): number {
+function frameLength(units: Unit[]): number {
   let length = 0;
-  for (const unit of frame) length += unit.size;
+  for (const unit of units) length += unit.size;
   return length;
 }
 
 /**
  * Où se lisent, dans le conteneur, chaque phrase, chaque bloc court (son
- * texte entier) et chaque image, relevé une fois. `placeable` et `shortBlocks`
- * ne comptent pas les blocs de la signature de l'auteur, que la garde ne remet
- * jamais ; `all` et `allBlocks` les comptent (pour situer le résultat).
+ * texte entier) et chaque image, relevé une fois. `placeable` ne compte pas
+ * les blocs exclus (signature, commentaires), que la garde ne remet jamais ;
+ * `all`, `allBlocks` et `images` les comptent (pour situer le résultat).
  */
 interface FrameIndex {
   placeable: Map<string, number[]>;
   all: Map<string, number[]>;
-  shortBlocks: Map<string, number[]>;
   allBlocks: Map<string, number[]>;
   images: Map<string, number[]>;
 }
 
-function indexOf(frame: FrameUnits): FrameIndex {
+function indexOf(units: Unit[]): FrameIndex {
   const placeable = new Map<string, number[]>();
   const all = new Map<string, number[]>();
-  const shortBlocks = new Map<string, number[]>();
   const allBlocks = new Map<string, number[]>();
   const images = new Map<string, number[]>();
   const note = (map: Map<string, number[]>, key: string, i: number) => {
@@ -1394,61 +1750,165 @@ function indexOf(frame: FrameUnits): FrameIndex {
     if (!at) map.set(key, [i]);
     else if (at[at.length - 1] !== i) at.push(i);
   };
-  frame.forEach((unit, i) => {
+  units.forEach((unit, i) => {
     for (const s of unit.tracked) {
       note(all, s, i);
-      if (!unit.byline) note(placeable, s, i);
+      if (!unit.excluded) note(placeable, s, i);
     }
     if (!unit.tracked.length) {
       const text = unit.norm.trim();
-      if (text) {
-        note(allBlocks, text, i);
-        if (!unit.byline) note(shortBlocks, text, i);
-      }
+      if (text) note(allBlocks, text, i);
     }
-    if (!unit.byline) for (const variants of unit.images) for (const address of variants) note(images, address, i);
+    for (const variants of unit.images) for (const address of variants) note(images, sameImage(address), i);
   });
-  return { placeable, all, shortBlocks, allBlocks, images };
+  return { placeable, all, allBlocks, images };
+}
+
+/** Le premier bloc du conteneur, hors des blocs exclus, qui lit la phrase `needle` ; -1 si aucun. */
+function placeIn(units: Unit[], index: FrameIndex, needle: string, scan: Scan): number {
+  const known = index.placeable.get(needle)?.[0];
+  if (known !== undefined) return known;
+  for (let i = 0; i < units.length; i++) {
+    if (scan.left <= 0) return -1;
+    if (!units[i].excluded && scanned(units[i].norm, needle, scan)) return i;
+  }
+  return -1;
+}
+
+/** Au-delà de cette part de texte en liens, un bloc n'est remis que sur preuve. */
+const LINK_SHARE_MAX = 0.5;
+
+/** Le bloc est-il fait à plus de moitié de liens (ou dans un lien) ? */
+function mostlyLinks(el: Element): boolean {
+  if (el.closest('a')) return true;
+  let all = 0;
+  let linked = 0;
+  const stack: Array<[Node, boolean]> = [[el, false]];
+  while (stack.length) {
+    const [node, inLink] = stack.pop()!;
+    if (node.nodeType === 3) {
+      const length = (node.textContent || '').replace(/\s+/g, ' ').trim().length;
+      all += length;
+      if (inLink) linked += length;
+      continue;
+    }
+    if (node.nodeType !== 1 || UNREAD.has((node as Element).tagName.toLowerCase())) continue;
+    const link = inLink || (node as Element).tagName.toLowerCase() === 'a';
+    for (let child = node.firstChild; child; child = child.nextSibling) stack.push([child, link]);
+  }
+  return all > 0 && linked > LINK_SHARE_MAX * all;
+}
+
+/** Ce que Readability retire d'un bloc, et que la copie remise ne porte donc pas non plus. */
+const NOT_REMITTED = 'script, style, noscript, template, button, input, select, textarea, label, link, meta, dialog, form, object, embed';
+/** Attributs de présentation que Readability retire (`_cleanStyles`), et la classe (`_cleanClasses`). */
+const PRESENTATION = ['class', 'style', 'align', 'background', 'bgcolor', 'border', 'cellpadding', 'cellspacing', 'frame', 'hspace', 'rules', 'valign', 'vspace'];
+
+/** Un `src` d'image qui ne montre rien : absent, cadre `data:` non base64, ou petit `data:` base64. */
+function placeholderImage(src: string | null): boolean {
+  return isPlaceholderSource(src) || (/^\s*data:/i.test(src!) && src!.length < 200);
 }
 
 /**
- * Le premier bloc du conteneur, entre `from` (inclus) et `to` (exclu) et hors
- * de la signature de l'auteur, qui lit la phrase `needle` ; -1 si aucun.
+ * La copie d'un bloc de la page, nettoyée comme Readability nettoie le sien :
+ * sans script, contrôle ni voile, sans ce que la page masque, sans classe ni
+ * style (une classe de masquage de la page masquerait le texte dans le
+ * lecteur), adresses absolues, image paresseuse résolue (`_fixLazyImages`).
  */
-function placeIn(frame: FrameUnits, index: FrameIndex, needle: string, from: number, to: number, scan: Scan): number {
-  const known = index.placeable.get(needle)?.find((i) => i >= from && i < to);
-  if (known !== undefined) return known;
-  for (let i = from; i < to; i++) {
-    if (scan.left <= 0) return -1;
-    if (!frame[i].byline && scanned(frame[i].norm, needle, scan)) return i;
+function remittable(el: Element, base: string): Element {
+  const copy = el.cloneNode(true) as Element;
+  for (const gone of Array.from(copy.querySelectorAll(`${NOT_REMITTED}, [${VEIL_ATTR}]`)) as Element[]) gone.remove();
+  // Ni ce que la page masque, ni un compteur de commentaires glissé dans le bloc.
+  for (const inner of Array.from(copy.querySelectorAll('*')) as Element[]) if (hiddenOnPage(inner) || isComments(inner)) inner.remove();
+  for (const node of [copy, ...Array.from(copy.querySelectorAll('*')) as Element[]]) {
+    // Le repli d'un média ne se montre pas (« CodePen Embed Fallback », « Your
+    // browser does not support the audio element ») : seules ses sources restent.
+    if (node.matches(MEDIA_TAGS)) {
+      for (const child of Array.from(node.childNodes)) {
+        if (child.nodeType !== 1 || !MEDIA_PARTS.has((child as Element).tagName.toLowerCase())) child.remove();
+      }
+    }
+    for (const name of PRESENTATION) node.removeAttribute(name);
+    for (const name of ['href', 'src', 'poster']) {
+      const value = node.getAttribute(name);
+      const resolved = value && !/^\s*#/.test(value) ? absolute(value, base) : null;
+      if (resolved) node.setAttribute(name, resolved);
+    }
+    const srcset = node.getAttribute('srcset');
+    if (srcset) {
+      node.setAttribute('srcset', srcset.split(',').map((candidate) => {
+        const [address, ...size] = candidate.trim().split(/\s+/);
+        return [absolute(address, base) ?? address, ...size].join(' ');
+      }).join(', '));
+    }
+    if (node.tagName.toLowerCase() === 'img' && placeholderImage(node.getAttribute('src'))) {
+      for (const attr of Array.from(node.attributes)) {
+        if (!attr.name.startsWith('data-')) continue;
+        const candidates = srcsetAddresses(attr.value);
+        if (!candidates.length || !IMAGE_FILE.test(candidates[0])) continue;
+        const resolved = absolute(candidates[0], base);
+        if (!resolved) continue;
+        node.setAttribute('src', resolved);
+        break;
+      }
+    }
   }
-  return -1;
+  return copy;
 }
 
 /** Blocs de texte terminaux : ceux qu'un bloc remis perd quand le résultat les lit déjà. */
 const LEAF_BLOCKS = 'p, li, figcaption, h1, h2, h3, h4, h5, h6, blockquote, dt, dd, td, th, caption, div';
 
+/** Un bloc enfant qui porte encore quelque chose à lire (un bloc vidé ne compte plus). */
+function readableBlock(child: Element): boolean {
+  return BLOCKS.has(child.tagName.toLowerCase()) && (!!(child.textContent || '').trim() || !!child.querySelector('img, ' + MEDIA_TAGS));
+}
+
 /**
  * Retire de `el` (jamais `el` lui-même) chaque bloc terminal que le résultat
- * lisait déjà (RG-02 : la légende d'une image perdue, une entrée de liste déjà
- * lue). Un paragraphe qui mêle une phrase lue et une phrase perdue reste
- * entier : un doublon plutôt qu'une perte.
+ * lit déjà (RG-02 : la légende d'une image perdue, une entrée de liste déjà
+ * lue), des plus profonds aux englobants — une entrée dont les sous-entrées
+ * sont lues est jugée sur son propre texte (une bibliographie de Wikipédia) —,
+ * puis chaque image que le résultat montre déjà (la figure remise pour sa
+ * légende n'en double pas la photo). Un paragraphe qui mêle une phrase lue et
+ * une phrase perdue reste entier : un doublon plutôt qu'une perte.
  */
-function withoutWhatIsRead(el: Element, base: string, alreadyRead: (unit: Unit) => boolean): void {
-  for (const leaf of Array.from(el.querySelectorAll(LEAF_BLOCKS)) as Element[]) {
-    if (!leaf.isConnected || Array.from(leaf.children).some((child) => BLOCKS.has(child.tagName.toLowerCase()))) continue;
-    if (alreadyRead(unitOf(leaf, base, false))) leaf.remove();
+function withoutWhatIsRead(el: Element, base: string, alreadyRead: (unit: Unit) => boolean, images: Set<string>): void {
+  const leaves = Array.from(el.querySelectorAll(LEAF_BLOCKS)) as Element[];
+  for (let i = leaves.length - 1; i >= 0; i--) {
+    const leaf = leaves[i];
+    if (!el.contains(leaf)) continue;
+    if (!Array.from(leaf.children).some(readableBlock)) {
+      if (alreadyRead(unitOf(leaf, base, false))) leaf.remove();
+      continue;
+    }
+    // Un bloc mêlé (« Les alliés : » puis la légende en paragraphes) : son
+    // propre texte, hors de ses blocs, sort s'il est déjà lu.
+    const own = Array.from(leaf.childNodes).filter((node) => node.nodeType === 3
+      || (node.nodeType === 1 && !BLOCKS.has((node as Element).tagName.toLowerCase()) && !(node as Element).matches('img, ' + MEDIA_TAGS) && !(node as Element).querySelector('img, ' + MEDIA_TAGS)));
+    const text = own.map((node) => node.textContent || '').join('').replace(/\s+/g, ' ').trim();
+    if (text && alreadyRead(new Unit(leaf, [text], []))) for (const node of own) node.parentNode?.removeChild(node);
+  }
+  for (const img of Array.from(el.querySelectorAll('img')) as Element[]) {
+    if (!imageAddresses(img, base, false).some((address) => images.has(sameImage(address)))) continue;
+    const holder = img.parentElement?.tagName.toLowerCase() === 'picture' && img.parentElement !== el ? img.parentElement : img;
+    if (holder !== el) holder.remove();
   }
 }
 
 /**
  * Verse les blocs remis dans le résultat, chacun à sa place dans l'ordre de
  * la page (RG-03) : avant le premier bloc du résultat qui le suit dans le
- * conteneur, sinon après le dernier qui le précède.
+ * conteneur, sinon après le dernier qui le précède ; en tête du résultat
+ * quand aucun bloc du résultat ne se lit dans le conteneur. Un bloc du
+ * résultat qu'on ne retrouve pas dans le conteneur (une date, un texte que
+ * Readability a retouché) suit le bloc qui le suit : rien ne s'insère entre
+ * eux (la date d'une carte reste sur sa carte, Docker).
  */
-function placeInResult(root: Element, picked: Array<{ unit: Unit; place: number }>, index: FrameIndex, base: string): void {
+function placeInResult(root: Element, picked: Array<{ el: Element; place: number }>, index: FrameIndex, base: string): void {
   const page = root.children.length === 1 ? root.firstElementChild! : root;
-  const own: Array<{ el: Element; place: number }> = [];
+  // Chaque bloc du résultat et sa place dans le conteneur (-1 : introuvable), dans l'ordre du résultat.
+  const placed: Array<{ el: Element; place: number }> = [];
   for (const unit of unitsOf(page, base)) {
     let place = -1;
     for (const s of unit.tracked) {
@@ -1458,118 +1918,187 @@ function placeInResult(root: Element, picked: Array<{ unit: Unit; place: number 
     if (place < 0 && !unit.tracked.length) place = index.allBlocks.get(unit.norm.trim())?.[0] ?? -1;
     if (place < 0) {
       for (const addresses of unit.images) {
-        const at = index.images.get(addresses[0]);
-        if (at) { place = at[0]; break; }
+        const at = addresses.map((address) => index.images.get(sameImage(address))?.[0]).find((i) => i !== undefined);
+        if (at !== undefined) { place = at; break; }
       }
     }
-    if (place >= 0) own.push({ el: unit.el, place });
+    placed.push({ el: unit.el, place });
   }
-  /** Le dernier bloc versé après un bloc du résultat : le suivant va après lui. */
-  let tail: { after: Element; inserted: Element } | null = null;
-  for (const { unit, place } of picked) {
-    const html = unit.el.outerHTML;
-    const next = own.find((mine) => mine.place > place);
-    if (next) {
-      next.el.insertAdjacentHTML('beforebegin', html);
+  // Les blocs situés, chacun avec ce qui le précède et le suit d'introuvable :
+  // on insère avant le premier, ou après le dernier.
+  const own: Array<{ place: number; lead: Element; trail: Element }> = [];
+  placed.forEach(({ place }, r) => {
+    if (place < 0) return;
+    let first = r;
+    while (first > 0 && placed[first - 1].place < 0) first--;
+    let last = r;
+    while (last + 1 < placed.length && placed[last + 1].place < 0) last++;
+    own.push({ place, lead: placed[first].el, trail: placed[last].el });
+  });
+  // Par place croissante : le premier du résultat (le plus petit rang) parmi
+  // ceux qui suivent une place, le dernier parmi ceux qui la précèdent.
+  const sorted = own.map((mine, rank) => ({ place: mine.place, rank })).sort((a, b) => a.place - b.place);
+  const firstAfter = new Array<number>(sorted.length);
+  const lastUpTo = new Array<number>(sorted.length);
+  for (let k = sorted.length - 1; k >= 0; k--) firstAfter[k] = Math.min(sorted[k].rank, k + 1 < sorted.length ? firstAfter[k + 1] : Infinity);
+  for (let k = 0; k < sorted.length; k++) lastUpTo[k] = Math.max(sorted[k].rank, k > 0 ? lastUpTo[k - 1] : -Infinity);
+  /** Le rang du premier élément de `sorted` dont la place dépasse `place`. */
+  const boundary = (place: number) => {
+    let lo = 0;
+    let hi = sorted.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (sorted[mid].place > place) hi = mid;
+      else lo = mid + 1;
+    }
+    return lo;
+  };
+  /** Le dernier bloc versé après un bloc du résultat (ou en tête) : le suivant va après lui. */
+  let tail: { after: Element | null; inserted: Element } | null = null;
+  for (const { el, place } of picked) {
+    const html = el.outerHTML;
+    const k = boundary(place);
+    if (k < sorted.length) {
+      own[firstAfter[k]].lead.insertAdjacentHTML('beforebegin', html);
       continue;
     }
-    const previous = [...own].reverse().find((mine) => mine.place <= place);
-    const ref: Element | null = tail && tail.after === previous?.el ? tail.inserted : previous?.el ?? null;
+    const previous = k > 0 ? own[lastUpTo[k - 1]].trail : null;
+    const ref: Element | null = tail && tail.after === previous ? tail.inserted : previous;
     if (ref) {
       ref.insertAdjacentHTML('afterend', html);
-      tail = { after: previous!.el, inserted: ref.nextElementSibling! };
+      tail = { after: previous, inserted: ref.nextElementSibling! };
     } else {
-      page.insertAdjacentHTML('beforeend', html);
+      page.insertAdjacentHTML('afterbegin', html);
+      tail = { after: null, inserted: page.firstElementChild! };
     }
   }
 }
 
-/** Le résultat de la passe nettoyée, sans perte de ce que garde le témoin (voir plus haut). */
-function withoutLoss(strict: Pass, witness: () => string | null, parse: (html: string) => Element, base: string): ExtractedContent {
-  const frame = strict.frame;
-  if (!frame?.length || !strict.affordable) return strict.article;
-  const root = parse(strict.article.content);
+/** Les premiers et les derniers mots d'une phrase retouchée, que le résultat lit encore. */
+const RETOUCH_WORDS = 5;
+
+/** Les premiers mots du titre qui reconnaissent son `<h1>`. */
+const TITLE_WORDS = 5;
+
+/**
+ * Le `<h1>` du titre, que le lecteur affiche à part : il commence par les
+ * premiers mots du titre, son dernier mot mis à part — Readability coupe un
+ * titre trop long (« … après avoir é... », Les Numériques).
+ */
+function isTitle(unit: Unit, title: string): boolean {
+  if (unit.el.tagName.toLowerCase() !== 'h1') return false;
+  const own = unit.norm.trim();
+  const words = title.trim().split(' ').filter(Boolean);
+  if (!own || !words.length) return false;
+  const opening = words.slice(0, Math.max(1, Math.min(TITLE_WORDS, words.length - 1))).join(' ');
+  return own.startsWith(opening) || reads(title, own);
+}
+
+/** Le résultat de Readability, sans perte de ce que le conteneur de la page porte (voir plus haut). */
+function withoutLoss(pass: Pass, parse: (html: string) => Element, base: string): ExtractedContent {
+  const frame = pass.frame;
+  if (!frame) return pass.article;
+  const { units } = frame;
+  const root = parse(pass.article.content);
   const kept = keptOf(root, base);
-  const title = ` ${normalized(strict.article.title)} `;
-  const opening = firstTracked(root);
-  if (!opening) return strict.article;
-  const scan: Scan = { left: SCAN_FACTOR * (kept.norm.length + frameLength(frame)) + SCAN_FLOOR };
-  // Ce que le résultat n'a pas (le titre, que le lecteur affiche à part, mis à part).
-  const absent = (s: string) => !holds(kept, s, scan) && !reads(title, s);
-  const absentImage = (addresses: string[]) => !addresses.some((src) => kept.images.has(sameImage(src)));
-  const missing = (unit: Unit) => unit.tracked.some(absent) || unit.images.some(absentImage);
-  const at = openingIn(frame, opening, missing);
-  if (at < 0) return strict.article;
-  const short = normalizedLength(strict.textContent) < READABILITY_CHAR_THRESHOLD;
-  // Rien d'absent à l'endroit visé : pas de témoin, pas de passe de plus.
-  if (!frame.slice(0, at).some(missing) && !(short && frame.slice(at + 1).some(missing))) return strict.article;
-  const html = witness();
-  if (!html) return strict.article;
-  const units = unitsOf(parse(html), base);
-  // Le témoin englobe-t-il le résultat ? Alors ce qui précède son ouverture est l'en-tête.
-  const anchor = units.findIndex((unit) => reads(unit.norm, opening));
-  const index = indexOf(frame);
-  // Ce que lisait le résultat avant toute remise (RG-02).
-  const before: Kept = { sentences: new Set(kept.sentences), norm: kept.norm, images: new Set(kept.images) };
-  /** Le bloc est-il tout entier déjà lu (par `reader`), ou vide ? */
-  const readBy = (reader: Kept) => (unit: Unit) => {
-    if (unit.tracked.some((s) => !holds(reader, s, scan) && !reads(title, s))) return false;
-    if (unit.images.some((addresses) => !addresses.some((src) => reader.images.has(sameImage(src))))) return false;
+  const title = ` ${normalized(pass.article.title)} `;
+  const scan: Scan = { left: SCAN_FACTOR * (kept.text.norm.length + frameLength(units)) + SCAN_FLOOR };
+  const index = indexOf(units);
+  // Ce que `reader` lit (le titre, que le lecteur affiche à part, compris).
+  const sentenceRead = (reader: Kept, s: string) => reads(title, s) || holds(reader, s, scan);
+  const textRead = (reader: Kept, unit: Unit) => {
+    if (unit.tracked.length) return unit.tracked.every((s) => sentenceRead(reader, s));
     const text = unit.norm.trim();
-    return !text ? !unit.images.length : unit.tracked.length > 0 || reads(reader.norm, text) || reads(title, text);
+    return !text || reads(title, text) || readsWithin(reader, text, scan);
   };
-  const read = readBy(kept);
-  /** Où le bloc du témoin se lit dans le conteneur, entre `from` et `to` ; -1 s'il n'y est pas tout entier. */
-  const placeOf = (unit: Unit, from: number, to: number) => {
-    const places: number[] = [];
-    for (const s of unit.tracked.filter(absent)) places.push(placeIn(frame, index, s, from, to, scan));
-    for (const addresses of unit.images.filter(absentImage)) places.push(index.images.get(addresses[0])?.find((i) => i >= from && i < to) ?? -1);
-    // Un bloc court, sans phrase suivie absente : un bloc du conteneur au même
-    // texte exactement (« by Brad Bourque » ne se place pas dans « See all by
-    // Brad Bourque »).
-    if (!places.length) places.push(index.shortBlocks.get(unit.norm.trim())?.find((i) => i >= from && i < to) ?? -1);
-    return places.some((place) => place < 0) ? -1 : Math.min(...places);
+  const imagesRead = (reader: Kept, unit: Unit) => unit.images.every((variants) => variants.some((address) => reader.images.has(sameImage(address))));
+  const fullyRead = (reader: Kept) => (unit: Unit) => textRead(reader, unit) && imagesRead(reader, unit);
+
+  // Les blocs que le résultat lit : tout le texte, ou un paragraphe retouché
+  // (plus bas) — un bloc d'au moins 25 caractères est une borne du corps lu.
+  // Jugés à la demande : un bloc court n'est cherché que s'il est candidat
+  // (coût).
+  const textMemo: Array<boolean | undefined> = [];
+  const text = (i: number) => textMemo[i] ??= textRead(kept, units[i]);
+  // Retouché : un paragraphe (pas une liste, un tableau, une figure, dont les
+  // entrées lues sont ôtées de la copie) dont le résultat lit au moins la
+  // moitié des phrases, et le début et la fin de chacune des autres — une
+  // phrase que Readability a touchée en son milieu (un appel de note retiré).
+  // Une phrase dont le début ou la fin ne se lit pas est perdue : le
+  // paragraphe revient.
+  const nearlyRead = (s: string) => {
+    const words = s.split(' ');
+    return words.length > RETOUCH_WORDS
+      && readsWithin(kept, words.slice(0, RETOUCH_WORDS).join(' '), scan) && readsWithin(kept, words.slice(-RETOUCH_WORDS).join(' '), scan);
   };
-  /**
-   * La suite du témoin à remettre, entre les blocs `first` (inclus) et `last`
-   * (exclu), d'un côté de l'ouverture : du premier au dernier bloc qui porte
-   * une phrase suivie ou une image absente et se lit dans le conteneur
-   * (RG-01), les blocs courts d'entre eux compris — sauf ce qui est déjà lu,
-   * hors du conteneur, ou dans la signature de l'auteur (RG-04).
-   */
-  const run = (first: number, last: number, from: number, to: number) => {
-    const picked: Array<{ unit: Unit; place: number }> = [];
-    let start = -1;
-    let end = -1;
-    for (let i = first; i < last; i++) {
-      if (missing(units[i]) && placeOf(units[i], from, to) >= 0) {
-        if (start < 0) start = i;
-        end = i;
-      }
+  const retouched = (i: number) => {
+    const unit = units[i];
+    if (unit.tracked.length < 2 || text(i) || unit.el.querySelector(LEAF_BLOCKS)) return false;
+    const unread = unit.tracked.filter((s) => !sentenceRead(kept, s));
+    return unread.length * 2 <= unit.tracked.length && unread.every(nearlyRead);
+  };
+  const bound = (i: number) => units[i].norm.trim().length >= TRACKED_MIN && (text(i) || retouched(i));
+  const first = units.findIndex((_, i) => bound(i));
+  let last = -1;
+  for (let i = units.length - 1; i >= 0 && last < 0; i--) if (bound(i)) last = i;
+
+  // Le gabarit du corps lu : les parents de ses blocs, leur balise et leur classe.
+  const shape = (el: Element | null) => {
+    const name = (el?.getAttribute('class') || '').trim();
+    return el && name ? `${el.tagName.toLowerCase()}.${name}` : null;
+  };
+  const parents = new Set<Element | null>();
+  const shapes = new Set<string>();
+  for (let i = first; first >= 0 && i <= last; i++) {
+    if (!bound(i)) continue;
+    parents.add(units[i].el.parentElement);
+    const own = shape(units[i].el.parentElement);
+    if (own) shapes.add(own);
+  }
+  const short = normalizedLength(pass.textContent) < READABILITY_CHAR_THRESHOLD;
+
+  // Les blocs que la page certifie (PREUVE).
+  const proven = new Set<number>();
+  for (const s of frame.evidence) {
+    if (sentenceRead(kept, s)) continue;
+    const at = placeIn(units, index, s, scan);
+    if (at >= 0) proven.add(at);
+  }
+
+  const wanted: number[] = [];
+  for (let i = 0; i < units.length; i++) {
+    const unit = units[i];
+    if (unit.excluded || isTitle(unit, title)) continue;
+    if (!proven.has(i)) {
+      if (first < 0) continue;
+      const parent = unit.el.parentElement;
+      const placed = i <= last || short || parents.has(parent) || shapes.has(shape(parent) ?? '');
+      if (!placed || mostlyLinks(unit.el)) continue;
     }
-    for (let i = start; start >= 0 && i <= end; i++) {
-      const unit = units[i];
-      if (read(unit)) continue;
-      const place = placeOf(unit, from, to);
-      if (place < 0) continue;
-      picked.push({ unit, place });
-      // Un bloc remis est lu : son double plus loin (un chapeau doublé pour mobile) ne revient pas.
-      for (const s of unit.tracked) kept.sentences.add(s);
-      for (const addresses of unit.images) kept.images.add(sameImage(addresses[0]));
-      kept.norm += `${unit.norm.trim()} `;
-    }
-    return picked;
-  };
-  const picked = [
-    ...(anchor >= 0 ? run(0, anchor, 0, at) : []),
-    ...(short ? run(anchor + 1, units.length, at + 1, frame.length) : []),
-  ];
+    if ((text(i) && imagesRead(kept, unit)) || retouched(i)) continue;
+    wanted.push(i);
+  }
   // Budget épuisé en chemin : la garde s'abstient en entier plutôt qu'à moitié.
-  if (!picked.length || scan.left <= 0) return strict.article;
-  const readBefore = readBy(before);
-  for (const { unit } of picked) withoutWhatIsRead(unit.el, base, readBefore);
+  if (!wanted.length || scan.left <= 0) return pass.article;
+
+  const picked: Array<{ el: Element; place: number }> = [];
+  const read = fullyRead(kept);
+  for (const i of wanted) {
+    // Un bloc remis est lu : son double plus loin (un chapeau écrit pour deux mises en page) ne revient pas.
+    if (read(units[i])) continue;
+    const copy = remittable(units[i].el, base);
+    withoutWhatIsRead(copy, base, read, kept.images);
+    const left = unitOf(copy, base, false);
+    if ((!left.norm.trim() && !left.images.length) || read(left)) continue;
+    for (const s of left.tracked) kept.sentences.add(s);
+    kept.blocks.add(left.norm.trim());
+    for (const addresses of left.images) for (const address of addresses) kept.images.add(sameImage(address));
+    kept.text.append(left.norm.trim());
+    picked.push({ el: copy, place: i });
+  }
+  if (!picked.length || scan.left <= 0) return pass.article;
   placeInResult(root, picked, index, base);
-  return { ...strict.article, content: root.innerHTML, length: (root.textContent || '').length };
+  return { ...pass.article, content: root.innerHTML, length: (root.textContent || '').length };
 }
 
 // ── Doublons (1.9.0, REG-225, REG-226) ──────────────────────────────
@@ -1980,39 +2509,36 @@ async function extractOnce(url: string): Promise<ExtractedContent> {
  * Le contenu rendu n'est PAS assaini : `extractOnce` le fait.
  */
 export function extractFromPage(url: string, html: string, guard = true): ExtractedContent {
-  const strict = pagePass(url, html, { mode: 'strip', frame: true });
+  const strict = pagePass(url, html, { frame: guard });
   if (!strict) throw new NoContentError();
-  if (!guard) return onceEach(strict.article, url);
-  // La garde de non-perte (REG-220, voir le serveur).
-  const witness = () => pagePass(url, html, { mode: 'raw', single: true, threshold: WITNESS_CHAR_THRESHOLD })?.article.content ?? null;
-  // La garde ne fait jamais échouer une extraction (voir le serveur).
+  // La garde de non-perte (REG-229, voir le serveur). Elle ne fait jamais
+  // échouer une extraction (voir le serveur).
   let article: ExtractedContent;
   try {
-    article = withFragments((parse) => withoutLoss(strict, witness, parse, url));
+    article = withFragments((parse) => withoutLoss(strict, parse, url));
   } catch {
     article = strict.article;
+  } finally {
+    // La copie du conteneur est vidée : une `<video>` la retiendrait en mémoire (`parsedDocument.ts`).
+    strict.frame?.root.replaceChildren();
   }
   // Puis ses doublons qui se suivent (REG-225, REG-226).
   return onceEach(article, url);
 }
 
-/** Une passe d'extraction, et ce qu'elle a mesuré de la page (voir le serveur). */
-interface Pass { article: ExtractedContent; textContent: string; frame: FrameUnits | null; affordable: boolean }
+/** Une passe d'extraction, et ce qu'elle a mesuré de la page avant Readability (voir le serveur). */
+interface Pass { article: ExtractedContent; textContent: string; frame: Frame | null }
 
 interface PassOptions {
-  /** `strip` : nettoyage et réunion avant toute passe ; `raw` : la page intacte (le témoin). */
-  mode: 'strip' | 'raw';
+  /** Mesurer le conteneur de l'article (`frameOf`), avant Readability. */
   frame?: boolean;
-  single?: boolean;
-  threshold?: number;
 }
 
 function pagePass(url: string, html: string, options: PassOptions): Pass | null {
-  const { mode, threshold = 500 } = options;
   const load = () => {
     const parsed = new DOMParser().parseFromString(html, 'text/html');
-    // Images paresseuses d'abord : leurs adresses `data-src` relatives sont
-    // ensuite résolues avec les autres (A1).
+    // Images et médias paresseux d'abord : leurs adresses `data-src` relatives
+    // sont ensuite résolues avec les autres (A1).
     resolveLazyImages(parsed.documentElement);
     // Les contrôles posés dans du code deviennent texte (REG-219).
     keepCodeControlsAsText(parsed.documentElement);
@@ -2020,34 +2546,28 @@ function pagePass(url: string, html: string, options: PassOptions): Pass | null 
     return parsed;
   };
   const clean = (parsed: Document) => {
-    if (mode === 'strip') {
-      // Les blocs étrangers à l'article sortent avant toute passe (M-04).
-      stripBoilerplate(parsed.documentElement);
-      // Puis le corps réparti en blocs cousins est réuni (troisième round).
-      joinSplitBody(parsed.documentElement);
-    }
+    // Les blocs étrangers à l'article sortent avant toute passe (M-04).
+    stripBoilerplate(parsed.documentElement);
+    // Puis le corps réparti en blocs cousins est réuni (troisième round).
+    joinSplitBody(parsed.documentElement);
     return parsed;
   };
 
   // Extract readable content. Chaque document est vidé ensuite : Chrome le
   // garderait sinon en mémoire s'il porte une vidéo (`parsedDocument.ts`).
   let result: ReturnType<Readability['parse']>;
-  const doc = load();
-  // Le coût de lecture de la page intacte, puis nettoyée (RG-05, voir le serveur).
-  const intactCost = options.frame ? readingCost(doc) : 0;
-  clean(doc);
-  const affordable = !options.frame || intactCost <= WITNESS_COST_FLOOR || intactCost <= WITNESS_MAX_COST_RATIO * readingCost(doc);
+  const doc = clean(load());
   let mainLength: number | null = null;
-  let frame: FrameUnits | null = null;
+  let frame: Frame | null = null;
   try {
     // Mesurés AVANT Readability, qui modifie le document qu'il lit.
-    mainLength = options.single ? null : mainContainerTextLength(doc);
-    frame = options.frame ? frameOf(findMainContainer(doc), url) : null;
+    mainLength = mainContainerTextLength(doc);
+    frame = options.frame ? frameOf(doc, url) : null;
     // 500, la valeur par défaut de Readability et celle de la route serveur
     // (`READABILITY_CHAR_THRESHOLD`, `server/extract.ts`, qui dit pourquoi) :
     // à 50, une courte section restée après la première passe passait pour
-    // l'article entier (L-04). Le témoin lit à 50, comme la 1.8.0.
-    result = new Readability(doc, { charThreshold: threshold }).parse();
+    // l'article entier (L-04).
+    result = new Readability(doc, { charThreshold: READABILITY_CHAR_THRESHOLD }).parse();
   } finally {
     releaseDocument(doc);
   }
@@ -2055,7 +2575,7 @@ function pagePass(url: string, html: string, options: PassOptions): Pass | null 
   // A4-02 : une liste n'est pas un article. Si Readability n'a gardé qu'elle,
   // le conteneur principal est relu sans elle, puis elle y est remise à sa
   // place (voir le serveur).
-  const list = result?.content && !options.single ? onlyAList(result.content) : null;
+  const list = result?.content ? onlyAList(result.content) : null;
   if (result && list) {
     const retry = clean(load());
     try {
@@ -2084,7 +2604,10 @@ function pagePass(url: string, html: string, options: PassOptions): Pass | null 
     }
   }
 
-  if (!result || !result.content) return null;
+  if (!result || !result.content) {
+    frame?.root.replaceChildren();
+    return null;
+  }
 
   // Les voiles de consentement sortent ici, après toutes les passes (V2-02).
   const unveiled = withoutVeils(result.content, result.length || 0, result.textContent || '');
@@ -2099,22 +2622,7 @@ function pagePass(url: string, html: string, options: PassOptions): Pass | null 
     },
     textContent: unveiled.textContent,
     frame,
-    affordable,
   };
-}
-
-/** Le coût de lecture d'un document par Readability, estimé (voir le serveur). */
-function readingCost(doc: Document): number {
-  const root = doc.documentElement;
-  if (!root) return 0;
-  let cost = 0;
-  const stack: Array<[Element, number]> = [[root, 1]];
-  while (stack.length) {
-    const [el, depth] = stack.pop()!;
-    cost += depth * depth;
-    for (let child = el.firstElementChild; child; child = child.nextElementSibling) stack.push([child, depth + 1]);
-  }
-  return cost;
 }
 
 /**
@@ -2138,22 +2646,26 @@ function withFragments<T>(run: (parse: (html: string) => Element) => T): T {
  * La garde appliquée à des morceaux donnés (tests de ses règles, sans
  * dépendre du choix de Readability), comme `guardForTests` du serveur.
  */
-export function guardForTests(input: { page: string; result: string; witness: string | null; title?: string; base?: string }): { content: string; asked: boolean } {
+export function guardForTests(input: { page: string; result: string; title?: string; base?: string }): { content: string } {
   const base = input.base ?? 'https://example.com/a';
   return withFragments((parse) => {
     const page = new DOMParser().parseFromString(input.page, 'text/html');
+    let frame: Frame | null = null;
     try {
+      resolveLazyImages(page.documentElement);
+      keepCodeControlsAsText(page.documentElement);
+      stripBoilerplate(page.documentElement);
+      joinSplitBody(page.documentElement);
+      frame = frameOf(page, base);
       const root = parse(input.result);
       const pass: Pass = {
         article: { title: input.title ?? '', content: input.result, excerpt: '', byline: '', siteName: '', length: (root.textContent || '').length },
         textContent: root.textContent || '',
-        frame: frameOf(findMainContainer(page), base),
-        affordable: true,
+        frame,
       };
-      let asked = false;
-      const content = withoutLoss(pass, () => { asked = true; return input.witness; }, parse, base).content;
-      return { content, asked };
+      return { content: withoutLoss(pass, parse, base).content };
     } finally {
+      frame?.root.replaceChildren();
       releaseDocument(page);
     }
   });

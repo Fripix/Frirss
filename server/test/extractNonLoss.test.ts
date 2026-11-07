@@ -1,13 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { parseHTML } from 'linkedom';
-import { Readability } from '@mozilla/readability';
 import { extractArticle, extractWithoutGuard, guardForTests, withoutRepeatsForTests } from '../extract.js';
 import { repeatLedePageHtml, repeatLightboxPageHtml } from '../../src/test/repeatPageFixtures.js';
 import { headerPageHtml, heroPageHtml, ledePageHtml, shortLandingPageHtml, TOC_ONLY_HEADING, tocPageHtml } from '../../src/test/guardPageFixtures.js';
-import { advisoryPageHtml } from '../../src/test/advisoryPageFixture.js';
-import { embeddedTweetsPageHtml } from '../../src/test/embedConsentFixture.js';
-import { blogPageHtml, newsPageHtml, pressPageHtml, shortPostPageHtml } from '../../src/test/boilerplatePageFixtures.js';
-import { splitBodyAcrossEmbedPageHtml, splitBodyAcrossHeadingsPageHtml, splitBodyAcrossImagesPageHtml, splitBodyPageHtml, splitBodyWithBioPageHtml } from '../../src/test/splitBodyPageFixtures.js';
+import { defineContainerGuardCases } from '../../src/test/containerGuardCases.js';
 
 // ── Garde de non-perte (REG-220 à REG-222, cycle 1.9.0) ──────────────
 // Le nettoyage et la réunion du corps réparti changeaient le bloc que choisit
@@ -20,16 +16,6 @@ const norm = (s: string | null | undefined) => (s || '').replace(/\s+/g, ' ').tr
 const textOf = (html: string) => norm(parseHTML(`<html><body>${html}</body></html>`).document.body.textContent);
 const pick = (html: string, selector: string, n = 0) => parseHTML(html).document.querySelectorAll(selector)[n] as Element | undefined;
 const occurrences = (text: string, needle: string) => text.split(needle).length - 1;
-
-/** Passes Readability faites pendant `run` (le coût de la garde se compte en passes). */
-function countPasses(run: () => void): number {
-  const proto = Readability.prototype as unknown as { parse: (...args: unknown[]) => unknown };
-  const original = proto.parse;
-  let passes = 0;
-  proto.parse = function (this: unknown, ...args: unknown[]) { passes++; return original.apply(this, args); };
-  try { run(); } finally { proto.parse = original; }
-  return passes;
-}
 
 describe('extractArticle — garde de non-perte : pages réelles (REG-220, REG-221)', () => {
   it('garde le chapeau et l’image d’en-tête que le nettoyage laissait hors du choix de Readability (structure The Verge)', () => {
@@ -133,275 +119,14 @@ describe('stripBoilerplate — sommaire de l’article (REG-222)', () => {
   });
 });
 
-// Les formes réelles que la garde pourrait abîmer (TESTING.md, « Corriger sans
-// en casser d'autres », règle 3) : ses règles, jugées sur des morceaux
-// donnés, sans dépendre du choix de Readability.
-describe('garde de non-perte — formes qui pourraient casser', () => {
-  const s = (word: string) => `${word} : une phrase inventée assez longue pour être suivie par la garde de non-perte.`;
-  const page = (inner: string, outside = '') => `<!doctype html><html><head><title>T</title></head><body>${outside}<main><article>${inner}</article></main></body></html>`;
-  const result = (inner: string) => `<div id="readability-page-1" class="page">${inner}</div>`;
-  const p = (word: string) => `<p>${s(word)}</p>`;
-
-  const body = ['un', 'deux', 'trois', 'quatre', 'cinq', 'six', 'sept'].map((n) => p(`Corps ${n}`)).join('');
-
-  it('un témoin qui lit ailleurs (les billets liés de Docker) ne remet rien', () => {
-    const out = guardForTests({
-      page: page(`<header>${p('Chapeau')}</header><div class="corps">${body}</div><div class="cartes">${p('Carte une')}${p('Carte deux')}</div>`),
-      result: result(body),
-      witness: result(`${p('Chapeau')}${p('Carte une')}${p('Carte deux')}`),
-    });
-    expect(out.asked).toBe(true);
-    expect(textOf(out.content)).toBe(textOf(result(body)));
-  });
-
-  // Le revers assumé de la règle du résultat court : sous le seuil, tout ce que
-  // le témoin lit dans le conteneur après l'ouverture revient, parasite compris.
-  it('sous le seuil, ce que le témoin lit dans le conteneur après le résultat revient (règle assumée)', () => {
-    const out = guardForTests({
-      page: page(`<div class="corps">${p('Corps un')}</div><div class="cartes">${p('Carte une')}</div>`),
-      result: result(p('Corps un')),
-      witness: result(`${p('Corps un')}${p('Carte une')}`),
-    });
-    expect(textOf(out.content)).toContain(s('Carte une'));
-  });
-
-  it('ce qui suit le corps ne revient pas quand le résultat dépasse le seuil : notice de l’auteur, commentaires (Ars Technica)', () => {
-    const out = guardForTests({
-      page: page(`<header>${p('Chapeau')}</header><div class="corps">${body}</div><div class="notice">${p('Notice de l’auteur')}</div><a class="commentaires" href="/x">${s('22 commentaires')}</a>`),
-      result: result(body),
-      witness: result(`${p('Chapeau')}${body}${p('Notice de l’auteur')}<p>${s('22 commentaires')}</p>`),
-    });
-    const text = textOf(out.content);
-    expect(text).toContain(s('Chapeau'));
-    expect(text.indexOf(s('Chapeau'))).toBeLessThan(text.indexOf(s('Corps un')));
-    expect(text).not.toContain('Notice de l’auteur');
-    expect(text).not.toContain('22 commentaires');
-  });
-
-  it('un chapeau repris en premier paragraphe n’est pas doublé', () => {
-    const out = guardForTests({
-      page: page(`<header>${p('Chapeau et ouverture')}<img src="/une.jpg" width="1200"></header><div class="corps">${p('Chapeau et ouverture')}${p('Corps deux')}${p('Corps trois')}</div>`),
-      result: result(`${p('Chapeau et ouverture')}${p('Corps deux')}${p('Corps trois')}`),
-      witness: result(`${p('Chapeau et ouverture')}<p><img src="/une.jpg" width="1200"></p>${p('Chapeau et ouverture')}${p('Corps deux')}`),
-    });
-    const text = textOf(out.content);
-    expect(occurrences(text, s('Chapeau et ouverture'))).toBe(1);
-  });
-
-  it('une page de liste (plusieurs `<article>`) n’a pas de conteneur : le témoin n’est pas demandé', () => {
-    const list = `<!doctype html><html><body><main><article>${p('Chapeau')}${p('Billet un')}</article><article>${p('Billet deux')}</article></main></body></html>`;
-    const out = guardForTests({ page: list, result: result(p('Billet un')), witness: result(`${p('Chapeau')}${p('Billet un')}`) });
-    expect(out.asked).toBe(false);
-    expect(textOf(out.content)).toBe(textOf(result(p('Billet un'))));
-  });
-
-  it('un billet court ne ramasse pas la colonne voisine, hors du conteneur (Simon Willison, REG-172), mais garde sa propre fin', () => {
-    const post = '<p>Un billet très court, inventé pour la mesure.</p>';
-    const out = guardForTests({
-      page: page(`${post}${p('Rubrique du billet')}`, `<div id="secondary">${p('Colonne voisine')}</div>`),
-      result: result(post),
-      witness: result(`${post}${p('Rubrique du billet')}${p('Colonne voisine')}`),
-    });
-    const text = textOf(out.content);
-    expect(text).toContain(s('Rubrique du billet'));
-    expect(text).not.toContain('Colonne voisine');
-  });
-
-  it('avant le corps, rien hors du conteneur : ni lien d’évitement, ni accroche du site', () => {
-    const out = guardForTests({
-      page: page(`<header>${p('Chapeau')}</header><div>${p('Corps un')}${p('Corps deux')}</div>`, `<p>${s('Accroche du site')}</p>`),
-      result: result(`${p('Corps un')}${p('Corps deux')}`),
-      witness: result(`<p>${s('Accroche du site')}</p>${p('Chapeau')}${p('Corps un')}${p('Corps deux')}`),
-    });
-    const text = textOf(out.content);
-    expect(text).toContain(s('Chapeau'));
-    expect(text).not.toContain('Accroche du site');
-  });
-
-  it('une icône ou un portrait d’auteur n’est pas remis ; l’image d’en-tête, si', () => {
-    const out = guardForTests({
-      page: page(`<header><img src="/portrait.jpg" width="48" height="48"><img src="/une.jpg" width="1200"></header><div>${p('Corps un')}${p('Corps deux')}</div>`),
-      result: result(`${p('Corps un')}${p('Corps deux')}`),
-      witness: result(`<p><img src="https://example.com/portrait.jpg" width="48" height="48"></p><figure><img src="https://example.com/une.jpg" width="1200"></figure>${p('Corps un')}`),
-    });
-    expect(out.content).toContain('https://example.com/une.jpg');
-    expect(out.content).not.toContain('portrait.jpg');
-  });
-
-  it('une date ou une rubrique seule (moins de 25 caractères) ne demande pas de témoin', () => {
-    const out = guardForTests({
-      page: page(`<header><p>Rubrique</p><p>6 nov. 2026</p></header><div>${p('Corps un')}${p('Corps deux')}</div>`),
-      result: result(`${p('Corps un')}${p('Corps deux')}`),
-      witness: result(`<p>Rubrique</p><p>6 nov. 2026</p>${p('Corps un')}`),
-    });
-    expect(out.asked).toBe(false);
-  });
-
-  it('rien d’absent avant le corps (le titre mis à part) : le témoin n’est pas demandé', () => {
-    const out = guardForTests({
-      page: page(`<h1>${s('Le titre')}</h1>${p('Corps un')}${p('Corps deux')}`),
-      result: result(`${p('Corps un')}${p('Corps deux')}`),
-      witness: null,
-      title: s('Le titre'),
-    });
-    expect(out.asked).toBe(false);
-  });
-
-  it('un chapeau que le témoin n’a pas non plus n’est pas inventé', () => {
-    const out = guardForTests({
-      page: page(`<header>${p('Chapeau')}</header><div>${p('Corps un')}${p('Corps deux')}</div>`),
-      result: result(`${p('Corps un')}${p('Corps deux')}`),
-      witness: result(`${p('Corps un')}${p('Corps deux')}`),
-    });
-    expect(out.asked).toBe(true);
-    expect(textOf(out.content)).not.toContain('Chapeau');
-  });
-});
-
-// Les pages des corrections précédentes : la garde n'y change rien. Le
-// résultat est comparé à celui de la passe nettoyée seule.
-describe('garde de non-perte — les pages déjà corrigées ne bougent pas', () => {
-  const pages: Array<[string, () => string]> = [
-    ['avis du CERT-FR (REG-117, REG-122)', () => advisoryPageHtml()],
-    ['gros avis du CERT-FR, liste de références (REG-199)', () => advisoryPageHtml(200)],
-    ['Clubic, corps coupé par des images (REG-186)', splitBodyAcrossImagesPageHtml],
-    ['Clubic, intertitres seuls (REG-198)', splitBodyAcrossHeadingsPageHtml],
-    ['Clubic, message intégré (REG-198)', splitBodyAcrossEmbedPageHtml],
-    ['Ars Technica, corps réparti (REG-175)', splitBodyPageHtml],
-    ['Ars Technica, notice de l’auteur (REG-175)', splitBodyWithBioPageHtml],
-    ['Numerama, messages intégrés et voile (REG-216)', embeddedTweetsPageHtml],
-    ['Numerama, encart produit (N-1)', pressPageHtml],
-    ['The Verge, lettre et « Related » (REG-140)', newsPageHtml],
-    ['Schneier, billet court (REG-141)', blogPageHtml],
-    ['Simon Willison, billet très court (REG-172)', shortPostPageHtml],
-  ];
-  for (const [label, html] of pages) {
-    it(`${label} : même résultat qu’avant la garde`, () => {
-      const page = html();
-      expect(extractArticle('https://example.com/page', page)!.content).toBe(extractWithoutGuard('https://example.com/page', page)!.content);
-    });
-  }
-});
-
-// Relecture de la garde (RG-01 à RG-05) : chaque point, une forme.
-describe('garde de non-perte — relecture', () => {
-  const s = (word: string) => `${word} : une phrase inventée assez longue pour être suivie par la garde de non-perte.`;
-  const page = (inner: string) => `<!doctype html><html><head><title>T</title></head><body><main><article>${inner}</article></main></body></html>`;
-  const result = (inner: string) => `<div id="readability-page-1" class="page">${inner}</div>`;
-  const p = (word: string) => `<p>${s(word)}</p>`;
-  const body = ['un', 'deux', 'trois', 'quatre', 'cinq', 'six', 'sept'].map((n) => p(`Corps ${n}`)).join('');
-
-  it('RG-01 : remet la suite entière du témoin, blocs courts compris entre deux blocs perdus', () => {
-    const out = guardForTests({
-      page: page(`<header>${p('Chapeau')}<p>6 nov. 2026</p>${p('Sous-titre')}</header><div>${body}</div>`),
-      result: result(body),
-      witness: result(`${p('Chapeau')}<p>6 nov. 2026</p>${p('Sous-titre')}${body}`),
-    });
-    const text = textOf(out.content);
-    expect(text).toContain('6 nov. 2026');
-    expect(text.indexOf(s('Chapeau'))).toBeLessThan(text.indexOf('6 nov. 2026'));
-    expect(text.indexOf('6 nov. 2026')).toBeLessThan(text.indexOf(s('Sous-titre')));
-  });
-
-  it('RG-04 : la signature de l’auteur ne revient pas, même dans la suite remise', () => {
-    const out = guardForTests({
-      page: page(`<header>${p('Chapeau')}<div class="hero__author"><p>Camille Exemple</p>${p('Fonction de l’auteur')}</div><figure><img src="/une.jpg" width="1200"></figure></header><div>${body}</div>`),
-      result: result(body),
-      witness: result(`${p('Chapeau')}<p>Camille Exemple</p>${p('Fonction de l’auteur')}<figure><img src="https://example.com/une.jpg" width="1200"></figure>${body}`),
-    });
-    const text = textOf(out.content);
-    expect(text).toContain(s('Chapeau'));
-    expect(out.content).toContain('https://example.com/une.jpg');
-    expect(text).not.toContain('Camille Exemple');
-    expect(text).not.toContain('Fonction de l’auteur');
-  });
-
-  it('RG-02 : un bloc remis ne double pas ce que le résultat lit déjà (légende d’une image perdue, entrée de liste)', () => {
-    const caption = s('Légende de l’image');
-    const out = guardForTests({
-      page: page(`<header><figure><img src="/une.jpg" width="1200"><figcaption>${caption}</figcaption></figure><ul><li>${s('Point lu')}</li><li>${s('Point perdu')}</li></ul></header><div>${body}<p>${caption}</p><p>${s('Point lu')}</p></div>`),
-      result: result(`${body}<p>${caption}</p><p>${s('Point lu')}</p>`),
-      witness: result(`<figure><img src="https://example.com/une.jpg" width="1200"><figcaption>${caption}</figcaption></figure><ul><li>${s('Point lu')}</li><li>${s('Point perdu')}</li></ul>${body}`),
-    });
-    const text = textOf(out.content);
-    expect(out.content).toContain('https://example.com/une.jpg');
-    expect(text).toContain(s('Point perdu'));
-    expect(occurrences(text, caption)).toBe(1);
-    expect(occurrences(text, s('Point lu'))).toBe(1);
-  });
-
-  it('RG-03 : un bloc remis prend sa place dans l’ordre de la page, après ce que le résultat gardait avant lui', () => {
-    const out = guardForTests({
-      page: page(`<figure><img src="/une.jpg" width="1200"></figure>${p('Chapeau')}<div>${body}</div>`),
-      result: result(`<figure><img src="https://example.com/une.jpg" width="1200"></figure>${body}`),
-      witness: result(`<figure><img src="https://example.com/une.jpg" width="1200"></figure>${p('Chapeau')}${body}`),
-    });
-    const html = out.content;
-    expect(html.indexOf('une.jpg')).toBeLessThan(html.indexOf(s('Chapeau')));
-    expect(html.indexOf(s('Chapeau'))).toBeLessThan(html.indexOf(s('Corps un')));
-  });
-
-  // RG-05 : quand le nettoyage a retiré une part coûteuse de la page (un pied
-  // fait de chaînes imbriquées), relire la page intacte coûterait bien plus
-  // que la passe nettoyée : la garde renonce au témoin.
-  it('RG-05 : renonce au témoin quand la page intacte coûterait bien plus à lire que la page nettoyée', () => {
-    // Presque sans texte : le nettoyage retire le pied (il ne porte pas la moitié du texte).
-    const chain = `${'<div>'.repeat(200)}a${'</div>'.repeat(200)}`;
-    const html = headerPageHtml().replace(/<\/body>/i, `<footer>${chain.repeat(60)}</footer></body>`);
-    const guarded = countPasses(() => extractArticle('https://example.com/ars', html));
-    const strict = countPasses(() => extractWithoutGuard('https://example.com/ars', html));
-    expect(guarded).toBe(strict);
-    // Sans ce pied, la même page demande son témoin.
-    const light = headerPageHtml();
-    expect(countPasses(() => extractArticle('https://example.com/ars', light))).toBe(countPasses(() => extractWithoutGuard('https://example.com/ars', light)) + 1);
-  });
-});
-
-describe('garde de non-perte — coût', () => {
-  it('aucune passe de plus quand rien ne manque avant le corps', () => {
-    for (const html of [advisoryPageHtml(), tocPageHtml(), splitBodyAcrossImagesPageHtml()]) {
-      const guarded = countPasses(() => extractArticle('https://example.com/page', html));
-      const strict = countPasses(() => extractWithoutGuard('https://example.com/page', html));
-      expect(guarded).toBe(strict);
-    }
-  });
-
-  it('une seule passe de plus quand il faut un témoin', () => {
-    const html = ledePageHtml();
-    const guarded = countPasses(() => extractArticle('https://example.com/verge', html));
-    const strict = countPasses(() => extractWithoutGuard('https://example.com/verge', html));
-    expect(guarded).toBe(strict + 1);
-  });
-
-  // Une page faite pour coûter : des milliers de phrases absentes avant le
-  // corps, chacune cherchée dans un long résultat. Le budget de recherche
-  // borne le texte relu à un multiple de la page.
-  it('relit au plus un multiple borné du texte, même sur des milliers de phrases absentes', () => {
-    const sentence = (i: number) => `<p>Phrase absente numéro ${i}, inventée pour coûter à la garde de non-perte.</p>`;
-    const body = Array.from({ length: 2000 }, (_, i) => `<p>Phrase du corps numéro ${i}, inventée elle aussi pour peser dans le résultat.</p>`).join('');
-    const before = Array.from({ length: 3000 }, (_, i) => sentence(i)).join('');
-    const pageHtml = `<!doctype html><html><body><main><article><header>${before}</header><div>${body}</div></article></main></body></html>`;
-    // Seules les recherches de la garde comptent : une phrase normalisée,
-    // encadrée d'espaces (`reads`), dans un texte — pas celles de l'analyseur HTML.
-    const proto = String.prototype as unknown as { indexOf: (...args: unknown[]) => number; includes: (...args: unknown[]) => boolean };
-    const { indexOf, includes } = proto;
-    const guardNeedle = (needle: unknown) => typeof needle === 'string' && needle.length > 20 && needle.startsWith(' ') && needle.endsWith(' ');
-    let scanned = 0;
-    proto.indexOf = function (this: string, ...args: unknown[]) { if (guardNeedle(args[0])) scanned += this.length; return indexOf.apply(this, args); };
-    proto.includes = function (this: string, ...args: unknown[]) { if (guardNeedle(args[0])) scanned += this.length; return includes.apply(this, args); };
-    const strictResult = `<div class="page">${body}</div>`;
-    let out: { content: string } | undefined;
-    try {
-      out = guardForTests({ page: pageHtml, result: strictResult, witness: `<div class="page">${before}${body}</div>` });
-    } finally {
-      proto.indexOf = indexOf;
-      proto.includes = includes;
-    }
-    // Sans budget : 3 000 recherches dans ~170 000 caractères, plus de 500 millions.
-    expect(scanned).toBeLessThan(64 * pageHtml.length + 20_000_000);
-    // Budget épuisé : la garde s'abstient en entier, rien n'est remis à moitié.
-    expect(textOf(out!.content)).toBe(textOf(strictResult));
-  });
+// La garde de non-perte « la page vérifie Readability » (REG-229 à REG-233) :
+// les cas partagés avec le repli du navigateur (`src/test/containerGuardCases.ts`).
+defineContainerGuardCases({
+  prefix: '',
+  extractArticle,
+  extractWithoutGuard,
+  guardForTests,
+  parse: (html) => parseHTML(html).document as unknown as Document,
 });
 
 // ── Doublons de l'article complet (REG-225, REG-226) ─────────────────
@@ -641,54 +366,5 @@ describe('doublons — relecture (RD-01 à RD-07)', () => {
     const big = work(4000);
     expect(small).toBeGreaterThan(0);
     expect(big).toBeLessThan(small * 4 * 1.5);
-  });
-});
-
-describe('garde de non-perte — rien d’invisible, rien de déjà là (REG-225)', () => {
-  const s = (word: string) => `${word} : une phrase inventée assez longue pour être suivie par la garde de non-perte.`;
-  const page = (inner: string) => `<!doctype html><html><head><title>T</title></head><body><main><article>${inner}</article></main></body></html>`;
-  const result = (inner: string) => `<div id="readability-page-1" class="page">${inner}</div>`;
-  const p = (word: string) => `<p>${s(word)}</p>`;
-  const body = ['un', 'deux', 'trois', 'quatre', 'cinq', 'six', 'sept'].map((n) => p(`Corps ${n}`)).join('');
-  const restored = (header: string) => textOf(guardForTests({
-    page: page(`<header>${header}</header><div>${body}</div>`),
-    result: result(body),
-    witness: result(`${p('Chapeau')}${body}`),
-  }).content).includes(s('Chapeau'));
-
-  it('un chapeau masqué sur la page n’est jamais remis : en ligne, par attribut, par un ancêtre, par une classe de masquage', () => {
-    expect(restored(`<p style="display:none">${s('Chapeau')}</p>`)).toBe(false);
-    expect(restored(`<p style="visibility: hidden">${s('Chapeau')}</p>`)).toBe(false);
-    expect(restored(`<p hidden>${s('Chapeau')}</p>`)).toBe(false);
-    expect(restored(`<div aria-hidden="true"><p>${s('Chapeau')}</p></div>`)).toBe(false);
-    expect(restored(`<div class="mobile hidden"><p>${s('Chapeau')}</p></div>`)).toBe(false);
-    expect(restored(`<div class="d-none"><p>${s('Chapeau')}</p></div>`)).toBe(false);
-  });
-
-  // Une page qui masque le chapeau en mobile et le montre en bureau : il se
-  // lit sur la page, la garde le remet.
-  it('un chapeau masqué seulement à certaines tailles d’écran est remis', () => {
-    expect(restored(`<div class="hidden md:block"><p>${s('Chapeau')}</p></div>`)).toBe(true);
-    expect(restored(`<div class="d-none d-lg-block"><p>${s('Chapeau')}</p></div>`)).toBe(true);
-    expect(restored(`<p class="hidden-title">${s('Chapeau')}</p>`)).toBe(true);
-    expect(restored(p('Chapeau'))).toBe(true);
-  });
-
-  it('une image d’en-tête que le résultat montre à une autre taille n’est pas remise', () => {
-    const out = guardForTests({
-      page: page(`<header><img src="/une.jpg?w=2400&amp;quality=90" width="1200"></header><div><figure><img src="/une-1200x675.jpg" width="1200"></figure>${body}</div>`),
-      result: result(`<figure><img src="https://example.com/une-1200x675.jpg" width="1200"></figure>${body}`),
-      witness: result(`<figure><img src="https://example.com/une.jpg?w=2400&amp;quality=90" width="1200"></figure><figure><img src="https://example.com/une-1200x675.jpg" width="1200"></figure>${body}`),
-    });
-    expect(out.content.match(/une[-.]/g)).toHaveLength(1);
-  });
-
-  it('une image d’en-tête qui est une autre photo que celles du résultat est remise', () => {
-    const out = guardForTests({
-      page: page(`<header><img src="/une.jpg" width="1200"></header><div><figure><img src="/corps.jpg" width="1200"></figure>${body}</div>`),
-      result: result(`<figure><img src="https://example.com/corps.jpg" width="1200"></figure>${body}`),
-      witness: result(`<figure><img src="https://example.com/une.jpg" width="1200"></figure><figure><img src="https://example.com/corps.jpg" width="1200"></figure>${body}`),
-    });
-    expect(out.content).toContain('https://example.com/une.jpg');
   });
 });

@@ -69,5 +69,13 @@
  *     la garde de non-perte ne remet jamais ce que la page masque, ni une
  *     image que le résultat montre déjà à une autre taille : les extraits v11
  *     sont refaits.
+ * 13 : 1.9.0 — la garde de non-perte ne relit plus la page intacte (le
+ *     témoin) : la page vérifie Readability. Ce que le conteneur de l'article
+ *     porte et que le résultat ne lit pas y est remis, sur preuve (JSON-LD,
+ *     description), dans l'en-tête, dans un trou du corps, dans la suite de
+ *     même gabarit (REG-229 à REG-231 : le corps entier des billets de
+ *     Docker, les chapeaux de The Verge, la suite des dossiers de Clubic) ;
+ *     un encadré dans le fil du texte n'est plus retiré (REG-232) ; une vidéo
+ *     paresseuse prend son adresse (REG-233) : les extraits v12 sont refaits.
  */
-export const EXTRACT_VERSION = 12;
+export const EXTRACT_VERSION = 13;

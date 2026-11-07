@@ -5388,11 +5388,11 @@ serveur de développement en 1.4.4.)*
   nettoyage ne connaît pas, par la garde du volet sur les mots du flux. Une
   repasse à 50 quand aucune passe n'atteint 500 a aussi été mesurée : après
   le nettoyage, elle ne changeait plus que ce billet, en lui retirant sa
-  ligne de titre — écartée. Le témoin de la garde de non-perte, lui, lit à 50
-  (plus bas) : sous le seuil, ce qu'il garde dans le conteneur de l'article
-  après le résultat est **ajouté**, jamais substitué (REG-221 : une page
-  d'accueil courte rendait son introduction et perdait ses paliers, que la
-  1.8.0 rendait).
+  ligne de titre — écartée. La garde de non-perte (plus bas), elle, ajoute
+  sous le seuil tout ce que le conteneur de l'article porte après le
+  résultat — **ajouté**, jamais substitué (REG-221 : une page d'accueil
+  courte rendait son introduction et perdait ses paliers, que la 1.8.0
+  rendait).
 - **Seconde passe sur le conteneur principal de la page** (1.9.0, A-1,
   `server/extract.ts`, copiée dans le repli de `extractContent.ts` ; tests :
   `server/test/extract.test.ts` et `extractContent.test.ts` › « conteneur
@@ -5501,7 +5501,11 @@ serveur de développement en 1.4.4.)*
   ne se lisait que dans le sommaire. Le sommaire revient tel que la 1.8.0 le
   rendait (Clubic, un blog : ses titres s'y lisent deux fois, comme alors) ;
   `aside` et rôle
-  `complementary` **hors d'un `<article>`** seulement ; un bloc dont la classe
+  `complementary` **hors d'un `<article>`** seulement, et **pas dans le fil
+  du texte** : un encadré dont un frère est un paragraphe d'au moins 80
+  caractères reste (REG-232, `inTextFlow` — le blog de GitHub, sans
+  `<article>`, y range ses définitions et ses intervenants ; une colonne de
+  côté voisine des gabarits) ; un bloc dont la classe
   ou l'id contient `related`, `comment(s)`, `breadcrumb(s)` ou `footer`
   (jamais un titre ni un élément de texte : `<h2 id="related-work">` reste) ;
   un bloc nommé `share`, `sharing` ou `newsletter` **s'il est court** (moins
@@ -5818,129 +5822,128 @@ serveur de développement en 1.4.4.)*
   page n'a moins de texte, sauf les sept d'Ars, qui perdent exactement la
   notice de l'auteur, le compteur de commentaires et, sur la Rocket Report,
   l'en-tête que ramassait la seconde passe.
-- **Garde de non-perte** (1.9.0, REG-220 à REG-224 — `withoutLoss`,
-  `server/extract.ts`, copiée à l'identique dans le repli de
-  `extractContent.ts` ; tests : `server/test/extractNonLoss.test.ts` et
-  `extractContent.nonLoss.test.ts`, sur `src/test/guardPageFixtures.ts` —
-  l'arbre de quatre pages réelles, chaque lettre remplacée par une lettre
-  tirée au hasard, et un billet écrit à la main). **L'article complet ne perd
-  jamais de texte d'article** (règle du mainteneur) ; or le nettoyage et la
-  réunion du corps réparti changent le bloc que **choisit** Readability, et le
-  texte voisin du bloc choisi sort. The Verge : le formulaire de lettre et le
-  bloc « Related » retirés, Readability ne retenait plus `#__next` mais le
-  seul corps — le chapeau et l'image d'en-tête, ses frères, sortaient. Ars
-  Technica et le blog de Google : le corps réuni gagnait seul, Readability ne
-  remontait plus à l'`<article>`, l'en-tête (chapeau, légende, image)
-  sortait. Chaque règle avait été mesurée seule ; c'est leur effet sur le
-  choix qu'aucune mesure par règle ne voyait (corpus de 470 pages : 6 pages,
-  8 phrases et 2 images perdues, toutes nées du cycle).
-  La garde ne retouche aucune règle : elle compare le résultat à un
-  **témoin**, la page lue **intacte** comme en 1.8.0 (seuil 50, ni nettoyage
-  ni réunion). Ce que le témoin garde et que le résultat n'a pas y est remis,
-  à trois conditions :
-  - **c'est de l'article** : il se lit dans le conteneur que la page désigne
-    (`findMainContainer`, celui de la seconde passe : un `<article>` unique,
-    sinon un `<main>` ou un `[role=main]` unique), lu dans la page
-    **nettoyée** — rien sur une page de liste, rien hors du conteneur (lien
-    d'évitement, accroche du site, colonne voisine), rien de ce que le
-    nettoyage retire (lettre d'information, « Related », pied), rien d'un
-    voile de consentement, rien de la **signature de l'auteur**
-    (`BYLINE_SIGNALS` : nom et fonction de l'auteur du blog de Google, qui
-    revenaient — REG-223), **rien de ce que la page masque** (`hiddenOnPage`,
-    REG-225 : `hidden`, `aria-hidden="true"`, `display:none` ou
-    `visibility:hidden` en ligne, `noscript`, `template`, dialogue modal, ou
-    une classe de masquage courante — `hidden`, `d-none`, `sr-only`,
-    `visually-hidden`… — que rien ne re-montre à une taille d'écran : un
-    chapeau `hidden md:block` se lit en bureau, il revient). ⚠️ Une feuille
-    de style externe ne se lit pas : ce qu'elle masque par des classes
-    hachées, la garde ne le sait pas (voir « Doublons de mise en page ») ;
-  - **il précède l'ouverture du résultat** dans ce conteneur, et le témoin
-    contient cette ouverture — il englobe le résultat au lieu de lire
-    ailleurs (chez Docker, le témoin ne garde que les billets liés : rien
-    n'est remis). **Après** l'ouverture aussi, mais seulement quand le
-    résultat est **sous le seuil de 500** (Readability a rendu « la plus
-    longue » faute de mieux, L-04) : REG-221. Revers assumé, testé : sur un
-    tel résultat, ce que le témoin lit dans le conteneur après lui revient,
-    parasite compris ;
-  - **une suite, pas des blocs isolés** : elle va du premier au dernier bloc
-    du témoin qui porte une phrase suivie (25 caractères, 8 dans une
-    écriture sans espaces — la règle du corpus) ou une image qui n'est pas
-    une icône (`isIcon`), absente du résultat ; une date, une rubrique, un
-    portrait d'auteur seuls ne déclenchent rien, mais les blocs courts
-    **entre** deux blocs remis reviennent avec eux (REG-223 : la page courte
-    perdait ses intitulés « 2 GB » et ses lignes de palier, que la 1.8.0
-    rendait). Un bloc court se place par son texte **exact** dans le
-    conteneur (« by Brad Bourque » ne se place pas dans « See all by Brad
-    Bourque »).
-  Une image se compare **à la taille près** (`imageIdentity`, REG-225) : celle
-  que le résultat montre en `-1200x675` n'est pas absente parce que le témoin
-  la lit en `?w=2400`, et n'est pas remise une seconde fois.
-  Ce qui est remis : chaque bloc de la suite (paragraphe, figure, liste) tel
-  que le témoin l'a rendu, **à sa place dans l'ordre de la page** — avant le
-  premier bloc du résultat qui le suit dans le conteneur, sinon après le
-  dernier qui le précède (REG-223 : un chapeau passait devant l'image
-  d'en-tête que le résultat gardait). Un bloc que le résultat lit déjà tout
-  entier n'est pas remis : un chapeau repris en premier paragraphe, ou doublé
-  pour mobile (The Verge), n'apparaît qu'une fois. Dans un bloc remis, un
-  bloc terminal déjà lu est retiré (REG-223 : la légende d'une image perdue,
-  une entrée de liste). ⚠️ Un paragraphe qui mêle une phrase déjà lue et une
-  phrase perdue revient **entier** : un doublon plutôt qu'une perte. L'**ouverture** du résultat est le
-  bloc du conteneur qui porte sa première phrase et ouvre une suite de huit
-  blocs gardés (`openingIn`) : un chapeau répété plus haut ne la déplace pas.
-  ⚠️ **Ce qui suit le corps n'est jamais remis** quand le résultat dépasse
-  le seuil : mesuré sur le corpus, c'est toujours de l'habillage — la notice
-  de l'auteur et « 22 Comments » d'Ars (REG-175 tient), « Recent articles »
-  de Simon Willison, « Latest in… » de TechCrunch.
-  ⚠️ **Le témoin n'est jamais rendu à la place du résultat** : il est la
-  page telle que la 1.8.0 la lisait, avec ce que le nettoyage écartait à
-  raison (la notice d'Ars, les billets liés de Docker), et il est souvent
-  plus pauvre (un seul bloc d'un corps réparti).
-  ⚠️ **Ce que la garde ne rattrape pas** : ce que le témoin n'a pas non plus.
-  Sur la plupart des articles d'Ars et sur de nombreux articles de The
-  Verge, le chapeau manquait déjà à la 1.8.0 (Readability y retient un bloc
-  du corps sans remonter à l'en-tête) : la garde ne l'invente pas, et le
-  corpus, qui ne mesure que les pertes relatives à la 1.8.0, ne le voit pas.
-  Le remettre d'après la page elle-même (le bloc de l'en-tête dont le texte
-  est la `meta description`) est une piste, pas une règle.
-  ⚠️ **Coût** : le témoin est **une passe Readability de plus**, et
-  seulement quand le conteneur porte, avant l'ouverture (ou après, sous le
-  seuil), une phrase ou une image absente du résultat — mesure faite sur la
-  page avant Readability. Mesuré (2026-11-07, 470 pages, en série) : témoin
-  demandé sur 243 pages, 768 passes au lieu de 525, 12,6 s au lieu de 7,9 ;
-  la page la plus lourde (3 Mo) 1,2 s au lieu de 0,5 ; le témoin ne remet
-  quelque chose que sur cinq pages.
-  ⚠️ **La garde renonce au témoin quand la page intacte coûte bien plus que
-  la page nettoyée** (REG-224, `readingCost` : la somme des carrés des
-  profondeurs, Readability coûtant le cube de la profondeur) — plus de deux
-  fois (`WITNESS_MAX_COST_RATIO`) **et** plus de 8 millions
-  (`WITNESS_COST_FLOOR`). Un pied fait de chaînes imbriquées, retiré par le
-  nettoyage, faisait payer au témoin la page entière : 2,2 s au lieu de
-  0,67 en 1.8.0. Le rapport seul ne suffit pas : 228 pages du corpus le
-  dépassent (menus du blog de Google : 4,09) pour un coût dérisoire ; la
-  plus coûteuse du corpus (Wikipédia, 3 Mo) pèse 5,7 millions, le pied
-  piégé 160 millions. La première version marquait en plus chaque bloc
-  étranger dans le témoin, en enveloppant chacun de ses textes : un pied de
-  57 000 éléments en devenait 114 000 ; le témoin lit désormais la page
-  brute, et l'exclusion se fait par le conteneur nettoyé. Les recherches de phrases sont bornées :
-  au plus seize candidats d'ouverture, et un budget de texte relu
-  (`Scan` : 32 fois le texte du conteneur et du résultat, plus 8 millions
-  de caractères) ; épuisé, la garde s'abstient **en entier** (tests « relit
-  au plus un multiple borné du texte… », par comptage, et « aucune passe de
-  plus quand rien ne manque avant le corps », par comptage des passes).
-  Aucune borne existante n'est relâchée (délai du worker, profondeur,
-  éléments).
-  Mesuré sur le corpus (2026-11-07, fragments courts suivis) : contre la
-  1.8.0, aucune page en échec, phrase, fragment ni image ; contre la version
-  d'avant la garde, sept pages changent, toutes en gagnant (chapeau, image et
-  légende d'en-tête de The Verge, d'Ars et du blog de Google, paliers de la
-  page courte, intertitre du sommaire ; les sommaires de deux articles de
-  Clubic reviennent comme en 1.8.0). ⚠️ Les doublons vus en direct sur
-  l'image de la garde (chapeau et photo de The Verge deux fois, légendes
-  d'Ars deux fois) ne venaient **pas** de la garde : la version d'avant la
-  garde les rendait déjà, Readability gardant l'en-tête entier, et l'outil
-  de corpus ne les comptait pas (REG-228). Les masquages en ligne et les
-  images à une autre taille sont des protections, qu'aucune page du corpus
-  ne déclenche.
+- **Garde de non-perte : la page vérifie Readability** (1.9.0, REG-229 à
+  REG-233, remplace la garde du témoin de REG-220 à REG-224 — `withoutLoss`,
+  `frameOf`, `server/extract.ts`, copiée à l'identique dans le repli de
+  `extractContent.ts` ; tests : les cas partagés de
+  `src/test/containerGuardCases.ts`, déclarés par
+  `server/test/extractNonLoss.test.ts` et `extractContent.nonLoss.test.ts`,
+  sur `src/test/containerPageFixtures.ts` — l'arbre de trois pages réelles,
+  Docker, un dossier de Clubic et Les Numériques, chaque mot remplacé par un
+  mot inventé de même longueur, le même mot donnant toujours le même, et des
+  pages écrites à la main — et sur `src/test/guardPageFixtures.ts`).
+  **L'article complet ne perd jamais de texte d'article** (règle du
+  mainteneur : « pas grave si une pub est laissée, mais il ne doit rien
+  manquer »). Readability **choisit** un bloc et le nettoie ; on ne lui fait
+  plus confiance pour ne rien laisser. Il se trompait de bloc (le blog de
+  Docker : les cartes « articles liés » rendues, l'article perdu en entier,
+  8 billets sur 10, 10 en 1.8.0), ne remontait pas à l'en-tête (le chapeau de
+  15 articles de The Verge sur 22, de next.ink, Clubic, Ars, Les Numériques,
+  l'image d'en-tête de TechCrunch), ne prenait pas les blocs cousins (la
+  suite d'un dossier de Clubic : 2 491 caractères sur ~5 500) ; et le
+  nettoyage et la réunion du corps réparti changent le bloc qu'il choisit
+  (REG-220).
+  **Le conteneur** que la page désigne (`articleContainer`) : un
+  `[itemprop=articleBody]` qui porte au moins deux fois le texte du suivant,
+  sinon un `<article>` de premier niveau qui porte au moins 35 % du texte de
+  la page et deux fois le suivant, sinon un `<main>` ou un `[role=main]`
+  unique. **Aucun sur une page de liste** : plusieurs `<article>` sans
+  dominant qui portent ensemble au moins la moitié du `<main>` (une page
+  d'accueil) ; quelques cartes en `<article>` sous le corps (DeepMind) n'en
+  font pas une. Il est lu dans la page **nettoyée**, avant Readability (qui
+  modifie le document) : une copie. S'il ne contient pas le titre, il
+  **remonte jusqu'au premier `<h1>` visible** quand l'ancêtre commun porte au
+  plus 1,25 fois son texte plus 1 500 caractères (`withItsTitle`), **sans ce
+  qui suit le conteneur dans l'ancêtre** — les vidéos, la lettre et les
+  commentaires de Clubic, en classes hachées, sont après l'article.
+  **Les blocs** : paragraphe, intertitre, liste, définition, citation, code,
+  tableau, figure, image, vidéo, son, cadre vidéo, et le texte écrit sans
+  `<p>`. Ni un voile de consentement, ni ce que la page masque
+  (`hiddenOnPage` : `hidden`, `aria-hidden`, style en ligne, classe de
+  masquage que rien ne re-montre à une taille d'écran), ni un contrôle ou
+  son libellé ; et **jamais remis, preuve ou pas** : la signature de
+  l'auteur (`BYLINE_SIGNALS`), les commentaires (classe ou id `comment(s)`,
+  `commentaire(s)`, `disqus`, `respond`, schema.org `Comment`), un panneau
+  de réglages (un bloc qui porte un champ ou une liste de choix et moins de
+  300 caractères : le réglage du texte d'Ars, `controlPanels`), un cadre
+  intégré qui n'est pas une vidéo (CodePen : le lecteur le retire), le
+  `<h1>` du titre, même quand `<title>` le coupe (« … après avoir é... »).
+  **Lu** : le résultat porte chacune de ses phrases suivies (25 caractères,
+  8 dans une écriture sans espaces — la règle du corpus), son texte s'il est
+  court, et chacune de ses images (à la taille près, `imageIdentity`). Un
+  texte se lit **même collé à son voisin** (deux `<span>` sans blanc :
+  « Foire aux questions » puis « Contenu… ») : sinon, on le croirait absent
+  et il reviendrait en double. Un paragraphe **retouché** — le résultat lit
+  au moins la moitié de ses phrases, et le début et la fin (cinq mots) de
+  chacune des autres : un appel de note retiré au milieu — compte comme lu.
+  **Remis**, sans rien retirer au résultat, un bloc non lu :
+  1. **sur preuve** — il porte une phrase que la page certifie être
+     l'article : `articleBody` ou `description` d'un objet JSON-LD de type
+     article (`@graph`, `mainEntity` ; pas la liste d'autres billets d'une
+     page), `og:description`, `description`, `twitter:description` ;
+  2. **en-tête** — il précède le premier bloc lu (chapeau, image d'en-tête
+     et légende, date ; chez Docker, tout le corps, dont les cartes suivent) ;
+  3. **trou** — il est entre le premier et le dernier bloc lu (un corps coupé
+     par une publicité, un encart, une image) ;
+  4. **suite** — il suit le dernier bloc lu avec le **même gabarit** : même
+     parent qu'un bloc lu, ou un parent de même balise et de même classe
+     (`div.slate-content` de Clubic) ; ce qui suit dans un autre gabarit ne
+     revient pas (notice de l'auteur d'Ars, cartes, « Publications qui
+     peuvent vous intéresser » des Numériques) ;
+  5. **résultat court** — sous le seuil de 500 (Readability a rendu « la plus
+     longue » faute de mieux, L-04), tout ce qui le suit dans le conteneur
+     (REG-221 : les paliers d'une page courte). Revers assumé : sur un tel
+     résultat, ce qui suit revient même parasite.
+  Les « blocs lus » qui bornent le corps sont ceux d'au moins 25 caractères.
+  Un bloc fait **à plus de moitié de liens** (vitrine, liste « liés », fil
+  d'Ariane, appel à l'action) n'est remis que **sur preuve**.
+  **Ce qui revient** : une copie du bloc nettoyée comme Readability nettoie
+  le sien (`remittable` : scripts, contrôles, formulaires, voiles, éléments
+  masqués, compteurs de commentaires, repli des médias retirés ; ni classe
+  ni style — une classe de masquage de la page masquerait le texte dans le
+  lecteur ; adresses rendues absolues ; image paresseuse résolue), **sans
+  ce que le résultat lit déjà** : entrées et sous-entrées de liste, légendes,
+  texte propre d'un bloc mêlé (« Les alliés : » avant la légende en
+  paragraphes), images qu'il montre déjà (`withoutWhatIsRead`). Chacune
+  **à sa place dans l'ordre de la page** : avant le premier bloc du résultat
+  qui la suit dans le conteneur, sinon après le dernier qui la précède ; un
+  bloc du résultat qu'on ne retrouve pas dans le conteneur (la date d'une
+  carte) reste collé au bloc qui le suit. Un bloc remis compte aussitôt
+  comme lu : un chapeau écrit pour deux mises en page ne revient qu'une
+  fois. Le résultat n'est **jamais remplacé**.
+  ⚠️ **Ce qu'elle ne rattrape pas** : une page sans conteneur (pages de
+  liste) ; un bloc après le corps dans un autre gabarit ; une ligne faite de
+  liens sans preuve (une ligne de produit d'un bon plan, « Start at
+  https://… » chez Docker) ; ce que le nettoyage retire ; ce que la page
+  masque ; la signature (« Roland Shoemaker, on behalf of the Go Security
+  team »).
+  ⚠️ **Ce qu'elle ramène de trop** (Mineur, accepté par le mainteneur) :
+  environ 28 % de ce qu'elle gagne est de l'habillage — dates, lignes
+  « Publié le… », encarts promotionnels dans le corps (Numerama+, mentions
+  d'affiliation, « Pour nous soutenir… » de Frandroid), titres de modules.
+  ⚠️ **Coût** : **aucune passe Readability de plus** (la garde du témoin en
+  ajoutait une sur la moitié des pages) ; une copie du conteneur ; des
+  recherches de texte indexées (`KeptText` : un texte de quatre mots ou plus
+  se cherche par la plus rare de ses paires de mots intérieurs, un plus
+  court par son premier mot ou ses trois premières lettres — mille phrases
+  qui commencent pareil ne se relisent pas l'une l'autre) et bornées
+  (`Scan` : 32 fois le texte du conteneur et du résultat, plus 8 millions de
+  caractères) ; budget épuisé, la garde **s'abstient en entier**. Un bloc
+  court n'est cherché que s'il est candidat. Tests par comptage (passes
+  Readability, caractères comparés), aucun seuil de durée. Aucune borne
+  existante n'est relâchée.
+  Mesuré (2026-11-07, 490 pages + le dossier de Clubic, en série) : contre
+  la version d'avant (`10031dd`) et contre la 1.8.0, **aucune page en
+  échec** — aucune phrase, fragment, image ni copie perdus, aucun doublon
+  nouveau ; 271 pages changent, toutes en gagnant (1 991 phrases). Oracle
+  du flux : **791 phrases manquantes sur 53 pages → 25 sur 21** ; ce qui
+  reste est hors de l'article (« à lire aussi » de next.ink, appels de
+  Frandroid et de GitHub, signatures de go.dev), des lignes faites de liens
+  (3) ou un texte présent mais collé par Readability (Import AI). Chapeau de
+  The Verge : 15 absents sur 22 → 0, aucun en double. Temps : 13,8 s → 12,6 s
+  pour tout le corpus (médiane 16 → 15 ms ; la page la plus lourde,
+  Wikipédia, 1,15 → 0,95 s). 36 phrases de plus ne suivent pas l'ordre de la
+  page, sur 13 pages (références de Wikipédia, Docker).
 - **Doublons de mise en page** (1.9.0, REG-225, REG-226 — `withoutRepeats`,
   `server/extract.ts`, copiée dans le repli de `extractContent.ts` ; tests :
   `server/test/extractNonLoss.test.ts` › « doublons », dont « relecture
@@ -6005,7 +6008,10 @@ serveur de développement en 1.4.4.)*
   adresse réelle (aucun `src`, ou un `data:` non base64) prend `data-src` et
   `data-srcset` s'ils sont des adresses web (pas de `javascript:`), sinon le
   `<noscript>` qui la suit (elle ou sa `<picture>`) et ne porte qu'une image
-  la remplace ; une `<source>` sans `srcset` prend son `data-srcset` ; un
+  la remplace ; une `<source>` sans `srcset` prend son `data-srcset` ; une
+  `<video>`, un `<audio>` ou une `<source>` sans `src` prend son
+  `data-src`, une `<video>` sans affiche son `data-poster` (REG-233 : la
+  vidéo de démonstration d'un billet de DeepMind restait sans adresse) ; un
   `<button>` **d'agrandissement** sans texte qui n'enveloppe qu'une image est
   déballé (`isZoomButton`). Relecture du troisième round : déballer tout
   bouton à image unique faisait entrer les icônes (« Copier » d'un bloc de
@@ -6026,7 +6032,11 @@ serveur de développement en 1.4.4.)*
 - **Version de l'extraction** (1.9.0, A-2 — `server/extractVersion.ts` et
   `src/lib/extractVersion.ts`, même valeur vérifiée par
   `server/test/cache.test.ts`). À monter à chaque changement du résultat de
-  l'extraction pour une même page. **10** depuis REG-219 : rien n'est
+  l'extraction pour une même page. **13** depuis REG-229 : la page vérifie
+  Readability (garde de non-perte), l'encadré dans le fil du texte reste
+  (REG-232), la vidéo paresseuse prend son adresse (REG-233) ; 12 avait
+  accompagné les doublons de mise en page (REG-225, REG-226), 11 la garde du
+  témoin et le sommaire de l'article (REG-220 à REG-222), 10 REG-219 : rien n'est
   retiré d'un `<pre>` ni d'un `<code>`, et un contrôle posé dans du code
   devient son texte (un exemple perdu et des identifiants troués sur le blog
   de Node.js) ; 9 avait accompagné la relecture des
