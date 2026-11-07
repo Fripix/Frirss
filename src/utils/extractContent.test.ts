@@ -21,6 +21,7 @@ import {
   SERVER_EXTRACT_TIMEOUT_MS,
 } from './extractContent';
 import { advisoryPageHtml, ADVISORY_BODY_MARKER } from '../test/advisoryPageFixture';
+import { CODE_SAMPLES, codeArticleHtml, codeBlockPageHtml, COPY_LABEL } from '../test/codeBlockPageFixture';
 import { CONSENT_VEIL_MARKER, EMBEDDED_TWEETS, embeddedTweetsPageHtml } from '../test/embedConsentFixture';
 import { blogPageHtml, BLOG_BODY_MARKER, newsPageHtml, pressPageHtml, shortPostPageHtml } from '../test/boilerplatePageFixtures';
 import { INLINE_IMAGE, LAZY_IMAGES, lazyImagePageHtml } from '../test/lazyImagePageFixture';
@@ -675,6 +676,75 @@ describe('extractFullContent — repli local : corps réparti en plusieurs blocs
         <div class="full"><div class="article-body">${story}</div></div>${duplicate}</article></body></html>`);
       expect(paragraphs((await extractFullContent(`https://example.com/doublon-${i}`)).content), duplicate.slice(0, 20)).toBe(12);
     }
+  });
+});
+
+// ── Le code ne perd rien (REG-219), voir le serveur ──────────────────
+describe('extractFullContent — repli local : blocs de code (REG-219)', () => {
+  const fallbackOn = (html: string) => vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo) => {
+    if (String(input).startsWith('/api/extract')) return new Response('', { status: 404 });
+    return htmlPage(html);
+  }));
+  const textOf = (html: string) => (new DOMParser().parseFromString(html, 'text/html').body.textContent || '').replace(/\s+/g, ' ').trim();
+
+  it('garde un `pre` dont la classe porte « no-footer » et le texte du bouton Twoslash posé dans le code (structure Node.js)', async () => {
+    fallbackOn(codeBlockPageHtml());
+    const out = await extractFullContent('https://example.com/moteur');
+    const text = textOf(out.content);
+    for (const sample of Object.values(CODE_SAMPLES)) expect(text).toContain(sample);
+    expect(out.content.match(/<pre/g)?.length).toBe(3);
+    expect(out.content).not.toContain('<button');
+    expect(text).not.toContain(COPY_LABEL);
+  });
+
+  it('garde comme texte un `select`, un `textarea` et un `input` posés dans le code', async () => {
+    fallbackOn(codeArticleHtml(
+      '<pre><code>npm install --save <select><option>lodash</option><option selected>ramda</option></select>@latest</code></pre>'
+      + '<pre><code><textarea>let compteur = 0;</textarea></code></pre>'
+      + '<p>Lancer <code>node --max-old-space-size=<input value="4096"></code> pour agrandir le tas.</p>',
+    ));
+    const out = await extractFullContent('https://example.com/controles');
+    const text = textOf(out.content);
+    expect(text).toContain('npm install --save ramda@latest');
+    expect(text).toContain('let compteur = 0;');
+    expect(text).toContain('node --max-old-space-size=4096');
+    expect(out.content).not.toMatch(/<(select|textarea|input)/);
+  });
+
+  it('ne fait pas entrer dans le code le bouton « Copy » posé à côté de lui dans le `pre`', async () => {
+    fallbackOn(codeArticleHtml('<pre><code class="hljs language-sh">npm run build</code><button class="hljs-copy-button">Copy</button></pre>'));
+    const text = textOf((await extractFullContent('https://example.com/copie')).content);
+    expect(text).toContain('npm run build');
+    expect(text).not.toContain('Copy');
+  });
+
+  it('garde un `pre` replié dans un `details`, bouton compris', async () => {
+    fallbackOn(codeArticleHtml('<details><summary>Voir le code</summary><pre class="code_content shiki no-footer"><code>const lu = <button class="twoslash-hover">fs</button>.readFileSync(chemin);</code></pre></details>'));
+    expect(textOf((await extractFullContent('https://example.com/details')).content)).toContain('const lu = fs.readFileSync(chemin);');
+  });
+
+  it('stripBoilerplate ne retire rien d’un `pre` ni d’un `code`, quel que soit son nom ou son texte', () => {
+    const long = 'Un paragraphe d’article assez long pour peser bien plus que tout le reste de la page réunie, et même davantage encore.';
+    const body = Array.from({ length: 6 }, () => `<p>${long}</p>`).join('');
+    const doc = new DOMParser().parseFromString(`<html><body><article>${body}<pre class="shiki no-footer">CODE-NOFOOTER</pre>`
+      + '<pre class="share-snippet"><code>navigator.share(donnees)</code></pre>'
+      + '<pre><code><div class="line comment">// LIGNE-COMMENTAIRE</div><span class="token related">LIEN-RELATED</span></code></pre>'
+      + '<pre>Powered by Express 5</pre>'
+      + '<pre><code><button class="share-button">BOUTON-DANS-CODE</button><a class="footer-link" href="#top">ANCRE-DANS-CODE</a></code></pre>'
+      + `<code role="navigation">CODE-ROLE</code>${body}</article></body></html>`, 'text/html');
+    stripBoilerplate(doc.documentElement);
+    const text = doc.body.textContent || '';
+    for (const kept of ['CODE-NOFOOTER', 'navigator.share(donnees)', 'LIGNE-COMMENTAIRE', 'LIEN-RELATED', 'Powered by Express 5', 'BOUTON-DANS-CODE', 'ANCRE-DANS-CODE', 'CODE-ROLE']) expect(text).toContain(kept);
+  });
+
+  it('stripBoilerplate retire toujours le code d’un bloc étranger retiré pour une autre raison', () => {
+    const long = 'Un paragraphe d’article assez long pour peser bien plus que tout le reste de la page réunie, et même davantage encore.';
+    const body = Array.from({ length: 6 }, () => `<p>${long}</p>`).join('');
+    const doc = new DOMParser().parseFromString(`<html><body><nav><pre>BANNIERE-ASCII</pre></nav><article>${body}<div class="related-posts"><p>Voir <code>CODE-RELATED</code></p></div><footer><pre>CODE-PIED</pre></footer>${body}</article></body></html>`, 'text/html');
+    stripBoilerplate(doc.documentElement);
+    const text = doc.body.textContent || '';
+    for (const junk of ['BANNIERE-ASCII', 'CODE-RELATED', 'CODE-PIED']) expect(text).not.toContain(junk);
+    expect(text).toContain(long);
   });
 });
 

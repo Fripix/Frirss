@@ -53,5 +53,9 @@
  *     consentement retiré APRÈS Readability (V2-02 : les extraits v8 de
  *     Numerama avaient perdu leurs tweets intégrés). Les extraits v8 servis
  *     à l'instance de développement sont refaits.
+ * 10 : 1.9.0 — rien n'est retiré d'un `<pre>` ni d'un `<code>`, et un
+ *     contrôle posé dans du code (`<button>` Twoslash) devient son texte
+ *     (REG-219 : un exemple entier perdu sur le blog de Node.js, un
+ *     identifiant du code dès la 1.8.0) : les extraits v9 sont refaits.
  */
-export const EXTRACT_VERSION = 9;
+export const EXTRACT_VERSION = 10;

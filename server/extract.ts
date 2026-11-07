@@ -450,6 +450,8 @@ export function extractArticle(url: string, html: string): ExtractedArticle | nu
     document.head.prepend(base);
     // Images paresseuses et boutons d'agrandissement, avant toute passe (A1).
     resolveLazyImages(document.documentElement as unknown as Element);
+    // Les contrôles posés dans du code deviennent texte (REG-219).
+    keepCodeControlsAsText(document.documentElement as unknown as Element);
     return document;
   };
   // Les blocs étrangers à l'article sortent avant toute passe (M-04).
@@ -797,6 +799,54 @@ function isZoomButton(button: Element): boolean {
   return alt.length > 0 && label.includes(alt);
 }
 
+// ── Contrôles posés dans du code (REG-219) ───────────────────────────
+// Readability retire tout `button`, `select`, `textarea` et `input` de
+// l'article, avec ce qu'ils contiennent. Dans du code, ce sont des morceaux du
+// code : Twoslash (Shiki) enveloppe un identifiant dans un
+// `<button class="twoslash-hover">` qui porte son infobulle de type — sur le
+// blog de Node.js, `new Intl.Locale(…)` devenait `new Intl.(…)` dès la 1.8.0.
+// Un tel contrôle est remplacé par son texte, avant toute passe :
+// - `button`, `textarea` : leur texte ;
+// - `select` : le texte de l'option choisie, sinon de la première ;
+// - `input` : sa valeur.
+// Un contrôle sans texte (une icône) reste, et Readability le retire comme
+// avant. « Dans du code » : dans un `<code>`, ou dans un `<pre>` qui n'en porte
+// aucun. Un bouton posé dans le `<pre>` À CÔTÉ de son `<code>` est la barre
+// d'outils du bloc (le « Copy » du greffon de highlight.js) : il n'est pas du
+// code, Readability le retire comme avant.
+//
+// Même règle dans le repli du navigateur (`src/utils/extractContent.ts`).
+
+const CODE_CONTROLS = 'button, select, textarea, input';
+
+/** Le texte que montre un contrôle : son contenu, son option choisie, sa valeur. */
+function controlText(control: Element): string {
+  const tag = control.tagName.toLowerCase();
+  if (tag === 'input') return control.getAttribute('value') || '';
+  if (tag === 'select') {
+    const option = control.querySelector('option[selected]') || control.querySelector('option');
+    return option?.textContent || '';
+  }
+  return control.textContent || '';
+}
+
+/** Le contrôle est-il dans du code : un `<code>`, ou un `<pre>` sans `<code>` ? */
+function insideCode(control: Element): boolean {
+  if (control.closest('code')) return true;
+  const pre = control.closest('pre');
+  return !!pre && !pre.querySelector('code');
+}
+
+/** Remplace, sous `root`, chaque contrôle posé dans du code par son texte (REG-219). */
+export function keepCodeControlsAsText(root: Element): void {
+  for (const control of Array.from(root.querySelectorAll(CODE_CONTROLS)) as Element[]) {
+    // Un contrôle dans un contrôle déjà remplacé n'est plus dans le document.
+    if (!control.isConnected || !insideCode(control)) continue;
+    const text = controlText(control);
+    if (text) control.replaceWith(control.ownerDocument.createTextNode(text));
+  }
+}
+
 // ── Blocs étrangers retirés avant toute passe (M-04) ─────────────────
 // Sur The Verge, la seconde passe (A-1) ramassait dans le conteneur principal
 // les mentions légales du formulaire de lettre d'information (en fin
@@ -854,14 +904,21 @@ function isZoomButton(button: Element): boolean {
 // - hors d'un `<article>`, la colonne `#secondary` (id exact), barre latérale
 //   des thèmes WordPress écrite en `div` (Simon Willison, A2) ;
 // - un court bloc qui commence par « Powered by ».
-// Deux gardes :
+// Rien n'est jugé dans un `<pre>` ni dans un `<code>`, ni eux-mêmes (REG-219) :
+// c'est du code, et ses noms de classe sont ceux du surligneur — Shiki pose
+// `no-footer` sur le `<pre>` d'un exemple sans pied (blog de Node.js : un
+// exemple entier perdu), Prism `token comment` sur ses jetons. Un `<pre>` dans
+// un bloc retiré pour une autre raison (`<nav>`, `<footer>`, « Related ») sort
+// toujours avec lui : seul le bloc de code lui-même est épargné.
+// Trois gardes :
 // - un bloc qui porte la moitié du texte de la racine ou plus n'est jamais
 //   retiré — c'est le corps, quel que soit son nom (une page entière
 //   enveloppée dans un `<form>`, un `div.comments-enabled`) ;
 // - un bloc qui porte l'auteur non plus (`carriesByline`) : Readability lit
 //   l'auteur dans le document AVANT d'écarter lui-même `aside` et `footer`
 //   du corps ; le retirer plus tôt effaçait l'auteur (un `footer.entry-meta`
-//   de blog, un `aside.author` de Le Monde Informatique hors règle d'article).
+//   de blog, un `aside.author` de Le Monde Informatique hors règle d'article) ;
+// - le code, plus haut.
 //
 // Mesuré sur les 38 pages réelles de la campagne et deux pages Wikipédia
 // (2026-11-06) : seules quatre pages changent — Schneier (fil d'Ariane,
@@ -951,6 +1008,8 @@ const NAMED_EXEMPT = new Set([
   'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'a', 'span', 'b', 'i', 'em', 'strong', 'code', 'small', 'sup', 'sub',
   'time', 'abbr', 'label', 'img', 'figcaption',
 ]);
+/** Du code : rien n'y est jugé, ni lui-même (REG-219). */
+const CODE = new Set(['pre', 'code']);
 const POWERED_BY = /^powered by\b/i;
 /** Un crédit est court : au-delà, c'est une phrase d'article. */
 const POWERED_BY_MAX_LENGTH = 120;
@@ -1167,6 +1226,7 @@ export function stripBoilerplate(root: Element): void {
   const stack: Array<[Element, boolean]> = Array.from(root.children, (child) => [child, false]);
   while (stack.length) {
     const [el, insideArticle] = stack.pop()!;
+    if (CODE.has(el.tagName.toLowerCase())) continue;
     const verdict = isBoilerplate(el, insideArticle, postLength, paid);
     if (verdict) {
       const length = visibleTextLength(el);

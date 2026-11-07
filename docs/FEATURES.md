@@ -5510,6 +5510,32 @@ serveur de développement en 1.4.4.)*
   ni « formulaire » ; un bloc `newsletter` à champ de saisie qui porte la
   moitié du texte de son billet ou plus reste (une lettre publiée comme
   billet : seul le conteneur de son formulaire sort).
+  **Le code n'est jamais jugé** (REG-219, tests « blocs de code (REG-219) »
+  des deux côtés, sur `src/test/codeBlockPageFixture.ts`) : rien n'est retiré
+  d'un `<pre>` ni d'un `<code>`, ni eux-mêmes — boutons, `span` et liens
+  compris. Ses noms de classe sont ceux du surligneur : Shiki pose
+  `no-footer` sur le `<pre>` d'un exemple sans pied, et le mot `footer` faisait
+  sortir un exemple entier d'un billet du blog de Node.js. Un `<pre>` rangé
+  dans un bloc retiré pour une autre raison (`<nav>`, `<footer>`,
+  « Related ») sort toujours avec lui. Avant toute passe aussi
+  (`keepCodeControlsAsText`, copiée dans le repli), un `button`, `textarea`,
+  `select` ou `input` posé **dans du code** devient son texte (le contenu,
+  l'option choisie, la valeur) : Readability retire ces contrôles avec ce
+  qu'ils portent, et Twoslash enveloppe les identifiants munis d'une
+  infobulle de type dans un `<button class="twoslash-hover">` —
+  `new Intl.Locale(…)` devenait `new Intl.(…)` depuis la 1.8.0. « Dans du
+  code » : dans un `<code>`, ou dans un `<pre>` qui n'en porte aucun ; un
+  bouton posé dans le `<pre>` **à côté** de son `<code>` (le « Copy » du
+  greffon de highlight.js) est la barre d'outils du bloc et part comme avant,
+  et un contrôle sans texte (une icône) aussi. ⚠️ Reste hors de portée :
+  Readability écarte lui-même, à sa première tentative, un `<pre>` dont la
+  classe est « improbable » (`no-footer` seul, sans mot comme `content` qui
+  l'en sauve) — règle de Readability, pas du nettoyage. Mesuré (2026-11-07)
+  sur les 201 pages du corpus : seule la page de Node.js change — 22 puis 23
+  `<pre>` (tous ceux de la page), 156 lignes de code entières (21 939 →
+  22 956 caractères) ; les
+  phrases que l'outil y compte « perdues » sont les lignes trouées de la
+  base, toutes retrouvées complètes.
   ⚠️ **Coût de cette garde** (quatrième round, B-02) : chaque bloc
   `newsletter` à champ de saisie relisait tout le texte de son billet —
   4 000 formulaires au pied d'un billet de 1 Mo coûtaient 11,4 s, 3,4 s dans
@@ -5803,7 +5829,10 @@ serveur de développement en 1.4.4.)*
 - **Version de l'extraction** (1.9.0, A-2 — `server/extractVersion.ts` et
   `src/lib/extractVersion.ts`, même valeur vérifiée par
   `server/test/cache.test.ts`). À monter à chaque changement du résultat de
-  l'extraction pour une même page. **9** depuis la relecture des
+  l'extraction pour une même page. **10** depuis REG-219 : rien n'est
+  retiré d'un `<pre>` ni d'un `<code>`, et un contrôle posé dans du code
+  devient son texte (un exemple perdu et des identifiants troués sur le blog
+  de Node.js) ; 9 avait accompagné la relecture des
   correctifs du quatrième round : document complété comme le ferait le
   navigateur (RX-01), règles du voile, du bouton « retour en haut » et de
   l'encart payant resserrées (RX-02 à RX-04), voile de consentement retiré

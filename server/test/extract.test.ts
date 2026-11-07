@@ -4,6 +4,7 @@ import {
   aroundTheList, extractArticle, EXTRACT_MAX_PENDING, ExtractorBusyError, extractPending, joinSplitBody, resolveLazyImages, stripBoilerplate, withExtractSlot,
 } from '../extract.js';
 import { advisoryPageHtml, ADVISORY_BODY_MARKER } from '../../src/test/advisoryPageFixture.js';
+import { CODE_SAMPLES, codeArticleHtml, codeBlockPageHtml, COPY_LABEL } from '../../src/test/codeBlockPageFixture.js';
 import { CONSENT_VEIL_MARKER, EMBEDDED_TWEETS, embeddedTweetsPageHtml } from '../../src/test/embedConsentFixture.js';
 import { INLINE_IMAGE, LAZY_IMAGES, lazyImagePageHtml } from '../../src/test/lazyImagePageFixture.js';
 import { blogPageHtml, BLOG_BODY_MARKER, newsPageHtml, pressPageHtml, shortPostPageHtml } from '../../src/test/boilerplatePageFixtures.js';
@@ -1013,6 +1014,82 @@ describe('joinSplitBody', () => {
     const { document } = run(`<article><div class="w"><div class="comment-body">${para('UN')}</div></div>
       <div class="w"><div class="comment-body">${para('DEUX')}</div></div></article>`);
     expect(parentsOf(document, '.comment-body').map((p) => p?.className)).toEqual(['w', 'w']);
+  });
+});
+
+// ── Le code ne perd rien (REG-219) ───────────────────────────────────
+// Blog de Node.js : un `<pre class="… no-footer">` sortait en entier (le mot
+// `footer`), et le texte d'un `<button class="twoslash-hover">` posé dans le
+// code partait avec le bouton, que Readability retire.
+describe('extractArticle — blocs de code (REG-219)', () => {
+  const textOf = (html: string) => (parseHTML(`<html><body>${html}</body></html>`).document.body.textContent || '').replace(/\s+/g, ' ').trim();
+
+  it('garde un `pre` dont la classe porte « no-footer » et le texte du bouton Twoslash posé dans le code (structure Node.js)', () => {
+    const out = extractArticle('https://example.com/moteur', codeBlockPageHtml())!;
+    const text = textOf(out.content);
+    for (const sample of Object.values(CODE_SAMPLES)) expect(text).toContain(sample);
+    expect(out.content.match(/<pre/g)?.length).toBe(3);
+    expect(out.content).not.toContain('<button');
+    expect(text).not.toContain(COPY_LABEL);
+  });
+
+  it('garde comme texte un `select`, un `textarea` et un `input` posés dans le code', () => {
+    const out = extractArticle('https://example.com/controles', codeArticleHtml(
+      '<pre><code>npm install --save <select><option>lodash</option><option selected>ramda</option></select>@latest</code></pre>'
+      + '<pre><code><textarea>let compteur = 0;</textarea></code></pre>'
+      + '<p>Lancer <code>node --max-old-space-size=<input value="4096"></code> pour agrandir le tas.</p>',
+    ))!;
+    const text = textOf(out.content);
+    expect(text).toContain('npm install --save ramda@latest');
+    expect(text).toContain('let compteur = 0;');
+    expect(text).toContain('node --max-old-space-size=4096');
+    expect(out.content).not.toMatch(/<(select|textarea|input)/);
+  });
+
+  it('ne fait pas entrer dans le code le bouton « Copy » posé à côté de lui dans le `pre`', () => {
+    // Greffon de copie de highlight.js : `pre > code` + `pre > button`.
+    const out = extractArticle('https://example.com/copie', codeArticleHtml(
+      '<pre><code class="hljs language-sh">npm run build</code><button class="hljs-copy-button">Copy</button></pre>',
+    ))!;
+    const text = textOf(out.content);
+    expect(text).toContain('npm run build');
+    expect(text).not.toContain('Copy');
+  });
+
+  // La classe reprend celle de Node.js (`…_content shiki … no-footer`) : un
+  // `pre` nommé seulement `no-footer` est écarté par Readability lui-même
+  // (classe « improbable »), règle hors du nettoyage de FriRSS.
+  it('garde un `pre` replié dans un `details`, bouton compris', () => {
+    const out = extractArticle('https://example.com/details', codeArticleHtml(
+      '<details><summary>Voir le code</summary><pre class="code_content shiki no-footer"><code>const lu = <button class="twoslash-hover">fs</button>.readFileSync(chemin);</code></pre></details>',
+    ))!;
+    expect(textOf(out.content)).toContain('const lu = fs.readFileSync(chemin);');
+  });
+});
+
+describe('stripBoilerplate — blocs de code (REG-219)', () => {
+  const strip = (body: string) => {
+    const { document } = parseHTML(`<html><body>${body}</body></html>`);
+    stripBoilerplate(document.documentElement as unknown as Element);
+    return (document.body.textContent || '').replace(/\s+/g, ' ').trim();
+  };
+  const long = 'Un paragraphe d’article assez long pour peser bien plus que tout le reste de la page réunie, et même davantage encore.';
+  const body = Array.from({ length: 6 }, () => `<p>${long}</p>`).join('');
+
+  it('ne retire rien d’un `pre` ni d’un `code`, quel que soit son nom ou son texte', () => {
+    const text = strip(`<article>${body}<pre class="shiki no-footer">CODE-NOFOOTER</pre>`
+      + '<pre class="share-snippet"><code>navigator.share(donnees)</code></pre>'
+      + '<pre><code><div class="line comment">// LIGNE-COMMENTAIRE</div><span class="token related">LIEN-RELATED</span></code></pre>'
+      + '<pre>Powered by Express 5</pre>'
+      + '<pre><code><button class="share-button">BOUTON-DANS-CODE</button><a class="footer-link" href="#top">ANCRE-DANS-CODE</a></code></pre>'
+      + `<code role="navigation">CODE-ROLE</code>${body}</article>`);
+    for (const kept of ['CODE-NOFOOTER', 'navigator.share(donnees)', 'LIGNE-COMMENTAIRE', 'LIEN-RELATED', 'Powered by Express 5', 'BOUTON-DANS-CODE', 'ANCRE-DANS-CODE', 'CODE-ROLE']) expect(text).toContain(kept);
+  });
+
+  it('retire toujours le code d’un bloc étranger retiré pour une autre raison', () => {
+    const text = strip(`<nav><pre>BANNIERE-ASCII</pre></nav><article>${body}<div class="related-posts"><p>Voir <code>CODE-RELATED</code></p></div><footer><pre>CODE-PIED</pre></footer>${body}</article>`);
+    for (const junk of ['BANNIERE-ASCII', 'CODE-RELATED', 'CODE-PIED']) expect(text).not.toContain(junk);
+    expect(text).toContain(long);
   });
 });
 

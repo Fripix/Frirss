@@ -532,12 +532,43 @@ function isZoomButton(button: Element): boolean {
   return alt.length > 0 && label.includes(alt);
 }
 
+// ── Contrôles posés dans du code (REG-219) ───────────────────────────
+// Copie de `keepCodeControlsAsText` (`server/extract.ts`, qui dit pourquoi :
+// Readability retire tout `button`, `select`, `textarea`, `input`, et le
+// bouton Twoslash du blog de Node.js emportait un identifiant du code).
+const CODE_CONTROLS = 'button, select, textarea, input';
+
+function controlText(control: Element): string {
+  const tag = control.tagName.toLowerCase();
+  if (tag === 'input') return control.getAttribute('value') || '';
+  if (tag === 'select') {
+    const option = control.querySelector('option[selected]') || control.querySelector('option');
+    return option?.textContent || '';
+  }
+  return control.textContent || '';
+}
+
+function insideCode(control: Element): boolean {
+  if (control.closest('code')) return true;
+  const pre = control.closest('pre');
+  return !!pre && !pre.querySelector('code');
+}
+
+export function keepCodeControlsAsText(root: Element): void {
+  for (const control of Array.from(root.querySelectorAll(CODE_CONTROLS))) {
+    if (!control.isConnected || !insideCode(control)) continue;
+    const text = controlText(control);
+    if (text) control.replaceWith(control.ownerDocument.createTextNode(text));
+  }
+}
+
 // ── Blocs étrangers retirés avant toute passe (M-04) ─────────────────
 // Copie de `stripBoilerplate` (`server/extract.ts`, qui dit pourquoi : mentions
 // légales de The Verge ramassées par la seconde passe, fil d'Ariane et
 // crédits de Schneier par la première ; publicités, affiliation, formulaire
 // de lettre d'information, repli CodePen et colonne `#secondary` en A3).
-// Règles, mots et gardes identiques.
+// Règles, mots et gardes identiques — rien n'est jugé dans un `<pre>` ni un
+// `<code>` (REG-219).
 const BOILERPLATE_TAGS = new Set(['footer', 'nav', 'form']);
 const BOILERPLATE_ROLES = new Set(['navigation', 'contentinfo']);
 const BOILERPLATE_TOKENS = new Set([
@@ -602,6 +633,8 @@ const NAMED_EXEMPT = new Set([
   'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'a', 'span', 'b', 'i', 'em', 'strong', 'code', 'small', 'sup', 'sub',
   'time', 'abbr', 'label', 'img', 'figcaption',
 ]);
+/** Du code : rien n'y est jugé, ni lui-même (REG-219, voir le serveur). */
+const CODE = new Set(['pre', 'code']);
 const POWERED_BY = /^powered by\b/i;
 const POWERED_BY_MAX_LENGTH = 120;
 const BYLINE_SIGNALS = '[rel~="author"], [itemprop*="author"], [class*="byline"], [id*="byline"], [class*="author"], [id*="author"], [class*="dateline"], [class*="writtenby"]';
@@ -765,6 +798,7 @@ export function stripBoilerplate(root: Element): void {
   const stack: Array<[Element, boolean]> = Array.from(root.children, (child) => [child, false]);
   while (stack.length) {
     const [el, insideArticle] = stack.pop()!;
+    if (CODE.has(el.tagName.toLowerCase())) continue;
     const verdict = isBoilerplate(el, insideArticle, postLength, paid);
     if (verdict) {
       const length = visibleTextLength(el);
@@ -1151,6 +1185,8 @@ async function extractOnce(url: string): Promise<ExtractedContent> {
     // Images paresseuses d'abord : leurs adresses `data-src` relatives sont
     // ensuite résolues avec les autres (A1).
     resolveLazyImages(parsed.documentElement);
+    // Les contrôles posés dans du code deviennent texte (REG-219).
+    keepCodeControlsAsText(parsed.documentElement);
     absolutizeUrls(parsed, url);
     // Les blocs étrangers à l'article sortent avant toute passe (M-04).
     stripBoilerplate(parsed.documentElement);
