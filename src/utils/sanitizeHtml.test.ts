@@ -155,3 +155,54 @@ describe('sanitizeArticleBody — tableaux larges (M-11)', () => {
     expect(sanitizeHtml('<table><tr><td>1</td></tr></table>')).not.toContain('article-scroll-x');
   });
 });
+
+// REG-248 : le blog de GitHub (WordPress) écrit `sizes="auto, (max-width: 1000px)
+// 100vw, 1000px"`. Avec `loading="lazy"`, `auto` fait choisir la variante du
+// `srcset` d'après la largeur de l'image AVANT son chargement — 300 px par
+// défaut, puisque le volet la laisse en `width: auto` — et l'image restait
+// affichée à 300 px (`?w=300`) au lieu de la largeur du volet.
+describe('sanitizeArticleBody — `sizes="auto"` (REG-248)', () => {
+  const imgs = (html: string, eager = 0) => {
+    const div = document.createElement('div');
+    div.innerHTML = sanitizeArticleBody(html, eager);
+    return Array.from(div.querySelectorAll('img, source'));
+  };
+  const srcset = 'https://example.com/c.png?w=300 300w, https://example.com/c.png?w=1024 1024w, https://example.com/c.png?w=1600 1600w';
+
+  it('retire `auto` en tête de `sizes`, le reste de la liste demeure (blog de GitHub, Frandroid)', () => {
+    const [img] = imgs(`<img src="https://example.com/c.png?resize=1024%2C483" width="1024" height="483" loading="lazy" srcset="${srcset}" sizes="auto, (max-width: 1000px) 100vw, 1000px">`);
+    expect(img.getAttribute('sizes')).toBe('(max-width: 1000px) 100vw, 1000px');
+    expect(img.getAttribute('srcset')).toBe(srcset);
+    expect(img.getAttribute('loading')).toBe('lazy');
+    const [frandroid] = imgs(`<img src="https://example.com/f.jpg" srcset="${srcset}" sizes="AUTO ,(max-width: 1200px) 100vw, 1200px">`);
+    expect(frandroid.getAttribute('sizes')).toBe('(max-width: 1200px) 100vw, 1200px');
+  });
+
+  it('`sizes="auto"` seul devient la largeur de l’écran ; une `<source>` de `<picture>` aussi', () => {
+    const [alone] = imgs(`<img src="https://example.com/c.png" srcset="${srcset}" sizes="auto">`);
+    expect(alone.getAttribute('sizes')).toBe('100vw');
+    const [source, img] = imgs(`<picture><source type="image/webp" srcset="${srcset}" sizes="auto, 100vw"><img src="https://example.com/c.png" srcset="${srcset}" sizes=" auto "></picture>`);
+    expect(source.tagName).toBe('SOURCE');
+    expect(source.getAttribute('sizes')).toBe('100vw');
+    expect(img.getAttribute('sizes')).toBe('100vw');
+  });
+
+  it('une petite image garde son `sizes` (avatar à 34 px, vignette à 100 px) ; une liste sans `auto` est intacte', () => {
+    const cases = ['34px', '100px', '(max-width: 768px) 100vw, 700px', '(min-width: 1728px) 1728px, 100vw', '100vw, (min-width: 640px) calc(100vw - 2rem)'];
+    for (const sizes of cases) {
+      const [img] = imgs(`<img src="https://example.com/a.jpg" srcset="${srcset}" sizes="${sizes}" width="34" height="34">`);
+      expect(img.getAttribute('sizes'), sizes).toBe(sizes);
+    }
+  });
+
+  it('`auto` ailleurs qu’en tête n’est pas touché ; une image sans `sizes` n’en reçoit pas', () => {
+    const [late] = imgs(`<img src="https://example.com/a.jpg" srcset="${srcset}" sizes="(max-width: 600px) 100vw, auto">`);
+    expect(late.getAttribute('sizes')).toBe('(max-width: 600px) 100vw, auto');
+    const [none] = imgs(`<img src="https://example.com/a.jpg" srcset="${srcset}">`);
+    expect(none.hasAttribute('sizes')).toBe(false);
+  });
+
+  it('hors corps d’article, `sizes` reste tel quel', () => {
+    expect(sanitizeHtml(`<img src="https://example.com/a.jpg" srcset="${srcset}" sizes="auto, 100vw">`)).toContain('sizes="auto, 100vw"');
+  });
+});

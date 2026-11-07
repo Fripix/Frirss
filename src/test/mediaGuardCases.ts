@@ -216,4 +216,126 @@ export function defineMediaCases(api: MediaApi): void {
       expect(img.getAttribute('srcset')).toContain('p@2x.jpg');
     });
   });
+
+  // REG-246 : un dossier de Clubic dont Readability ne garde que le début.
+  // La garde remet la SUITE du corps (les `div.slate-content` qui ont le
+  // gabarit des derniers blocs lus) ; les photos rangées entre deux blocs de
+  // cette suite (`div.image-content` > `<picture>` + `<figcaption>`, sans ce
+  // gabarit) restaient dehors : 5 photos sur 7, 4 légendes sur 8.
+  const row = (inner: string) => `<div class="grid-default"><div class="row-wrapper row">${inner}</div></div>`;
+  const slate = (inner: string) => row(`<div class="slate-content col-slate-12">${inner}</div>`);
+  const clubicFigure = (n: number, caption = `Légende de la photo ${n} ©Crédit`) => `<div><div class="row-wrapper row"><div><div class="image-content"><span role="presentation"><div style="display:contents"><picture class="article img-wrapper lazy" data-lazy="{&quot;imageId&quot;:${n}}"><div class="image-loading"><svg width="50" height="50"><circle r="4"></circle></svg></div><noscript><img src="//pic.example.com/ab${n}24716${n}/858x636/smart/ia-drive.jpg" alt="${caption}" width="858" height="636"></noscript></picture></div></span><figcaption class="pvih72-0">${caption}</figcaption></div></div></div></div>`;
+  const photo = (n: number) => `https://pic.example.com/ab${n}24716${n}/858x636/smart/ia-drive.jpg`;
+  const suitePage = (between: (n: number) => string, after = '') => doc(`<article><h1>Le titre de l’article</h1>${slate(paragraphs(1, 3))}${clubicFigure(1)}${slate(paragraphs(4, 3))}${between(2)}${slate(paragraphs(7, 3))}${between(3)}${slate(paragraphs(10, 3))}${after}</article>`);
+  const guarded = (page: string) => guardForTests({ page, result: `<div class="page">${paragraphs(1, 6)}</div>`, title: 'Le titre de l’article' }).content;
+
+  describe(`${prefix}médias de la suite du corps (REG-246)`, () => {
+    it('les photos et leurs légendes rangées entre deux blocs de la suite reviennent, chacune à sa place (dossier de Clubic)', () => {
+      const out = guarded(suitePage((n) => clubicFigure(n)));
+      const text = textOf(out);
+      const srcs = all(out, 'img').map((img) => img.getAttribute('src'));
+      for (const n of [1, 2, 3]) {
+        expect(srcs.filter((src) => src === photo(n)), `photo ${n}`).toHaveLength(1);
+        expect(occurrences(text, `Légende de la photo ${n} ©Crédit`), `légende ${n}`).toBe(1);
+      }
+      // L'ordre de la page : paragraphe 6, photo 2 et sa légende, paragraphe 7 ; paragraphe 9, photo 3, paragraphe 10.
+      expect(text.indexOf(sentence(6, 'Paragraphe'))).toBeLessThan(text.indexOf('Légende de la photo 2'));
+      expect(text.indexOf('Légende de la photo 2')).toBeLessThan(text.indexOf(sentence(7, 'Paragraphe')));
+      expect(text.indexOf(sentence(9, 'Paragraphe'))).toBeLessThan(text.indexOf('Légende de la photo 3'));
+      expect(text.indexOf('Légende de la photo 3')).toBeLessThan(text.indexOf(sentence(10, 'Paragraphe')));
+      expect(out.indexOf(photo(2))).toBeLessThan(out.indexOf('Légende de la photo 2'));
+    });
+
+    it('un crédit court répété sous chaque photo revient sous chacune, dans le corps comme dans la suite (« ©Carrefour »)', () => {
+      const page = doc(`<article><h1>Le titre de l’article</h1>${slate(paragraphs(1, 3))}${clubicFigure(1, '©Carrefour')}${slate(paragraphs(4, 3))}${clubicFigure(2, '©Carrefour')}${slate(paragraphs(7, 3))}${clubicFigure(3, '©Carrefour')}${slate(paragraphs(10, 3))}</article>`);
+      const out = guarded(page);
+      for (const n of [1, 2, 3]) expect(all(out, 'img').filter((img) => img.getAttribute('src') === photo(n)), `photo ${n}`).toHaveLength(1);
+      expect(all(out, 'figcaption').map((caption) => norm(caption.textContent))).toEqual(['©Carrefour', '©Carrefour', '©Carrefour']);
+      // Chacun sous sa photo.
+      for (const n of [1, 2, 3]) expect(out.indexOf('©Carrefour', out.indexOf(photo(n)))).toBeLessThan(n < 3 ? out.indexOf(photo(n + 1)) : Infinity);
+    });
+
+    it('une vidéo intégrée entre deux blocs de la suite revient aussi', () => {
+      const out = guarded(suitePage((n) => `<div><div class="row-wrapper row"><div class="embed"><iframe src="https://www.youtube.com/embed/abcdefghij${n}" width="560" height="315"></iframe></div></div></div>`));
+      for (const n of [2, 3]) expect(out, `vidéo ${n}`).toContain(`youtube.com/embed/abcdefghij${n}`);
+    });
+  });
+
+  describe(`${prefix}médias de la suite du corps — formes qui pourraient casser (REG-246)`, () => {
+    it('une bannière liée vers un partenaire, et sa mention « Publicité », ne reviennent pas', () => {
+      const ad = (n: number) => `<div><div class="row-wrapper row"><figure class="wp-block-image"><a href="https://partner.example/offre-${n}?utm_source=site"><img src="https://ads.example.net/banniere-${n}.jpg" width="728" height="300" alt=""></a><figcaption>Publicité</figcaption></figure></div></div>`;
+      const out = guarded(suitePage(ad));
+      expect(out).not.toContain('banniere-2.jpg');
+      expect(out).not.toContain('banniere-3.jpg');
+      expect(textOf(out)).not.toContain('Publicité');
+      // La suite elle-même revient.
+      expect(textOf(out)).toContain(sentence(12, 'Paragraphe'));
+    });
+
+    it('une carte « à lire aussi » (vignette et titre lié) entre deux blocs de la suite ne revient pas', () => {
+      const card = (n: number) => `<div><div class="row-wrapper row"><div class="related-card"><picture><img src="https://pic.example.com/carte-${n}/400x225/smart/autre.jpg" width="400" height="225" alt=""></picture><h3><a href="https://example.com/autre-article-${n}">Un autre article à lire sur le site ${n}</a></h3></div></div></div>`;
+      const out = guarded(suitePage(card));
+      expect(out).not.toContain('carte-2/');
+      expect(out).not.toContain('carte-3/');
+      expect(textOf(out)).not.toContain('Un autre article à lire');
+    });
+
+    it('une photo APRÈS la fin du corps (logos de partenaires, puis un encart d’un autre gabarit) ne revient pas', () => {
+      const after = `${row('<div class="partners"><picture><img src="https://pic.example.com/partenaire/600x300/smart/logo-partenaire.png" width="600" height="300" alt=""></picture></div>')}${row('<div class="newsletter-box"><p>Recevez chaque matin nos meilleurs articles directement dans votre boîte mail.</p></div>')}<div><picture><img src="https://pic.example.com/fin/900x500/smart/derniere.jpg" width="900" height="500" alt=""></picture></div>`;
+      const out = guarded(suitePage((n) => clubicFigure(n), after));
+      expect(out).toContain(photo(3));
+      expect(out).not.toContain('logo-partenaire.png');
+      expect(out).not.toContain('derniere.jpg');
+    });
+
+    it('un résultat qui lit déjà la photo de la suite ne la reçoit pas deux fois', () => {
+      const page = suitePage((n) => clubicFigure(n));
+      const out = guardForTests({ page, result: `<div class="page">${paragraphs(1, 6)}<img src="${photo(2)}"></div>`, title: 'Le titre de l’article' }).content;
+      expect(all(out, 'img').filter((img) => img.getAttribute('src') === photo(2))).toHaveLength(1);
+      // Une photo et sa légende que le résultat porte déjà à leur place : ni l'une ni l'autre deux fois.
+      const placed = guardForTests({ page, result: `<div class="page">${paragraphs(1, 3)}<img src="${photo(1)}"><figcaption>Légende de la photo 1 ©Crédit</figcaption>${paragraphs(4, 3)}</div>`, title: 'Le titre de l’article' }).content;
+      expect(all(placed, 'img').filter((img) => img.getAttribute('src') === photo(1))).toHaveLength(1);
+      expect(occurrences(textOf(placed), 'Légende de la photo 1 ©Crédit')).toBe(1);
+    });
+
+    it('un crédit qui n’est pas la légende d’une photo remise suit la règle de toujours : lu ailleurs, il ne revient pas', () => {
+      // « Photo : AFP » seul dans la suite, sans image à côté, déjà lu dans le résultat.
+      const page = doc(`<article><h1>Le titre de l’article</h1>${slate(`${paragraphs(1, 3)}<p>Photo : AFP / Jean Dupont, reportage</p>`)}${slate(paragraphs(4, 3))}<div><figcaption>Photo : AFP / Jean Dupont, reportage</figcaption></div>${slate(paragraphs(7, 3))}</article>`);
+      const out = guardForTests({ page, result: `<div class="page">${paragraphs(1, 3)}<p>Photo : AFP / Jean Dupont, reportage</p>${paragraphs(4, 3)}</div>`, title: 'Le titre de l’article' }).content;
+      expect(occurrences(textOf(out), 'Photo : AFP / Jean Dupont, reportage')).toBe(1);
+      expect(textOf(out)).toContain(sentence(9, 'Paragraphe'));
+    });
+  });
+
+  // REG-247 : Les Numériques place dans l'en-tête de l'article le bouton
+  // « Ajoutez-nous à vos favoris Google » (lien vers
+  // `google.com/preferences/source`, écrit en `<span data-a-link>`), dont le
+  // logo est un `.svg` sans taille : le volet l'affichait sur toute sa largeur.
+  const lnHeader = (button: string) => doc(`<article><section><h1>Le titre de l’article</h1><div><p><time datetime="2026-11-07">Publié le 07/11/26 à 14h14</time></p></div><div><p><span>Nos réseaux :</span></p><p>${button}</p></div><header><p>${sentence(0, 'Chapeau')}</p></header></section><div class="content">${paragraphs(1, 6)}</div></article>`);
+  const prefButton = (attr: string) => `<span ${attr}="https://www.google.com/preferences/source?q=example.com&amp;hl=fr_FR" data-target="_blank"><img src="https://cdn.example.com/assets/build/img/svg/logo-google.svg"><span>Ajoutez nous à vos favoris Google</span></span>`;
+
+  describe(`${prefix}logo du bouton « source préférée » de Google (REG-247)`, () => {
+    it('le logo du bouton ne passe pas dans l’article, quelle que soit la forme du lien (Les Numériques)', () => {
+      for (const button of [prefButton('data-a-link'), `<a href="https://www.google.com/preferences/source?q=example.com"><img src="https://cdn.example.com/g.svg" alt="Google"> Ajoutez-nous sur Google</a>`]) {
+        const out = extractArticle(URL_, lnHeader(button))!.content;
+        expect(out, button).not.toMatch(/logo-google\.svg|\/g\.svg/);
+        expect(textOf(out)).toContain(sentence(1, 'Paragraphe'));
+      }
+    });
+  });
+
+  describe(`${prefix}logo du bouton « source préférée » de Google — formes qui pourraient casser (REG-247)`, () => {
+    it('le logo d’une marque dont parle l’article, en `.svg` sans taille, reste', () => {
+      const html = doc(`<article><h1>Le titre de l’article</h1>${paragraphs(1, 3)}<figure><img src="https://cdn.example.com/2026/11/nouveau-logo-google.svg" alt="Le nouveau logo de Google"><figcaption>Le nouveau logo de Google, dévoilé ce matin.</figcaption></figure>${paragraphs(4, 3)}</article>`);
+      expect(extractArticle(URL_, html)!.content).toContain('nouveau-logo-google.svg');
+    });
+
+    it('une image liée à une autre page de Google (recherche, Actualités) n’est pas touchée', () => {
+      const body = parse(`<!doctype html><html><body><article><h1>Le titre de l’article</h1>${paragraphs(1, 3)}<figure><a href="https://news.google.com/publications/abc"><img src="https://cdn.example.com/capture-google-actualites.png" width="1200" height="800" alt="Google Actualités"></a><figcaption>La page de Google Actualités.</figcaption></figure>${paragraphs(4, 3)}</article></body></html>`);
+      const before = body.querySelectorAll('img').length;
+      const out = extractArticle(URL_, body.documentElement.outerHTML)!.content;
+      expect(before).toBe(1);
+      expect(out).toContain('capture-google-actualites.png');
+    });
+  });
 }

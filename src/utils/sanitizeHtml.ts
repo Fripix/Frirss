@@ -8,6 +8,25 @@ const DIR_AUTO_TAGS = new Set(['P', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'LI', 'B
 /** Passe « corps d'article » en cours (`sanitizeArticleBody`), sinon `null`. */
 let bodyPass: { eagerImages: number; images: number; blockDir: boolean } | null = null;
 
+/** `auto` en tête d'une liste `sizes`, avec sa virgule. */
+const AUTO_SIZES = /^\s*auto\s*(?:,\s*|$)/i;
+
+/**
+ * `sizes="auto, …"` sans son `auto` (REG-248). Avec `loading="lazy"`, `auto`
+ * fait choisir la variante du `srcset` d'après la largeur de l'image AVANT son
+ * chargement : le volet la laisse en `width: auto` (`.article-content img`),
+ * donc 300 px par défaut, et la variante choisie fixe ensuite sa largeur
+ * naturelle — l'image du blog de GitHub restait à 300 px dans un volet de
+ * 700. Le reste de la liste demeure (`(max-width: 1000px) 100vw, 1000px`) ;
+ * `auto` seul devient `100vw`, la valeur d'un `sizes` absent. Valeur
+ * remplacée sur place, jamais l'attribut retiré (voir plus bas).
+ */
+function withoutAutoSizes(node: Element): void {
+  const sizes = node.getAttribute('sizes');
+  if (!sizes || !AUTO_SIZES.test(sizes)) return;
+  node.setAttribute('sizes', sizes.replace(AUTO_SIZES, '').trim() || '100vw');
+}
+
 // Registered once at module load (DOMPurify hooks are global).
 DOMPurify.addHook('afterSanitizeAttributes', (node) => {
   if (!(node instanceof Element)) return;
@@ -34,6 +53,9 @@ DOMPurify.addHook('afterSanitizeAttributes', (node) => {
   } else if (node.tagName === 'IMG') {
     if (++bodyPass.images > bodyPass.eagerImages) node.setAttribute('loading', 'lazy');
     reserveImgAspect(node);
+    withoutAutoSizes(node);
+  } else if (node.tagName === 'SOURCE') {
+    withoutAutoSizes(node);
   } else if (bodyPass.blockDir && DIR_AUTO_TAGS.has(node.tagName) && !node.hasAttribute('dir')) {
     node.setAttribute('dir', 'auto');
   }

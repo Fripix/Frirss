@@ -133,6 +133,31 @@ describe('displayedHtml', () => {
     expect(opensOnImage('<div><p>Nov 05, 2026</p><span>|</span><p>Le chapeau du billet, une phrase entière qui le résume.</p><img src="https://cdn.example.com/hero.width-1600.format-webp.webp"></div>')).toBe(true);
   });
 
+  // REG-247 : Les Numériques donne au flux la photo d'origine (`…serveurs.jpg`)
+  // et à la page ses tailles recadrées (`…serveurs__1200_678__8-48-2066-1208.jpg`,
+  // `__908_512__…`, la vignette carrée `__800_800__611-0-1878-1267`) ; trois
+  // blocs de texte (publicité, date, « favoris Google ») précèdent la photo de
+  // l'extrait : le volet la remettait au-dessus, deux fois la photo.
+  it('ne la réinjecte pas quand l’extrait porte la même photo à un suffixe de taille et de recadrage près (Les Numériques, REG-247)', () => {
+    const dir = 'https://cdn.example.com/optim/news/26/263992';
+    const late = (img: string) => `<p>Publicité, votre contenu continue ci-dessous</p><p>Publié le 07/11/26 à 14h14</p><p>Ajoutez nous à vos favoris Google</p><p>Le chapeau de l’article, assez long pour compter.</p>${img}<p>fin</p>`;
+    const page = late(`<img src="${dir}/db06c9ca-aspirateur-robot-romo-p2__1200_678__8-48-2066-1208.jpg" width="908" height="512">`);
+    expect(displayedHtml(`<img src="${dir}/db06c9ca-aspirateur-robot-romo-p2.jpg"><p>flux</p>`, page)).toBe(page);
+    expect(displayedHtml(`<img src="${dir}/db06c9ca-aspirateur-robot-romo-p2__800_800__611-0-1878-1267.jpg"><p>flux</p>`, page)).toBe(page);
+    expect(displayedHtml(`<img src="${dir}/db06c9ca-aspirateur-robot-romo-p2__800_800__overflow.jpg"><p>flux</p>`, page)).toBe(page);
+  });
+
+  it('réinjecte une autre photo au même suffixe de taille, ou sous un double soulignement qui n’est pas une taille (REG-247)', () => {
+    const dir = 'https://cdn.example.com/optim/news/26/263992';
+    const late = (img: string) => `<p>Le premier paragraphe du corps.</p><p>Le deuxième paragraphe du corps.</p><p>Le troisième paragraphe du corps.</p>${img}<p>fin</p>`;
+    // Deux vraies photos, même article, même taille, même recadrage : deux noms.
+    const other = late(`<img src="${dir}/55f071c1-le-robot-lave-le-sol__1200_678__8-48-2066-1208.jpg">`);
+    expect(displayedHtml(`<img src="${dir}/db06c9ca-aspirateur-robot-romo-p2__1200_678__8-48-2066-1208.jpg">`, other)).toContain('db06c9ca-');
+    // Un double soulignement qui n'est pas une taille : `photo__v2`, `rapport__2026_q3`.
+    expect(displayedHtml('<img src="https://cdn.example.com/a/photo__v2.jpg">', late('<img src="https://cdn.example.com/a/photo.jpg">'))).toContain('photo__v2.jpg');
+    expect(displayedHtml('<img src="https://cdn.example.com/a/rapport__2026_q3.jpg">', late('<img src="https://cdn.example.com/a/rapport__2026_q2.jpg">'))).toContain('rapport__2026_q3.jpg');
+  });
+
   it('ne la réinjecte pas quand le flux donne la même photo plus grande que l’extrait (REG-245)', () => {
     const rest = '<p>Le premier paragraphe du corps.</p><p>Le deuxième paragraphe du corps.</p><p>Le troisième paragraphe du corps.</p><img src="https://example.com/up/photo-640x360.jpg"><p>fin</p>';
     expect(displayedHtml('<img src="https://example.com/up/photo-1600x900.jpg">', rest)).toBe(rest);

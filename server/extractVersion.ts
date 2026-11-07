@@ -84,5 +84,10 @@
  *     citation de ses attributs (REG-242), un aperçu flou prend sa plus grande
  *     variante (REG-243), l'image d'en-tête dans un lien d'agrandissement
  *     revient (REG-244) : les extraits v13 sont refaits.
+ * 15 : 1.9.0 — les photos et légendes d'un dossier rangées entre deux blocs
+ *     de la suite du corps reviennent, et la légende d'une photo remise
+ *     revient avec elle, même un crédit répété (REG-246) ; le logo du bouton
+ *     « source préférée » de Google ne passe plus dans l'article (REG-247) :
+ *     les extraits v14 sont refaits.
  */
-export const EXTRACT_VERSION = 14;
+export const EXTRACT_VERSION = 15;

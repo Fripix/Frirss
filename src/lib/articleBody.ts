@@ -129,7 +129,9 @@ function holdsImage(html: string, src: string): boolean {
 //   taille connue d'au moins 100 px (attributs, `srcset` à largeurs, taille
 //   dans l'adresse) — ni un pixel de suivi, ni un logo `.svg`, ni un avatar ;
 // - l'extrait porte la même photo (`sameLeadPhoto`) : même hôte, et même
-//   chemin aux paramètres près (recadrage), ou le NUMÉRO DE L'IMAGE du flux
+//   chemin aux paramètres près (recadrage) et au suffixe de taille et de
+//   recadrage près (`-1200x675`, `__1200_678__8-48-2066-1208` de Les
+//   Numériques, REG-247), ou le NUMÉRO DE L'IMAGE du flux
 //   (après `images/`, ou le dernier nombre de son nom de fichier : six
 //   chiffres au moins, ni une date, ni une heure, ni un horodatage) à la fin
 //   d'un nombre de l'adresse de l'extrait — et d'une seule de ses images.
@@ -213,6 +215,14 @@ const ID_MAX_DIGITS = 9;
 /** Paramètres de recadrage, de taille et de format : la même photo autrement servie. */
 const FRAMING_PARAMS = new Set(['crop', 'rect', 'strip', 'gravity', 'focus', 'fit', 'format', 'fm', 'auto', 'w', 'h', 'width', 'height', 'resize', 'quality', 'q', 'dpr', 'key', 'sig', 'signature', 'hash']);
 
+/**
+ * La taille et le recadrage dans le nom du fichier, à la manière de Les
+ * Numériques (REG-247) : `…serveurs__1200_678__8-48-2066-1208.jpg`,
+ * `…__800_800__overflow.jpg`, `…__452_254.jpg` — le flux donne
+ * `…serveurs.jpg`. Deux nombres après `__`, puis au plus un recadrage.
+ */
+const LEAD_SIZE_SUFFIX = /__\d{2,5}_\d{2,5}(?:__[a-z0-9-]+)?(?=\.[a-z0-9]+$)/i;
+
 /** Le numéro de l'image d'une adresse : le segment qui suit `images/`, sinon le dernier nombre du nom de fichier. */
 function imageNumber(u: URL): string | null {
   const segments = u.pathname.split('/').filter(Boolean);
@@ -234,7 +244,7 @@ export function sameLeadPhoto(a: string, b: string): 'path' | 'number' | null {
   try { ua = new URL(a); ub = new URL(b); } catch { return null; }
   const host = (u: URL) => u.host.toLowerCase().replace(/^www\./, '');
   if (host(ua) !== host(ub)) return null;
-  const path = (u: URL) => u.pathname.replace(/-\d{2,5}x\d{2,5}(?=\.[a-z0-9]+$)/i, '');
+  const path = (u: URL) => u.pathname.replace(/-\d{2,5}x\d{2,5}(?=\.[a-z0-9]+$)/i, '').replace(LEAD_SIZE_SUFFIX, '');
   // Hors recadrage, taille et format, la requête désigne l'image (`image.php?id=2`).
   const query = (u: URL) => [...u.searchParams].filter(([key]) => !FRAMING_PARAMS.has(key.toLowerCase())).map(([k, v]) => `${k}=${v}`).sort().join('&');
   if (path(ua) === path(ub) && query(ua) === query(ub)) return 'path';

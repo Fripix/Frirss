@@ -1835,6 +1835,68 @@ function titleLike(own: string, title: string): boolean {
   return own.startsWith(opening) || (own.split(' ').length >= 3 && reads(title, own));
 }
 
+// ── Les médias de la suite du corps (REG-246) ───────────────────────
+// Clubic range chaque photo d'un dossier entre deux blocs du corps, dans son
+// propre gabarit (`div.image-content` > `<picture>` + `<figcaption>`), pas
+// dans celui du texte (`div.slate-content`). Quand Readability ne garde que
+// le début du dossier, la garde remet la SUITE du corps — les blocs qui ont le
+// gabarit des derniers blocs lus — et les photos de cette suite restaient
+// dehors : 5 photos sur 7, 4 légendes sur 8.
+//
+// Une suite de parties de figure (image, vidéo, figure, légende) comprise
+// ENTRE deux blocs du corps lu — le dernier bloc lu ou un bloc de la suite
+// avant, un bloc de la suite après — en fait partie, si l'une d'elles montre
+// un média hors d'un lien vers une autre page. Ni une bannière liée vers un
+// partenaire avec sa mention « Publicité », ni une carte « à lire aussi », ni
+// ce qui suit la fin du corps (rien de la suite après) ne reviennent.
+// Même règle dans le repli du navigateur (`src/utils/extractContent.ts`).
+
+/** Les parties d'une figure : l'image, le média, la figure entière, sa légende. */
+const FIGURE_PARTS = new Set(['picture', 'img', 'figure', 'video', 'audio', 'iframe', 'figcaption']);
+
+function figurePart(unit: Unit): boolean {
+  return FIGURE_PARTS.has(unit.el.tagName.toLowerCase()) || !!unit.el.closest('figcaption');
+}
+
+/** Le bloc montre-t-il un média hors d'un lien vers une autre page (ni icône) ? */
+function ownMedia(unit: Unit): boolean {
+  if (!unit.images.length) return false;
+  const media = [unit.el, ...Array.from(unit.el.querySelectorAll('img, video, audio, iframe')) as Element[]]
+    .filter((el) => /^(?:img|video|audio|iframe)$/i.test(el.tagName) && !(el.tagName.toLowerCase() === 'img' && isIcon(el)));
+  return media.some((el) => {
+    const link = el.closest('a');
+    return !link || zoomedImage(el, link);
+  });
+}
+
+/** `caption` est-il la légende (`<figcaption>`) de la photo `image`, dans le même conteneur ? */
+function captionFor(caption: Unit, image: Unit): boolean {
+  const el = caption.el.tagName.toLowerCase() === 'figcaption' ? caption.el : caption.el.closest('figcaption');
+  if (!el || caption.images.length || !image.images.length || !figurePart(image)) return false;
+  for (let up = el.parentElement, depth = 0; up && depth < 2; up = up.parentElement, depth++) if (up.contains(image.el)) return true;
+  return false;
+}
+
+/** Les parties de figure comprises entre deux blocs du corps lu, après le dernier (`last`). */
+function enclosedMedia(units: Unit[], first: number, last: number, suiteBlock: (i: number) => boolean, card: (i: number) => boolean): Set<number> {
+  const out = new Set<number>();
+  if (first < 0 || last < 0) return out;
+  for (let i = last + 1; i < units.length; i++) {
+    if (!figurePart(units[i])) continue;
+    let end = i;
+    while (end + 1 < units.length && figurePart(units[end + 1])) end++;
+    const opened = i - 1 === last || suiteBlock(i - 1);
+    const closed = end + 1 < units.length && suiteBlock(end + 1);
+    if (opened && closed) {
+      const run: number[] = [];
+      for (let k = i; k <= end; k++) if (!units[k].excluded && !card(k)) run.push(k);
+      if (run.some((k) => ownMedia(units[k]))) for (const k of run) out.add(k);
+    }
+    i = end;
+  }
+  return out;
+}
+
 /** Le résultat de Readability, sans perte de ce que le conteneur de la page porte (voir plus haut). */
 function withoutLoss(pass: Pass, parse: (html: string) => Element, base: string): ExtractedArticle {
   const frame = pass.frame;
@@ -1936,6 +1998,12 @@ function withoutLoss(pass: Pass, parse: (html: string) => Element, base: string)
     if (own) shapes.add(own);
   }
   const short = normalizedLength(pass.textContent) < READABILITY_CHAR_THRESHOLD;
+  // La suite du corps : après le dernier bloc lu, ce qui a son gabarit.
+  const inSuite = (i: number) => {
+    const parent = units[i].el.parentElement;
+    return i > last && (short || parents.has(parent) || shapes.has(shape(parent) ?? '')) && !card(i);
+  };
+  const enclosed = enclosedMedia(units, first, last, (i) => inSuite(i) && !mostlyLinks(units[i].el), card);
 
   // Les blocs que la page certifie (PREUVE).
   const proven = new Set<number>();
@@ -1966,16 +2034,22 @@ function withoutLoss(pass: Pass, parse: (html: string) => Element, base: string)
   const wanted: number[] = [];
   /** Les blocs remis entiers, sans en ôter ce que le résultat lit déjà. */
   const whole = new Set<number>();
+  /** Parmi eux, les légendes : entières seulement juste après leur photo. */
+  const captions = new Set<number>();
   for (let i = 0; i < units.length; i++) {
     const unit = units[i];
     if (unit.excluded || isTitle(unit, title)) continue;
     if (!proven.has(i)) {
       if (first < 0) continue;
-      const parent = unit.el.parentElement;
-      const suite = i > last && (short || parents.has(parent) || shapes.has(shape(parent) ?? '')) && !card(i);
+      const suite = inSuite(i) || enclosed.has(i);
       const placed = (i < first ? inHeader(i) : i <= last) || suite;
       if (!placed || (mostlyLinks(unit.el) && !bodyList(i))) continue;
     }
+    // La légende d'une photo remise revient avec elle, entière, même un
+    // crédit que le résultat lit déjà ailleurs ou qu'une légende remise
+    // avant elle porte aussi (« ©Carrefour » sous trois photos d'un dossier
+    // de Clubic, REG-246).
+    if (wanted[wanted.length - 1] === i - 1 && !located.has(i) && captionFor(unit, units[i - 1])) { wanted.push(i); whole.add(i); captions.add(i); continue; }
     if ((text(i) && imagesRead(kept, unit)) || retouched(i)) {
       // Un intertitre remis ne reste pas orphelin : le bloc qui le suit, que
       // le résultat lit ailleurs sans l'avoir à cette place (un encadré « Key
@@ -2024,12 +2098,15 @@ function withoutLoss(pass: Pass, parse: (html: string) => Element, base: string)
   const picked: Array<{ el: Element; place: number }> = [];
   const read = fullyRead(kept);
   for (const i of wanted) {
+    // Une légende n'est entière que remise juste après sa photo ; sinon,
+    // la règle commune (une photo déjà lue garde la légende qui la suit).
+    const entire = whole.has(i) && (!captions.has(i) || picked[picked.length - 1]?.place === i - 1);
     // Un bloc remis est lu : son double plus loin (un chapeau écrit pour deux mises en page) ne revient pas.
-    if (!whole.has(i) && read(units[i])) continue;
+    if (!entire && read(units[i])) continue;
     const copy = remittable(units[i].el, base);
-    if (!whole.has(i)) withoutWhatIsRead(copy, base, asIs, kept.images);
+    if (!entire) withoutWhatIsRead(copy, base, asIs, kept.images);
     const left = unitOf(copy, base, false);
-    if ((!left.norm.trim() && !left.images.length) || (!whole.has(i) && read(left))) continue;
+    if ((!left.norm.trim() && !left.images.length) || (!entire && read(left))) continue;
     for (const s of left.tracked) kept.sentences.add(s);
     kept.blocks.add(left.norm.trim());
     for (const addresses of left.images) for (const address of addresses) kept.images.add(sameImage(address));
@@ -3206,11 +3283,34 @@ function visibleTextLength(root: Element, stopAt = Infinity): number {
   return length;
 }
 
+/**
+ * Le bouton « Ajoutez-nous à vos favoris Google » (REG-247) : un lien vers
+ * `google.com/preferences/source`, écrit en `<a href>` ou en
+ * `<span data-a-link>` (Les Numériques, dans l'en-tête de l'article). Son
+ * logo est un `.svg` sans taille, que le volet affichait sur toute sa largeur.
+ * Seule l'image sort : le texte du bouton reste (en cas de doute, on garde le
+ * texte), et aucune autre image liée à Google n'est touchée.
+ */
+const PREFERRED_SOURCE = /^(?:https?:)?\/\/(?:www\.)?google\.[a-z.]+\/preferences\/source(?:[/?#]|$)/i;
+const LINK_ATTRS = ['href', 'data-a-link', 'data-href', 'data-url', 'data-link'];
+
+function dropPreferredSourceLogos(root: Element): void {
+  for (const img of Array.from(root.querySelectorAll('img')) as Element[]) {
+    for (let up = img.parentElement, depth = 0; up && up !== root && depth < 4; up = up.parentElement, depth++) {
+      if (LINK_ATTRS.some((name) => PREFERRED_SOURCE.test((up!.getAttribute(name) || '').trim()))) {
+        img.remove();
+        break;
+      }
+    }
+  }
+}
+
 /** Retire de `root` (jamais `root` lui-même) les blocs étrangers à l'article. */
 export function stripBoilerplate(root: Element): void {
   // La marque du voile est à FriRSS (RW-02).
   root.removeAttribute(VEIL_ATTR);
   for (const el of Array.from(root.querySelectorAll(`[${VEIL_ATTR}]`)) as Element[]) el.removeAttribute(VEIL_ATTR);
+  dropPreferredSourceLogos(root);
   const total = visibleTextLength(root);
   // Texte des billets déjà mesurés (B-02), tenu à jour à chaque retrait :
   // un billet se mesure tel qu'il reste, comme quand chaque bloc le relisait.

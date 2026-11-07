@@ -3106,7 +3106,10 @@ libellés disaient « plein écran » jusqu'en 1.8.0) au double-clic. Contenu bi
   vignette carrée 500×500 du flux d'Ars ne s'ajoute plus au-dessus de la
   photo paysage de la page) ; ou l'extrait porte **la même photo sous une
   autre adresse du même hôte** (`sameLeadPhoto` : même chemin hors
-  recadrage, taille, format et signature — `crop=` de The Verge —, ou le
+  recadrage, taille, format et signature — `crop=` de The Verge, le suffixe
+  `__1200_678__8-48-2066-1208` de Les Numériques, dont le flux donne
+  `…serveurs.jpg` : REG-247 ; deux noms différents au même suffixe restent
+  deux photos —, ou le
   numéro de l'image du flux — le segment qui suit `images/`, sinon le
   dernier nombre de son nom de fichier, de six à neuf chiffres, ni une date
   ni une heure — à la fin d'un nombre de l'adresse d'UNE SEULE image de
@@ -3159,7 +3162,18 @@ libellés disaient « plein écran » jusqu'en 1.8.0) au double-clic. Contenu bi
   avant en tête), un `style` existant est complété sur place
   (`border:0;aspect-ratio:4/3`), et un `loading="eager"` (ou toute autre
   valeur) d'une image au-delà des deux premières est remplacé par `lazy` à sa
-  place. Elle ne retire ni ne repose **jamais** un attribut existant :
+  place. **`sizes="auto, …"` perd son `auto`** (1.9.0, REG-248 — `<img>` et
+  `<source>`) : avec `loading="lazy"`, `auto` fait choisir la variante du
+  `srcset` d'après la largeur de l'image avant son chargement, 300 px par
+  défaut puisque `.article-content img` est en `width: auto`, et la variante
+  choisie fixe ensuite sa largeur naturelle — l'en-tête et les schémas du
+  blog de GitHub (et les images différées de Frandroid) restaient à 300 px
+  dans un volet de 700 (mesuré dans Chrome : 300 → 700 px). Le reste de la
+  liste demeure (`(max-width: 1000px) 100vw, 1000px`), `auto` seul devient
+  `100vw` ; un `sizes` sans `auto` en tête (`34px` d'un avatar, `calc(…)`)
+  n'est pas touché. Valeur remplacée sur place, comme `loading`. Côté volet,
+  donc valable aussi pour le contenu du flux et les extraits déjà gardés.
+  Elle ne retire ni ne repose **jamais** un attribut existant :
   DOMPurify garde des noms `data-*` que le parseur HTML accepte mais que la
   vérification de nom XML refuse (`data-a×b`), et les reposer
   (`setAttributeNS`, pour garder `dir` en tête) levait `InvalidCharacterError`
@@ -5562,6 +5576,17 @@ serveur de développement en 1.4.4.)*
   ni « formulaire » ; un bloc `newsletter` à champ de saisie qui porte la
   moitié du texte de son billet ou plus reste (une lettre publiée comme
   billet : seul le conteneur de son formulaire sort).
+  **Le logo du bouton « source préférée » de Google** (REG-247,
+  `dropPreferredSourceLogos`, en tête de `stripBoilerplate`, des deux
+  côtés) : une image dans un lien (`href`, ou `data-a-link`, `data-href`,
+  `data-url`, `data-link` — Les Numériques écrit le bouton en
+  `<span data-a-link>`), à quatre niveaux au plus, vers
+  `google.com/preferences/source` sort ; **seule l'image**, le texte du
+  bouton (« Ajoutez nous à vos favoris Google ») reste, comme en 1.8.0. Ce
+  logo `.svg` sans taille, dans l'en-tête de l'article, s'affichait sur
+  toute la largeur du volet, entre deux exemplaires de la photo d'en-tête.
+  Un logo `.svg` légitime (une marque dont parle l'article, un schéma de
+  go.dev) n'est pas touché, ni une image liée à une autre page de Google.
   **Le code n'est jamais jugé** (REG-219, tests « blocs de code (REG-219) »
   des deux côtés, sur `src/test/codeBlockPageFixture.ts`) : rien n'est retiré
   d'un `<pre>` ni d'un `<code>`, ni eux-mêmes — boutons, `span` et liens
@@ -5928,7 +5953,17 @@ serveur de développement en 1.4.4.)*
      et de même classe (`div.slate-content` de Clubic) ; ce qui suit dans un
      autre gabarit ne revient pas (notice de l'auteur d'Ars, « Publications
      qui peuvent vous intéresser » des Numériques), ni une carte (REG-237 :
-     le chapeau de GitHub a la classe des extraits de ses cartes) ;
+     le chapeau de GitHub a la classe des extraits de ses cartes). **Les
+     médias de la suite** (REG-246, `enclosedMedia`) : une suite de parties
+     de figure (image, `<picture>`, vidéo, cadre vidéo, figure, légende)
+     comprise ENTRE deux blocs du corps lu — le dernier bloc lu ou un bloc
+     de la suite avant, un bloc de la suite après — en fait partie, même
+     dans un autre gabarit, si l'une d'elles montre un média hors d'un lien
+     vers une autre page. Un dossier de Clubic range chaque photo dans son
+     `div.image-content` entre deux `div.slate-content` : 5 photos sur 7 et
+     4 légendes sur 8 revenaient. Ni une bannière liée vers un partenaire
+     (et sa mention « Publicité »), ni une carte « à lire aussi », ni ce
+     qui suit la fin du corps (rien de la suite après) ;
   5. **résultat court** — sous le seuil de 500 (Readability a rendu « la plus
      longue » faute de mieux, L-04), tout ce qui le suit dans le conteneur
      (REG-221 : les paliers d'une page courte). Revers assumé : sur un tel
@@ -5973,7 +6008,13 @@ serveur de développement en 1.4.4.)*
   de ses blocs un bloc du résultat (REG-235 : « 4 GB » lu dans « 4 GB of
   RAM », l'entrée d'un avis lue dans son résumé, sortaient). Un intertitre
   remis revient avec le bloc qui le suit, même lu ailleurs (un encadré qui
-  reprend une phrase du corps : la page le montre deux fois). Chacune
+  reprend une phrase du corps : la page le montre deux fois). **La légende
+  d'une photo remise** (`<figcaption>` dans le même conteneur, à deux niveaux
+  au plus, juste après elle) revient avec elle, entière, même un crédit que
+  le résultat lit déjà ou qu'une légende remise avant elle porte (REG-246 :
+  « ©Carrefour » sous trois photos de Clubic n'apparaissait qu'une fois) ;
+  si la photo n'est finalement pas remise (déjà lue), la légende suit la
+  règle commune — sinon la légende de l'en-tête de The Verge se perdait. Chacune
   **à sa place dans l'ordre de la page** : avant le premier bloc du résultat
   qui la suit dans le conteneur, sinon après le dernier qui la précède ; un
   bloc du résultat qu'on ne retrouve pas dans le conteneur (la date d'une
@@ -6160,7 +6201,10 @@ serveur de développement en 1.4.4.)*
 - **Version de l'extraction** (1.9.0, A-2 — `server/extractVersion.ts` et
   `src/lib/extractVersion.ts`, même valeur vérifiée par
   `server/test/cache.test.ts`). À monter à chaque changement du résultat de
-  l'extraction pour une même page. **14** depuis REG-239 : les médias de
+  l'extraction pour une même page. **15** depuis REG-246 : les photos et
+  légendes rangées entre deux blocs de la suite du corps, la légende d'une
+  photo remise avec elle (REG-246), le logo du bouton « source préférée »
+  de Google retiré (REG-247) ; 14 avait accompagné REG-239 : les médias de
   l'article (questions d'un `<details>`, `<picture>` sans `<img>`, vidéo
   derrière un voile, vidéos et citations d'éléments personnalisés, aperçu
   flou, image dans un lien d'agrandissement — REG-239 à REG-244) ; 13 avait
