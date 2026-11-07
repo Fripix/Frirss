@@ -5376,7 +5376,11 @@ serveur de développement en 1.4.4.)*
   nettoyage ne connaît pas, par la garde du volet sur les mots du flux. Une
   repasse à 50 quand aucune passe n'atteint 500 a aussi été mesurée : après
   le nettoyage, elle ne changeait plus que ce billet, en lui retirant sa
-  ligne de titre — écartée.
+  ligne de titre — écartée. Le témoin de la garde de non-perte, lui, lit à 50
+  (plus bas) : sous le seuil, ce qu'il garde dans le conteneur de l'article
+  après le résultat est **ajouté**, jamais substitué (REG-221 : une page
+  d'accueil courte rendait son introduction et perdait ses paliers, que la
+  1.8.0 rendait).
 - **Seconde passe sur le conteneur principal de la page** (1.9.0, A-1,
   `server/extract.ts`, copiée dans le repli de `extractContent.ts` ; tests :
   `server/test/extract.test.ts` et `extractContent.test.ts` › « conteneur
@@ -5475,7 +5479,16 @@ serveur de développement en 1.4.4.)*
   « Comments » et « Powered by WordPress ». Readability écarte bien ces blocs à
   sa première tentative (classes « improbables »), mais les reprend aux
   suivantes. Ils sortent donc du document **avant toute passe** : `footer`,
-  `nav`, `form`, rôles `navigation` et `contentinfo` ; `aside` et rôle
+  `nav`, `form`, rôles `navigation` et `contentinfo` — **sauf le sommaire de
+  l'article** (REG-222, `isTableOfContents` : une navigation d'au moins deux
+  liens dont **chaque** lien est une ancre vers un titre de la page, ou vers
+  un repère posé dans un titre ; un menu de site, un « Aller au contenu », des
+  ancres vers `#corps` ou `#haut` sortent toujours). Retirer les sommaires
+  avait fait perdre un intertitre : `<h2 id="recap-the-forwarded-header">`,
+  que Readability retire lui-même (« header » est un mot « improbable »),
+  ne se lisait que dans le sommaire. Le sommaire revient tel que la 1.8.0 le
+  rendait (Clubic, un blog : ses titres s'y lisent deux fois, comme alors) ;
+  `aside` et rôle
   `complementary` **hors d'un `<article>`** seulement ; un bloc dont la classe
   ou l'id contient `related`, `comment(s)`, `breadcrumb(s)` ou `footer`
   (jamais un titre ni un élément de texte : `<h2 id="related-work">` reste) ;
@@ -5769,8 +5782,11 @@ serveur de développement en 1.4.4.)*
   l'auteur, son portrait et le compteur de commentaires ; sur la Rocket Report
   (six blocs), la seconde passe ne se déclenche plus et le surtitre, le
   chapeau d'en-tête et la légende de l'image d'en-tête, qu'elle ramassait
-  avec la notice, ne sont plus repris — comme sur toutes les autres pages
-  d'Ars, où ils ne l'ont jamais été. Aucun titre ni auteur ne bouge, aucune
+  avec la notice, ne sont plus repris — comme sur les autres pages d'Ars de
+  ce corpus-là. ⚠️ « Jamais repris » était faux : un article dont la 1.8.0
+  remontait à l'`<article>` (quatre blocs, plus de trois candidats proches)
+  rendait son chapeau et sa légende, que la réunion faisait perdre — la
+  garde de non-perte (plus bas) les remet (REG-220). Aucun titre ni auteur ne bouge, aucune
   image d'article n'est perdue. (Zoomit et la page d'accueil de Simon
   Willison gagnaient alors un tweet intégré et une ligne : des réunions
   partielles, retirées avec la règle « tout ou rien ».)
@@ -5790,6 +5806,88 @@ serveur de développement en 1.4.4.)*
   page n'a moins de texte, sauf les sept d'Ars, qui perdent exactement la
   notice de l'auteur, le compteur de commentaires et, sur la Rocket Report,
   l'en-tête que ramassait la seconde passe.
+- **Garde de non-perte** (1.9.0, REG-220 à REG-222 — `withoutLoss`,
+  `server/extract.ts`, copiée à l'identique dans le repli de
+  `extractContent.ts` ; tests : `server/test/extractNonLoss.test.ts` et
+  `extractContent.nonLoss.test.ts`, sur `src/test/guardPageFixtures.ts` —
+  l'arbre de quatre pages réelles, chaque lettre remplacée par une lettre
+  tirée au hasard, et un billet écrit à la main). **L'article complet ne perd
+  jamais de texte d'article** (règle du mainteneur) ; or le nettoyage et la
+  réunion du corps réparti changent le bloc que **choisit** Readability, et le
+  texte voisin du bloc choisi sort. The Verge : le formulaire de lettre et le
+  bloc « Related » retirés, Readability ne retenait plus `#__next` mais le
+  seul corps — le chapeau et l'image d'en-tête, ses frères, sortaient. Ars
+  Technica et le blog de Google : le corps réuni gagnait seul, Readability ne
+  remontait plus à l'`<article>`, l'en-tête (chapeau, légende, image)
+  sortait. Chaque règle avait été mesurée seule ; c'est leur effet sur le
+  choix qu'aucune mesure par règle ne voyait (corpus de 470 pages : 6 pages,
+  8 phrases et 2 images perdues, toutes nées du cycle).
+  La garde ne retouche aucune règle : elle compare le résultat à un
+  **témoin**, la page lue **intacte** comme en 1.8.0 (seuil 50), où les blocs
+  que le nettoyage aurait retirés sont seulement **marqués**
+  (`stripBoilerplate` en mode `mark`, attribut `data-frirss-strip`, comme le
+  voile, V2-02) puis ôtés du témoin. Ce que le témoin garde et que le
+  résultat n'a pas y est remis, à trois conditions :
+  - **c'est de l'article** : il se lit dans le conteneur que la page désigne
+    (`findMainContainer`, celui de la seconde passe : un `<article>` unique,
+    sinon un `<main>` ou un `[role=main]` unique) — rien sur une page de
+    liste, rien hors du conteneur (lien d'évitement, accroche du site,
+    colonne voisine) ;
+  - **il précède l'ouverture du résultat** dans ce conteneur, et le témoin
+    contient cette ouverture — il englobe le résultat au lieu de lire
+    ailleurs (chez Docker, le témoin ne garde que les billets liés : rien
+    n'est remis). **Après** l'ouverture aussi, mais seulement quand le
+    résultat est **sous le seuil de 500** (Readability a rendu « la plus
+    longue » faute de mieux, L-04) : REG-221. Revers assumé, testé : sur un
+    tel résultat, ce que le témoin lit dans le conteneur après lui revient,
+    parasite compris ;
+  - **c'est une phrase suivie** (25 caractères, 8 dans une écriture sans
+    espaces — la règle du corpus) ou une image qui n'est pas une icône
+    (`isIcon`) : une date, une rubrique, un portrait d'auteur ne déclenchent
+    rien.
+  Ce qui est remis : le **bloc entier** (paragraphe, figure, liste) tel que
+  le témoin l'a rendu, en tête du résultat (en fin, pour un résultat court),
+  dans l'ordre de la page. Une phrase que le résultat lit déjà n'est jamais
+  remise : un chapeau repris en premier paragraphe, ou doublé pour mobile
+  (The Verge), n'apparaît qu'une fois. L'**ouverture** du résultat est le
+  bloc du conteneur qui porte sa première phrase et ouvre une suite de huit
+  blocs gardés (`openingIn`) : un chapeau répété plus haut ne la déplace pas.
+  ⚠️ **Ce qui suit le corps n'est jamais remis** quand le résultat dépasse
+  le seuil : mesuré sur le corpus, c'est toujours de l'habillage — la notice
+  de l'auteur et « 22 Comments » d'Ars (REG-175 tient), « Recent articles »
+  de Simon Willison, « Latest in… » de TechCrunch.
+  ⚠️ **Le témoin n'est jamais rendu à la place du résultat** : il est la
+  page telle que la 1.8.0 la lisait, avec ce que le nettoyage écartait à
+  raison (la notice d'Ars, les billets liés de Docker), et il est souvent
+  plus pauvre (un seul bloc d'un corps réparti).
+  ⚠️ **Ce que la garde ne rattrape pas** : ce que le témoin n'a pas non plus.
+  Sur la plupart des articles d'Ars et sur de nombreux articles de The
+  Verge, le chapeau manquait déjà à la 1.8.0 (Readability y retient un bloc
+  du corps sans remonter à l'en-tête) : la garde ne l'invente pas, et le
+  corpus, qui ne mesure que les pertes relatives à la 1.8.0, ne le voit pas.
+  Le remettre d'après la page elle-même (le bloc de l'en-tête dont le texte
+  est la `meta description`) est une piste, pas une règle.
+  ⚠️ **Coût** : le témoin est **une passe Readability de plus**, et
+  seulement quand le conteneur porte, avant l'ouverture (ou après, sous le
+  seuil), une phrase ou une image absente du résultat — mesure faite sur la
+  page avant Readability. Mesuré (2026-11-07, 470 pages, en série) : témoin
+  demandé sur 243 pages, 768 passes au lieu de 525, 14,2 s au lieu de 8,2 ;
+  la page la plus lourde (3 Mo) 1,2 s au lieu de 0,5 ; le témoin ne remet
+  quelque chose que sur cinq pages. Les recherches de phrases sont bornées :
+  au plus seize candidats d'ouverture, et un budget de texte relu
+  (`Scan` : 32 fois le texte du conteneur et du résultat, plus 8 millions
+  de caractères) ; épuisé, la garde s'abstient **en entier** (tests « relit
+  au plus un multiple borné du texte… », par comptage, et « aucune passe de
+  plus quand rien ne manque avant le corps », par comptage des passes).
+  Aucune borne existante n'est relâchée (délai du worker, profondeur,
+  éléments).
+  Mesuré sur le corpus (2026-11-07) : contre la 1.8.0, une seule page en
+  échec, une page anonymisée dont la « phrase » perdue est le texte du
+  formulaire de lettre du rail ; contre la version d'avant la garde, sept
+  pages changent, toutes en gagnant (chapeau, image et légende d'en-tête de
+  The Verge, d'Ars et du blog de Google, paliers de la page courte,
+  intertitre du sommaire ; les sommaires de deux articles de Clubic
+  reviennent comme en 1.8.0).
 - **Images paresseuses résolues avant toute passe** (1.9.0, troisième round,
   A1 — `resolveLazyImages`, `server/extract.ts`, copiée dans le repli de
   `extractContent.ts` ; tests : `server/test/extract.test.ts` › « images

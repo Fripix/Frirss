@@ -439,6 +439,82 @@ export const READABILITY_CHAR_THRESHOLD = 500;
  * Synchrone : la route ne l'appelle qu'à travers `extractInWorker`.
  */
 export function extractArticle(url: string, html: string): ExtractedArticle | null {
+  const strict = strictPass(url, html);
+  if (!strict) return null;
+  // La garde de non-perte (REG-220) : ce que la lecture de la page intacte
+  // garde, dans le conteneur de l'article, et que la passe nettoyée a perdu,
+  // y est remis.
+  const witness = () => extractWith(url, html, { mode: 'mark', single: true, threshold: WITNESS_CHAR_THRESHOLD })?.article.content ?? null;
+  // La garde ne fait jamais échouer une extraction : en cas d'erreur, le
+  // résultat reste celui de la passe nettoyée.
+  try {
+    return withoutLoss(strict, witness, parseFragment, url);
+  } catch {
+    return strict.article;
+  }
+}
+
+/** La passe nettoyée seule, bornes comprises. */
+function strictPass(url: string, html: string): Pass | null {
+  // Le refus rapide d'abord, sur le texte : l'analyse HTML d'une page piégée
+  // coûte déjà le carré de sa profondeur, Readability le cube.
+  const tooComplex = markupTooComplex(html, { maxDepth: EXTRACT_MAX_DEPTH, maxElements: EXTRACT_MAX_ELEMENTS });
+  if (tooComplex) throw new PageTooComplexError(tooComplex);
+  return extractWith(url, html, { mode: 'strip', bound: true, frame: true });
+}
+
+/**
+ * `extractArticle` sans la garde de non-perte — pour les tests, qui vérifient
+ * que la garde ne touche pas aux pages où rien ne manque.
+ */
+export function extractWithoutGuard(url: string, html: string): ExtractedArticle | null {
+  return strictPass(url, html)?.article ?? null;
+}
+
+/**
+ * La garde de non-perte appliquée à des morceaux donnés (tests de ses règles,
+ * sans dépendre du choix de Readability) : `page` porte le conteneur de
+ * l'article, `result` le résultat de la passe nettoyée, `witness` celui du
+ * témoin. Rend le contenu, et si le témoin a été demandé.
+ */
+export function guardForTests(input: { page: string; result: string; witness: string | null; title?: string; base?: string }): { content: string; asked: boolean } {
+  const base = input.base ?? 'https://example.com/a';
+  const { document } = parseHTML(input.page);
+  const root = parseFragment(input.result);
+  const pass: Pass = {
+    article: { title: input.title ?? '', content: input.result, excerpt: '', byline: '', siteName: '', length: (root.textContent || '').length },
+    textContent: root.textContent || '',
+    frame: frameOf(findMainContainer(document), base),
+  };
+  let asked = false;
+  const content = withoutLoss(pass, () => { asked = true; return input.witness; }, parseFragment, base).content;
+  return { content, asked };
+}
+
+/** Le corps d'un document neuf qui porte `html` — pour relire un résultat. */
+function parseFragment(html: string): Element {
+  const { document } = parseHTML(`<!doctype html><html><head></head><body>${html}</body></html>`);
+  return document.body as unknown as Element;
+}
+
+/** Une passe d'extraction, et ce qu'elle a mesuré de la page. */
+interface Pass { article: ExtractedArticle; textContent: string; frame: FrameUnits | null }
+
+interface PassOptions {
+  /** `strip` : les blocs étrangers sortent avant toute passe, le corps réparti est réuni ;
+   *  `mark` : la page reste INTACTE, les mêmes blocs ne sont que marqués, puis retirés du résultat. */
+  mode: 'strip' | 'mark';
+  /** Vérifier les bornes de l'arbre (M-01) : la première passe seulement. */
+  bound?: boolean;
+  /** Mesurer le conteneur de l'article (`frameOf`), avant Readability. */
+  frame?: boolean;
+  /** Une seule passe Readability : ni relecture autour d'une liste (A4-02), ni seconde passe (A-1). */
+  single?: boolean;
+  threshold?: number;
+}
+
+function extractWith(url: string, html: string, options: PassOptions): Pass | null {
+  const { mode, threshold = READABILITY_CHAR_THRESHOLD } = options;
   const load = () => {
     const { document } = parseHTML(html);
     // Rien à lire sans élément ; et Readability veut un document entier (C-03).
@@ -459,24 +535,21 @@ export function extractArticle(url: string, html: string): ExtractedArticle | nu
     // `documentElement` et pas `body` : linkedom produit parfois DEUX `<body>`
     // (The Verge), et `document.body` désigne alors le premier, vide.
     if (doc.documentElement) {
-      stripBoilerplate(doc.documentElement as unknown as Element);
+      stripBoilerplate(doc.documentElement as unknown as Element, mode);
       // Après le nettoyage : un bloc retiré ne compte plus dans un groupe.
-      joinSplitBody(doc.documentElement as unknown as Element);
+      if (mode === 'strip') joinSplitBody(doc.documentElement as unknown as Element);
     }
     return doc;
   };
 
-  // Le refus rapide d'abord, sur le texte : l'analyse HTML d'une page piégée
-  // coûte déjà le carré de sa profondeur, Readability le cube.
-  const tooComplex = markupTooComplex(html, { maxDepth: EXTRACT_MAX_DEPTH, maxElements: EXTRACT_MAX_ELEMENTS });
-  if (tooComplex) throw new PageTooComplexError(tooComplex);
   const document = load();
   if (!document) return null;
-  assertTreeBounded(document);
+  if (options.bound) assertTreeBounded(document);
   clean(document);
-  // Mesuré AVANT Readability, qui modifie le document qu'il lit.
-  const mainLength = mainContainerTextLength(document);
-  const parsed = new Readability(document as never, { charThreshold: READABILITY_CHAR_THRESHOLD }).parse();
+  // Mesurés AVANT Readability, qui modifie le document qu'il lit.
+  const mainLength = options.single ? null : mainContainerTextLength(document);
+  const frame = options.frame ? frameOf(findMainContainer(document), url) : null;
+  const parsed = new Readability(document as never, { charThreshold: threshold }).parse();
   if (!parsed?.content) return null;
 
   let content = parsed.content;
@@ -484,7 +557,7 @@ export function extractArticle(url: string, html: string): ExtractedArticle | nu
   let textContent = parsed.textContent || '';
   // Une liste n'est pas un article (A4-02) : si Readability n'a gardé qu'elle,
   // l'article est relu sans elle, puis elle y est remise à sa place.
-  const list = onlyAList(content);
+  const list = options.single ? null : onlyAList(content);
   if (list) {
     const retry = clean(load()!);
     const around = keepOnlyMainContainer(retry) ? aroundTheList(retry, list) : null;
@@ -497,20 +570,420 @@ export function extractArticle(url: string, html: string): ExtractedArticle | nu
       if (again?.content && recoveredMore(again.textContent || '', textContent)) {
         content = again.content;
         length = again.length || 0;
+        textContent = again.textContent || '';
       }
     }
   }
 
-  // Les voiles de consentement sortent ici, après toutes les passes (V2-02).
-  ({ content, length } = withoutVeils({ content, length }));
+  // Les voiles de consentement sortent ici, après toutes les passes (V2-02) ;
+  // en mode `mark`, les blocs étrangers avec eux.
+  const unveiled = withoutVeils({ content, length, textContent });
   return {
-    title: parsed.title || '',
-    content,
-    excerpt: parsed.excerpt || '',
-    byline: parsed.byline || '',
-    siteName: parsed.siteName || '',
-    length,
+    article: {
+      title: parsed.title || '',
+      content: unveiled.content,
+      excerpt: parsed.excerpt || '',
+      byline: parsed.byline || '',
+      siteName: parsed.siteName || '',
+      length: unveiled.length,
+    },
+    textContent: unveiled.textContent ?? textContent,
+    frame,
   };
+}
+
+// ── Garde de non-perte (1.9.0, REG-220 à REG-222) ────────────────────
+// Le nettoyage (M-04) et la réunion du corps réparti changent le document que
+// lit Readability, donc le bloc qu'il choisit. Un bloc plus étroit laisse
+// dehors ce qui l'entourait : sur The Verge, le formulaire de lettre et le
+// bloc « Related » retirés, Readability ne retient plus `#__next` mais le seul
+// corps — le chapeau et l'image d'en-tête, ses frères, sortent ; sur Ars
+// Technica et le blog de Google, le corps réuni gagne seul, Readability ne
+// remonte plus à l'`<article>` et l'en-tête (chapeau, légende, image) sort.
+// Chaque règle avait été mesurée ; c'est leur effet sur le CHOIX de Readability
+// qu'aucune mesure par règle ne voyait.
+//
+// La garde ne retouche aucune règle. Elle compare le résultat à un TÉMOIN :
+// la page lue intacte comme en 1.8.0 (seuil 50), où les blocs que le nettoyage
+// aurait retirés sont seulement marqués (`STRIP_ATTR`, comme le voile, V2-02)
+// puis ôtés du témoin. Ce que le témoin garde et que le résultat a perdu y est
+// remis, à trois conditions :
+// - c'est du texte de l'ARTICLE : il se lit dans le conteneur que la page
+//   désigne (`findMainContainer` : un `<article>` unique, sinon un `<main>`
+//   ou un `[role=main]` unique ; rien sur une page de liste) ;
+// - il est AVANT l'ouverture du résultat dans ce conteneur, et le témoin
+//   contient cette ouverture (il englobe le résultat, il ne lit pas ailleurs :
+//   chez Docker, le témoin ne garde que les billets liés, rien n'est remis) —
+//   ou, quand le résultat est sous le seuil de Readability (rendu « au plus
+//   long » faute de mieux, L-04), après elle aussi ;
+// - c'est une phrase suivie (25 caractères, 8 dans une écriture sans espaces,
+//   comme le corpus) ou une image qui n'est pas une icône : date, rubrique,
+//   « Credit: » ne déclenchent rien.
+// Ce qui est remis : le bloc entier (paragraphe, figure, liste) qui porte la
+// phrase ou l'image, tel que le témoin l'a rendu, en tête du résultat (en fin
+// pour un résultat court) et dans l'ordre de la page. Une phrase que le
+// résultat lit déjà n'est jamais remise (un chapeau repris en premier
+// paragraphe, un chapeau doublé pour mobile).
+// Ce qui suit le corps n'est pas remis quand le résultat dépasse le seuil :
+// mesuré sur 470 pages, c'est toujours de l'habillage (notice de l'auteur et
+// « 22 Comments » d'Ars — REG-175 —, « Recent articles », « Latest in… »).
+// Le témoin n'est jamais rendu à la place du résultat : il ramène justement
+// ce que le nettoyage écartait à raison.
+//
+// Coût : le témoin est une passe Readability de plus, et seulement quand le
+// conteneur porte, à l'endroit visé, une phrase ou une image absente du
+// résultat (mesure faite sur la page, avant Readability). Mesuré sur 470
+// pages (2026-11-07) : témoin sur 243 pages, 768 passes Readability au lieu
+// de 525, 14,2 s au lieu de 8,2 en série ; la plus lourde (3 Mo) 1,2 s au
+// lieu de 0,5. Le témoin ne remet quelque chose que sur cinq de ces pages. Les recherches de phrases sont
+// bornées (`Scan`, `OPENING_CANDIDATES`) : une page faite pour coûter ne fait
+// pas relire à la garde plus d'un multiple de son texte.
+//
+// Même garde dans le repli du navigateur (`src/utils/extractContent.ts`) ;
+// toute modification de l'une va avec l'autre, et avec `EXTRACT_VERSION`.
+
+/** Seuil du témoin : celui de la 1.8.0, dont le corpus mesure les pertes. */
+export const WITNESS_CHAR_THRESHOLD = 50;
+
+/** Un bloc de texte ou de média, lu dans la page ou dans un résultat. */
+class Unit {
+  private normCache?: string;
+  private trackedCache?: string[];
+  /**
+   * `blocks` : le texte lisible, par bloc. `images` : une liste d'adresses par
+   * image (`src`, puis, dans la page, les variantes qu'elle a en réserve).
+   */
+  constructor(readonly el: Element, private readonly blocks: string[], readonly images: string[][]) {}
+  /** Longueur du texte brut. */
+  get size(): number {
+    let length = 0;
+    for (const block of this.blocks) length += block.length + 1;
+    return length;
+  }
+  /** Texte normalisé, encadré d'espaces (`normalized`) — calculé à la première lecture. */
+  get norm(): string {
+    return this.normCache ??= ` ${normalized(this.blocks.join(' '))} `;
+  }
+  /** Phrases suivies, normalisées — calculées à la première lecture. */
+  get tracked(): string[] {
+    return this.trackedCache ??= this.blocks.flatMap(sentencesOf).filter(isTracked);
+  }
+}
+
+type FrameUnits = Unit[];
+
+/** Éléments lus comme un seul bloc. */
+const UNIT_TAGS = new Set(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'dl', 'blockquote', 'pre', 'table', 'figure', 'picture', 'img']);
+/** Ce qui ne se lit pas : scripts, textes de repli des médias, contrôles. */
+const UNREAD = new Set(['script', 'style', 'template', 'noscript', 'audio', 'video', 'object', 'iframe', 'svg', 'canvas', 'button', 'select', 'textarea']);
+/** Fins de bloc, pour découper les phrases comme le corpus. */
+const BLOCK_ENDS = new Set(['p', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'td', 'th', 'blockquote', 'figcaption', 'br', 'div', 'tr', 'dt', 'dd', 'pre', 'figure', 'section', 'article', 'header', 'footer', 'aside', 'ul', 'ol', 'dl', 'table', 'caption']);
+/** Un élément de bloc : un texte qui le contient n'est pas un paragraphe à lui seul. */
+const BLOCKS = new Set([...UNIT_TAGS, ...BLOCK_ENDS].filter((tag) => tag !== 'br' && tag !== 'img'));
+const SPACED_ENDS = new Set(['.', '!', '?', '…', '؟']);
+const WIDE_ENDS = new Set(['。', '！', '？']);
+const CLOSERS = new Set(['"', "'", '”', '’', '»', ')', ']', '）', '」', '』', '》', '〉', '】']);
+const NO_SPACE_SCRIPT = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Thai}\p{Script=Lao}\p{Script=Khmer}\p{Script=Myanmar}]/gu;
+/** Une phrase plus courte ne compte pas (dates, rubriques, « Credit: ») — la règle du corpus. */
+const TRACKED_MIN = 25;
+const TRACKED_MIN_NO_SPACE = 8;
+/**
+ * Bornes de la recherche de l'ouverture (`openingIn`) : une page faite de la
+ * même phrase répétée ne coûte pas le carré de sa taille. Seize occurrences et
+ * huit blocs suffisent à séparer un chapeau répété du début du corps.
+ */
+const OPENING_CANDIDATES = 16;
+const OPENING_LOOKAHEAD = 8;
+
+/** Forme comparable : NFKC, minuscules, ponctuation et blancs réduits à une espace. */
+function normalized(text: string): string {
+  return text.normalize('NFKC').toLowerCase().replace(/[\p{P}\s\u00ad\u200b]+/gu, ' ').trim();
+}
+
+/** `needle` (normalisé) se lit-il, mots entiers, dans `haystack` (normalisé, encadré d'espaces) ? */
+function reads(haystack: string, needle: string): boolean {
+  return haystack.includes(` ${needle} `);
+}
+
+function isTracked(sentence: string): boolean {
+  if (sentence.length < TRACKED_MIN_NO_SPACE) return false;
+  // Au-delà du double du seuil, même tout en paires de substitution, la phrase compte.
+  if (sentence.length >= 2 * TRACKED_MIN) return true;
+  const letters = sentence.match(/\p{L}/gu)?.length ?? 0;
+  const wide = sentence.match(NO_SPACE_SCRIPT)?.length ?? 0;
+  return [...sentence].length >= (letters && wide / letters >= 0.3 ? TRACKED_MIN_NO_SPACE : TRACKED_MIN);
+}
+
+/** Les phrases d'un bloc de texte : ponctuation forte (comme le corpus). */
+function sentencesOf(block: string): string[] {
+  // Par unité de code : toutes les ponctuations cherchées sont du plan de base.
+  const out: string[] = [];
+  let start = 0;
+  for (let i = 0; i < block.length;) {
+    if (!WIDE_ENDS.has(block[i]) && !SPACED_ENDS.has(block[i])) { i++; continue; }
+    const wide = WIDE_ENDS.has(block[i]);
+    let j = i + 1;
+    while (j < block.length && (WIDE_ENDS.has(block[j]) || SPACED_ENDS.has(block[j]))) j++;
+    while (j < block.length && CLOSERS.has(block[j])) j++;
+    if (wide || j >= block.length || /\s/.test(block[j])) {
+      out.push(block.slice(start, j));
+      start = j;
+    }
+    i = j;
+  }
+  out.push(block.slice(start));
+  return out.map(normalized).filter(Boolean);
+}
+
+/** Le texte lisible de `el`, découpé en blocs (fins de bloc, textes de repli exclus). */
+function blocksOf(el: Element): string[] {
+  const blocks: string[] = [];
+  let current = '';
+  const stack: Array<Node | null> = [el];
+  while (stack.length) {
+    const node = stack.pop();
+    // `null` : la fin d'un bloc.
+    if (node === null) { blocks.push(current); current = ''; continue; }
+    if (node!.nodeType === 3) { current += node!.textContent || ''; continue; }
+    if (node!.nodeType !== 1) continue;
+    const tag = (node as Element).tagName.toLowerCase();
+    if (UNREAD.has(tag)) continue;
+    if (BLOCK_ENDS.has(tag)) { blocks.push(current); current = ''; stack.push(null); }
+    const children = Array.from(node!.childNodes);
+    for (let i = children.length - 1; i >= 0; i--) stack.push(children[i]);
+  }
+  blocks.push(current);
+  return blocks.map((block) => block.replace(/\s+/g, ' ').trim()).filter(Boolean);
+}
+
+/** Adresse absolue, ou `null` (une image en ligne `data:` n'en a pas). */
+function absolute(value: string | null, base: string): string | null {
+  const v = value?.trim();
+  if (!v || /^data:/i.test(v)) return null;
+  try { return new URL(v, base).href; } catch { return null; }
+}
+
+/** Les adresses d'une image : `src`, puis, dans la page (`lenient`), celles qu'elle a en réserve. */
+function imageAddresses(img: Element, base: string, lenient: boolean): string[] {
+  const values = [img.getAttribute('src')];
+  if (lenient) {
+    values.push(img.getAttribute('data-src'));
+    for (const holder of [img, ...(img.parentElement?.tagName.toLowerCase() === 'picture' ? Array.from(img.parentElement.children) : [])]) {
+      for (const attr of ['srcset', 'data-srcset']) {
+        for (const candidate of (holder.getAttribute(attr) || '').split(',')) values.push(candidate.trim().split(/\s+/)[0]);
+      }
+    }
+  }
+  return values.map((value) => absolute(value, base)).filter((value): value is string => !!value);
+}
+
+function unitOf(el: Element, base: string, lenient: boolean): Unit {
+  const images: string[][] = [];
+  const imgs = el.tagName.toLowerCase() === 'img' ? [el] : Array.from(el.querySelectorAll('img')) as Element[];
+  for (const img of imgs) {
+    if (isIcon(img)) continue;
+    const addresses = imageAddresses(img, base, lenient);
+    if (addresses.length) images.push(addresses);
+  }
+  return new Unit(el, blocksOf(el), images);
+}
+
+/**
+ * Un élément qui porte lui-même du texte et aucun bloc : un paragraphe écrit
+ * sans `<p>` (`<div><span>texte</span></div>`), que Readability changera en
+ * paragraphe.
+ */
+function looseText(el: Element): boolean {
+  let text = false;
+  for (let node = el.firstChild; node; node = node.nextSibling) {
+    if (node.nodeType === 3) text ||= !!(node.textContent || '').trim();
+    else if (node.nodeType === 1 && BLOCKS.has((node as Element).tagName.toLowerCase())) return false;
+  }
+  return text;
+}
+
+/** Les blocs de `root`, dans l'ordre. `lenient` : une image se reconnaît à toutes ses adresses (page). */
+function unitsOf(root: Element, base: string, lenient = false): Unit[] {
+  const units: Unit[] = [];
+  const stack: Element[] = [root];
+  while (stack.length) {
+    const el = stack.pop()!;
+    const tag = el.tagName.toLowerCase();
+    if (el !== root && (UNIT_TAGS.has(tag) || looseText(el))) { units.push(unitOf(el, base, lenient)); continue; }
+    if (UNREAD.has(tag)) continue;
+    for (let child = el.lastElementChild; child; child = child.previousElementSibling) stack.push(child);
+  }
+  return units;
+}
+
+/** Les blocs du conteneur de l'article, lus dans la page avant Readability (`null` sans conteneur). */
+function frameOf(container: Element | null, base: string): FrameUnits | null {
+  return container ? unitsOf(container, base, true) : null;
+}
+
+/** Ce que garde un résultat : ses phrases, son texte normalisé, ses images. */
+interface Kept { sentences: Set<string>; norm: string; images: Set<string> }
+
+function keptOf(root: Element, base: string): Kept {
+  const images = new Set<string>();
+  for (const img of Array.from(root.querySelectorAll('img')) as Element[]) {
+    const src = absolute(img.getAttribute('src'), base);
+    if (src) images.add(src);
+  }
+  const blocks = blocksOf(root);
+  return { sentences: new Set(blocks.flatMap(sentencesOf)), norm: ` ${normalized(blocks.join(' '))} `, images };
+}
+
+/**
+ * Caractères que la garde peut encore relire en cherchant une phrase dans un
+ * texte (`holds`, `placed`). Une phrase se trouve d'abord entière, dans un
+ * index ; la recherche dans le texte ne sert qu'aux phrases découpées
+ * autrement. Sur une page faite pour cela — des milliers de phrases absentes,
+ * chacune cherchée dans 2 Mo —, ce budget épuisé, la garde s'abstient :
+ * le résultat reste celui de la passe nettoyée.
+ */
+interface Scan { left: number }
+/** Le budget : ce multiple du texte lu (conteneur et résultat), plus une part fixe pour les petites pages. */
+const SCAN_FACTOR = 32;
+const SCAN_FLOOR = 8_000_000;
+
+/** `reads`, en décomptant du budget ce que la recherche a parcouru. */
+function scanned(haystack: string, needle: string, scan: Scan): boolean {
+  const found = haystack.indexOf(` ${needle} `);
+  scan.left -= found < 0 ? haystack.length : found + needle.length;
+  return found >= 0;
+}
+
+/** Le résultat lit-il cette phrase ? Budget épuisé : oui — la garde n'y touche plus. */
+function holds(kept: Kept, sentence: string, scan: Scan): boolean {
+  if (kept.sentences.has(sentence)) return true;
+  if (scan.left <= 0) return true;
+  return scanned(kept.norm, sentence, scan);
+}
+
+/** Où se lisent, dans le conteneur, chaque phrase et chaque image (premiers blocs), relevé une fois. */
+interface FrameIndex { sentences: Map<string, number[]>; images: Map<string, number[]> }
+
+function indexOf(frame: FrameUnits): FrameIndex {
+  const sentences = new Map<string, number[]>();
+  const images = new Map<string, number[]>();
+  const note = (map: Map<string, number[]>, key: string, i: number) => {
+    const at = map.get(key);
+    if (!at) map.set(key, [i]);
+    else if (at[at.length - 1] !== i) at.push(i);
+  };
+  frame.forEach((unit, i) => {
+    for (const s of unit.tracked) note(sentences, s, i);
+    for (const variants of unit.images) for (const address of variants) note(images, address, i);
+  });
+  return { sentences, images };
+}
+
+/** La phrase se lit-elle dans un bloc du conteneur compris entre `from` (inclus) et `to` (exclu) ? */
+function placed(frame: FrameUnits, index: FrameIndex, sentence: string, from: number, to: number, scan: Scan): boolean {
+  if (index.sentences.get(sentence)?.some((i) => i >= from && i < to)) return true;
+  for (let i = from; i < to; i++) {
+    if (scan.left <= 0) return false;
+    if (scanned(frame[i].norm, sentence, scan)) return true;
+  }
+  return false;
+}
+
+/**
+ * Le bloc du conteneur où commence le résultat : parmi ceux qui portent sa
+ * première phrase, celui qui ouvre la plus longue suite de blocs que le
+ * résultat garde. Une phrase répétée (un chapeau repris en premier paragraphe,
+ * un titre répété dans la page) ne déplace donc pas l'ouverture. -1 si aucun.
+ */
+function openingIn(frame: FrameUnits, opening: string, missing: (unit: Unit) => boolean): number {
+  let best = -1;
+  let bestRun = -1;
+  let candidates = 0;
+  for (let i = 0; i < frame.length && candidates < OPENING_CANDIDATES; i++) {
+    if (!reads(frame[i].norm, opening)) continue;
+    candidates++;
+    const end = Math.min(frame.length, i + OPENING_LOOKAHEAD);
+    let j = i;
+    while (j < end && !missing(frame[j])) j++;
+    // Une suite entière : c'est l'ouverture, sans lire plus loin.
+    if (j === end) return i;
+    if (j - i > bestRun) { best = i; bestRun = j - i; }
+  }
+  return best;
+}
+
+/** La première phrase suivie de `root`, sans lire au-delà. */
+function firstTracked(root: Element): string | undefined {
+  const stack: Element[] = [root];
+  while (stack.length) {
+    const el = stack.pop()!;
+    const tag = el.tagName.toLowerCase();
+    if (el !== root && (UNIT_TAGS.has(tag) || looseText(el))) {
+      const found = blocksOf(el).flatMap(sentencesOf).find(isTracked);
+      if (found) return found;
+      continue;
+    }
+    if (UNREAD.has(tag)) continue;
+    for (let child = el.lastElementChild; child; child = child.previousElementSibling) stack.push(child);
+  }
+  return undefined;
+}
+
+/** Longueur du texte brut du conteneur — pour le budget, sans normaliser. */
+function frameLength(frame: FrameUnits): number {
+  let length = 0;
+  for (const unit of frame) length += unit.size;
+  return length;
+}
+
+/** Le résultat de la passe nettoyée, sans perte de ce que garde le témoin (voir plus haut). */
+function withoutLoss(strict: Pass, witness: () => string | null, parse: (html: string) => Element, base: string): ExtractedArticle {
+  const frame = strict.frame;
+  if (!frame?.length) return strict.article;
+  const root = parse(strict.article.content);
+  const kept = keptOf(root, base);
+  const title = ` ${normalized(strict.article.title)} `;
+  const opening = firstTracked(root);
+  if (!opening) return strict.article;
+  const scan: Scan = { left: SCAN_FACTOR * (kept.norm.length + frameLength(frame)) + SCAN_FLOOR };
+  // Ce que le résultat n'a pas (le titre, que le lecteur affiche à part, mis à part).
+  const absent = (s: string) => !holds(kept, s, scan) && !reads(title, s);
+  const absentImage = (addresses: string[]) => !addresses.some((src) => kept.images.has(src));
+  const missing = (unit: Unit) => unit.tracked.some(absent) || unit.images.some(absentImage);
+  const at = openingIn(frame, opening, missing);
+  if (at < 0) return strict.article;
+  const short = normalizedLength(strict.textContent) < READABILITY_CHAR_THRESHOLD;
+  // Rien d'absent à l'endroit visé : pas de témoin, pas de passe de plus.
+  if (!frame.slice(0, at).some(missing) && !(short && frame.slice(at + 1).some(missing))) return strict.article;
+  const html = witness();
+  if (!html) return strict.article;
+  const units = unitsOf(parse(html), base);
+  // Le témoin englobe-t-il le résultat ? Alors ce qui précède son ouverture est l'en-tête.
+  const anchor = units.findIndex((unit) => reads(unit.norm, opening));
+  const index = indexOf(frame);
+  const before: Element[] = [];
+  const after: Element[] = [];
+  units.forEach((unit, i) => {
+    const side = anchor >= 0 && i < anchor ? before : short && i !== anchor ? after : null;
+    if (!side) return;
+    const lost = unit.tracked.filter(absent);
+    const images = unit.images.filter(absentImage);
+    if (!lost.length && !images.length) return;
+    // Tout ce qu'on remet se lit dans le conteneur, du bon côté de l'ouverture.
+    const [from, to] = side === before ? [0, at] : [at + 1, frame.length];
+    if (!lost.every((s) => placed(frame, index, s, from, to, scan))) return;
+    if (!images.every((addresses) => index.images.get(addresses[0])?.some((place) => place >= from && place < to))) return;
+    side.push(unit.el);
+    for (const s of lost) kept.sentences.add(s);
+    for (const addresses of images) kept.images.add(addresses[0]);
+  });
+  // Budget épuisé en chemin : la garde s'abstient en entier plutôt qu'à moitié.
+  if ((!before.length && !after.length) || scan.left <= 0) return strict.article;
+  // Le résultat de Readability est un seul `<div class="page">` : on y verse.
+  const page = root.children.length === 1 ? root.firstElementChild! : root;
+  if (before.length) page.insertAdjacentHTML('afterbegin', before.map((el) => el.outerHTML).join(''));
+  if (after.length) page.insertAdjacentHTML('beforeend', after.map((el) => el.outerHTML).join(''));
+  return { ...strict.article, content: root.innerHTML, length: (root.textContent || '').length };
 }
 
 // ── Conteneur principal explicite (A-1) ──────────────────────────────
@@ -861,7 +1334,8 @@ export function keepCodeControlsAsText(root: Element): void {
 //
 // Ce qui est retiré, sous la racine donnée (jamais la racine elle-même) :
 // - les éléments `footer`, `nav`, `form`, et les rôles `navigation`,
-//   `contentinfo` ;
+//   `contentinfo` — sauf le sommaire de l'article, une navigation dont chaque
+//   lien mène à un titre de la page (REG-222, `isTableOfContents`) ;
 // - un `aside` ou un rôle `complementary` HORS d'un `<article>` : la barre
 //   latérale d'une page (Schneier). Dans un `<article>`, c'est une incise de
 //   l'article — The Verge y range des fenêtres « Follow » au milieu de son
@@ -959,19 +1433,25 @@ const BOILERPLATE_TOKENS = new Set([
 const CONSENT_TOKEN = 'consent';
 const VEIL = 'veil';
 const VEIL_ATTR = 'data-frirss-veil';
+/**
+ * La marque d'un bloc étranger dans le témoin de la garde de non-perte
+ * (`stripBoilerplate` en mode `mark`). Comme celle du voile, elle est à FriRSS :
+ * celle qu'une page porterait déjà est effacée d'abord (RW-02).
+ */
+const STRIP_ATTR = 'data-frirss-strip';
 /** Ni texte brut, ni contenu étranger : un `<span>` n'y a pas sa place. */
 const VEIL_TEXT_UNWRAPPED = 'script, style, textarea, title, noscript, template, svg, math';
 
-function markVeil(el: Element): void {
+function markVeil(el: Element, attr = VEIL_ATTR): void {
   const all = [el];
   for (const inner of Array.from(el.querySelectorAll('*'))) all.push(inner);
   for (const holder of all) {
-    holder.setAttribute(VEIL_ATTR, '');
+    holder.setAttribute(attr, '');
     if (holder.closest(VEIL_TEXT_UNWRAPPED)) continue;
     for (const node of Array.from(holder.childNodes)) {
       if (node.nodeType !== 3 || !(node.textContent || '').trim()) continue;
       const span = holder.ownerDocument.createElement('span');
-      span.setAttribute(VEIL_ATTR, '');
+      span.setAttribute(attr, '');
       holder.insertBefore(span, node);
       span.appendChild(node);
     }
@@ -979,10 +1459,10 @@ function markVeil(el: Element): void {
 }
 
 /** Le résultat de Readability sans les voiles marqués ; tel quel s'il n'en porte aucun. */
-function withoutVeils<T extends { content: string; length: number }>(result: T): T {
-  if (!result.content.includes(VEIL_ATTR)) return result;
+function withoutVeils<T extends { content: string; length: number; textContent?: string }>(result: T): T {
+  if (!result.content.includes(VEIL_ATTR) && !result.content.includes(STRIP_ATTR)) return result;
   const { document } = parseHTML(`<!doctype html><html><head></head><body>${result.content}</body></html>`);
-  for (const veil of Array.from(document.body.querySelectorAll(`[${VEIL_ATTR}]`))) veil.remove();
+  for (const veil of Array.from(document.body.querySelectorAll(`[${VEIL_ATTR}], [${STRIP_ATTR}]`))) veil.remove();
   const textContent = document.body.textContent || '';
   return { ...result, content: document.body.innerHTML, length: textContent.length, textContent };
 }
@@ -1017,10 +1497,10 @@ const POWERED_BY_MAX_LENGTH = 120;
 /** Texte lisible d'un billet, mesuré une fois par nettoyage (voir `stripBoilerplate`). */
 type PostLength = (post: Element) => number;
 
-function isBoilerplate(el: Element, insideArticle: boolean, postLength: PostLength, paid: Map<Node, LinkCounts>): boolean | typeof VEIL {
+function isBoilerplate(el: Element, insideArticle: boolean, postLength: PostLength, paid: Map<Node, LinkCounts>, headingIds: () => Set<string>): boolean | typeof VEIL {
   const tag = el.tagName.toLowerCase();
   const role = (el.getAttribute('role') || '').toLowerCase();
-  if (BOILERPLATE_TAGS.has(tag) || BOILERPLATE_ROLES.has(role)) return true;
+  if ((BOILERPLATE_TAGS.has(tag) || BOILERPLATE_ROLES.has(role)) && !isTableOfContents(el, headingIds)) return true;
   if (!insideArticle && (tag === 'aside' || role === 'complementary' || (el.getAttribute('id') || '').toLowerCase() === 'secondary')) return true;
   if (el.hasAttribute('data-slug-hash') && hasCaptionSibling(el)) return true;
   const tokens = `${withoutTaxonomy(el.getAttribute('class'))} ${el.getAttribute('id') || ''}`.toLowerCase().split(/[^a-z0-9]+/);
@@ -1047,6 +1527,48 @@ function isBoilerplate(el: Element, insideArticle: boolean, postLength: PostLeng
     if (text.length <= POWERED_BY_MAX_LENGTH && POWERED_BY.test(text)) return true;
   }
   return false;
+}
+
+/** Une entrée de sommaire mène à un titre de la page : le titre lui-même, ou un repère posé dedans. */
+const HEADING = 'h1, h2, h3, h4, h5, h6';
+/** Un sommaire a au moins deux entrées : un lien seul (« Aller au contenu ») n'en est pas un. */
+const TOC_MIN_LINKS = 2;
+
+/**
+ * Le sommaire de l'article (REG-222) : une navigation dont CHAQUE lien mène,
+ * par une ancre de la page, à l'un de ses titres. Il reste : c'est le seul
+ * endroit où se lit un intertitre dont l'id porte un mot que Readability juge
+ * « improbable » — `<h2 id="recap-the-forwarded-header">`, retiré par
+ * Readability lui-même depuis toujours ; la 1.8.0 en gardait le texte par le
+ * sommaire. Un menu de site mène à d'autres pages, un « Aller au contenu » à
+ * un conteneur : ni l'un ni l'autre n'est un sommaire.
+ */
+function isTableOfContents(el: Element, headingIds: () => Set<string>): boolean {
+  if (el.tagName.toLowerCase() !== 'nav' && (el.getAttribute('role') || '').toLowerCase() !== 'navigation') return false;
+  const links = Array.from(el.querySelectorAll('a[href]')) as Element[];
+  if (links.length < TOC_MIN_LINKS) return false;
+  return links.every((link) => {
+    const href = (link.getAttribute('href') || '').trim();
+    if (!href.startsWith('#') || href.length < 2) return false;
+    let id = href.slice(1);
+    try { id = decodeURIComponent(id); } catch { /* une ancre mal encodée se lit telle quelle */ }
+    return headingIds().has(id);
+  });
+}
+
+/** Les ids portés par un titre ou par un élément d'un titre, lus une fois par nettoyage. */
+function headingIdsUnder(root: Element): () => Set<string> {
+  let ids: Set<string> | undefined;
+  return () => {
+    if (!ids) {
+      ids = new Set();
+      for (const heading of Array.from(root.querySelectorAll(HEADING)) as Element[]) {
+        if (heading.id) ids.add(heading.id);
+        for (const inner of Array.from(heading.querySelectorAll('[id]')) as Element[]) ids.add(inner.id);
+      }
+    }
+    return ids;
+  };
 }
 
 /**
@@ -1206,11 +1728,19 @@ function visibleTextLength(root: Element, stopAt = Infinity): number {
   return length;
 }
 
-/** Retire de `root` (jamais `root` lui-même) les blocs étrangers à l'article. */
-export function stripBoilerplate(root: Element): void {
+/**
+ * Retire de `root` (jamais `root` lui-même) les blocs étrangers à l'article.
+ * `mode` `mark` (le témoin de la garde de non-perte) ne retire rien : chaque
+ * bloc visé est marqué (`STRIP_ATTR`, sur lui et ses descendants, comme le
+ * voile), la page reste intacte pour Readability, et `withoutVeils` ôte les
+ * blocs marqués du résultat. Les mêmes blocs sont visés dans les deux modes.
+ */
+export function stripBoilerplate(root: Element, mode: 'strip' | 'mark' = 'strip'): void {
   // La marque du voile est à FriRSS (RW-02).
-  root.removeAttribute(VEIL_ATTR);
-  for (const el of Array.from(root.querySelectorAll(`[${VEIL_ATTR}]`)) as Element[]) el.removeAttribute(VEIL_ATTR);
+  for (const attr of [VEIL_ATTR, STRIP_ATTR]) {
+    root.removeAttribute(attr);
+    for (const el of Array.from(root.querySelectorAll(`[${attr}]`)) as Element[]) el.removeAttribute(attr);
+  }
   const total = visibleTextLength(root);
   // Texte des billets déjà mesurés (B-02), tenu à jour à chaque retrait :
   // un billet se mesure tel qu'il reste, comme quand chaque bloc le relisait.
@@ -1223,11 +1753,13 @@ export function stripBoilerplate(root: Element): void {
   // Seuls les ancêtres d'un lien payant peuvent être un encart publicitaire
   // (A4-03) : sans cela, chaque élément relirait tous ses liens.
   const paid = paidLinkAncestors(root);
+  // Les cibles d'un sommaire (REG-222), relevées au premier `<nav>` rencontré.
+  const headingIds = headingIdsUnder(root);
   const stack: Array<[Element, boolean]> = Array.from(root.children, (child) => [child, false]);
   while (stack.length) {
     const [el, insideArticle] = stack.pop()!;
     if (CODE.has(el.tagName.toLowerCase())) continue;
-    const verdict = isBoilerplate(el, insideArticle, postLength, paid);
+    const verdict = isBoilerplate(el, insideArticle, postLength, paid, headingIds);
     if (verdict) {
       const length = visibleTextLength(el);
       if (length < total * MAIN_CONTAINER_MIN_SHARE && !carriesByline(el)) {
@@ -1238,7 +1770,8 @@ export function stripBoilerplate(root: Element): void {
           continue;
         }
         if (posts.size) forgetText(posts, el, length);
-        el.remove();
+        if (mode === 'mark') markVeil(el, STRIP_ATTR);
+        else el.remove();
         continue;
       }
     }

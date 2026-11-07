@@ -57,5 +57,11 @@
  *     contrôle posé dans du code (`<button>` Twoslash) devient son texte
  *     (REG-219 : un exemple entier perdu sur le blog de Node.js, un
  *     identifiant du code dès la 1.8.0) : les extraits v9 sont refaits.
+ * 11 : 1.9.0 — garde de non-perte : ce que la page lue intacte garde dans le
+ *     conteneur de l'article, avant le corps (chapeau, image et légende
+ *     d'en-tête — The Verge, Ars Technica, blog de Google : REG-220), ou
+ *     après lui quand le résultat est sous le seuil (REG-221), est remis ; et
+ *     le sommaire de l'article n'est plus retiré (REG-222) : les extraits v10
+ *     sont refaits.
  */
-export const EXTRACT_VERSION = 10;
+export const EXTRACT_VERSION = 11;
