@@ -5794,7 +5794,13 @@ serveur de développement en 1.4.4.)*
 - **Version de l'extraction** (1.9.0, A-2 — `server/extractVersion.ts` et
   `src/lib/extractVersion.ts`, même valeur vérifiée par
   `server/test/cache.test.ts`). À monter à chaque changement du résultat de
-  l'extraction pour une même page. **8** depuis le quatrième round, rien
+  l'extraction pour une même page. **9** depuis la relecture des
+  correctifs du quatrième round : document complété comme le ferait le
+  navigateur (RX-01), règles du voile, du bouton « retour en haut » et de
+  l'encart payant resserrées (RX-02 à RX-04), voile de consentement retiré
+  après Readability (V2-02 : les extraits v8 de Numerama avaient perdu leurs
+  tweets intégrés) — l'instance de développement, qui servait des extraits
+  v8, les refait ; 8 avait accompagné le quatrième round, rien
   n'ayant été déployé entre ses correctifs : blocs invisibles pour
   Readability écartés de la réunion du corps réparti (B-01 : extraits v7
   vides ou doublés), intercalaires du corps réunis avec lui (A4-01 : Clubic

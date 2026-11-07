@@ -46,5 +46,12 @@
  *     CERT-FR réduits à leurs références) ; voile de consentement, encart
  *     payant et bouton « retour en haut » retirés (A4-03). Rien n'ayant été
  *     déployé entre ces correctifs, une seule montée.
+ * 9 : 1.9.0 (relecture des correctifs du quatrième round) — document
+ *     complété comme le ferait le navigateur (`<head>` jamais fermé, contenu
+ *     hors de `<body>` : RX-01) ; règles du voile, du bouton « retour en
+ *     haut » et de l'encart payant resserrées (RX-02 à RX-04) ; voile de
+ *     consentement retiré APRÈS Readability (V2-02 : les extraits v8 de
+ *     Numerama avaient perdu leurs tweets intégrés). Les extraits v8 servis
+ *     à l'instance de développement sont refaits.
  */
-export const EXTRACT_VERSION = 8;
+export const EXTRACT_VERSION = 9;
