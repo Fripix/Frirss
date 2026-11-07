@@ -97,11 +97,15 @@ la release publiée.
   passager du site n'est pas retenu. Les extraits mis en cache avant la mise
   à jour sont refaits une fois ; si la nouvelle extraction échoue, l'ancien
   extrait reste affiché (favoris épinglés compris, avec leurs images).
-- **L'article complet ne perd plus de texte.** Quand le nettoyage d'une page
-  fait sortir une partie de l'article (le chapeau ou l'image d'en-tête chez
-  The Verge, Google ou Ars Technica, des lignes courtes entre deux
-  paragraphes), une seconde lecture de la page la remet à sa place, sans
-  ramener la signature de l'auteur ni l'habillage du site. Un bloc de code
+- **L'article complet ne perd plus de texte.** Quand l'extraction laisse de
+  côté une partie de l'article (chapeau ou image d'en-tête chez The Verge,
+  Google ou Ars Technica, articles du blog de Docker remplacés par leurs
+  « articles liés », moitié d'un dossier Clubic, liste d'offres d'un bon
+  plan, vidéo de DeepMind), FriRSS la remet à sa place à partir du conteneur
+  que la page désigne pour son article, sans ramener la signature de l'auteur,
+  les commentaires ni ce que le site marque comme hors extrait. Mesuré sur
+  490 pages réelles contre le contenu de leur flux : le texte manquant passe
+  de 791 phrases à 22, qui ne sont presque toutes pas de l'article. Un bloc de code
   n'est plus jamais retiré, et le texte d'un bouton placé dans du code est
   gardé (les exemples de code du blog de Node.js sortaient troués). Le
   sommaire d'un article reste. Une publicité peut encore passer ; une phrase
