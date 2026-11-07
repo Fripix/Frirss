@@ -5961,9 +5961,13 @@ serveur de développement en 1.4.4.)*
      dans un autre gabarit, si l'une d'elles montre un média hors d'un lien
      vers une autre page. Un dossier de Clubic range chaque photo dans son
      `div.image-content` entre deux `div.slate-content` : 5 photos sur 7 et
-     4 légendes sur 8 revenaient. Ni une bannière liée vers un partenaire
-     (et sa mention « Publicité »), ni une carte « à lire aussi », ni ce
-     qui suit la fin du corps (rien de la suite après) ;
+     4 légendes sur 8 revenaient. Une bannière liée vers un partenaire ou
+     une carte « à lire aussi » ISOLÉE ne revient pas, ni ce qui suit la fin
+     du corps (rien de la suite après). Limites connues (relecture RV-01,
+     RV-02) : une bannière collée à une photo du dossier dans la même suite
+     revient avec elle (pub laissée, acceptée) ; l'image seule d'une carte
+     « à lire aussi » éclatée (`<picture>` non liée + `<figcaption>` en
+     lien, sans `<figure>`) aussi — gabarit non vu sur une page réelle ;
   5. **résultat court** — sous le seuil de 500 (Readability a rendu « la plus
      longue » faute de mieux, L-04), tout ce qui le suit dans le conteneur
      (REG-221 : les paliers d'une page courte). Revers assumé : sur un tel
