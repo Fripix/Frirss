@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { Readability } from '@mozilla/readability';
-import { extractFromPage, extractFullContent, forgetExtractFailures, guardForTests } from './extractContent';
+import { extractFromPage, extractFullContent, forgetExtractFailures, guardForTests, withoutRepeatsForTests } from './extractContent';
+import { repeatLedePageHtml, repeatLightboxPageHtml } from '../test/repeatPageFixtures';
 import { headerPageHtml, heroPageHtml, ledePageHtml, shortLandingPageHtml, TOC_ONLY_HEADING, tocPageHtml } from '../test/guardPageFixtures';
 import { advisoryPageHtml } from '../test/advisoryPageFixture';
 import { embeddedTweetsPageHtml } from '../test/embedConsentFixture';
@@ -420,5 +421,179 @@ describe('repli local — garde de non-perte : coût', () => {
     expect(scanned).toBeLessThan(64 * pageHtml.length + 20_000_000);
     // Budget épuisé : la garde s'abstient en entier, rien n'est remis à moitié.
     expect(textOf(out!.content)).toBe(textOf(strictResult));
+  });
+});
+
+// ── Doublons de l'article complet (REG-225, REG-226) ─────────────────
+// Une page porte parfois deux exemplaires d'un même bloc, dont sa feuille de
+// style ne montre qu'un : le chapeau et la photo d'en-tête de The Verge, une
+// fois par mise en page ; la légende d'Ars Technica, dans la visionneuse puis
+// dans le `<figcaption>`. Le HTML ne dit pas lequel est masqué (classes
+// hachées, feuille externe) : deux exemplaires qui se suivent, sans rien de
+// lisible entre eux, n'en font qu'un.
+
+describe('repli local — doublons : pages réelles (REG-225, REG-226)', () => {
+  it('rend une fois le chapeau et la photo d’en-tête que la page porte pour deux mises en page (structure The Verge)', () => {
+    const html = repeatLedePageHtml();
+    const dek = norm(pick(html, 'div.duet--ledes--standard-lede p.duet--article--dangerously-set-cms-markup')?.textContent);
+    expect(dek.length).toBeGreaterThan(50);
+    expect(occurrences(textOf(html), dek)).toBe(2);
+    const out = extractArticle('https://example.com/verge', html)!;
+    expect(occurrences(textOf(out.content), dek)).toBe(1);
+    const heroes = (Array.from(parseHTML(out.content).document.querySelectorAll('img')) as Element[]).filter((img) => /\/img\/2\.jpg/.test(img.getAttribute('src') || ''));
+    expect(heroes).toHaveLength(1);
+  });
+
+  it('rend une fois la légende que la visionneuse double, et garde le `<figcaption>` (structure Ars Technica)', () => {
+    const html = repeatLightboxPageHtml();
+    const out = extractArticle('https://example.com/ars', html)!;
+    const doc = parseHTML(out.content).document;
+    const captions = Array.from(doc.querySelectorAll('figcaption')) as Element[];
+    expect(captions.length).toBe(2);
+    for (const caption of captions) {
+      const line = norm(caption.textContent).slice(0, 80);
+      expect(line.length).toBeGreaterThan(40);
+      expect(occurrences(textOf(out.content), line)).toBe(1);
+    }
+    expect(doc.querySelectorAll('div.pswp-caption-content').length).toBe(0);
+    expect(doc.querySelectorAll('img').length).toBe(2);
+  });
+});
+
+describe('repli local — doublons : formes qui pourraient casser (REG-225, REG-226)', () => {
+  const s = (word: string) => `${word} : une phrase inventée assez longue pour compter comme une phrase suivie.`;
+  const p = (word: string) => `<p>${s(word)}</p>`;
+  const dedupe = (inner: string) => withoutRepeatsForTests(`<div id="readability-page-1" class="page">${inner}</div>`);
+
+  it('deux exemplaires qui se suivent n’en font qu’un ; le premier reste', () => {
+    const out = dedupe(`<div><p class="un">${s('Chapeau')}</p></div><div><div><p class="deux">${s('Chapeau')}</p><p>Par Camille</p></div></div>${p('Corps')}`);
+    expect(occurrences(textOf(out), s('Chapeau'))).toBe(1);
+    expect(out).toContain('class="un"');
+    expect(textOf(out)).toContain('Par Camille');
+    expect(textOf(out)).toContain(s('Corps'));
+  });
+
+  it('une même phrase dans une liste puis dans un tableau reste deux fois (avis du CERT-FR)', () => {
+    const line = 'Bulletin de sécurité Exemple 123 du 02 novembre 2026';
+    const out = dedupe(`<table><tr><th>Source(s)</th><td>${line}</td></tr></table><ul><li><p>${line}</p></li></ul>`);
+    expect(occurrences(textOf(out), line)).toBe(2);
+    const listThenTable = dedupe(`<ul><li>${line}</li></ul><table><tr><td>${line}</td></tr></table>`);
+    expect(occurrences(textOf(listThenTable), line)).toBe(2);
+  });
+
+  it('une citation reprise plus loin, après d’autre texte, reste (exergue)', () => {
+    const out = dedupe(`${p('Citation')}${p('Corps un')}<blockquote>${s('Citation')}</blockquote>${p('Corps deux')}`);
+    expect(occurrences(textOf(out), s('Citation'))).toBe(2);
+  });
+
+  it('deux paragraphes voisins qui ne sont pas identiques restent tous deux', () => {
+    const out = dedupe(`${p('Début')}<p>${s('Début')} Et une suite qui le prolonge.</p>`);
+    expect(occurrences(textOf(out), s('Début'))).toBe(2);
+  });
+
+  it('du code répété reste tel quel', () => {
+    const code = 'const valeur = calculer(une, deux, trois); // assez long';
+    const out = dedupe(`<pre><code>${code}</code></pre><pre><code>${code}</code></pre>`);
+    expect(occurrences(textOf(out), code)).toBe(2);
+  });
+
+  it('la légende de la visionneuse sort, le `<figcaption>` et l’image restent', () => {
+    const out = dedupe(`<figure><div class="lightbox"><a href="/a.jpg"><img src="https://example.com/a.jpg"></a><div class="cap">${s('Légende')}<div>Crédit : Exemple</div></div></div><figcaption><div>${s('Légende')} <span>Crédit : Exemple</span></div></figcaption></figure>`);
+    expect(occurrences(textOf(out), s('Légende'))).toBe(1);
+    expect(out).toContain('<figcaption>');
+    expect(out).toContain('https://example.com/a.jpg');
+    expect(out).not.toContain('class="cap"');
+  });
+
+  it('un bloc qui porte une image n’est jamais retiré pour son texte, ni avant ni après son double', () => {
+    const before = dedupe(`<div><img src="https://example.com/a.jpg">${s('Légende')}</div><p>${s('Légende')}</p>`);
+    expect(before).toContain('https://example.com/a.jpg');
+    const after = dedupe(`<p>${s('Légende')}</p><div><img src="https://example.com/a.jpg">${s('Légende')}</div>`);
+    expect(after).toContain('https://example.com/a.jpg');
+    expect(occurrences(textOf(after), s('Légende'))).toBe(2);
+  });
+
+  it('deux images de même adresse mais de textes de remplacement différents restent deux', () => {
+    const out = dedupe(`<img src="https://example.com/x.jpg" alt="Première vue"><img src="https://example.com/x.jpg" alt="Seconde vue">`);
+    expect(out.match(/<img/g)).toHaveLength(2);
+  });
+
+  it('une légende courte en visionneuse que le `<figcaption>` ne reprend qu’en partie reste', () => {
+    const out = dedupe(`<figure><div><img src="https://example.com/a.jpg"><div>${s('Légende de la visionneuse')}</div></div><figcaption>${s('Autre légende')}</figcaption></figure>`);
+    expect(textOf(out)).toContain(s('Légende de la visionneuse'));
+    const outside = dedupe(`<p>${s('Paragraphe')}</p><figure><img src="https://example.com/a.jpg"><figcaption>${s('Paragraphe')} Crédit : Exemple</figcaption></figure>`);
+    expect(occurrences(textOf(outside), s('Paragraphe'))).toBe(2);
+  });
+
+  it('la même photo en deux recadrages côte à côte n’en fait qu’une', () => {
+    const out = dedupe(`<div><div><img src="https://example.com/une.jpg?w=1080&amp;crop=a"></div><div><img src="https://example.com/une.jpg?w=2400&amp;crop=b"></div></div>${p('Corps')}`);
+    expect(out.match(/une\.jpg/g)).toHaveLength(1);
+  });
+
+  it('une galerie où la même photo revient après une autre, ou après sa légende, la garde à chaque fois', () => {
+    const gallery = dedupe(`<img src="https://example.com/a.jpg"><img src="https://example.com/b.jpg"><img src="https://example.com/a.jpg">`);
+    expect(gallery.match(/a\.jpg/g)).toHaveLength(2);
+    const captioned = dedupe(`<figure><img src="https://example.com/a.jpg"><figcaption>Avant</figcaption></figure><figure><img src="https://example.com/a.jpg"><figcaption>Après</figcaption></figure>`);
+    expect(captioned.match(/a\.jpg/g)).toHaveLength(2);
+  });
+
+  it('une photo et sa miniature dans un `srcset` restent une seule image, intacte', () => {
+    const html = `<img src="https://example.com/a.jpg" srcset="https://example.com/a-300x200.jpg 300w, https://example.com/a.jpg 1200w">${p('Corps')}`;
+    expect(dedupe(html).match(/<img/g)).toHaveLength(1);
+    expect(dedupe(html)).toContain('a-300x200.jpg 300w');
+  });
+
+  it('rien de répété : le HTML est rendu tel quel', () => {
+    const html = `<div id="readability-page-1" class="page">${p('Un')}${p('Deux')}<img src="https://example.com/a.jpg"></div>`;
+    expect(withoutRepeatsForTests(html)).toBe(html);
+  });
+});
+
+describe('repli local — garde de non-perte : rien d’invisible, rien de déjà là (REG-225)', () => {
+  const s = (word: string) => `${word} : une phrase inventée assez longue pour être suivie par la garde de non-perte.`;
+  const page = (inner: string) => `<!doctype html><html><head><title>T</title></head><body><main><article>${inner}</article></main></body></html>`;
+  const result = (inner: string) => `<div id="readability-page-1" class="page">${inner}</div>`;
+  const p = (word: string) => `<p>${s(word)}</p>`;
+  const body = ['un', 'deux', 'trois', 'quatre', 'cinq', 'six', 'sept'].map((n) => p(`Corps ${n}`)).join('');
+  const restored = (header: string) => textOf(guardForTests({
+    page: page(`<header>${header}</header><div>${body}</div>`),
+    result: result(body),
+    witness: result(`${p('Chapeau')}${body}`),
+  }).content).includes(s('Chapeau'));
+
+  it('un chapeau masqué sur la page n’est jamais remis : en ligne, par attribut, par un ancêtre, par une classe de masquage', () => {
+    expect(restored(`<p style="display:none">${s('Chapeau')}</p>`)).toBe(false);
+    expect(restored(`<p style="visibility: hidden">${s('Chapeau')}</p>`)).toBe(false);
+    expect(restored(`<p hidden>${s('Chapeau')}</p>`)).toBe(false);
+    expect(restored(`<div aria-hidden="true"><p>${s('Chapeau')}</p></div>`)).toBe(false);
+    expect(restored(`<div class="mobile hidden"><p>${s('Chapeau')}</p></div>`)).toBe(false);
+    expect(restored(`<div class="d-none"><p>${s('Chapeau')}</p></div>`)).toBe(false);
+  });
+
+  // Une page qui masque le chapeau en mobile et le montre en bureau : il se
+  // lit sur la page, la garde le remet.
+  it('un chapeau masqué seulement à certaines tailles d’écran est remis', () => {
+    expect(restored(`<div class="hidden md:block"><p>${s('Chapeau')}</p></div>`)).toBe(true);
+    expect(restored(`<div class="d-none d-lg-block"><p>${s('Chapeau')}</p></div>`)).toBe(true);
+    expect(restored(`<p class="hidden-title">${s('Chapeau')}</p>`)).toBe(true);
+    expect(restored(p('Chapeau'))).toBe(true);
+  });
+
+  it('une image d’en-tête que le résultat montre à une autre taille n’est pas remise', () => {
+    const out = guardForTests({
+      page: page(`<header><img src="/une.jpg?w=2400&amp;quality=90" width="1200"></header><div><figure><img src="/une-1200x675.jpg" width="1200"></figure>${body}</div>`),
+      result: result(`<figure><img src="https://example.com/une-1200x675.jpg" width="1200"></figure>${body}`),
+      witness: result(`<figure><img src="https://example.com/une.jpg?w=2400&amp;quality=90" width="1200"></figure><figure><img src="https://example.com/une-1200x675.jpg" width="1200"></figure>${body}`),
+    });
+    expect(out.content.match(/une[-.]/g)).toHaveLength(1);
+  });
+
+  it('une image d’en-tête qui est une autre photo que celles du résultat est remise', () => {
+    const out = guardForTests({
+      page: page(`<header><img src="/une.jpg" width="1200"></header><div><figure><img src="/corps.jpg" width="1200"></figure>${body}</div>`),
+      result: result(`<figure><img src="https://example.com/corps.jpg" width="1200"></figure>${body}`),
+      witness: result(`<figure><img src="https://example.com/une.jpg" width="1200"></figure><figure><img src="https://example.com/corps.jpg" width="1200"></figure>${body}`),
+    });
+    expect(out.content).toContain('https://example.com/une.jpg');
   });
 });

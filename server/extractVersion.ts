@@ -63,5 +63,11 @@
  *     après lui quand le résultat est sous le seuil (REG-221), est remis ; et
  *     le sommaire de l'article n'est plus retiré (REG-222) : les extraits v10
  *     sont refaits.
+ * 12 : 1.9.0 — deux exemplaires d'un même bloc qui se suivent n'en font plus
+ *     qu'un (chapeau et photo d'en-tête de The Verge, une fois par mise en
+ *     page : REG-225 ; légende de la visionneuse d'Ars Technica : REG-226) ;
+ *     la garde de non-perte ne remet jamais ce que la page masque, ni une
+ *     image que le résultat montre déjà à une autre taille : les extraits v11
+ *     sont refaits.
  */
-export const EXTRACT_VERSION = 11;
+export const EXTRACT_VERSION = 12;

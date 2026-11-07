@@ -29,6 +29,41 @@ describe('displayedHtml', () => {
     expect(out.match(/hero\.jpg/g)).toHaveLength(1);
   });
 
+  // REG-227 : Frandroid donne au flux `…-1200x800.jpg?resize=1200,675&key=…`
+  // et à la page `….jpg?resize=1200&amp;key=…` — la même photo, à la taille
+  // près. Comparées telles quelles, elle s'affichait deux fois.
+  it('ne la réinjecte pas si l’extraction contient la même image à une autre taille (REG-227)', () => {
+    const out = displayedHtml(
+      '<img src="https://img.example.com/images.example.com/up/velo-1200x800.jpg?resize=1200,675&amp;key=9c833cf8"><p>flux</p>',
+      '<figure><img src="https://img.example.com/images.example.com/up/velo.jpg?resize=1200&amp;key=513fa488"></figure><p>complet</p>',
+    );
+    expect(out.match(/velo/g)).toHaveLength(1);
+  });
+
+  it('reconnaît l’image de tête dans le srcset de l’extrait, sur un autre hôte (REG-227)', () => {
+    const out = displayedHtml(
+      '<img src="https://images.example.com/up/velo-300x200.jpg">',
+      '<img src="https://img.example.com/proxy/velo.jpg?resize=1200" srcset="https://images.example.com/up/velo-1200x800.jpg 1200w, https://images.example.com/up/velo-768x512.jpg 768w"><p>complet</p>',
+    );
+    expect(out.startsWith('<img src="https://images.example.com/up/velo-300x200.jpg"')).toBe(false);
+  });
+
+  it('réinjecte toujours une image de tête qui est une autre photo que celles de l’extrait (REG-227)', () => {
+    const out = displayedHtml(
+      '<img src="https://example.com/up/une-1200x675.jpg"><p>flux</p>',
+      '<figure><img src="https://example.com/up/corps-1200x675.jpg"></figure><p>complet</p>',
+    );
+    expect(out).toBe('<img src="https://example.com/up/une-1200x675.jpg" alt="" /><figure><img src="https://example.com/up/corps-1200x675.jpg"></figure><p>complet</p>');
+  });
+
+  it('réinjecte une image servie par un script dont la requête est l’identité (REG-227)', () => {
+    const out = displayedHtml(
+      '<img src="https://example.com/image.php?id=1&amp;w=1200">',
+      '<img src="https://example.com/image.php?id=2&amp;w=1200"><p>complet</p>',
+    );
+    expect(out.match(/image\.php/g)).toHaveLength(2);
+  });
+
   // L'URL réinjectée est recopiée dans un attribut : elle ne doit jamais
   // pouvoir en sortir. La capture s'arrête déjà au premier guillemet, et
   // l'échappement qui suit ferme le cas restant.

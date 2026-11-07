@@ -3078,11 +3078,18 @@ libellés disaient « plein écran » jusqu'en 1.8.0) au double-clic. Contenu bi
   d'article gris ni pendant le geste ni après.
 - **Bascule flux → extraction** : une **seule** réécriture d'`innerHTML`, sur
   le même nœud, sans animation — `reading-body-enter` ne joue qu'au montage, et
-  le nœud ne se démonte plus. L'image d'en-tête garde la **même URL** de part
-  et d'autre : `displayedHtml()` réinjecte celle du flux quand l'extraction l'a
-  perdue, et quand l'extraction la porte, c'est la même. Le navigateur ne
-  repart donc pas chercher une image. Épinglé par
-  `src/lib/articleBody.test.ts` et `ReadingPane.body.test.tsx`.
+  le nœud ne se démonte plus. L'image d'en-tête : `displayedHtml()` réinjecte
+  celle du flux quand l'extraction ne porte pas **la même photo, à la taille
+  près** (`imageIdentity`, `src/lib/imageIdentity.ts` — par son `src` ou une
+  adresse de son `srcset`, REG-227). Frandroid donne au flux
+  `…-1200x800.jpg?resize=1200,675&key=…` et à la page `….jpg?resize=1200&key=…` :
+  comparées telles quelles, la photo s'affichait deux fois. Quand l'extraction
+  porte la photo à la même adresse, l'URL ne change pas et le navigateur ne
+  repart pas la chercher ; à une autre taille, c'est celle de l'extrait qui
+  reste, chargée à la bascule. Une autre photo, ou une image servie par un
+  script dont la requête est l'identité (`image.php?id=…`), est toujours
+  réinjectée. Épinglé par `src/lib/articleBody.test.ts` et
+  `ReadingPane.body.test.tsx`.
 - **Pastille « x min »** : affichée dès qu'il y a un corps, sur le contenu
   **montré** ; sa valeur grandit donc quand l'extraction arrive. Elle n'était
   auparavant cachée que parce qu'il n'y avait rien à mesurer sous le squelette.
@@ -5834,7 +5841,14 @@ serveur de développement en 1.4.4.)*
     nettoyage retire (lettre d'information, « Related », pied), rien d'un
     voile de consentement, rien de la **signature de l'auteur**
     (`BYLINE_SIGNALS` : nom et fonction de l'auteur du blog de Google, qui
-    revenaient — REG-223) ;
+    revenaient — REG-223), **rien de ce que la page masque** (`hiddenOnPage`,
+    REG-225 : `hidden`, `aria-hidden="true"`, `display:none` ou
+    `visibility:hidden` en ligne, `noscript`, `template`, dialogue modal, ou
+    une classe de masquage courante — `hidden`, `d-none`, `sr-only`,
+    `visually-hidden`… — que rien ne re-montre à une taille d'écran : un
+    chapeau `hidden md:block` se lit en bureau, il revient). ⚠️ Une feuille
+    de style externe ne se lit pas : ce qu'elle masque par des classes
+    hachées, la garde ne le sait pas (voir « Doublons qui se suivent ») ;
   - **il précède l'ouverture du résultat** dans ce conteneur, et le témoin
     contient cette ouverture — il englobe le résultat au lieu de lire
     ailleurs (chez Docker, le témoin ne garde que les billets liés : rien
@@ -5853,6 +5867,9 @@ serveur de développement en 1.4.4.)*
     rendait). Un bloc court se place par son texte **exact** dans le
     conteneur (« by Brad Bourque » ne se place pas dans « See all by Brad
     Bourque »).
+  Une image se compare **à la taille près** (`imageIdentity`, REG-225) : celle
+  que le résultat montre en `-1200x675` n'est pas absente parce que le témoin
+  la lit en `?w=2400`, et n'est pas remise une seconde fois.
   Ce qui est remis : chaque bloc de la suite (paragraphe, figure, liste) tel
   que le témoin l'a rendu, **à sa place dans l'ordre de la page** — avant le
   premier bloc du résultat qui le suit dans le conteneur, sinon après le
@@ -5912,7 +5929,40 @@ serveur de développement en 1.4.4.)*
   d'avant la garde, sept pages changent, toutes en gagnant (chapeau, image et
   légende d'en-tête de The Verge, d'Ars et du blog de Google, paliers de la
   page courte, intertitre du sommaire ; les sommaires de deux articles de
-  Clubic reviennent comme en 1.8.0).
+  Clubic reviennent comme en 1.8.0). ⚠️ Les doublons vus en direct sur
+  l'image de la garde (chapeau et photo de The Verge deux fois, légendes
+  d'Ars deux fois) ne venaient **pas** de la garde : la version d'avant la
+  garde les rendait déjà, Readability gardant l'en-tête entier, et l'outil
+  de corpus ne les comptait pas (REG-228). Les masquages en ligne et les
+  images à une autre taille sont des protections, qu'aucune page du corpus
+  ne déclenche.
+- **Doublons qui se suivent** (1.9.0, REG-225, REG-226 — `withoutRepeats`,
+  `server/extract.ts`, copiée dans le repli de `extractContent.ts` ; tests :
+  `server/test/extractNonLoss.test.ts` › « doublons », sur
+  `src/test/repeatPageFixtures.ts`, dont les fixtures gardent les doublons
+  de la page — un même texte reçoit le même brouillage). Une page porte
+  parfois deux exemplaires d'un même bloc, dont sa feuille de style n'en
+  montre qu'un : The Verge écrit le chapeau et la photo d'en-tête une fois
+  par mise en page (mobile, bureau), en classes hachées ; Ars Technica
+  chaque légende dans sa visionneuse (`div.pswp-caption-content`, masquée
+  par une feuille externe) puis dans le `<figcaption>`. Le HTML ne dit pas
+  lequel est masqué. Dernier tri de l'extraction, après la garde, et sur
+  `extractWithoutGuard` aussi : deux exemplaires qui **se suivent**, sans
+  rien de lisible entre eux (ni texte, ni média), n'en font qu'un — un bloc
+  de texte (une phrase suivie au moins, aucun média) suivi d'un bloc au même
+  texte normalisé perd le second, sauf si c'est la légende (`<figcaption>`),
+  qui reste ; dans une même figure, un bloc que le `<figcaption>` reprend en
+  entier (crédit en plus) sort ; une image suivie de la même photo à la
+  taille près (`imageIdentity`) perd la seconde, avec ce qui ne
+  l'enveloppait qu'elle, sauf si leurs `alt` diffèrent. **Jamais** dans une
+  liste, un tableau ou du code (`REPEAT_EXEMPT`) : un avis du CERT-FR cite
+  chaque bulletin dans un tableau puis dans une liste. Une exergue reprise
+  plus loin, une galerie où la photo revient après une autre ou après sa
+  légende, deux paragraphes voisins dont l'un prolonge l'autre : restent.
+  Mesuré (2026-11-07, 470 pages) : 17 pages changent, toutes de The Verge et
+  d'Ars, chaque texte et chaque photo retirés gardant un exemplaire ; contre
+  la 1.8.0, aucune page en échec, doublons nouveaux compris. Ars doublait
+  déjà en 1.8.0 la légende des figures qu'elle gardait.
 - **Images paresseuses résolues avant toute passe** (1.9.0, troisième round,
   A1 — `resolveLazyImages`, `server/extract.ts`, copiée dans le repli de
   `extractContent.ts` ; tests : `server/test/extract.test.ts` › « images

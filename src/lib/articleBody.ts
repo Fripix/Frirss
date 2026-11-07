@@ -19,6 +19,7 @@
 import { sanitizeArticleBody } from '../utils/sanitizeHtml';
 import { articleVideoRef, dropVideoThumbnails, injectVideoFacades, type FacadeLabels } from './youtube';
 import { extractShown, hasRenderableContent } from './readingBody';
+import { imageIdentity } from './imageIdentity';
 
 /** Combien d'images du début échappent au chargement différé. Les premières
  *  doivent être là *avant* la transition de balayage, pas après. */
@@ -58,7 +59,10 @@ export interface ArticleBody {
  * Le contenu réellement affiché : l'extraction quand elle existe, le flux
  * sinon. L'image d'en-tête du flux est réinjectée si l'extraction l'a perdue
  * — Readability écarte souvent l'illustration principale, et l'article
- * arrivait alors amputé de sa seule image.
+ * arrivait alors amputé de sa seule image. « Perdue » se juge à la taille
+ * près (`imageIdentity`, REG-227) : Frandroid donne au flux la photo en
+ * `?resize=1200,675` et à la page en `?resize=1200`, et le volet la montrait
+ * deux fois.
  */
 export function displayedHtml(
   rssHtml?: string | null,
@@ -71,10 +75,31 @@ export function displayedHtml(
   // `extractShown`. Sauf si le lecteur l'a demandé (`forced`).
   if (hasRenderableContent(extractedHtml) && !extractShown(rssHtml, extractedHtml, opts.forced)) return rssHtml || '';
   const imgMatch = rssHtml?.match(/<img[^>]+src=["']([^"']+)["']/i);
-  if (imgMatch && !extractedHtml.includes(imgMatch[1])) {
+  if (imgMatch && !extractedHtml.includes(imgMatch[1]) && !holdsImage(extractedHtml, imgMatch[1])) {
     return `<img src="${imgMatch[1].replace(/"/g, '&quot;')}" alt="" />` + extractedHtml;
   }
   return extractedHtml;
+}
+
+/** `&amp;` et ses voisines, dans une valeur d'attribut lue telle quelle. */
+const unescapeAttr = (value: string) => value.replace(/&amp;/gi, '&').replace(/&#0*38;/g, '&').replace(/&quot;/gi, '"');
+
+/**
+ * L'extrait montre-t-il déjà l'image `src`, à la taille près (REG-227) ? Par
+ * son `src`, ou par une adresse de son `srcset` (un autre hôte, celui de la
+ * page, y porte souvent les tailles de la même photo).
+ */
+function holdsImage(html: string, src: string): boolean {
+  const wanted = imageIdentity(unescapeAttr(src));
+  if (!wanted) return false;
+  for (const tag of html.match(/<img\b[^>]*>/gi) ?? []) {
+    for (const attr of tag.matchAll(/\s(?:src|srcset|data-src|data-srcset)\s*=\s*(?:"([^"]*)"|'([^']*)')/gi)) {
+      const value = unescapeAttr(attr[1] ?? attr[2] ?? '');
+      const candidates = /\ssrcset|data-srcset/i.test(attr[0]) ? value.split(',').map((c) => c.trim().split(/\s+/)[0]) : [value];
+      if (candidates.some((c) => imageIdentity(c) === wanted)) return true;
+    }
+  }
+  return false;
 }
 
 /** Durée de lecture en minutes, jamais inférieure à 1. */

@@ -4,6 +4,7 @@ import { dropNonVideoIframes } from '../lib/youtube';
 import { absolutizeUrls } from './absolutizeUrls';
 import { purifyToString, releaseDocument } from '../lib/parsedDocument';
 import { markupTooComplex } from '../lib/markupBounds';
+import { imageIdentity } from '../lib/imageIdentity';
 import {
   extractFailedBefore, forgetExtractFailure, isExtractableUrl, isPageRefusal, rememberExtractFailure,
 } from '../lib/extractFailures';
@@ -915,15 +916,27 @@ function hiddenForReadability(el: Element): boolean {
   return !!style && (style.display === 'none' || style.visibility === 'hidden');
 }
 
-/** `el` ou un ancêtre invisible pour Readability ; mémorisé dans `memo`. */
-function insideHidden(el: Element, memo: Map<Element, boolean>): boolean {
+/** Classes de masquage des bibliothèques courantes (voir le serveur, REG-225). */
+const HIDING_CLASSES = new Set(['hidden', 'invisible', 'd-none', 'is-hidden', 'sr-only', 'visually-hidden', 'screen-reader-text']);
+/** Une classe qui RE-montre l'élément à une taille d'écran : `md:block`, `d-lg-flex`. */
+const SHOWN_AT_SOME_SIZE = /^(?:[a-z0-9-]+:)+(?:block|flex|grid|inline|inline-block|inline-flex|inline-grid|table|table-cell|table-row|contents|flow-root|list-item|visible|not-sr-only)$|^d-(?:sm|md|lg|xl|xxl)-(?:block|flex|grid|inline|inline-block|inline-flex|table|table-cell|table-row)$/;
+
+/** La page masque-t-elle cet élément (voir le serveur, REG-225) ? La garde ne le remet jamais. */
+function hiddenOnPage(el: Element): boolean {
+  if (hiddenForReadability(el)) return true;
+  const tokens = (el.getAttribute('class') || '').split(/\s+/).filter(Boolean);
+  return tokens.some((token) => HIDING_CLASSES.has(token)) && !tokens.some((token) => SHOWN_AT_SOME_SIZE.test(token));
+}
+
+/** `el` ou un ancêtre invisible (pour Readability, par défaut, ou selon `hiddenTest`) ; mémorisé dans `memo`. */
+function insideHidden(el: Element, memo: Map<Element, boolean>, hiddenTest: (el: Element) => boolean = hiddenForReadability): boolean {
   const path: Element[] = [];
   let hidden = false;
   for (let current: Element | null = el; current; current = current.parentElement) {
     const known = memo.get(current);
     if (known !== undefined) { hidden = known; break; }
     path.push(current);
-    if (hiddenForReadability(current)) { hidden = true; break; }
+    if (hiddenTest(current)) { hidden = true; break; }
   }
   for (const node of path) memo.set(node, hidden);
   return hidden;
@@ -1247,8 +1260,9 @@ function unitsOf(root: Element, base: string, lenient = false): Unit[] {
   const stack: Array<[Element, boolean]> = [[root, false]];
   while (stack.length) {
     const [el, inByline] = stack.pop()!;
-    // Dans la page, un voile de consentement n'est pas de l'article (V2-02).
-    if (lenient && el.hasAttribute(VEIL_ATTR)) continue;
+    // Dans la page, un voile de consentement n'est pas de l'article (V2-02),
+    // ni rien de ce que la page masque (REG-225) : la garde ne le remet jamais.
+    if (lenient && (el.hasAttribute(VEIL_ATTR) || (el !== root && hiddenOnPage(el)))) continue;
     const byline = inByline || (lenient && el !== root && el.matches(BYLINE_SIGNALS));
     const tag = el.tagName.toLowerCase();
     if (el !== root && (UNIT_TAGS.has(tag) || looseText(el))) { units.push(unitOf(el, base, lenient, byline)); continue; }
@@ -1260,17 +1274,22 @@ function unitsOf(root: Element, base: string, lenient = false): Unit[] {
 
 /** Les blocs du conteneur de l'article, lus dans la page avant Readability (`null` sans conteneur). */
 function frameOf(container: Element | null, base: string): FrameUnits | null {
-  return container ? unitsOf(container, base, true) : null;
+  // Un conteneur que la page masque n'a rien à remettre (REG-225, voir le serveur).
+  if (!container || insideHidden(container, new Map(), hiddenOnPage)) return null;
+  return unitsOf(container, base, true);
 }
 
-/** Ce que garde un résultat : ses phrases, son texte normalisé, ses images. */
+/** Ce que garde un résultat : ses phrases, son texte normalisé, ses images (par leur identité, REG-225). */
 interface Kept { sentences: Set<string>; norm: string; images: Set<string> }
+
+/** L'identité d'une adresse absolue (`imageIdentity`), ou l'adresse elle-même. */
+const sameImage = (address: string) => imageIdentity(address) ?? address;
 
 function keptOf(root: Element, base: string): Kept {
   const images = new Set<string>();
   for (const img of Array.from(root.querySelectorAll('img')) as Element[]) {
     const src = absolute(img.getAttribute('src'), base);
-    if (src) images.add(src);
+    if (src) images.add(sameImage(src));
   }
   const blocks = blocksOf(root);
   return { sentences: new Set(blocks.flatMap(sentencesOf)), norm: ` ${normalized(blocks.join(' '))} `, images };
@@ -1477,7 +1496,7 @@ function withoutLoss(strict: Pass, witness: () => string | null, parse: (html: s
   const scan: Scan = { left: SCAN_FACTOR * (kept.norm.length + frameLength(frame)) + SCAN_FLOOR };
   // Ce que le résultat n'a pas (le titre, que le lecteur affiche à part, mis à part).
   const absent = (s: string) => !holds(kept, s, scan) && !reads(title, s);
-  const absentImage = (addresses: string[]) => !addresses.some((src) => kept.images.has(src));
+  const absentImage = (addresses: string[]) => !addresses.some((src) => kept.images.has(sameImage(src)));
   const missing = (unit: Unit) => unit.tracked.some(absent) || unit.images.some(absentImage);
   const at = openingIn(frame, opening, missing);
   if (at < 0) return strict.article;
@@ -1495,7 +1514,7 @@ function withoutLoss(strict: Pass, witness: () => string | null, parse: (html: s
   /** Le bloc est-il tout entier déjà lu (par `reader`), ou vide ? */
   const readBy = (reader: Kept) => (unit: Unit) => {
     if (unit.tracked.some((s) => !holds(reader, s, scan) && !reads(title, s))) return false;
-    if (unit.images.some((addresses) => !addresses.some((src) => reader.images.has(src)))) return false;
+    if (unit.images.some((addresses) => !addresses.some((src) => reader.images.has(sameImage(src))))) return false;
     const text = unit.norm.trim();
     return !text ? !unit.images.length : unit.tracked.length > 0 || reads(reader.norm, text) || reads(title, text);
   };
@@ -1536,7 +1555,7 @@ function withoutLoss(strict: Pass, witness: () => string | null, parse: (html: s
       picked.push({ unit, place });
       // Un bloc remis est lu : son double plus loin (un chapeau doublé pour mobile) ne revient pas.
       for (const s of unit.tracked) kept.sentences.add(s);
-      for (const addresses of unit.images) kept.images.add(addresses[0]);
+      for (const addresses of unit.images) kept.images.add(sameImage(addresses[0]));
       kept.norm += `${unit.norm.trim()} `;
     }
     return picked;
@@ -1551,6 +1570,115 @@ function withoutLoss(strict: Pass, witness: () => string | null, parse: (html: s
   for (const { unit } of picked) withoutWhatIsRead(unit.el, base, readBefore);
   placeInResult(root, picked, index, base);
   return { ...strict.article, content: root.innerHTML, length: (root.textContent || '').length };
+}
+
+// ── Doublons (1.9.0, REG-225, REG-226) ──────────────────────────────
+// Deux exemplaires d'un même bloc qui SE SUIVENT, sans rien de lisible entre
+// eux, n'en font qu'un : le chapeau et la photo d'en-tête que The Verge écrit
+// une fois par mise en page, la légende qu'Ars Technica écrit dans sa
+// visionneuse puis dans le `<figcaption>`. Copie de la règle du serveur
+// (`server/extract.ts`, qui dit pourquoi) ; toute modification de l'une va
+// avec l'autre, et avec `EXTRACT_VERSION`.
+
+/** Où un doublon reste : une page les y montre tous les deux. */
+const REPEAT_EXEMPT = 'li, td, th, dt, dd, caption, table, ul, ol, dl, pre, code';
+/** Un média : un bloc qui en porte un n'est jamais retiré pour son texte. */
+const REPEAT_MEDIA = 'img, picture, video, audio, iframe, object, embed, svg, canvas';
+
+/** Le texte normalisé de `el` (`blocksOf`), et s'il porte une phrase suivie. */
+function repeatText(el: Element): { text: string; tracked: boolean } {
+  const blocks = blocksOf(el);
+  return { text: normalized(blocks.join(' ')), tracked: blocks.some((block) => sentencesOf(block).some(isTracked)) };
+}
+
+/** Le premier nœud lisible après `node` (son sous-arbre exclu) et dans `root`, ou `null`. */
+function nextReadable(node: Node, root: Element): Node | null {
+  for (let next = nextOutside(node); next && root.contains(next); next = nextOutside(next)) {
+    if (isReadable(next)) return next;
+  }
+  return null;
+}
+
+/** Le premier enfant lisible de `el`, ou `null`. */
+function firstReadableChild(el: Element): Node | null {
+  for (let child = el.firstChild; child; child = child.nextSibling) if (isReadable(child)) return child;
+  return null;
+}
+
+/** Retire de `root` ses doublons qui se suivent (voir le serveur). Vrai si quelque chose a changé. */
+export function withoutRepeats(root: Element, base: string): boolean {
+  let changed = false;
+  const texts = new Map<Element, { text: string; tracked: boolean }>();
+  const textOf = (el: Element) => {
+    let known = texts.get(el);
+    if (!known) texts.set(el, known = repeatText(el));
+    return known;
+  };
+  const candidate = (el: Element) => !el.matches(REPEAT_MEDIA) && !el.querySelector(REPEAT_MEDIA) && !el.closest(REPEAT_EXEMPT);
+  for (const first of Array.from(root.querySelectorAll('*'))) {
+    if (!first.isConnected || !candidate(first) || normalizedLength(first.textContent || '') < TRACKED_MIN_NO_SPACE) continue;
+    const own = textOf(first);
+    if (!own.tracked) continue;
+    const figure = first.closest('figure');
+    let next = nextReadable(first, root);
+    while (next && next.nodeType === 1) {
+      const el = next as Element;
+      if (candidate(el)) {
+        const text = textOf(el).text;
+        const caption = !!el.closest('figcaption') && !first.closest('figcaption');
+        // La légende de la visionneuse, dans la même figure, que le
+        // `<figcaption>` reprend en entier (crédit en plus) : elle sort.
+        const inCaption = caption && !!figure && el.closest('figure') === figure && text.startsWith(`${own.text} `);
+        if (text === own.text || inCaption) {
+          (caption ? first : el).remove();
+          changed = true;
+          break;
+        }
+      }
+      next = firstReadableChild(el);
+    }
+  }
+  for (const img of Array.from(root.querySelectorAll('img'))) {
+    if (!img.isConnected) continue;
+    const identity = imageIdentity(img.getAttribute('src'), base);
+    if (!identity) continue;
+    // La suite, en descendant : le premier élément lisible, jusqu'au média.
+    let next = nextReadable(img, root);
+    while (next && next.nodeType === 1 && !(next as Element).matches(REPEAT_MEDIA)) next = firstReadableChild(next as Element);
+    if (!next || next.nodeType !== 1 || (next as Element).tagName.toLowerCase() !== 'img') continue;
+    const twin = next as Element;
+    if (imageIdentity(twin.getAttribute('src'), base) !== identity) continue;
+    // Deux textes de remplacement différents : la page les présente comme deux images.
+    const alt = (el: Element) => normalized(el.getAttribute('alt') || '');
+    if (alt(img) && alt(twin) && alt(img) !== alt(twin)) continue;
+    // Ce qui n'enveloppait que la seconde sort avec elle (un `<picture>`, un lien).
+    let gone: Element = twin;
+    while (gone.parentElement && gone.parentElement !== root && Array.from(gone.parentElement.childNodes).every((child) => child === gone || !isReadable(child))) gone = gone.parentElement;
+    gone.remove();
+    changed = true;
+  }
+  return changed;
+}
+
+/** Le résultat sans ses doublons (`withoutRepeats`) ; ce dernier tri ne fait jamais échouer une extraction. */
+function onceEach(article: ExtractedContent, base: string): ExtractedContent {
+  try {
+    return withFragments((parse) => {
+      const root = parse(article.content);
+      if (!withoutRepeats(root, base)) return article;
+      return { ...article, content: root.innerHTML, length: (root.textContent || '').length };
+    });
+  } catch {
+    return article;
+  }
+}
+
+/** `withoutRepeats` sur un HTML donné (tests de ses règles), comme `withoutRepeatsForTests` du serveur. */
+export function withoutRepeatsForTests(html: string, base = 'https://example.com/a'): string {
+  return withFragments((parse) => {
+    const root = parse(html);
+    return withoutRepeats(root, base) ? root.innerHTML : html;
+  });
 }
 
 async function extractOnce(url: string): Promise<ExtractedContent> {
@@ -1741,15 +1869,18 @@ async function extractOnce(url: string): Promise<ExtractedContent> {
 export function extractFromPage(url: string, html: string, guard = true): ExtractedContent {
   const strict = pagePass(url, html, { mode: 'strip', frame: true });
   if (!strict) throw new NoContentError();
-  if (!guard) return strict.article;
+  if (!guard) return onceEach(strict.article, url);
   // La garde de non-perte (REG-220, voir le serveur).
   const witness = () => pagePass(url, html, { mode: 'raw', single: true, threshold: WITNESS_CHAR_THRESHOLD })?.article.content ?? null;
   // La garde ne fait jamais échouer une extraction (voir le serveur).
+  let article: ExtractedContent;
   try {
-    return withFragments((parse) => withoutLoss(strict, witness, parse, url));
+    article = withFragments((parse) => withoutLoss(strict, witness, parse, url));
   } catch {
-    return strict.article;
+    article = strict.article;
   }
+  // Puis ses doublons qui se suivent (REG-225, REG-226).
+  return onceEach(article, url);
 }
 
 /** Une passe d'extraction, et ce qu'elle a mesuré de la page (voir le serveur). */
