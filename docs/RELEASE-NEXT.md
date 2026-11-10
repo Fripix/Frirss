@@ -1,4 +1,4 @@
-# 1.10.0 — en préparation
+# 1.9.1 — en préparation
 
 Journal des changements du cycle en cours, tenu au fil de l'eau. Il alimente les
 notes de la release GitHub et les corrections du README, puis se vide une fois
@@ -26,3 +26,6 @@ la release publiée.
   vient du relevé des compteurs que FriRSS fait déjà chaque minute (FreshRSS
   1.26 ou plus) ; un serveur plus ancien relève chaque étiquette au démarrage
   et quand une étiquette apparaît. Suite de l'issue #29.
+- **Les compteurs par identifiants montent à 9999** (ils s'arrêtaient à 1000) :
+  totaux et non-lus des étiquettes, de Favoris et d'À lire plus tard. Une
+  étiquette de plus de mille articles affichait 1000.

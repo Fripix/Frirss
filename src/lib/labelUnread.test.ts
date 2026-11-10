@@ -45,3 +45,4 @@ describe('afterLabelMembershipChange — poser ou retirer une étiquette', () =>
     expect(afterLabelMembershipChange({}, { read: false }, V, true)[V]).toBe(1);
   });
 });
+

@@ -61,7 +61,7 @@ describe('relevé des non-lus des étiquettes', () => {
     vi.mocked(api.getTagList).mockResolvedValue([veille]);
     vi.mocked(api.getStreamItemCount).mockImplementation(async (_s, _cap, opts) => (opts?.excludeRead ? 7 : 0));
     await useFeedStore.getState().loadLabels();
-    expect(unreadCalls().map((c) => [c[0], c[1]])).toEqual([[V, 1000]]);
+    expect(unreadCalls().map((c) => [c[0], c[1]])).toEqual([[V, 9999]]);
     expect(useFeedStore.getState().unreadCounts[V]).toBe(7);
   });
 
@@ -122,5 +122,12 @@ describe('gestes sur un article étiqueté — le compteur suit tout de suite', 
   it('étiqueter un article déjà lu ne change rien', async () => {
     await useFeedStore.getState().toggleArticleLabel(art({ read: true }), V);
     expect(useFeedStore.getState().unreadCounts[V]).toBe(4);
+  });
+});
+
+describe('plafond des relevés par identifiants', () => {
+  it('vaut 9999 pour tous les comptes (totaux et non-lus des étiquettes, Favoris, À lire plus tard)', () => {
+    // 1000 jusqu'en 1.9.0 : une étiquette de plus de mille articles affichait 1000.
+    expect(api.COUNT_CAP).toBe(9999);
   });
 });

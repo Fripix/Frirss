@@ -123,13 +123,22 @@ export async function getStarredItems(
 }
 
 /**
+ * Plafond des relevés par identifiants (totaux et non-lus des étiquettes, de
+ * Favoris et d'« À lire plus tard »). Était 1000 jusqu'en 1.9.0 : une
+ * étiquette de plus de mille articles affichait 1000 (issue #29). FreshRSS
+ * passe `n` tel quel à la requête (vérifié dans `p/api/greader.php` en
+ * 1.30.4, aucune borne) ; 9999 identifiants font ~250 Ko de JSON.
+ */
+export const COUNT_CAP = 9999;
+
+/**
  * Count items in a stream cheaply via the IDs-only endpoint (no article
  * content fetched). Returns the number of IDs returned, capped at `cap`.
  * `excludeRead` ne compte que les non-lus (`xt`, comme `getUnreadItemIds`).
  */
 export async function getStreamItemCount(
   streamId: string,
-  cap = 1000,
+  cap = COUNT_CAP,
   opts: { excludeRead?: boolean } = {},
 ): Promise<number> {
   const params: Record<string, string | number> = { output: 'json', s: streamId, n: cap };

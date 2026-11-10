@@ -16,6 +16,7 @@ import {
   unsubscribeFeed,
   getTagList,
   getStreamItemCount,
+  COUNT_CAP,
   setArticleLabel,
   renameTag,
   deleteTag,
@@ -716,8 +717,8 @@ async function loadSpecialUnread(set: (p: { specialUnread: SpecialUnread }) => v
   const special = { epoch: specialEpoch, inFlight: specialWritesInFlight > 0 };
   try {
     const [starred, readLater] = await Promise.all([
-      getStreamItemCount('user/-/state/com.google/starred', 1000, { excludeRead: true }),
-      getStreamItemCount(READ_LATER_LABEL, 1000, { excludeRead: true }),
+      getStreamItemCount('user/-/state/com.google/starred', COUNT_CAP, { excludeRead: true }),
+      getStreamItemCount(READ_LATER_LABEL, COUNT_CAP, { excludeRead: true }),
     ]);
     if (offlineScope() !== scope) return;
     if (reading.epoch !== countsEpoch || reading.writeWasInFlight) return;
@@ -1729,14 +1730,14 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     // connue (hors ligne, un « 0 » mentirait), et rien n'est demandé tant que
     // le réglage est éteint.
     const unreadTask = loadSpecialUnread(set);
-    // Le total, par identifiants et au même plafond (1000) que les non-lus :
+    // Le total, par identifiants et au même plafond (`COUNT_CAP`) que les non-lus :
     // il comptait une page de 200 articles COMPLETS, donc au-delà de 200
     // favoris la paire se lisait « 300 non lus · 200 » (R-6), et chaque
     // relevé téléchargeait deux pages entières pour n'en garder que la
     // longueur. Un échec garde la dernière valeur, comme les non-lus : un 0
     // posé à côté d'eux hors ligne contredirait la pastille voisine.
     const total = async (stream: string): Promise<number | null> => {
-      try { return await getStreamItemCount(stream, 1000); } catch { return null; }
+      try { return await getStreamItemCount(stream, COUNT_CAP); } catch { return null; }
     };
     const [starred, readLater] = await Promise.all([
       total('user/-/state/com.google/starred'),
@@ -3275,7 +3276,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     for (let i = 0; i < missing.length; i += PARALLEL) {
       await Promise.all(
         missing.slice(i, i + PARALLEL).map(async (l) => {
-          try { found[l.id] = await getStreamItemCount(l.id, 1000, { excludeRead: true }); } catch { /* garde la dernière valeur */ }
+          try { found[l.id] = await getStreamItemCount(l.id, COUNT_CAP, { excludeRead: true }); } catch { /* garde la dernière valeur */ }
         }),
       );
       if (offlineScope() !== scope) return;

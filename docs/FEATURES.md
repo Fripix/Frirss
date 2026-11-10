@@ -555,7 +555,7 @@ le menu ; voir *Menu d'un article*, piège Chrome Android).
   additionne les enfants) se lit **« N articles »** (`sidebar.itemCount`), pas
   « non lus » : `getStreamItemCount` interroge `/stream/items/ids` sans filtre
   `xt`, donc le chiffre est le **total** de l'étiquette, lus compris. Depuis
-  la 1.10.0, une étiquette peut aussi porter la **pastille des flux** avec ses
+  la 1.9.1, une étiquette peut aussi porter la **pastille des flux** avec ses
   non-lus (`LabelCounts`, réglage « Afficher les non-lus des étiquettes »,
   voir *Compteurs de Favoris, d'À lire plus tard et des étiquettes*). Tests :
   `src/components/Sidebar/FeedItem.badge.test.tsx`, `LabelBadge.test.tsx` et
@@ -6738,14 +6738,16 @@ Quatre réglages **indépendants** dans **Préférences › Étiquettes** : deux
 les étiquettes, deux pour Favoris et À lire plus tard, ces derniers visibles
 même sans aucune étiquette (1.9.0, en réponse à l'issue #29).
 
-**Les étiquettes** (1.10.0, suite de l'issue #29 : la demande portait sur
+**Les étiquettes** (1.9.1, suite de l'issue #29 : la demande portait sur
 elles, la 1.9.0 n'avait répondu que pour les deux listes) :
 
 - **« Afficher le total des étiquettes »** (activé par défaut ; c'est l'ancien
   « Afficher le nombre d'articles », clé `showLabelCounts` inchangée) : le
   badge gris historique, relevé par identifiants sans filtre, donc **lus
-  compris** et plafonné à **1000** — une étiquette de plus de mille articles
-  affiche 1000 (vu sur la capture de l'issue).
+  compris** et plafonné à **9999** (`COUNT_CAP`, `src/api/feeds.ts`).
+  ⚠️ Jusqu'en 1.9.0 le plafond était 1000 : une étiquette de plus de mille
+  articles affichait 1000 (vu sur la capture de l'issue). FreshRSS passe `n`
+  tel quel à la requête, sans borne (vérifié en 1.30.4).
 - **« Afficher les non-lus des étiquettes »** (désactivé par défaut, clé
   `showLabelUnread`) : le nombre d'articles non lus portant l'étiquette, avec
   la **pastille des flux** (`UnreadBadge`). Un groupe additionne ses enfants ;
@@ -6756,7 +6758,7 @@ elles, la 1.9.0 n'avait répondu que pour les deux listes) :
   `unreadCounts` sous l'identifiant de l'étiquette, comme un flux.
   ⚠️ **Un serveur d'avant la 1.26 ne rend pas les étiquettes.** Elles sont
   alors relevées par identifiants (`getStreamItemCount(…, { excludeRead:
-  true })`, plafond 1000, trois en parallèle) par `loadLabelUnread` —
+  true })`, plafond `COUNT_CAP`, trois en parallèle) par `loadLabelUnread` —
   **au démarrage et à l'apparition d'une étiquette seulement**
   (`loadLabels`), et à l'allumage du réglage (détecteur de la sidebar, comme
   pour Favoris) : pas une requête par étiquette chaque minute (décision du
@@ -6787,8 +6789,8 @@ elles, la 1.9.0 n'avait répondu que pour les deux listes) :
 - **« Afficher le total des Favoris et d'À lire plus tard »** (activé par
   défaut) : le chiffre historique, dans sa pastille colorée d'origine
   (`SpecialBadge`, `--sidebar-star` / `--sidebar-readlater`). Relevé par
-  identifiants (`getStreamItemCount`, plafond **1000**, le même que les
-  non-lus) ; un échec **garde la dernière valeur**. ⚠️ Jusqu'en 1.8 : une page
+  identifiants (`getStreamItemCount`, plafond **9999** depuis la 1.9.1,
+  1000 avant, le même que les non-lus) ; un échec **garde la dernière valeur**. ⚠️ Jusqu'en 1.8 : une page
   `stream/contents` à `n=200`, donc plafonnée à 200 et remise à 0 sur échec —
   au-delà de 200 favoris, la paire se lisait « 300 non lus · 200 », et chaque
   relevé téléchargeait 400 articles complets pour n'en garder que le nombre
@@ -6797,7 +6799,7 @@ elles, la 1.9.0 n'avait répondu que pour les deux listes) :
   défaut) : le nombre d'articles non lus de chaque liste, avec la **pastille des
   flux** (`UnreadBadge` : forme, couleurs, animation, « N non lus » pour un
   lecteur d'écran). Relevé par identifiants seulement
-  (`getStreamItemCount(…, { excludeRead: true })`, `xt=…/read`, plafond 1000),
+  (`getStreamItemCount(…, { excludeRead: true })`, `xt=…/read`, plafond `COUNT_CAP`),
   et **seulement quand le réglage est allumé** ; allumer le réglage (ici ou sur
   un autre appareil) relance le relevé depuis la sidebar — à l'allumage
   seulement, pas à chaque montage de la barre (`b`, sortie du mode Focus la

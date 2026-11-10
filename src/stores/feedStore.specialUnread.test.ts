@@ -153,7 +153,7 @@ describe('marquages en masse — le relevé reprend une fois le serveur d’acco
 describe('loadSpecialCounts — le total et les non-lus forment une paire cohérente (R-6)', () => {
   const totalCalls = () => vi.mocked(api.getStreamItemCount).mock.calls.filter((c) => !c[2]?.excludeRead);
 
-  it('le total se relève par identifiants, au même plafond (1000) que les non-lus', async () => {
+  it('le total se relève par identifiants, au même plafond (9999) que les non-lus', async () => {
     // Le total comptait une page de 200 articles complets : au-delà de 200
     // favoris, « 300 non lus · 200 » se lisait comme une paire.
     vi.mocked(api.getStreamItemCount).mockImplementation(async (s, _cap, opts) =>
@@ -161,7 +161,7 @@ describe('loadSpecialCounts — le total et les non-lus forment une paire cohér
     await useFeedStore.getState().loadSpecialCounts();
     expect(useFeedStore.getState().starredCount).toBe(350);
     expect(useFeedStore.getState().readLaterCount).toBe(12);
-    expect(totalCalls().map((c) => [c[0], c[1]]).sort()).toEqual([[READ_LATER_LABEL, 1000], [STARRED, 1000]].sort());
+    expect(totalCalls().map((c) => [c[0], c[1]]).sort()).toEqual([[READ_LATER_LABEL, 9999], [STARRED, 9999]].sort());
     expect(api.getStarredItems).not.toHaveBeenCalled();
   });
 
