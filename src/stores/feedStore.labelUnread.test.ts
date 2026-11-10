@@ -34,64 +34,47 @@ const art = (over: Partial<Article>): Article =>
 beforeEach(() => {
   vi.clearAllMocks();
   useAuthStore.setState({ activeServerId: '1', backendToken: 'x' });
-  useUiStore.setState({ showLabelUnread: true, showLabelCounts: false, toasts: [] });
+  useUiStore.setState({ showLabelUnread: true, showLabelCounts: false, showSpecialTotals: true, toasts: [] });
   useFeedStore.setState({
     filter: 'all', selectedFeed: null, articles: [], selectedArticle: null, searchQuery: '',
     subscriptions: [{ id: 'feed/1', title: 'F', categories: [] } as never],
-    labels: [veille], unreadCounts: { 'feed/1': 2, [V]: 4 }, labelCounts: {},
+    labels: [veille], unreadCounts: { 'feed/1': 2, [V]: 4 }, labelCounts: {}, labelUnreadServer: true,
   });
 });
 
-describe('relevé des non-lus des étiquettes', () => {
-  it('prend la valeur que FreshRSS (≥ 1.26) met dans unread-count, sans requête de plus', async () => {
+describe('les non-lus des étiquettes viennent de unread-count (FreshRSS ≥ 1.26)', () => {
+  it('prend la valeur que le serveur met dans unread-count, sans requête de plus, et note le support', async () => {
     vi.mocked(api.getUnreadCounts).mockResolvedValue([{ id: 'feed/1', count: 3 }, { id: V, count: 1 }, { id: TOTAL, count: 3 }] as never);
     await useFeedStore.getState().syncCounts();
     expect(useFeedStore.getState().unreadCounts[V]).toBe(1);
+    expect(useFeedStore.getState().labelUnreadServer).toBe(true);
     expect(unreadCalls()).toEqual([]);
   });
 
-  it('garde la valeur connue quand le serveur (< 1.26) ne rend pas les étiquettes', async () => {
+  it('un serveur (< 1.26) qui ne rend pas les étiquettes est noté non pris en charge, sans relevé de repli', async () => {
     vi.mocked(api.getUnreadCounts).mockResolvedValue([{ id: 'feed/1', count: 3 }, { id: TOTAL, count: 3 }] as never);
     await useFeedStore.getState().syncCounts();
-    expect(useFeedStore.getState().unreadCounts).toMatchObject({ 'feed/1': 3, [V]: 4 });
-  });
-
-  it('relève par identifiants, sans les lus, les étiquettes que le serveur n’a pas données', async () => {
-    useFeedStore.setState({ unreadCounts: { 'feed/1': 2 } });
-    vi.mocked(api.getTagList).mockResolvedValue([veille]);
-    vi.mocked(api.getStreamItemCount).mockImplementation(async (_s, _cap, opts) => (opts?.excludeRead ? 7 : 0));
-    await useFeedStore.getState().loadLabels();
-    expect(unreadCalls().map((c) => [c[0], c[1]])).toEqual([[V, 9999]]);
-    expect(useFeedStore.getState().unreadCounts[V]).toBe(7);
-  });
-
-  it('ne relève rien quand le serveur a déjà donné chaque étiquette', async () => {
-    vi.mocked(api.getTagList).mockResolvedValue([veille]);
-    await useFeedStore.getState().loadLabels();
+    expect(useFeedStore.getState().labelUnreadServer).toBe(false);
     expect(unreadCalls()).toEqual([]);
   });
 
-  it('ne relève rien quand le réglage est éteint', async () => {
-    useUiStore.setState({ showLabelUnread: false });
-    useFeedStore.setState({ unreadCounts: {} });
+  it('sans étiquette connue, le support reste inconnu, puis se décide quand les étiquettes arrivent', async () => {
+    useFeedStore.setState({ labels: [], labelUnreadServer: null });
+    vi.mocked(api.getUnreadCounts).mockResolvedValue([{ id: 'feed/1', count: 3 }, { id: V, count: 1 }] as never);
+    await useFeedStore.getState().syncCounts();
+    expect(useFeedStore.getState().labelUnreadServer).toBeNull();
     vi.mocked(api.getTagList).mockResolvedValue([veille]);
     await useFeedStore.getState().loadLabels();
-    await useFeedStore.getState().loadLabelUnread();
-    expect(unreadCalls()).toEqual([]);
+    expect(useFeedStore.getState().labelUnreadServer).toBe(true);
   });
 
-  it('loadLabelUnread (réglage allumé) relève ce qui manque et garde le reste', async () => {
-    useFeedStore.setState({ unreadCounts: { 'feed/1': 2 }, labels: [veille, { id: 'user/-/label/B', type: 'tag' } as Tag] });
-    vi.mocked(api.getStreamItemCount).mockImplementation(async (s, _cap, opts) => (opts?.excludeRead ? (s === V ? 7 : 1) : 0));
-    await useFeedStore.getState().loadLabelUnread();
-    expect(useFeedStore.getState().unreadCounts).toEqual({ 'feed/1': 2, [V]: 7, 'user/-/label/B': 1 });
-  });
-
-  it('un relevé en échec garde la dernière valeur', async () => {
-    useFeedStore.setState({ unreadCounts: { [V]: 4 } });
-    vi.mocked(api.getStreamItemCount).mockRejectedValue(new Error('offline'));
-    await useFeedStore.getState().loadLabelUnread();
-    expect(useFeedStore.getState().unreadCounts[V]).toBe(4);
+  it('une clé créée par un geste local ne fait pas passer un serveur < 1.26 pour pris en charge', async () => {
+    vi.mocked(api.getUnreadCounts).mockResolvedValue([{ id: 'feed/1', count: 3 }, { id: TOTAL, count: 3 }] as never);
+    await useFeedStore.getState().syncCounts();
+    await useFeedStore.getState().toggleRead(art({ labels: [V] }));
+    vi.mocked(api.getTagList).mockResolvedValue([veille]);
+    await useFeedStore.getState().loadLabels();
+    expect(useFeedStore.getState().labelUnreadServer).toBe(false);
   });
 });
 

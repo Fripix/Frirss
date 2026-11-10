@@ -352,6 +352,7 @@
       "moveTooltip": "移动到其他父标签",
       "showCounts": "显示标签的总数",
       "showLabelUnread": "显示标签的未读数",
+      "unreadNeedsFreshRss": "标签的未读数需要 FreshRSS 1.26 或更高版本：此服务器不提供该数据。",
       "resetColorsTitle": "重置标签颜色？",
       "resetColorsMessage": "所有标签都会失去自定义颜色。",
       "confirmDeleteMessage": "带有此标签的文章不会被删除，只是失去这个标签。",

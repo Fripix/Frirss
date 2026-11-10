@@ -352,6 +352,7 @@
       "moveTooltip": "Sposta in un altro genitore",
       "showCounts": "Mostra il totale delle etichette",
       "showLabelUnread": "Mostra i non letti delle etichette",
+      "unreadNeedsFreshRss": "I non letti delle etichette richiedono FreshRSS 1.26 o successivo: questo server non li fornisce.",
       "resetColorsTitle": "Reimpostare i colori delle etichette?",
       "resetColorsMessage": "Tutte le etichette perdono il loro colore personalizzato.",
       "confirmDeleteMessage": "Gli articoli che la portano non vengono eliminati: perdono solo questa etichetta.",

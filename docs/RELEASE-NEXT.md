@@ -23,9 +23,16 @@ la release publiée.
   tard : le total (l'ancien « Afficher le nombre d'articles », renommé) et le
   nombre de non-lus, avec la pastille des flux (désactivé par défaut). Les deux
   peuvent s'afficher ensemble ; un groupe additionne ses enfants. Le chiffre
-  vient du relevé des compteurs que FriRSS fait déjà chaque minute (FreshRSS
-  1.26 ou plus) ; un serveur plus ancien relève chaque étiquette au démarrage
-  et quand une étiquette apparaît. Suite de l'issue #29.
+  vient du relevé des compteurs que FriRSS fait déjà chaque minute, qui
+  demande FreshRSS 1.26 ou plus : sur un serveur plus ancien rien ne
+  s'affiche et Préférences → Étiquettes demande la mise à jour. Suite de
+  l'issue #29.
 - **Les compteurs par identifiants montent à 9999** (ils s'arrêtaient à 1000) :
   totaux et non-lus des étiquettes, de Favoris et d'À lire plus tard. Une
   étiquette de plus de mille articles affichait 1000.
+
+## Sous le capot
+
+- **Les totaux de Favoris et d'À lire plus tard ne sont plus relevés quand
+  leur réglage est éteint** (deux réponses de 9999 identifiants par minute
+  pour un chiffre invisible) ; les allumer relance le relevé tout de suite.

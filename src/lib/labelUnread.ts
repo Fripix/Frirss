@@ -5,27 +5,26 @@ import type { Article } from '../types';
  * demande portait sur les étiquettes, la 1.9.0 n'avait répondu que pour
  * Favoris et « À lire plus tard »).
  *
- * La source est `unread-count`, que FriRSS lit déjà chaque minute : FreshRSS
- * y liste chaque étiquette avec ses non-lus depuis la 1.26. Un serveur plus
- * ancien ne les rend pas — ses étiquettes sont alors relevées par
- * identifiants (`stream/items/ids` avec `xt`), au démarrage et quand une
- * étiquette apparaît, et la valeur connue est gardée entre deux relevés
- * (`keepLabelUnread`), là où `unreadCounts` est sinon remplacé en bloc par la
- * réponse du serveur.
+ * La seule source est `unread-count`, que FriRSS lit déjà chaque minute :
+ * FreshRSS y liste chaque étiquette avec ses non-lus depuis la 1.26
+ * (`listTags(precounts: true)` dans `p/api/greader.php`), zéro compris. Un
+ * serveur plus ancien ne les rend pas : rien n'est affiché et Préférences ›
+ * Étiquettes demande une mise à jour (décision du propriétaire, 2026-11-11 :
+ * un relevé de repli par identifiants avait été écrit, puis retiré — une clé
+ * créée par un geste local le trompait).
  */
 type Counts = Record<string, number>;
 
-/** Les entrées d'étiquettes absentes de la réponse serveur gardent leur valeur connue. */
-export function keepLabelUnread(next: Counts, prev: Counts, labels: readonly { id: string }[]): Counts {
-  for (const l of labels) {
-    if (!(l.id in next) && l.id in prev) next[l.id] = prev[l.id];
-  }
-  return next;
-}
-
-/** Les étiquettes dont aucun compte n'est connu : à relever par identifiants. */
-export function missingLabelUnread<T extends { id: string }>(counts: Counts, labels: readonly T[]): T[] {
-  return labels.filter((l) => !(l.id in counts));
+/**
+ * Le serveur fournit-il les non-lus des étiquettes ? Jugé sur les identifiants
+ * de la DERNIÈRE réponse `unread-count` (jamais sur `unreadCounts`, où un ✓
+ * local crée aussi des clés) : vrai dès qu'une étiquette y figure, faux si des
+ * étiquettes existent et qu'aucune n'y est, `null` tant qu'aucune étiquette
+ * n'est connue.
+ */
+export function labelUnreadFromServer(serverIds: ReadonlySet<string>, labels: readonly { id: string }[]): boolean | null {
+  if (!labels.length) return null;
+  return labels.some((l) => serverIds.has(l.id));
 }
 
 /** Un article entre dans l'étiquette (`joining`) ou en sort : seul un non-lu compte. */

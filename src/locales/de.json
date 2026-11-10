@@ -352,6 +352,7 @@
       "moveTooltip": "Zu einem anderen übergeordneten Label verschieben",
       "showCounts": "Gesamtzahl für Labels anzeigen",
       "showLabelUnread": "Ungelesene für Labels anzeigen",
+      "unreadNeedsFreshRss": "Ungelesene für Labels erfordern FreshRSS 1.26 oder neuer: dieser Server liefert sie nicht.",
       "resetColorsTitle": "Label-Farben zurücksetzen?",
       "resetColorsMessage": "Alle Labels verlieren ihre eigene Farbe.",
       "confirmDeleteMessage": "Artikel mit diesem Label werden nicht gelöscht, sie verlieren nur das Label.",

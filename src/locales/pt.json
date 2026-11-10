@@ -352,6 +352,7 @@
       "moveTooltip": "Mover para outro elemento pai",
       "showCounts": "Mostrar o total das etiquetas",
       "showLabelUnread": "Mostrar os não lidos das etiquetas",
+      "unreadNeedsFreshRss": "Os não lidos das etiquetas requerem FreshRSS 1.26 ou posterior: este servidor não os fornece.",
       "resetColorsTitle": "Repor as cores das etiquetas?",
       "resetColorsMessage": "Todas as etiquetas perdem a sua cor personalizada.",
       "confirmDeleteMessage": "Os artigos que a têm não são eliminados: perdem apenas esta etiqueta.",

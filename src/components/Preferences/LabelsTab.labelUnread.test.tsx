@@ -13,7 +13,7 @@ afterEach(cleanup);
 
 describe('Préférences › Étiquettes — total et non-lus des étiquettes, indépendants', () => {
   beforeEach(() => {
-    useFeedStore.setState({ labels: [{ id: 'user/-/label/Veille', type: 'tag' }] } as never);
+    useFeedStore.setState({ labels: [{ id: 'user/-/label/Veille', type: 'tag' }], labelUnreadServer: true } as never);
     useUiStore.setState({ showLabelCounts: true, showLabelUnread: false, showSpecialTotals: true, showSpecialUnread: false });
   });
 
@@ -21,6 +21,21 @@ describe('Préférences › Étiquettes — total et non-lus des étiquettes, in
     render(<LabelsTab resetLabelColors={() => {}} />);
     expect(screen.getByRole('switch', { name: 'preferences.labels.showCounts' }).getAttribute('aria-checked')).toBe('true');
     expect(screen.getByRole('switch', { name: 'preferences.labels.showLabelUnread' }).getAttribute('aria-checked')).toBe('false');
+  });
+
+  it('demande une mise à jour de FreshRSS quand le serveur ne fournit pas les non-lus des étiquettes', () => {
+    useFeedStore.setState({ labelUnreadServer: false } as never);
+    render(<LabelsTab resetLabelColors={() => {}} />);
+    expect(screen.getByText('preferences.labels.unreadNeedsFreshRss')).toBeTruthy();
+  });
+
+  it('ne le demande pas quand le serveur les fournit, ni tant qu’on ne sait pas', () => {
+    render(<LabelsTab resetLabelColors={() => {}} />);
+    expect(screen.queryByText('preferences.labels.unreadNeedsFreshRss')).toBeNull();
+    cleanup();
+    useFeedStore.setState({ labelUnreadServer: null } as never);
+    render(<LabelsTab resetLabelColors={() => {}} />);
+    expect(screen.queryByText('preferences.labels.unreadNeedsFreshRss')).toBeNull();
   });
 
   it('chacun ne règle que le sien', () => {

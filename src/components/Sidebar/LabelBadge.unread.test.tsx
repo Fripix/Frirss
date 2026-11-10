@@ -19,7 +19,7 @@ const labels = [{ id: V, type: 'tag' }, { id: R, type: 'tag' }] as Tag[];
 
 beforeEach(() => {
   useUiStore.setState({ labelsCollapsed: false, collapsedLabelGroups: {} });
-  useFeedStore.setState({ labelCounts: { [V]: 12, [R]: 3 }, unreadCounts: { [V]: 7, [R]: 2 } });
+  useFeedStore.setState({ labelCounts: { [V]: 12, [R]: 3 }, unreadCounts: { [V]: 7, [R]: 2 }, labelUnreadServer: true });
 });
 afterEach(cleanup);
 
@@ -60,6 +60,14 @@ describe('non-lus d’une étiquette dans la barre latérale (issue #29)', () =>
       <LabelSection labels={[...labels, { id: 'user/-/label/Tech/Go', type: 'tag' } as Tag]} selectedFeed={null} selectLabel={() => {}} onArticleDrop={() => {}} />,
     );
     expect(spokenUnread(container)).toContain('sidebar.unreadCount:6');
+  });
+
+  it('ne montre rien quand le serveur (< 1.26) ne fournit pas les non-lus des étiquettes, même avec une clé locale', () => {
+    useUiStore.setState({ showLabelCounts: true, showLabelUnread: true });
+    useFeedStore.setState({ labelUnreadServer: false });
+    const { container } = mount();
+    expect(spokenUnread(container).some((l) => l?.includes('unreadCount'))).toBe(false);
+    expect(spokenTotals(container)).toContain('sidebar.itemCount:12');
   });
 
   it('une étiquette sans non-lu ne porte pas de pastille', () => {

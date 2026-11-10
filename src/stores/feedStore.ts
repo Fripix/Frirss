@@ -34,7 +34,7 @@ import {
 } from '../lib/searchCorpus';
 import { canMarkAllRead } from '../lib/markAllRead';
 import { afterReadChange, afterMembershipChange, type SpecialUnread } from '../lib/specialUnread';
-import { keepLabelUnread, missingLabelUnread, afterLabelMembershipChange } from '../lib/labelUnread';
+import { labelUnreadFromServer, afterLabelMembershipChange } from '../lib/labelUnread';
 import { useAuthStore } from './authStore';
 import { jwtUserId } from '../lib/jwtUserId';
 import { isBackendAuthFailure } from '../lib/loginErrors';
@@ -709,6 +709,11 @@ let readWritesInFlight = 0;
 let specialEpoch = 0;
 let specialWritesInFlight = 0;
 
+// Identifiants de la DERNIÈRE réponse `unread-count`, pour savoir si le serveur
+// liste les étiquettes (FreshRSS ≥ 1.26) sans se fier à `unreadCounts`, où un
+// geste local crée aussi des clés (voir `labelUnreadFromServer`).
+let serverCountIds: ReadonlySet<string> = new Set();
+
 /** Le relevé des non-lus des deux listes, gardé comme décrit ci-dessus. */
 async function loadSpecialUnread(set: (p: { specialUnread: SpecialUnread }) => void): Promise<void> {
   if (!useUiStore.getState().showSpecialUnread) return;
@@ -906,6 +911,8 @@ export interface FeedState {
   searchScan: SearchScan;
   labels: Tag[];
   labelCounts: Record<string, number>;
+  /** Le serveur liste-t-il les étiquettes dans `unread-count` (FreshRSS ≥ 1.26) ? `null` : pas encore su. Voir `src/lib/labelUnread.ts`. */
+  labelUnreadServer: boolean | null;
   categoryIds: string[];
   /** Catégories annoncées par `tag/list` (type `folder`), vides comprises — voir `src/lib/labelNames.ts`. */
   folderIds: string[];
@@ -957,8 +964,6 @@ export interface FeedState {
   setFilter: (filter: Filter) => void;
   setUnreadFilter: (on: boolean) => void;
   loadLabelCounts: () => Promise<void>;
-  /** Non-lus des étiquettes que le serveur n'a pas données (FreshRSS < 1.26) — voir `src/lib/labelUnread.ts`. */
-  loadLabelUnread: () => Promise<void>;
   warmOfflineCache: () => Promise<void>;
   /** `userInitiated`: started by a click (asks for protected storage). */
   prepareOffline: (opts?: { userInitiated?: boolean }) => Promise<void>;
@@ -1513,6 +1518,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   searchScan: { ...IDLE_SCAN },
   labels: [],
   labelCounts: {},
+  labelUnreadServer: null,
   categoryIds: [],
   folderIds: [],
   starredCount: 0,
@@ -1664,7 +1670,8 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         countMap[c.id] = c.count;
       });
       const catIds = categoryIdsOf(normalizedSubs);
-      const next = keepLabelUnread(applyZeroFloor(countMap), get().unreadCounts, get().labels);
+      serverCountIds = new Set(Object.keys(countMap));
+      const next = applyZeroFloor(countMap);
       // Arrivées depuis le dernier relevé (voir `arrivalsInView`). Un flux que
       // le store ne connaissait pas (on vient de l'ajouter) apporte tout son
       // stock, pas des arrivées : il est écarté (`ignoreUnknownFeeds`). Les
@@ -1694,6 +1701,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         subscriptions: normalizedSubs,
         unreadCounts: next,
         categoryIds: catIds,
+        labelUnreadServer: labelUnreadFromServer(serverCountIds, st.labels),
         newInView: st.randomView ? 0 : st.newInView + arrived,
       }));
       subsPut(storedKey('subscriptions'), normalizedSubs).catch(() => {}); // persist for offline
@@ -1736,7 +1744,12 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     // relevé téléchargeait deux pages entières pour n'en garder que la
     // longueur. Un échec garde la dernière valeur, comme les non-lus : un 0
     // posé à côté d'eux hors ligne contredirait la pastille voisine.
+    // Réglage éteint : rien n'est demandé (deux réponses de 9999 identifiants
+    // par minute, sinon, pour un chiffre que personne ne voit) ; l'allumage
+    // relance le relevé depuis la sidebar, comme pour les non-lus.
+    const wantTotals = useUiStore.getState().showSpecialTotals;
     const total = async (stream: string): Promise<number | null> => {
+      if (!wantTotals) return null;
       try { return await getStreamItemCount(stream, COUNT_CAP); } catch { return null; }
     };
     const [starred, readLater] = await Promise.all([
@@ -3252,37 +3265,15 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       const labels = userLabels(tags, [...categoryIds], READ_LATER_LABEL);
       const folderIds = tags.filter((t) => t.type === 'folder' && t.id).map((t) => t.id);
       const known = get().labelCounts;
-      set({ labels, folderIds });
+      set({ labels, folderIds, labelUnreadServer: labelUnreadFromServer(serverCountIds, labels) });
       // Article counts per label (background, only if the user shows them).
       // La relecture du retour sur l'onglet ne les redemande que pour une
       // étiquette nouvelle : sinon, une requête par étiquette à chaque retour.
       const wanted = !opts?.newCountsOnly || labels.some((l) => !(l.id in known));
       if (wanted && useUiStore.getState().showLabelCounts) get().loadLabelCounts();
-      // Les non-lus : rien à demander quand `unread-count` les a donnés
-      // (FreshRSS ≥ 1.26) ; sinon, une étiquette sans compte connu est
-      // relevée ici — au démarrage et à l'apparition d'une étiquette, pas à
-      // chaque minute (décision du propriétaire, 2026-11-10).
-      await get().loadLabelUnread();
+      // Les non-lus des étiquettes viennent de `unread-count` seul (FreshRSS
+      // ≥ 1.26) : rien à relever ici, et rien n'est affiché sans eux.
     } catch { /* ignore */ }
-  },
-
-  loadLabelUnread: async () => {
-    if (!useUiStore.getState().showLabelUnread) return;
-    const missing = missingLabelUnread(get().unreadCounts, get().labels);
-    if (!missing.length) return;
-    const scope = offlineScope();
-    const found: Record<string, number> = {};
-    const PARALLEL = 3;
-    for (let i = 0; i < missing.length; i += PARALLEL) {
-      await Promise.all(
-        missing.slice(i, i + PARALLEL).map(async (l) => {
-          try { found[l.id] = await getStreamItemCount(l.id, COUNT_CAP, { excludeRead: true }); } catch { /* garde la dernière valeur */ }
-        }),
-      );
-      if (offlineScope() !== scope) return;
-    }
-    if (!Object.keys(found).length) return;
-    set((st) => ({ unreadCounts: { ...st.unreadCounts, ...found } }));
   },
 
   // Count articles per user label (lightweight IDs-only endpoint), in the
@@ -3746,7 +3737,8 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       }
       const countMap: Record<string, number> = {};
       counts.forEach((c) => { countMap[c.id] = c.count; });
-      const next = keepLabelUnread(applyZeroFloor(countMap), get().unreadCounts, get().labels);
+      serverCountIds = new Set(Object.keys(countMap));
+      const next = applyZeroFloor(countMap);
       // Pastille « nouveaux articles » (discussion #14) : seules les HAUSSES des
       // flux de la vue affichée comptent. Une action locale a déjà mis le
       // compteur à jour, elle ne produit donc aucune hausse ici. Sans compteur
@@ -3776,7 +3768,11 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       // qui suit la mise en file doit l'ignorer ; `skipNextArrivals` (posé
       // par `enqueueAction`) le fait déjà et se consomme en un seul coup.
       const arrived = arrivalsInView(reading, unreadCounts, next, feedIds, refreshPhase);
-      set((s) => ({ unreadCounts: next, newInView: s.randomView ? 0 : s.newInView + arrived }));
+      set((s) => ({
+        unreadCounts: next,
+        labelUnreadServer: labelUnreadFromServer(serverCountIds, s.labels),
+        newInView: s.randomView ? 0 : s.newInView + arrived,
+      }));
       // Also refresh starred & read-later counts
       get().loadSpecialCounts();
     } catch { /* ignore */ }
@@ -4210,6 +4206,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       searchScan: { ...IDLE_SCAN },
       labels: [],
       labelCounts: {},
+      labelUnreadServer: null,
       categoryIds: [],
       folderIds: [],
       starredCount: 0,

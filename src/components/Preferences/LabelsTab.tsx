@@ -91,6 +91,7 @@ export default function LabelsTab({ resetLabelColors }: { resetLabelColors: () =
   const renameLabel = useFeedStore((s) => s.renameLabel);
   const deleteLabel = useFeedStore((s) => s.deleteLabel);
   const loadLabelCounts = useFeedStore((s) => s.loadLabelCounts);
+  const labelUnreadServer = useFeedStore((s) => s.labelUnreadServer);
   const categoryIds = useFeedStore((s) => s.categoryIds);
   const folderIds = useFeedStore((s) => s.folderIds);
   const pushToast = useUiStore((s) => s.pushToast);
@@ -277,6 +278,14 @@ export default function LabelsTab({ resetLabelColors }: { resetLabelColors: () =
           <ToggleSwitch checked={showLabelUnread} onChange={setShowLabelUnread} ariaLabel={t('preferences.labels.showLabelUnread')} />
         </span>
       </div>
+      {/* Avant FreshRSS 1.26, `unread-count` ignore les étiquettes : rien ne
+          s'affiche, et on le dit ici plutôt que de laisser un interrupteur
+          sans effet (décision du propriétaire, 2026-11-11). */}
+      {labelUnreadServer === false && (
+        <p className="text-[11px] -mt-1" style={{ color: 'var(--list-summary)', opacity: 0.8 }}>
+          {t('preferences.labels.unreadNeedsFreshRss')}
+        </p>
+      )}
 
       <SpecialCountsToggles />
 

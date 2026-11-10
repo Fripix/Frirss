@@ -360,6 +360,7 @@
       "moveTooltip": "Przenieś do innego elementu nadrzędnego",
       "showCounts": "Pokaż łączną liczbę w etykietach",
       "showLabelUnread": "Pokaż nieprzeczytane w etykietach",
+      "unreadNeedsFreshRss": "Nieprzeczytane w etykietach wymagają FreshRSS 1.26 lub nowszego: ten serwer ich nie udostępnia.",
       "resetColorsTitle": "Zresetować kolory etykiet?",
       "resetColorsMessage": "Wszystkie etykiety tracą swój własny kolor.",
       "confirmDeleteMessage": "Artykuły z tą etykietą nie zostaną usunięte, stracą tylko tę etykietę.",

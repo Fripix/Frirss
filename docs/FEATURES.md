@@ -6756,17 +6756,28 @@ elles, la 1.9.0 n'avait répondu que pour les deux listes) :
   avec ses non-lus **depuis la 1.26** (`listTags(precounts: true)` dans
   `p/api/greader.php`), donc aucune requête de plus, et le chiffre vit dans
   `unreadCounts` sous l'identifiant de l'étiquette, comme un flux.
-  ⚠️ **Un serveur d'avant la 1.26 ne rend pas les étiquettes.** Elles sont
-  alors relevées par identifiants (`getStreamItemCount(…, { excludeRead:
-  true })`, plafond `COUNT_CAP`, trois en parallèle) par `loadLabelUnread` —
-  **au démarrage et à l'apparition d'une étiquette seulement**
-  (`loadLabels`), et à l'allumage du réglage (détecteur de la sidebar, comme
-  pour Favoris) : pas une requête par étiquette chaque minute (décision du
-  propriétaire, 2026-11-10). `keepLabelUnread` garde leur valeur quand la
-  réponse de `unread-count` les ignore, là où `unreadCounts` est sinon
-  remplacé en bloc. **Limite assumée** sur ces serveurs : un marquage en masse
-  fait ailleurs que dans la vue de l'étiquette n'est répercuté qu'au prochain
-  démarrage.
+  ⚠️ **Un serveur d'avant la 1.26 ne rend pas les étiquettes : rien ne
+  s'affiche, et Préférences › Étiquettes le dit** (« Les non-lus des
+  étiquettes demandent FreshRSS 1.26 ou plus : ce serveur ne les fournit
+  pas », `preferences.labels.unreadNeedsFreshRss`), sous l'interrupteur, qui
+  reste manipulable. Le support est jugé par `labelUnreadFromServer` sur les
+  **identifiants de la dernière réponse `unread-count`** (`serverCountIds`,
+  module de `feedStore`), jamais sur `unreadCounts` : vrai dès qu'une
+  étiquette y figure (FreshRSS les liste toutes, zéro compris), faux si des
+  étiquettes existent et qu'aucune n'y est, `null` tant qu'aucune étiquette
+  n'est connue (`feedStore.labelUnreadServer`, recalculé par
+  `loadSubscriptions`, `syncCounts` et `loadLabels`, remis à `null` au
+  changement de serveur). La sidebar n'affiche les non-lus d'une étiquette que
+  si le réglage est allumé **et** le support vrai.
+  ⚠️ **Pourquoi pas un relevé de repli par identifiants.** Il a été écrit le
+  10.11 (une requête `xt` par étiquette au démarrage) puis retiré le 11.11
+  sur relecture : `updateCount` crée la clé d'une étiquette au premier ✓,
+  même réglage éteint, et le repli ne relevait que les étiquettes **sans**
+  clé — une étiquette touchée avant l'allumage, ou après un relevé de
+  démarrage échoué, affichait 0 ou 1 pour toute la session. Décision du
+  propriétaire : demander la mise à jour de FreshRSS, « c'est le plus
+  simple ». Même raison pour juger le support sur la réponse serveur et non
+  sur `unreadCounts`.
 - **Tenue entre deux relevés** : `updateCount` ajuste chaque étiquette de
   l'article au ✓ et à l'ouverture (et la rend sur refus) ; poser ou retirer
   une étiquette sur un **non-lu** compte ou décompte
@@ -6776,7 +6787,7 @@ elles, la 1.9.0 n'avait répondu que pour les deux listes) :
   (`gap-1.5`, `LabelCounts` dans `Sidebar.tsx`) — la même paire que
   Favoris. Une étiquette sans non-lu ne porte pas de pastille, comme un flux.
 - **Où** : `src/lib/labelUnread.ts` (helpers purs, testés),
-  `feedStore.loadLabelUnread`, `uiStore.showLabelUnread` (sauvegardé,
+  `feedStore.labelUnreadServer`, `uiStore.showLabelUnread` (sauvegardé,
   synchronisé), `LabelsTab.tsx`, `LabelSection` / `LabelCounts` de
   `Sidebar.tsx`.
 - **Tests** : `src/lib/labelUnread.test.ts`,
@@ -6790,7 +6801,11 @@ elles, la 1.9.0 n'avait répondu que pour les deux listes) :
   défaut) : le chiffre historique, dans sa pastille colorée d'origine
   (`SpecialBadge`, `--sidebar-star` / `--sidebar-readlater`). Relevé par
   identifiants (`getStreamItemCount`, plafond **9999** depuis la 1.9.1,
-  1000 avant, le même que les non-lus) ; un échec **garde la dernière valeur**. ⚠️ Jusqu'en 1.8 : une page
+  1000 avant, le même que les non-lus) ; un échec **garde la dernière valeur**.
+  **Relevé seulement quand le réglage est allumé** (1.9.1) : il partait chaque
+  minute même éteint — deux réponses de 9999 identifiants pour un chiffre
+  que personne ne voyait ; l'allumage relance le relevé depuis la sidebar
+  (`specialTotalsTurnedOn`, même détecteur que les non-lus). ⚠️ Jusqu'en 1.8 : une page
   `stream/contents` à `n=200`, donc plafonnée à 200 et remise à 0 sur échec —
   au-delà de 200 favoris, la paire se lisait « 300 non lus · 200 », et chaque
   relevé téléchargeait 400 articles complets pour n'en garder que le nombre

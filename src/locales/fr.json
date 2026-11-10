@@ -352,6 +352,7 @@
       "moveTooltip": "Déplacer vers un autre parent",
       "showCounts": "Afficher le total des étiquettes",
       "showLabelUnread": "Afficher les non-lus des étiquettes",
+      "unreadNeedsFreshRss": "Les non-lus des étiquettes demandent FreshRSS 1.26 ou plus : ce serveur ne les fournit pas.",
       "resetColorsTitle": "Réinitialiser les couleurs des étiquettes ?",
       "resetColorsMessage": "Toutes les étiquettes perdent leur couleur personnalisée.",
       "confirmDeleteMessage": "Les articles qui la portent ne sont pas supprimés : ils perdent seulement cette étiquette.",

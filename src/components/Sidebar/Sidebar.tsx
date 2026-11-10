@@ -46,7 +46,7 @@ type DragItem =
 // Réglage « non-lus des Favoris et d'À lire plus tard » : sa dernière valeur
 // vue, retenue hors du composant (voir `createTurnOnDetector`, R-5).
 const specialUnreadTurnedOn = createTurnOnDetector(useUiStore.getState().showSpecialUnread);
-const labelUnreadTurnedOn = createTurnOnDetector(useUiStore.getState().showLabelUnread);
+const specialTotalsTurnedOn = createTurnOnDetector(useUiStore.getState().showSpecialTotals);
 
 export default function Sidebar() {
   const { t } = useTranslation();
@@ -68,7 +68,6 @@ export default function Sidebar() {
     readLaterCount,
     specialUnread,
     loadSpecialCounts,
-    loadLabelUnread,
     renameFeed,
     removeFeed,
   } = useFeedStore();
@@ -77,21 +76,18 @@ export default function Sidebar() {
   const unreadOnlyScope = useUiStore((s) => s.unreadOnlyScope);
   const showSpecialTotals = useUiStore((s) => s.showSpecialTotals);
   const showSpecialUnread = useUiStore((s) => s.showSpecialUnread);
-  const showLabelUnread = useUiStore((s) => s.showLabelUnread);
   const specialPrefs = { showTotals: showSpecialTotals, showUnread: showSpecialUnread };
   const starredRow = specialRowCounts(starredCount, specialUnread.starred, specialPrefs);
   const readLaterRow = specialRowCounts(readLaterCount, specialUnread.readLater, specialPrefs);
   // Réglage allumé ici ou arrivé d'un autre appareil : le relevé part tout de
   // suite plutôt qu'au prochain passage de `syncCounts`. Pas à chaque montage :
   // `b` et la sortie du mode Focus remontent la barre (R-5).
+  // Le total aussi : il n'est plus relevé tant que son réglage est éteint.
   useEffect(() => {
-    if (specialUnreadTurnedOn(showSpecialUnread)) void loadSpecialCounts();
-  }, [showSpecialUnread, loadSpecialCounts]);
-  // Même mécanique pour les non-lus des étiquettes : un serveur d'avant
-  // FreshRSS 1.26 n'a rien relevé tant que le réglage était éteint.
-  useEffect(() => {
-    if (labelUnreadTurnedOn(showLabelUnread)) void loadLabelUnread();
-  }, [showLabelUnread, loadLabelUnread]);
+    const unreadOn = specialUnreadTurnedOn(showSpecialUnread);
+    const totalsOn = specialTotalsTurnedOn(showSpecialTotals);
+    if (unreadOn || totalsOn) void loadSpecialCounts();
+  }, [showSpecialUnread, showSpecialTotals, loadSpecialCounts]);
   const {
     showFavicons,
     toggleFavicons,
@@ -1635,7 +1631,11 @@ export function LabelSection({ labels, selectedFeed, selectLabel, onArticleDrop 
   const showLabelUnread = useUiStore((s) => s.showLabelUnread);
   const labelCounts = useFeedStore((s) => s.labelCounts);
   const unreadCounts = useFeedStore((s) => s.unreadCounts);
-  const unreadOf = (id: string) => (showLabelUnread ? unreadCounts[id] : undefined);
+  // Rien sans le serveur : avant FreshRSS 1.26, `unread-count` ignore les
+  // étiquettes, et les clés qu'un ✓ local créerait mentiraient.
+  const labelUnreadServer = useFeedStore((s) => s.labelUnreadServer);
+  const labelUnreadOn = showLabelUnread && labelUnreadServer === true;
+  const unreadOf = (id: string) => (labelUnreadOn ? unreadCounts[id] : undefined);
 
   // Resolve the effective color for a label (own color > inherited parent color > null)
   const resolveLabelColor = useCallback((labelId: string): string | null => {
@@ -1739,7 +1739,7 @@ export function LabelSection({ labels, selectedFeed, selectLabel, onArticleDrop 
                   count={!showLabelCounts ? undefined
                     : hasParentTag && item.tag ? labelCounts[item.tag.id]
                     : (item.children ?? []).reduce((s, c) => s + (labelCounts[c.tag.id] ?? 0), 0)}
-                  unread={!showLabelUnread ? undefined
+                  unread={!labelUnreadOn ? undefined
                     : hasParentTag && item.tag ? unreadCounts[item.tag.id]
                     : (item.children ?? []).reduce((s, c) => s + (unreadCounts[c.tag.id] ?? 0), 0)}
                   isCollapsed={!!isGroupCollapsed}

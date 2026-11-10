@@ -352,6 +352,7 @@
       "moveTooltip": "Move to another parent",
       "showCounts": "Show the total for tags",
       "showLabelUnread": "Show unread for tags",
+      "unreadNeedsFreshRss": "Unread counts for tags need FreshRSS 1.26 or later: this server does not provide them.",
       "resetColorsTitle": "Reset the tag colors?",
       "resetColorsMessage": "Every tag loses its custom color.",
       "confirmDeleteMessage": "Articles that carry it aren’t deleted: they just lose this tag.",

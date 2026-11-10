@@ -34,7 +34,7 @@ const unreadCalls = () => vi.mocked(api.getStreamItemCount).mock.calls.filter((c
 beforeEach(() => {
   vi.clearAllMocks();
   useAuthStore.setState({ activeServerId: '1', backendToken: 'x' });
-  useUiStore.setState({ showSpecialUnread: true, toasts: [] });
+  useUiStore.setState({ showSpecialUnread: true, showSpecialTotals: true, toasts: [] });
   useFeedStore.setState({
     filter: 'all', selectedFeed: null, articles: [], selectedArticle: null, searchQuery: '',
     unreadCounts: {}, specialUnread: { starred: 5, readLater: 4 },
@@ -163,6 +163,15 @@ describe('loadSpecialCounts — le total et les non-lus forment une paire cohér
     expect(useFeedStore.getState().readLaterCount).toBe(12);
     expect(totalCalls().map((c) => [c[0], c[1]]).sort()).toEqual([[READ_LATER_LABEL, 9999], [STARRED, 9999]].sort());
     expect(api.getStarredItems).not.toHaveBeenCalled();
+  });
+
+  it('ne relève pas le total quand son réglage est éteint, et garde la dernière valeur', async () => {
+    useUiStore.setState({ showSpecialTotals: false });
+    useFeedStore.setState({ starredCount: 42, readLaterCount: 3 });
+    await useFeedStore.getState().loadSpecialCounts();
+    expect(totalCalls()).toEqual([]);
+    expect(useFeedStore.getState().starredCount).toBe(42);
+    expect(useFeedStore.getState().readLaterCount).toBe(3);
   });
 
   it('un total en échec garde la dernière valeur au lieu de tomber à 0', async () => {
