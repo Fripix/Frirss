@@ -6057,8 +6057,9 @@ serveur de développement en 1.4.4.)*
   **aucune page en échec** — aucune phrase, fragment, image ni copie perdus,
   aucun doublon nouveau ; 258 pages changent, toutes en gagnant (1 898
   phrases) ; 2 400 pages inventées (fuzz différentiel) : aucune perte, aucun
-  doublon. Oracle du flux : **791 phrases manquantes sur 53 pages → 22 sur
-  20** ; ce qui reste est hors de l'article (appels de Frandroid et de
+  doublon. Oracle du flux (remesuré à la tête `e0517d8`, v15, 330 pages
+  couvertes) : **1 115 phrases manquantes sur 91 pages en 1.8.0, 791 sur 53
+  avant cette garde, 22 sur 20 après** ; ce qui reste est hors de l'article (appels de Frandroid et de
   GitHub, signatures de go.dev), des lignes faites de liens (3) ou un texte
   présent mais collé par Readability (Import AI). Chapeau de The Verge : 15
   absents sur 22 → 0, aucun en double. Temps : 13,4 s → 13,1 à 13,4 s pour
@@ -6186,10 +6187,13 @@ serveur de développement en 1.4.4.)*
     plus ; une image dans un lien vers une autre page qui porte un attribut
     `data-zoom-*` passe pour une image agrandie et revient (habillage, Mineur).
   Mesuré (2026-11-07, 490 pages et les cinq pages du contrôle en direct,
-  mesure absolue des médias de `scripts/corpus/README.md`) : sur 387 pages
-  mesurées (1 784 images, 51 vidéos, 40 vidéos intégrées, 107 citations,
+  mesure absolue des médias de `scripts/corpus/README.md`, remesurée à la
+  tête `e0517d8` après le resserrement du compteur RM-06) : sur 401 pages
+  mesurées (1 945 images, 51 vidéos, 40 vidéos intégrées, 107 citations,
   71 questions, 81 tableaux dans l'article), les médias manquants passent de
-  316 sur 118 pages (`a90032f` ; 821 sur 256 en 1.8.0) à **160 sur 75**
+  **937 sur 281 pages en 1.8.0** à **256 sur 113** (image 248, audio 1,
+  vidéo intégrée 1, tweet 1, citations 3, tableaux 2) ; avec le compteur
+  d'avant RM-06 : 316 sur 118 (`a90032f`) → 160 sur 75
   (vidéos 9 → 0, vidéos intégrées 20 → 1, citations 11 → 3, questions 3 → 0,
   images 269 → 152), sans régression ; texte : aucune page en échec contre
   `a90032f` ni contre la 1.8.0, aucun doublon nouveau, oracle du flux
@@ -6202,6 +6206,17 @@ serveur de développement en 1.4.4.)*
   images** — Numerama et Frandroid perdent tous leurs cadres blancs (jusqu'à
   38 sur une page), Zoomit retrouve ses six photos ; pas un caractère de
   texte, pas un titre ni un auteur ne bouge.
+- **Corpus de non-régression de l'extraction** (1.9.0 — `scripts/corpus/`,
+  hors image) : `capture.mts` enregistre des pages réelles avec le contenu
+  de leur flux ; `compare.mts` passe chaque page par deux versions de
+  `server/extract.ts` et relève les phrases, fragments, images et copies
+  perdus, les doublons nouveaux, l'écart à l'oracle du flux et les médias de
+  l'article manquants (`--oracle-strict`, `--media-strict`) ; code 1 bloque le
+  commit. Les retraits voulus (parasites vérifiés un par un) vivent dans un
+  `accepted.json` à côté du corpus, jamais dans le dépôt. Lancé sur le banc
+  par `frt corpus [refresh]` contre la dernière release et le commit
+  précédent. Méthode : `scripts/corpus/README.md` ; règle : `docs/TESTING.md`
+  › « Corriger sans en casser d'autres ».
 - **Version de l'extraction** (1.9.0, A-2 — `server/extractVersion.ts` et
   `src/lib/extractVersion.ts`, même valeur vérifiée par
   `server/test/cache.test.ts`). À monter à chaque changement du résultat de

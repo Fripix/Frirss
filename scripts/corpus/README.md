@@ -29,6 +29,11 @@ npx tsx scripts/corpus/compare.mts --corpus <corpus> --base <ref|chemin> --head 
   [--oracle-strict] [--media-strict]
 ```
 
+Sur le banc de tests, `frt corpus` enchaîne la comparaison contre la dernière
+release et contre le commit précédent sur le corpus qu'il garde (`frt corpus
+refresh` capture d'abord de nouvelles pages). C'est ce que `docs/TESTING.md`
+exige avant tout commit qui touche l'extraction.
+
 Avant de commiter une règle : `--base HEAD --head server/extract.ts` (la copie de
 travail contre le dernier commit). Pour mesurer un cycle : `--base vX.Y.Z --head dev`.
 

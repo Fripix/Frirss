@@ -103,22 +103,30 @@ la release publiée.
   « articles liés », moitié d'un dossier Clubic, liste d'offres d'un bon
   plan, vidéo de DeepMind), FriRSS la remet à sa place à partir du conteneur
   que la page désigne pour son article, sans ramener la signature de l'auteur,
-  les commentaires ni ce que le site marque comme hors extrait. Mesuré sur
-  490 pages réelles contre le contenu de leur flux : le texte manquant passe
-  de 791 phrases à 22, qui ne sont presque toutes pas de l'article.
+  les commentaires ni ce que le site marque comme hors extrait. Un bloc de
+  code n'est plus jamais retiré, et le texte d'un bouton placé dans du code
+  est gardé (les exemples de code du blog de Node.js sortaient troués). Le
+  sommaire d'un article reste. Un chapeau, une photo d'en-tête ou une légende
+  que la page écrit deux fois pour deux mises en page (The Verge, Ars
+  Technica) ne s'affiche qu'une fois ; jamais dans le corps du texte. Mesuré
+  sur 490 pages réelles contre le contenu de leur flux : le texte du flux
+  absent de l'extrait passe de 1 115 phrases (1.8.0) à 22, qui ne sont
+  presque toutes pas de l'article. Une publicité peut encore passer ; une
+  phrase de l'article, non.
 - **Les médias de l'article aussi.** Les images chargées à la demande dans une
   `<picture>` (Clubic), les vidéos YouTube derrière un voile de consentement
   (Numerama) ou chargées au clic (Journal du Geek), les vidéos et citations du
   blog de Google, les questions d'une FAQ et l'image d'en-tête dans son lien
-  d'agrandissement (Ars Technica) sont gardées ; l'en-tête du blog de Google
-  n'est plus flou. La photo du flux n'est plus affichée une seconde fois au-
-  dessus d'un article qui s'ouvre déjà sur elle, à un autre recadrage. Sur 401
-  pages, les médias d'article manquants passent de 937 (1.8.0) à 256, surtout
-  des vignettes et avatars. Un bloc de code
-  n'est plus jamais retiré, et le texte d'un bouton placé dans du code est
-  gardé (les exemples de code du blog de Node.js sortaient troués). Le
-  sommaire d'un article reste. Une publicité peut encore passer ; une phrase
-  de l'article, non.
+  d'agrandissement (Ars Technica) sont gardées, de même que les photos d'un
+  dossier Clubic et leurs légendes, rangées entre deux blocs du texte ;
+  l'en-tête du blog de Google n'est plus flou, et le logo Google « source
+  préférée » (Les Numériques) n'entre plus dans l'article. La photo du flux
+  n'est plus affichée une seconde fois au-dessus d'un article qui s'ouvre
+  déjà sur elle, à un autre recadrage. Sur 401 pages, les médias d'article
+  manquants passent de 937 (1.8.0) à 256, surtout des vignettes et avatars.
+- **Images affichées à leur vraie largeur** : les images différées dont la
+  page écrit `sizes="auto"` (blog de GitHub, Frandroid) restaient à 300 px
+  dans le volet, contenu du flux compris.
 - **La préparation hors ligne suit le réglage « Article complet ».** Elle
   n'extrait plus que les articles qui s'ouvriraient en article complet : avec
   « Article complet par défaut » éteint (le réglage d'origine), seuls les flux
@@ -130,7 +138,8 @@ la release publiée.
 - **Vidéos YouTube affichées une seule fois** (iframe dans l'article, ou
   vignette du flux sous la façade). Un lien vers YouTube au milieu d'une
   phrase reste un lien et garde son texte : il devenait un bouton « Ouvrir sur
-  YouTube » qui effaçait les mots de la phrase.
+  YouTube » qui effaçait les mots de la phrase. Une adresse d'article qui ne
+  fait que citer YouTube n'est plus prise pour une vidéo.
 - **Hors ligne, rien de silencieux.** Relancée sans réseau, l'app annonce
   toujours ses actions en attente ; « Tout lu » hors ligne ou en échec le dit.
 - **Étiquettes et catégories : les noms déjà pris sont refusés avec une
@@ -246,7 +255,12 @@ la release publiée.
   non-lus comptés de la même façon.
 
 - **Une méthode de test écrite.** `docs/TESTING.md` décrit le déroulé d'une campagne avant
-  release, la gravité qui bloque une release et la carte des zones à couvrir.
+  release, la gravité qui bloque une release, la carte des zones à couvrir et
+  les règles « Corriger sans en casser d'autres ».
+- **Un corpus de non-régression de l'extraction** (`scripts/corpus/`) :
+  capture de pages réelles avec le contenu de leur flux, comparaison de deux
+  versions de l'extracteur phrase par phrase, image par image et contre le
+  flux ; une perte bloque le commit.
 - **Un registre des régressions.** `docs/REGRESSIONS.md` recense les bugs passés, ce
   qui les protège, et la checklist manuelle d'avant release.
 - **Plus de sortie en échec avec tous les tests verts.** `useReturnFocus` pouvait

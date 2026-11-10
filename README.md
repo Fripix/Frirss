@@ -69,7 +69,7 @@ A note in the interest of honesty: this is a personal project and I'm not a deve
 
 ### Reading
 - **Three panes on desktop**, and an installable **PWA** on mobile with swipe navigation, swipe actions and pull-to-refresh.
-- **Full-text extraction** (Readability) when a feed only ships a summary — cached, so re-reads are instant. A global default (*Preferences → General → Full article by default*, off out of the box) opens every article in full; each feed can follow it, or say yes or no on its own, from its menu. On a feed that extracts, the next articles are warmed ahead of you, images included, so swiping lands on a page that is already whole.
+- **Full-text extraction** (Readability) when a feed only ships a summary — cached, so re-reads are instant. A global default (*Preferences → General → Full article by default*, off out of the box) opens every article in full; each feed can follow it, or say yes or no on its own, from its menu. On a feed that extracts, the next articles are warmed ahead of you, images included, so swiping lands on a page that is already whole. The server does not take Readability's word for it: every block of the article container the page designates that the result left out is put back in page order, so nothing of the article goes missing (a stray ad may stay). Measured against the feed content of about 490 real pages.
 - **Oldest first, if you prefer** — a global order in *Preferences → General*, overridable per feed from its menu. FreshRSS serves the pages in that order, so it holds across infinite scroll, and *mark everything above / below* follows the order on screen.
 - **A random selection, when you want to rediscover** — the *Random* button in the list toolbar draws articles at random from the view you are in, like FreshRSS's random order, with a *New draw* at the end of the list. How many articles and how old they can be are yours to set in *Preferences → General*. The choice stays, view by view, and can also be made from a feed's menu.
 - **FreshRSS's per-feed visibility is honoured** — a feed set to *show in its category only* (or in its own view only) stays out of *All feeds* and *Unread*, out of their counts, and out of *Mark all as read* from there, while it still shows in its category. The setting lives in FreshRSS; it needs FreshRSS 1.28 or later, and older servers behave as before.
@@ -110,9 +110,9 @@ Almost everything is yours to tweak:
 - **Element colors** — recolor the sidebar, accents, panels, links, article text and more, individually.
 - **Font sizes** — independent sizes for article titles, summaries, source names and the reading body.
 - **A grid view sized your way** — card width to the pixel (160–480 px), cards that fill the row or keep exactly that width, and a 16:9, 4:3, 1:1 or portrait 3:4 image ratio, in *Preferences → Appearance → Sizes*. On a phone the grid always fills the screen.
-- **Layout** — resizable columns, density and spacing, date separators, feed icons, toggles for the source label and top bar, and a desktop/mobile switch on tablets.
+- **Layout** — resizable columns, density and spacing, date separators, feed icons, toggles for the source label and the server bar (on every screen), and a desktop/mobile switch on tablets.
 - **Row action icons** — show or hide each of the four icons on an article row (favorite, read later, open at source, mark read), one by one, from the *Layout* section.
-- **Toolbars your way, on computers** — hide any button of the list toolbar or the reading pane toolbar, the whole list toolbar, or the shortcut bar, from *Preferences → Layout*. Every hidden button stays one keystroke away in the command palette (Ctrl/⌘ K).
+- **Toolbars your way, on computers** — hide any button of the list toolbar or the reading pane toolbar, the whole list toolbar, or the shortcut bar, from *Preferences → Layout*. Every hidden button stays one keystroke away in the command palette (Ctrl/⌘ K). With both the sidebar and the list bar hidden, a small ☰ keeps the sidebar one tap away on touch screens, and a *Random* marker next to the title lets you leave a draw whose button is hidden.
 - **A sidebar that remembers** — collapsed sections stay collapsed, and feeds with nothing unread can be hidden to declutter long lists.
 - **Categories & feeds** — rename or delete a category and move feeds between categories, right from the preferences.
 - **Tags & sub-tags** — a nestable tagging system: create, rename, color, drag to organize, group under parents, with an article count on each tag.
@@ -235,7 +235,8 @@ Two things are worth backing up, and they are not the same thing.
 everything FriRSS knows about itself: accounts and their password hashes, the
 configured FreshRSS servers, their tokens **and the key that decrypts them**,
 preferences, and instance settings. It does not hold your articles — those live
-in FreshRSS.
+in FreshRSS. A backup made by 1.9.0 or later cannot be restored on an older
+FriRSS (upgrade first); older backups still restore.
 
 That file is therefore enough to impersonate every account on the instance, which
 is why a passphrase is mandatory (12 characters minimum). **Lose the passphrase

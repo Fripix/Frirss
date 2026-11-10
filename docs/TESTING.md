@@ -11,7 +11,7 @@ Ce fichier décrit comment FriRSS est testé avant une release. Il complète `do
 | Revue de code | Le code modifié | Sécurité, cas rares, erreurs invisibles à l'écran |
 | Banc Playwright | Pile jetable isolée, données figées | Pannes, hors-ligne, actions destructrices, mobile, accessibilité, régressions |
 | Navigateur distant | Instance de test, vrais flux | Vrais articles, extraction, images, rendu, usage réel |
-| Corpus d'extraction | Pages réelles capturées avec le contenu de leur flux, hors dépôt | Toute phrase d'article perdue entre deux versions, et tout texte du flux absent de l'article complet (`frt corpus`) |
+| Corpus d'extraction | Pages réelles capturées avec le contenu de leur flux, hors dépôt | Toute phrase d'article perdue entre deux versions, un média de l'article disparu, un doublon nouveau, et tout texte du flux absent de l'article complet (`frt corpus`, l'enveloppe du banc autour de `scripts/corpus/compare.mts`) |
 | Humain | iPhone, iPad, Safari, fournisseur OIDC réel | Ce qu'aucun automate ne remplace |
 
 ## Déroulé d'une campagne
