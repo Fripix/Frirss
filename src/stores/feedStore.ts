@@ -33,6 +33,7 @@ import {
 } from '../lib/searchCorpus';
 import { canMarkAllRead } from '../lib/markAllRead';
 import { afterReadChange, afterMembershipChange, type SpecialUnread } from '../lib/specialUnread';
+import { keepLabelUnread, missingLabelUnread, afterLabelMembershipChange } from '../lib/labelUnread';
 import { useAuthStore } from './authStore';
 import { jwtUserId } from '../lib/jwtUserId';
 import { isBackendAuthFailure } from '../lib/loginErrors';
@@ -955,6 +956,8 @@ export interface FeedState {
   setFilter: (filter: Filter) => void;
   setUnreadFilter: (on: boolean) => void;
   loadLabelCounts: () => Promise<void>;
+  /** Non-lus des étiquettes que le serveur n'a pas données (FreshRSS < 1.26) — voir `src/lib/labelUnread.ts`. */
+  loadLabelUnread: () => Promise<void>;
   warmOfflineCache: () => Promise<void>;
   /** `userInitiated`: started by a click (asks for protected storage). */
   prepareOffline: (opts?: { userInitiated?: boolean }) => Promise<void>;
@@ -1660,7 +1663,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         countMap[c.id] = c.count;
       });
       const catIds = categoryIdsOf(normalizedSubs);
-      const next = applyZeroFloor(countMap);
+      const next = keepLabelUnread(applyZeroFloor(countMap), get().unreadCounts, get().labels);
       // Arrivées depuis le dernier relevé (voir `arrivalsInView`). Un flux que
       // le store ne connaissait pas (on vient de l'ajouter) apporte tout son
       // stock, pas des arrivées : il est écarté (`ignoreUnknownFeeds`). Les
@@ -3254,7 +3257,31 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       // étiquette nouvelle : sinon, une requête par étiquette à chaque retour.
       const wanted = !opts?.newCountsOnly || labels.some((l) => !(l.id in known));
       if (wanted && useUiStore.getState().showLabelCounts) get().loadLabelCounts();
+      // Les non-lus : rien à demander quand `unread-count` les a donnés
+      // (FreshRSS ≥ 1.26) ; sinon, une étiquette sans compte connu est
+      // relevée ici — au démarrage et à l'apparition d'une étiquette, pas à
+      // chaque minute (décision du propriétaire, 2026-11-10).
+      await get().loadLabelUnread();
     } catch { /* ignore */ }
+  },
+
+  loadLabelUnread: async () => {
+    if (!useUiStore.getState().showLabelUnread) return;
+    const missing = missingLabelUnread(get().unreadCounts, get().labels);
+    if (!missing.length) return;
+    const scope = offlineScope();
+    const found: Record<string, number> = {};
+    const PARALLEL = 3;
+    for (let i = 0; i < missing.length; i += PARALLEL) {
+      await Promise.all(
+        missing.slice(i, i + PARALLEL).map(async (l) => {
+          try { found[l.id] = await getStreamItemCount(l.id, 1000, { excludeRead: true }); } catch { /* garde la dernière valeur */ }
+        }),
+      );
+      if (offlineScope() !== scope) return;
+    }
+    if (!Object.keys(found).length) return;
+    set((st) => ({ unreadCounts: { ...st.unreadCounts, ...found } }));
   },
 
   // Count articles per user label (lightweight IDs-only endpoint), in the
@@ -3380,6 +3407,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       selectedArticle: state.selectedArticle
         ? updateLabels(state.selectedArticle)
         : null,
+      unreadCounts: afterLabelMembershipChange(state.unreadCounts, article, labelId, !hasLabel),
     }));
     // Le corpus gardé suit l'optimisme, comme sur `toggleReadLater` : sans
     // ce relais, la recherche suivante ressortait l'article sans l'étiquette.
@@ -3414,6 +3442,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         selectedArticle: state.selectedArticle
           ? rollbackLabels(state.selectedArticle)
           : null,
+        unreadCounts: afterLabelMembershipChange(state.unreadCounts, article, labelId, !!hasLabel),
       }));
       // Rollback : seule CETTE étiquette est annulée, sur l'état courant de
       // l'entrée — comme `rollbackLabels` sur la liste. Restaurer l'instantané
@@ -3716,7 +3745,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       }
       const countMap: Record<string, number> = {};
       counts.forEach((c) => { countMap[c.id] = c.count; });
-      const next = applyZeroFloor(countMap);
+      const next = keepLabelUnread(applyZeroFloor(countMap), get().unreadCounts, get().labels);
       // Pastille « nouveaux articles » (discussion #14) : seules les HAUSSES des
       // flux de la vue affichée comptent. Une action locale a déjà mis le
       // compteur à jour, elle ne produit donc aucune hausse ici. Sans compteur
@@ -4769,5 +4798,8 @@ function updateCount(counts: Record<string, number>, article: Article, delta: nu
   next[feedId] = Math.max(0, (next[feedId] || 0) + delta);
   const totalKey = Object.keys(next).find((k) => k.includes('/reading-list'));
   if (totalKey) next[totalKey] = Math.max(0, (next[totalKey] || 0) + delta);
+  // Les étiquettes de l'article (issue #29) : la clé existe dès que le
+  // serveur ou le relevé l'a donnée ; sinon elle est créée, comme un flux.
+  for (const l of article.labels ?? []) next[l] = Math.max(0, (next[l] || 0) + delta);
   return next;
 }

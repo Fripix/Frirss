@@ -46,6 +46,7 @@ type DragItem =
 // Réglage « non-lus des Favoris et d'À lire plus tard » : sa dernière valeur
 // vue, retenue hors du composant (voir `createTurnOnDetector`, R-5).
 const specialUnreadTurnedOn = createTurnOnDetector(useUiStore.getState().showSpecialUnread);
+const labelUnreadTurnedOn = createTurnOnDetector(useUiStore.getState().showLabelUnread);
 
 export default function Sidebar() {
   const { t } = useTranslation();
@@ -67,6 +68,7 @@ export default function Sidebar() {
     readLaterCount,
     specialUnread,
     loadSpecialCounts,
+    loadLabelUnread,
     renameFeed,
     removeFeed,
   } = useFeedStore();
@@ -75,6 +77,7 @@ export default function Sidebar() {
   const unreadOnlyScope = useUiStore((s) => s.unreadOnlyScope);
   const showSpecialTotals = useUiStore((s) => s.showSpecialTotals);
   const showSpecialUnread = useUiStore((s) => s.showSpecialUnread);
+  const showLabelUnread = useUiStore((s) => s.showLabelUnread);
   const specialPrefs = { showTotals: showSpecialTotals, showUnread: showSpecialUnread };
   const starredRow = specialRowCounts(starredCount, specialUnread.starred, specialPrefs);
   const readLaterRow = specialRowCounts(readLaterCount, specialUnread.readLater, specialPrefs);
@@ -84,6 +87,11 @@ export default function Sidebar() {
   useEffect(() => {
     if (specialUnreadTurnedOn(showSpecialUnread)) void loadSpecialCounts();
   }, [showSpecialUnread, loadSpecialCounts]);
+  // Même mécanique pour les non-lus des étiquettes : un serveur d'avant
+  // FreshRSS 1.26 n'a rien relevé tant que le réglage était éteint.
+  useEffect(() => {
+    if (labelUnreadTurnedOn(showLabelUnread)) void loadLabelUnread();
+  }, [showLabelUnread, loadLabelUnread]);
   const {
     showFavicons,
     toggleFavicons,
@@ -1624,7 +1632,10 @@ export function LabelSection({ labels, selectedFeed, selectLabel, onArticleDrop 
   const labelOrder = useUiStore((s) => s.labelOrder);
   const labelSortAlpha = useUiStore((s) => s.labelSortAlpha);
   const showLabelCounts = useUiStore((s) => s.showLabelCounts);
+  const showLabelUnread = useUiStore((s) => s.showLabelUnread);
   const labelCounts = useFeedStore((s) => s.labelCounts);
+  const unreadCounts = useFeedStore((s) => s.unreadCounts);
+  const unreadOf = (id: string) => (showLabelUnread ? unreadCounts[id] : undefined);
 
   // Resolve the effective color for a label (own color > inherited parent color > null)
   const resolveLabelColor = useCallback((labelId: string): string | null => {
@@ -1710,6 +1721,7 @@ export function LabelSection({ labels, selectedFeed, selectLabel, onArticleDrop 
               onArticleDrop={onArticleDrop}
               labelColor={resolveLabelColor(item.tag!.id)}
               count={showLabelCounts ? labelCounts[item.tag!.id] : undefined}
+              unread={unreadOf(item.tag!.id)}
             />
           ))}
 
@@ -1727,6 +1739,9 @@ export function LabelSection({ labels, selectedFeed, selectLabel, onArticleDrop 
                   count={!showLabelCounts ? undefined
                     : hasParentTag && item.tag ? labelCounts[item.tag.id]
                     : (item.children ?? []).reduce((s, c) => s + (labelCounts[c.tag.id] ?? 0), 0)}
+                  unread={!showLabelUnread ? undefined
+                    : hasParentTag && item.tag ? unreadCounts[item.tag.id]
+                    : (item.children ?? []).reduce((s, c) => s + (unreadCounts[c.tag.id] ?? 0), 0)}
                   isCollapsed={!!isGroupCollapsed}
                   isSelected={!!isParentSelected}
                   hasParentTag={hasParentTag}
@@ -1749,6 +1764,7 @@ export function LabelSection({ labels, selectedFeed, selectLabel, onArticleDrop 
                     onArticleDrop={onArticleDrop}
                     labelColor={resolveLabelColor(tag.id)}
                     count={showLabelCounts ? labelCounts[tag.id] : undefined}
+                    unread={unreadOf(tag.id)}
                     isChild
                   />
                 ))}
@@ -1764,6 +1780,7 @@ export function LabelSection({ labels, selectedFeed, selectLabel, onArticleDrop 
 interface LabelGroupHeaderProps {
   name: string;
   count?: number;
+  unread?: number;
   isCollapsed: boolean;
   isSelected: boolean;
   hasParentTag: boolean;
@@ -1772,7 +1789,7 @@ interface LabelGroupHeaderProps {
   labelColor: string | null;
 }
 
-export function LabelGroupHeader({ name, count, isCollapsed, isSelected, hasParentTag, onToggle, onViewArticles, labelColor }: LabelGroupHeaderProps) {
+export function LabelGroupHeader({ name, count, unread, isCollapsed, isSelected, hasParentTag, onToggle, onViewArticles, labelColor }: LabelGroupHeaderProps) {
   const { t } = useTranslation();
   const clickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const chevronId = useId();
@@ -1862,7 +1879,7 @@ export function LabelGroupHeader({ name, count, isCollapsed, isSelected, hasPare
         />
         {/* Name */}
         <span id={nameId} className="truncate flex-1 text-left font-semibold">{name}</span>
-        {count !== undefined && <CategoryBadge count={count} kind="items" />}
+        <LabelCounts unread={unread} count={count} />
       </button>
     </div>
   );
@@ -1893,10 +1910,28 @@ interface LabelDropItemProps {
   isParentEntry?: boolean;
   labelColor: string | null;
   isChild?: boolean;
+  /** Total de l'étiquette, lus compris (pastille grise). */
   count?: number;
+  /** Non-lus de l'étiquette (pastille des flux), indépendant du total. */
+  unread?: number;
 }
 
-function LabelDropItem({ labelId, name, isSelected, onClick, onArticleDrop, isParentEntry, labelColor, isChild, count }: LabelDropItemProps) {
+/**
+ * Une étiquette peut porter les deux : les non-lus (pastille des flux) puis
+ * le total (pastille grise), rapprochés pour se lire comme une paire — la
+ * même disposition que Favoris et « À lire plus tard » (issue #29).
+ */
+function LabelCounts({ unread, count }: { unread?: number; count?: number }) {
+  if (!(unread ?? 0) && count === undefined) return null;
+  return (
+    <span className="flex-shrink-0 flex items-center gap-1.5">
+      {(unread ?? 0) > 0 && <UnreadBadge count={unread ?? 0} />}
+      {count !== undefined && <CategoryBadge count={count} kind="items" />}
+    </span>
+  );
+}
+
+function LabelDropItem({ labelId, name, isSelected, onClick, onArticleDrop, isParentEntry, labelColor, isChild, count, unread }: LabelDropItemProps) {
   const [dragOver, setDragOver] = useState(false);
 
   function handleDragOver(e: ReactDragEvent) {
@@ -1954,7 +1989,7 @@ function LabelDropItem({ labelId, name, isSelected, onClick, onArticleDrop, isPa
         }
       />
       <span className="truncate flex-1 text-left">{name}</span>
-      {!dragOver && count !== undefined && <CategoryBadge count={count} kind="items" />}
+      {!dragOver && <LabelCounts unread={unread} count={count} />}
       {dragOver && (
         <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />

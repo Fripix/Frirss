@@ -98,7 +98,7 @@ export default function LabelsTab({ resetLabelColors }: { resetLabelColors: () =
   // `labelNames.ts`) : un nom pris est refusé avant l'envoi, avec son motif.
   const owners = useMemo(() => nameOwners({ labels, categoryIds, folderIds }), [labels, categoryIds, folderIds]);
   const { labelColors, setLabelColor, toggleLabelInherit, removeLabelColor, getLabelColor, renameLabelColor } = useThemeStore();
-  const { labelOrder, setLabelOrder, labelSortAlpha, setLabelSortAlpha, showLabelCounts, setShowLabelCounts } = useUiStore();
+  const { labelOrder, setLabelOrder, labelSortAlpha, setLabelSortAlpha, showLabelCounts, setShowLabelCounts, showLabelUnread, setShowLabelUnread } = useUiStore();
   const [dragId, setDragId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
   const [dropGroupTarget, setDropGroupTarget] = useState<string | null>(null); // group name being hovered ('' = standalone)
@@ -266,6 +266,16 @@ export default function LabelsTab({ resetLabelColors }: { resetLabelColors: () =
           }}
           ariaLabel={t('preferences.labels.showCounts')}
         />
+      </div>
+      {/* Non-lus par étiquette, indépendants du total (issue #29). Le relevé
+          d'un serveur d'avant FreshRSS 1.26 part de la sidebar à l'allumage. */}
+      <div className="flex items-center justify-between gap-3 select-none">
+        <span className="text-[11px] min-w-0" style={{ color: 'var(--list-summary)' }}>
+          {t('preferences.labels.showLabelUnread')}
+        </span>
+        <span className="shrink-0">
+          <ToggleSwitch checked={showLabelUnread} onChange={setShowLabelUnread} ariaLabel={t('preferences.labels.showLabelUnread')} />
+        </span>
       </div>
 
       <SpecialCountsToggles />

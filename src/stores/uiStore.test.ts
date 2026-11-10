@@ -822,3 +822,16 @@ describe('compteurs de Favoris et d’À lire plus tard (issue #29)', () => {
     expect(useUiStore.getState()).toMatchObject({ showSpecialTotals: true, showSpecialUnread: false });
   });
 });
+
+describe('non-lus des étiquettes (issue #29, suite)', () => {
+  it('persistent, se synchronisent, et un non-booléen ne change rien', () => {
+    useUiStore.setState({ showLabelUnread: false });
+    useUiStore.getState().setShowLabelUnread(true);
+    expect(localStorage.getItem('frirss_showLabelUnread')).toBe('true');
+    expect(UI_SYNC_KEYS).toEqual(expect.arrayContaining(['showLabelUnread']));
+    useUiStore.getState().applyServerPrefs({ showLabelUnread: false });
+    expect(useUiStore.getState().showLabelUnread).toBe(false);
+    useUiStore.getState().applyServerPrefs({ showLabelUnread: 1 });
+    expect(useUiStore.getState().showLabelUnread).toBe(false);
+  });
+});

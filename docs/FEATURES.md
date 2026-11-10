@@ -551,11 +551,15 @@ le menu ; voir *Menu d'un article*, piège Chrome Android).
   à la page, échappait au rognage de la barre latérale et allongeait le
   document (2 649 px pour 747 de haut). La page entière devenait défilable :
   une molette au-dessus d'une zone fixe ou l'ouverture des Préférences
-  remontait toute l'app, laissant une bande blanche (corrigé en 1.8.0). Le badge d'une étiquette (et celui d'un groupe d'étiquettes, qui en
+  remontait toute l'app, laissant une bande blanche (corrigé en 1.8.0). Le badge gris d'une étiquette (et celui d'un groupe d'étiquettes, qui en
   additionne les enfants) se lit **« N articles »** (`sidebar.itemCount`), pas
   « non lus » : `getStreamItemCount` interroge `/stream/items/ids` sans filtre
-  `xt`, donc le chiffre est le **total** de l'étiquette, lus compris. Tests :
-  `src/components/Sidebar/FeedItem.badge.test.tsx` et `LabelBadge.test.tsx`.
+  `xt`, donc le chiffre est le **total** de l'étiquette, lus compris. Depuis
+  la 1.10.0, une étiquette peut aussi porter la **pastille des flux** avec ses
+  non-lus (`LabelCounts`, réglage « Afficher les non-lus des étiquettes »,
+  voir *Compteurs de Favoris, d'À lire plus tard et des étiquettes*). Tests :
+  `src/components/Sidebar/FeedItem.badge.test.tsx`, `LabelBadge.test.tsx` et
+  `LabelBadge.unread.test.tsx`.
   ⚠️ **Le menu s'ouvrait hors écran, et le geste paraissait donc inopérant.**
   `FeedContextMenu` portait le commentaire « keep menu in viewport » au-dessus
   d'un `left: x, top: y` brut : l'intention était écrite, jamais implémentée.
@@ -6729,10 +6733,56 @@ noms créés par l'utilisateur vivent dans les préférences synchronisées
   quelle que soit la langue de l'interface, par cohérence avec l'identifiant déjà
   en dur pour cette étiquette.
 
-### Compteurs de Favoris et d'À lire plus tard
-Deux réglages **indépendants** dans **Préférences › Étiquettes**, sous
-« Afficher le nombre d'articles » (celui des étiquettes, inchangé) et visibles
-même sans aucune étiquette (1.9.0, en réponse à l'issue #29) :
+### Compteurs de Favoris, d'À lire plus tard et des étiquettes
+Quatre réglages **indépendants** dans **Préférences › Étiquettes** : deux pour
+les étiquettes, deux pour Favoris et À lire plus tard, ces derniers visibles
+même sans aucune étiquette (1.9.0, en réponse à l'issue #29).
+
+**Les étiquettes** (1.10.0, suite de l'issue #29 : la demande portait sur
+elles, la 1.9.0 n'avait répondu que pour les deux listes) :
+
+- **« Afficher le total des étiquettes »** (activé par défaut ; c'est l'ancien
+  « Afficher le nombre d'articles », clé `showLabelCounts` inchangée) : le
+  badge gris historique, relevé par identifiants sans filtre, donc **lus
+  compris** et plafonné à **1000** — une étiquette de plus de mille articles
+  affiche 1000 (vu sur la capture de l'issue).
+- **« Afficher les non-lus des étiquettes »** (désactivé par défaut, clé
+  `showLabelUnread`) : le nombre d'articles non lus portant l'étiquette, avec
+  la **pastille des flux** (`UnreadBadge`). Un groupe additionne ses enfants ;
+  une étiquette parente montre le sien. **Source : `unread-count`**, que
+  `syncCounts` lit déjà chaque minute — FreshRSS y liste chaque étiquette
+  avec ses non-lus **depuis la 1.26** (`listTags(precounts: true)` dans
+  `p/api/greader.php`), donc aucune requête de plus, et le chiffre vit dans
+  `unreadCounts` sous l'identifiant de l'étiquette, comme un flux.
+  ⚠️ **Un serveur d'avant la 1.26 ne rend pas les étiquettes.** Elles sont
+  alors relevées par identifiants (`getStreamItemCount(…, { excludeRead:
+  true })`, plafond 1000, trois en parallèle) par `loadLabelUnread` —
+  **au démarrage et à l'apparition d'une étiquette seulement**
+  (`loadLabels`), et à l'allumage du réglage (détecteur de la sidebar, comme
+  pour Favoris) : pas une requête par étiquette chaque minute (décision du
+  propriétaire, 2026-11-10). `keepLabelUnread` garde leur valeur quand la
+  réponse de `unread-count` les ignore, là où `unreadCounts` est sinon
+  remplacé en bloc. **Limite assumée** sur ces serveurs : un marquage en masse
+  fait ailleurs que dans la vue de l'étiquette n'est répercuté qu'au prochain
+  démarrage.
+- **Tenue entre deux relevés** : `updateCount` ajuste chaque étiquette de
+  l'article au ✓ et à l'ouverture (et la rend sur refus) ; poser ou retirer
+  une étiquette sur un **non-lu** compte ou décompte
+  (`afterLabelMembershipChange`, un refus annule). « Tout lu » dans la vue
+  d'une étiquette met son compte à 0 (`newCounts[selectedFeed.id] = 0`).
+- **Les deux ensemble** : les non-lus d'abord, puis le total, rapprochés
+  (`gap-1.5`, `LabelCounts` dans `Sidebar.tsx`) — la même paire que
+  Favoris. Une étiquette sans non-lu ne porte pas de pastille, comme un flux.
+- **Où** : `src/lib/labelUnread.ts` (helpers purs, testés),
+  `feedStore.loadLabelUnread`, `uiStore.showLabelUnread` (sauvegardé,
+  synchronisé), `LabelsTab.tsx`, `LabelSection` / `LabelCounts` de
+  `Sidebar.tsx`.
+- **Tests** : `src/lib/labelUnread.test.ts`,
+  `src/stores/feedStore.labelUnread.test.ts`,
+  `src/components/Sidebar/LabelBadge.unread.test.tsx`,
+  `src/components/Preferences/LabelsTab.labelUnread.test.tsx`, `uiStore.test.ts`.
+
+**Favoris et À lire plus tard** (1.9.0) :
 
 - **« Afficher le total des Favoris et d'À lire plus tard »** (activé par
   défaut) : le chiffre historique, dans sa pastille colorée d'origine

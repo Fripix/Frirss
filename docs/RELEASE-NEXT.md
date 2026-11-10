@@ -1,4 +1,4 @@
-# 1.9.1 — en préparation
+# 1.10.0 — en préparation
 
 Journal des changements du cycle en cours, tenu au fil de l'eau. Il alimente les
 notes de la release GitHub et les corrections du README, puis se vide une fois
@@ -15,3 +15,14 @@ la release publiée.
 > Pour la 1.4.12, le menu du clic droit passé aux icônes et groupes, et le
 > correctif de la feuille du bas sur iOS, manquaient tous deux au journal : ni
 > l'un ni l'autre n'avait touché `en.json`. Relire aussi `git log`.
+
+## Fonctionnalités
+
+- **Les non-lus des étiquettes.** Préférences → Étiquettes propose deux
+  réglages indépendants pour les étiquettes, comme pour Favoris et À lire plus
+  tard : le total (l'ancien « Afficher le nombre d'articles », renommé) et le
+  nombre de non-lus, avec la pastille des flux (désactivé par défaut). Les deux
+  peuvent s'afficher ensemble ; un groupe additionne ses enfants. Le chiffre
+  vient du relevé des compteurs que FriRSS fait déjà chaque minute (FreshRSS
+  1.26 ou plus) ; un serveur plus ancien relève chaque étiquette au démarrage
+  et quand une étiquette apparaît. Suite de l'issue #29.
