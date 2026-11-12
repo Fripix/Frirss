@@ -52,7 +52,7 @@ Features, getting started and resources, in English and French.
 
 ## Live demo
 
-**[frirss.fripix.ch](https://frirss.fripix.ch)**
+<a href="https://frirss.fripix.ch"><img src="docs/readme/live-demo.svg" alt="Live demo at frirss.fripix.ch — username fridemo, password 6wVQj3Q@2Qz@" width="100%" /></a>
 
 > **Username** `fridemo` &nbsp;·&nbsp; **Password** `6wVQj3Q@2Qz@`
 
