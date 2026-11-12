@@ -46,7 +46,7 @@
 
 ## Live demo
 
-**[frirss.fripix.ch](https://frirss.fripix.ch)**
+**[frirss.fripix.ch](https://frirss.fripix.ch)** &nbsp;·&nbsp; project website: **[frirss-site.fripix.ch](https://frirss-site.fripix.ch)**
 
 > **Username** `fridemo` &nbsp;·&nbsp; **Password** `6wVQj3Q@2Qz@`
 
