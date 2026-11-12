@@ -44,9 +44,15 @@
   <img src="docs/screenshots/tablet.png" alt="FriRSS on a tablet" height="400" />
 </div>
 
+## Website
+
+**[frirss-site.fripix.ch](https://frirss-site.fripix.ch)**
+
+Features, getting started and resources, in English and French.
+
 ## Live demo
 
-**[frirss.fripix.ch](https://frirss.fripix.ch)** &nbsp;·&nbsp; project website: **[frirss-site.fripix.ch](https://frirss-site.fripix.ch)**
+**[frirss.fripix.ch](https://frirss.fripix.ch)**
 
 > **Username** `fridemo` &nbsp;·&nbsp; **Password** `6wVQj3Q@2Qz@`
 
