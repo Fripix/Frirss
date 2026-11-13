@@ -52,7 +52,12 @@ Features, getting started and resources, in English and French.
 
 ## Live demo
 
-<a href="https://frirss.fripix.ch"><img src="docs/readme/live-demo.svg" alt="Live demo at frirss.fripix.ch — username fridemo, password 6wVQj3Q@2Qz@" width="100%" /></a>
+<a href="https://frirss.fripix.ch"><picture>
+  <source media="(max-width: 600px)" srcset="docs/readme/live-demo-narrow.png">
+  <img src="docs/readme/live-demo.png" alt="Open the live demo" width="880">
+</picture></a>
+
+**[frirss.fripix.ch](https://frirss.fripix.ch)**
 
 > **Username** `fridemo` &nbsp;·&nbsp; **Password** `6wVQj3Q@2Qz@`
 
@@ -60,6 +65,7 @@ Features, getting started and resources, in English and French.
 - Feeds cannot be added or removed, and no FreshRSS server can be connected.
 - Preferences reset every 30 minutes, so themes and layout return to their defaults.
 - Read state and favorites are shared with everyone else visiting.
+- AI features (summaries, translations) are turned off.
 
 The demo is there to try the interface.
 
