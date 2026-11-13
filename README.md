@@ -46,9 +46,14 @@
 
 ## Website
 
-**[frirss-site.fripix.ch](https://frirss-site.fripix.ch)**
+<a href="https://frirss-site.fripix.ch">
+  <picture>
+    <source media="(max-width: 600px)" srcset="docs/readme/website-narrow.png">
+    <img src="docs/readme/website.png" alt="Visit the FriRSS website" width="880">
+  </picture>
+</a>
 
-Features, getting started and resources, in English and French.
+**[frirss-site.fripix.ch](https://frirss-site.fripix.ch)**
 
 ## Live demo
 
