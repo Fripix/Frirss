@@ -52,10 +52,12 @@ Features, getting started and resources, in English and French.
 
 ## Live demo
 
-<a href="https://frirss.fripix.ch"><picture>
-  <source media="(max-width: 600px)" srcset="docs/readme/live-demo-narrow.png">
-  <img src="docs/readme/live-demo.png" alt="Open the live demo" width="880">
-</picture></a>
+<a href="https://frirss.fripix.ch">
+  <picture>
+    <source media="(max-width: 600px)" srcset="docs/readme/live-demo-narrow.png">
+    <img src="docs/readme/live-demo.png" alt="Open the live demo" width="880">
+  </picture>
+</a>
 
 **[frirss.fripix.ch](https://frirss.fripix.ch)**
 
