@@ -68,7 +68,7 @@
 
 > **Username** `fridemo` &nbsp;·&nbsp; **Password** `6wVQj3Q@2Qz@`
 
-- Runs on a small server with no Redis cache.
+- Runs on a small server.
 - Feeds cannot be added or removed, and no FreshRSS server can be connected.
 - Preferences reset every 30 minutes, so themes and layout return to their defaults.
 - Read state and favorites are shared with everyone else visiting.
