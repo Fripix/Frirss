@@ -22,6 +22,22 @@ reports are taken seriously and addressed as a priority.
 
 Only the latest released version receives fixes. Always run an up-to-date image.
 
+## What FriRSS does to protect your instance
+
+
+FriRSS holds the credentials to your FreshRSS server, so a few things are not optional:
+
+- FreshRSS passwords and tokens are **encrypted at rest**. Once a server is added they never reach the browser again — not in a response, not in a URL, not in a log — and changing a server's address requires new credentials, so the stored tokens can never be pointed at another host.
+- All FreshRSS traffic goes through an authenticated **same-origin proxy** with an anti-SSRF guard: it rejects targets that *resolve* to a private address, and re-checks every redirect hop.
+- The app page **and its static assets** carry a **Content-Security-Policy** (`script-src 'self'`) along with `X-Frame-Options`, `X-Content-Type-Options` and `Referrer-Policy`.
+- The backend runs **unprivileged** in the container (`PUID`/`PGID`, 1000 by default): code execution inside Node no longer owns the data directory, where the JWT secret and the token-encryption key live. The data directory is adopted on start, so upgrading needs no action.
+- **Registration is closed by default.** Only the very first account — the administrator — can be created without someone opening sign-ups in *Preferences → Administration*.
+- Proxied requests are **rate-limited per user** (`FRIRSS_PROXY_RATE_LIMIT`), so an account cannot turn the backend into an open relay, and each one is bounded in time. Behind a reverse proxy, the login limit counts each client separately, and changing your password is limited per account.
+- Article and feed links that are not `http`/`https` are never opened nor turned into links.
+- JWT verification is pinned to HS256, and the runtime image ships neither npm nor its dependency tree — nothing there is executed, and it was the source of most reported CVEs.
+
+Dependency and image scans run on every push and can be launched by hand; the current state is in [GitHub Actions](https://github.com/Fripix/Frirss/actions/workflows/security.yml).
+
 ## Notes for self-hosters
 
 FriRSS is self-hosted software: you are responsible for your deployment. A few
