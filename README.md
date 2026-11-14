@@ -32,17 +32,17 @@
   </p>
 </div>
 
+FriRSS is a new interface for your [FreshRSS](https://freshrss.org): FreshRSS keeps fetching and storing your feeds, FriRSS is where you read them.
+
+> [!IMPORTANT]
+> **FriRSS needs a working FreshRSS.** It is an interface only: it does not fetch feeds and cannot run on its own. Install [FreshRSS](https://freshrss.org) first, turn its API on, then [install FriRSS](#installation).
+
 ## Preview
 
-<div align="center">
-  <img src="docs/screenshots/desktop.png" alt="FriRSS on desktop" width="92%" />
-</div>
-
-<div align="center">
-  <img src="docs/screenshots/mobile-pwa.png" alt="FriRSS as a PWA on a phone" height="400" />
-  &nbsp;&nbsp;
-  <img src="docs/screenshots/tablet.png" alt="FriRSS on a tablet" height="400" />
-</div>
+<picture>
+  <source media="(max-width: 600px)" srcset="docs/readme/preview-narrow.png">
+  <img src="docs/readme/preview.png" alt="FriRSS on a MacBook with an AI summary open, on an iPad in a grid with the Night theme, and the same article on three iPhones in three more themes" width="880">
+</picture>
 
 ## Website
 
@@ -86,227 +86,58 @@ A note in the interest of honesty: this is a personal project and I'm not a deve
 
 ## Features
 
-### Reading
-- **Three panes on desktop**, and an installable **PWA** on mobile with swipe navigation, swipe actions and pull-to-refresh.
-- **Full-text extraction** (Readability) when a feed only ships a summary — cached, so re-reads are instant. A global default (*Preferences → General → Full article by default*, off out of the box) opens every article in full; each feed can follow it, or say yes or no on its own, from its menu. On a feed that extracts, the next articles are warmed ahead of you, images included, so swiping lands on a page that is already whole. The server does not take Readability's word for it: every block of the article container the page designates that the result left out is put back in page order, so nothing of the article goes missing (a stray ad may stay). Measured against the feed content of about 490 real pages.
-- **Oldest first, if you prefer** — a global order in *Preferences → General*, overridable per feed from its menu. FreshRSS serves the pages in that order, so it holds across infinite scroll, and *mark everything above / below* follows the order on screen.
-- **A random selection, when you want to rediscover** — the *Random* button in the list toolbar draws articles at random from the view you are in, like FreshRSS's random order, with a *New draw* at the end of the list. How many articles and how old they can be are yours to set in *Preferences → General*. The choice stays, view by view, and can also be made from a feed's menu.
-- **FreshRSS's per-feed visibility is honoured** — a feed set to *show in its category only* (or in its own view only) stays out of *All feeds* and *Unread*, out of their counts, and out of *Mark all as read* from there, while it still shows in its category. The setting lives in FreshRSS; it needs FreshRSS 1.28 or later, and older servers behave as before.
-- **Offline reading.** Articles stay readable without a connection, images included. Favorites and read-later are kept automatically, full article included; a one-tap *Prepare offline* sweep covers the last 30 days across every feed, fetching the full article where the article would open as one (*Full article by default*, or the feed's own setting), with a time-left estimate and a *Cancel* button.
-- **Favorites, read-later, read/unread**, with all / unread / favorites filters. The unread-only choice is remembered per feed — or, if you prefer, one choice applies to every feed (*Preferences → General → Unread filter*). The sidebar can show the total, the unread count, or both for Favorites, Read later and every tag (*Preferences → Tags*); unread counts per tag need FreshRSS 1.26 or later (older servers are told so in the preferences). Counts go up to 9999.
-- **Ticking an article read clears it from the unread list** — instantly, in every layout including the compact one. Opening an article leaves its row where it is, so you keep your place; only a deliberate tick removes one. If the server refuses the write, the row comes back and says so.
-- **Nothing destructive happens in one click.** Unsubscribing, deleting a tag, a category, a server or a saved theme, clearing your personal AI key, every *Reset* button (shortcuts included) and every admin action on an account ask first, in a dialog that names what will be lost — and a double click can never answer it for you. When the server refuses, the app says so instead of pretending.
-- **Mark everything as read — and take it back.** The button asks first, in a dialog that says how many articles and which view, so it is never mistaken for a filter next to it. Then a banner offers *Undo*, which puts back exactly the articles that were unread and nothing else, up to 25 000 of them, counting up as it works. Past that it says so beforehand rather than promising a safety net it cannot hold. The confirmation is on by default and can be turned off in *Preferences → General*.
-- **Open an article at its source** — an icon on each row opens the origin site in a new tab and selects the article, so it is marked read and keeps its place in the list. For the feeds you would rather read on the site itself.
-- **Right-click an article** — or long-press it on touch, or press the keyboard Menu key — for a menu: open at source, mark read or unread, mark everything above or below as read, favorite, read later, copy link. Entries carry icons and are grouped by what they do; the two range actions cover the whole view, loaded rows or not. On a phone it opens as a bottom sheet. The title is a real link: a middle click, <kbd>⌘</kbd>-click or <kbd>Ctrl</kbd>-click opens the source in a background tab and marks the article read without leaving the one you are reading. Elsewhere on the row, a middle click still opens the source directly.
-- **Search that actually filters**, scoped to the view you are in: FriRSS scans that scope article by article in your browser — read ones included — and shows matches as they turn up, with a counter and a stop button while it works. **Every result says why it is one**: the term is highlighted in the title and summary, and when it only appears deep in the article, the row shows the passage that matched instead of the usual summary. The count stays on screen once the scan is done. FreshRSS's Google Reader API has no search parameter, so the filtering happens client-side; offline, it searches what your device already holds and says so. The last five queries are offered back, per server.
-- **Mark as read while scrolling**, optionally: an article is marked once it has left the top of the list. Off by default, never during a search. The last rows never leave the top, so a list ends with a *Mark all as read* button whenever unread rows remain — the same action as the toolbar's, confirmation and undo included.
-- **New articles announce themselves** — a banner at the top of the list counts what has arrived in the view you are looking at, and loads it in one click. Dismiss it and it comes back on the next arrival. The list never changes under you. Off in *Preferences → General* if you would rather it did not.
-- **Share an article or copy its link** from the reading pane — the system share sheet on mobile, the clipboard elsewhere.
-- **Resume where you left off** — your last feed and filter come back on reopen, or FriRSS always opens on *All feeds* or *Unread* if you say so (*Preferences → General → View at startup*). An unobtrusive offline / back-online indicator sits above the list.
-- **At home on Android** — in the installed app, the back gesture closes what is on top (article, feed drawer, preferences, a sheet, menu or confirmation) instead of leaving the app, and the status bar takes the colour of the surface beneath it.
+- **Three panes on desktop, an app on your phone** — install it as a PWA, with swipe gestures and pull-to-refresh.
+- **The full article**, even when a feed only sends a summary.
+- **Offline reading**, images included.
+- **Search that really filters** the view you are in, read articles included.
+- **Mark everything as read — with *Undo*.** Nothing destructive happens in one click.
+- **Optional AI summaries and translations** with the provider you choose, a local Ollama or a cloud one. Nothing is sent anywhere by default.
+- **Three columns, two or a grid**, oldest first or at random, chosen feed by feed.
+- **Keyboard first** — a command palette (<kbd>⌘K</kbd> / <kbd>Ctrl+K</kbd>) and twelve reassignable shortcuts.
+- **Make it yours** — six themes, your own colors and font sizes, your app name and logo.
+- **Tags and sub-tags**, categories and feeds, organised from the preferences.
+- **Several users, single sign-on (OIDC) and several FreshRSS servers.**
+- **10 languages**, and one Docker image for amd64 and arm64.
 
-### AI summaries and translations (optional)
-FriRSS ships no AI of its own: no model, no service, nothing sent anywhere by default. If you want summaries and translations, connect the model of your choice — a local one or a cloud provider — in *Preferences → AI*. It stays off until an administrator does, and only ever sends the article you are reading to the provider you picked.
-
-- **Summaries** in a panel above the article — one click, the <kbd>s</kbd> key or the palette, or automatically when an article opens. The length is yours to set, *Summarize with…* picks another provider, *Regenerate* asks again.
-- **Translations** of the whole article — title and body, in batches, into any of 28 languages — and of its summary. *Source text* switches back without a new request; *Translate into…* and *Translate with…* choose the language and the provider.
-- **Your providers**: Anthropic (Claude) or anything that speaks the OpenAI API — OpenAI, a local **Ollama**, LM Studio, OpenRouter… *List models* fills in the model name. Keys are encrypted at rest and never sent to the browser; the admin decides which keys are shared, whether users may bring their own, and a daily cap per user. If a provider is down, the next one in the list takes over and the panel says so.
-- **Per feed and per category**: summarize on open, translate on open, translate the summary, keep the panel shown, and which AI to use — one row per category and per feed, each switch *on*, *off* or *inherited* from above.
-- Results are cached, so reopening an article — on any device — costs nothing. A local model costs nothing at all.
-
-### Keyboard and reach
-- **A command palette** on <kbd>⌘K</kbd> / <kbd>Ctrl+K</kbd>: jump to a feed, a category, a tag, a view, switch FreshRSS server, or run an action. Accents are ignored, so *securite* finds *Sécurité*.
-- **Twelve reassignable shortcuts** — <kbd>s</kbd> summarizes and <kbd>t</kbd> translates when AI is on — and <kbd>?</kbd> opens a sheet listing them with the keys you actually configured. A shortcut never takes a key your browser or system already uses.
-- **Menus by long press on touch** — a feed in the sidebar opens its menu (rename, open site, full article, layout and order for this feed, unsubscribe), an article opens its own, with 44pt rows.
-- **Built to be used without a mouse** — a visible focus ring throughout, menus you walk with the arrow keys that hand focus back when they close, 44pt touch targets, a name on every icon-only button and field, toggles that announce their state, messages that screen readers actually hear, and *reduced motion* honored everywhere.
-
-### Make it yours
-Almost everything is yours to tweak:
-
-- **Six themes ship with it** — Default, Riso, Paper and High Contrast in light, Night and Desk in dark — and FriRSS can **follow your system's light/dark setting**, switching between the two you pick.
-- **Themes are yours to make** — full control over all 38 colors and 7 font sizes; **create, save, export, import and share** your own.
-- **Element colors** — recolor the sidebar, accents, panels, links, article text and more, individually.
-- **Font sizes** — independent sizes for article titles, summaries, source names and the reading body.
-- **A grid view sized your way** — card width to the pixel (160–480 px), cards that fill the row or keep exactly that width, and a 16:9, 4:3, 1:1 or portrait 3:4 image ratio, in *Preferences → Appearance → Sizes*. On a phone the grid always fills the screen.
-- **Layout** — resizable columns, density and spacing, date separators, feed icons, toggles for the source label and the server bar (on every screen), and a desktop/mobile switch on tablets.
-- **Row action icons** — show or hide each of the four icons on an article row (favorite, read later, open at source, mark read), one by one, from the *Layout* section.
-- **Toolbars your way, on computers** — hide any button of the list toolbar or the reading pane toolbar, the whole list toolbar, or the shortcut bar, from *Preferences → Layout*. Every hidden button stays one keystroke away in the command palette (Ctrl/⌘ K). With both the sidebar and the list bar hidden, a small ☰ keeps the sidebar one tap away on touch screens, and a *Random* marker next to the title lets you leave a draw whose button is hidden.
-- **A sidebar that remembers** — collapsed sections stay collapsed, and feeds with nothing unread can be hidden to declutter long lists.
-- **Categories & feeds** — rename or delete a category and move feeds between categories, right from the preferences.
-- **Tags & sub-tags** — a nestable tagging system: create, rename, color, drag to organize, group under parents, with a total and/or an unread count on each tag.
-- **Branding** — set your own app name and logo.
-- **10 languages** — the interface follows your browser language on first run.
-
-### Accounts, SSO & multi-server
-- **Multi-user** with admin/user roles — each person keeps their own feeds and settings, and a local account changes its own password in *Preferences → General → Account* (other sessions are signed out).
-- **Single sign-on** via OIDC (tested with [Authentik](https://goauthentik.io)); an existing account links itself to SSO from *Preferences → General → Account* while signed in, confirming its current password (never automatically by email address), and unlinks the same way; admins see which accounts are linked and can unlink them. Passkeys work through your provider.
-- **Multi-server** — connect several FreshRSS instances and switch between them, from the top bar or the command palette. A feed's order, its layout and the random choice belong to their server.
-
-### Self-hosting
-- **Redis, strongly recommended** — optional, but it is what makes FriRSS fast and shared: article lists served instantly then refreshed (stale-while-revalidate), a background pre-fetch worker, extracted articles and AI results cached once for the whole instance and every device. Without it, everything still works, but nothing is warmed ahead and the AI cache lives in SQLite, capped at 10 000 entries. Point `REDIS_URL` at any Redis.
-- **Encrypted backup and restore** — one passphrase-protected file rebuilds a whole instance, including on a brand-new one.
-- FreshRSS tokens **encrypted at rest**; same-origin proxy (no CORS) with an anti-SSRF guard.
-- Ships as a single **Docker** image (nginx + Node) with SQLite storage, built for **amd64 and arm64** (Raspberry Pi, 64-bit OS).
+Every feature in detail: the [website](https://frirss-site.fripix.ch/en/features/), and [`docs/FEATURES.md`](docs/FEATURES.md) (in French).
 
 ## Installation
 
-FriRSS is a frontend for FreshRSS, so you need a running FreshRSS instance with the Google Reader API enabled (*Settings → Authentication → Allow API access*).
+You need:
+
+- **a working [FreshRSS](https://freshrss.org)** — FriRSS does nothing without it — with API access on (*Settings → Authentication*) and an API password (*Settings → Profile*);
+- a machine with [Docker](https://docs.docker.com/get-docker/).
+
+FreshRSS on your home network (`192.168.x.x`, a container name)? Add `-e PROXY_INTERNAL_HOSTS=192.168.1.20` — its host or IP only — to the command below, or connecting fails.
 
 ```bash
 mkdir -p frirss-data
 docker run -d --name frirss \
+  --restart unless-stopped \
   -p 8080:80 \
   -v "$PWD/frirss-data:/app/data" \
   -e TZ=Europe/Zurich \
   ghcr.io/fripix/frirss:latest
 ```
 
-The database lands in a `frirss-data` folder right where you ran the command. The same image is on Docker Hub as `fripix/frirss:latest` if you prefer it, and a ready-to-edit [`docker-compose.yml`](docker-compose.yml) is included.
+1. Open `http://localhost:8080` and create the first account — it becomes the administrator.
+2. Connect your FreshRSS: its address, your FreshRSS username and the API password.
 
-Then open `http://localhost:8080` and create the first account — it becomes the administrator. Registration then closes: new instances refuse sign-ups by default, and you open them again from *Preferences → Administration* when you want to invite someone. Connect your FreshRSS server next: its URL, your FreshRSS username, and the API password from *FreshRSS → Settings → Profile*.
-
-> **Is your FreshRSS on a private address?** Most self-hosted instances are — `http://192.168.1.20:8080`, `http://freshrss` on a Docker network, anything your router alone can reach. The backend refuses private targets by default, so a logged-in user cannot aim it at your NAS, your database, or a cloud metadata endpoint. Trust your FreshRSS host explicitly and the block lifts for that one address:
->
-> ```bash
-> -e PROXY_INTERNAL_HOSTS=192.168.1.20
-> ```
->
-> Skip it and connecting fails while the container log shows `POST /api/proxy 403`. Public FreshRSS URLs need nothing.
-
-The first launch generates the JWT secret and the token-encryption key and stores them in the database, so backing up the data folder backs up everything — see [Backups](#backups).
-
-> **Reach FriRSS through your reverse proxy**, not by publishing its port straight to the internet: the login limit relies on the client address the proxy passes on (see [SECURITY.md](SECURITY.md)).
-
-> **Behind a reverse proxy** (Nginx Proxy Manager, nginx…), give FriRSS at
-> least 120 s: an AI translation batch can take up to 110 s, and the usual
-> default is 60 s. In Nginx Proxy Manager, paste these two lines under
-> *Advanced → Custom Nginx Configuration*; in a plain nginx, put them in the
-> `location` that proxies FriRSS:
+> **Install with an AI assistant.** Paste this into ChatGPT, Claude or the assistant you use. It reads [a guide written for it](docs/INSTALL-WITH-AI.md) and walks you through, one step at a time:
 >
 > ```
-> proxy_read_timeout 120s;
-> proxy_send_timeout 120s;
+> Read https://raw.githubusercontent.com/Fripix/Frirss/main/docs/INSTALL-WITH-AI.md and help me install FriRSS step by step.
 > ```
->
-> Without them, a long translation batch cut by the proxy is first asked again
-> as a whole (the server kept working, so it comes back from its cache at no
-> extra cost), then split in two if it is cut again; if that is not enough,
-> the app says the intermediate server cut the response.
->
-> **With a local Ollama**, start it with `OLLAMA_CONTEXT_LENGTH=16384`: a
-> translation batch of about 1 200 words needs some 3 300 input tokens, and
-> the default 4 096-token context truncates the answer (FriRSS then retries
-> it in two halves rather than sending it to another, possibly paid,
-> provider).
+
+Docker Compose, Unraid, reverse proxy, updating and backups: the **[installation guide](docs/INSTALL.md)**.
 
 ## Configuration
 
-| Variable | Description | Default |
-|---|---|---|
-| `PUID` | User id the Node process runs as (the data directory is adopted on start) | `1000` |
-| `PGID` | Group id for the same process | `1000` |
-| `FRIRSS_BASE_URL` | Public base URL — recommended behind a reverse proxy; fixes OIDC redirect URIs. Without it, the redirect URI is built from the `Host` header alone | derived |
-| `FRIRSS_DATA_DIR` | SQLite database directory | `/app/data` |
-| `PROXY_REWRITES` | public→internal URL rewrites for the backend proxy (`from=to`, comma-separated) | — |
-| `PROXY_INTERNAL_HOSTS` | Anti-SSRF allowlist: private hosts the proxy may reach directly, comma-separated. Needed when FreshRSS sits on a LAN or Docker address. The OIDC issuer host is trusted automatically | — |
-| `REDIS_URL` | Enables the read cache (stale-while-revalidate); empty disables it | — |
-| `CACHE_ARTICLES_PER_FEED` | Articles kept per feed in the cache | `50` |
-| `CACHE_TTL` | Cache key expiry, in seconds | `86400` |
-| `CACHE_SYNC_INTERVAL` | Background pre-fetch interval in minutes (`0` disables; needs `REDIS_URL`) | `0` |
-| `CACHE_SYNC_ACTIVE_DAYS` | Only pre-fetch for users seen in the last N days | `7` |
-| `CACHE_SYNC_PARALLEL_USERS` | Users pre-fetched in parallel | `3` |
-| `FRIRSS_REFRESH_MAX_FEEDS` | Number of feeds to refresh per button press (non-integer or < 1 → default) | `1000` |
-| `FRIRSS_PROXY_RATE_LIMIT` | Proxied, article-extraction and AI requests allowed per user per minute — one shared budget (`0` disables; non-integer or negative → default) | `600` |
-| `CORS_ORIGIN` | Allowed CORS origin(s) — only for split front/back deployments | — |
-
-> Since 1.4.10 the **server** extracts article text: the browser asks
-> `GET /api/extract` first, and extracts the page itself only when the server
-> could not try — the route is missing (an older backend), or the server cannot
-> reach the site. When the server did get the page and turned it down (nothing
-> readable, a page too complex to parse, an analysis past its time limit, a
-> full queue, a refusal from the site), the browser does not parse it again:
-> it would pay the same cost on the phone. Neither side goes past 2 MB of HTML,
-> and an address that is not a page (a video, a PDF) is never extracted. With
-> `REDIS_URL` set the result is cached by URL rather than by account, so a page
-> is extracted once for the whole instance instead of once per device: a
-> second device, or another user reading the same feed, gets it instantly.
-> Devices asking for the same cold page at the same moment are coalesced onto
-> a single extraction, so the origin site sees one request rather than one per
-> reader. **Without Redis the route still runs** — it simply keeps nothing, so
-> the next device pays for the extraction again. Parsing runs in a worker
-> thread, away from the process that serves the instance: each page gets at
-> most 10 seconds and 256 MB, a page nested too deeply is refused before it is
-> parsed, and at most five extractions run or wait at once — beyond that the
-> server answers *busy* and the reader can retry. Budget for it on a small
-> host: the largest pages (2 MB, the cap) take up to about a second of CPU
-> each.
-
-Single sign-on is configured at runtime in *Preferences → Administration* (issuer, client ID, client secret).
-
-## Backups
-
-Two things are worth backing up, and they are not the same thing.
-
-### The encrypted export
-
-*Preferences → Administration → Backup* produces a single file holding
-everything FriRSS knows about itself: accounts and their password hashes, the
-configured FreshRSS servers, their tokens **and the key that decrypts them**,
-preferences, and instance settings. It does not hold your articles — those live
-in FreshRSS. A backup made by 1.9.0 or later cannot be restored on an older
-FriRSS (upgrade first); older backups still restore.
-
-That file is therefore enough to impersonate every account on the instance, which
-is why a passphrase is mandatory (12 characters minimum). **Lose the passphrase
-and the file is permanently unusable.** There is no recovery path, by design;
-keep it somewhere other than next to the file.
-
-Restore it from the same screen, or from the first-run screen of a fresh
-instance — which makes it a migration tool as much as a backup. Either way you
-see what the file contains before committing: when it was made, which version
-produced it, how many accounts and servers. Restoring replaces the instance's
-contents entirely and signs everyone out.
-
-Environment variables are recorded in the file and shown at restore time, but
-never applied: they belong to the deployment, not to the backup. Copy them into
-your compose file yourself.
-
-### The data directory
-
-`/app/data` holds `frirss.db` and its write-ahead log — the JWT secret and the
-token-encryption key included. Backing up that volume backs up the instance.
-
-To take a copy out of a running container, use the snapshot script rather than
-`cp`:
-
-```bash
-docker exec frirss node scripts/backup-db.js /app/data/backups
-```
-
-It goes through SQLite's `.backup()` API: atomic, and safe while the server is
-writing. Copying `frirss.db` on its own is **not** a valid backup — the most
-recent writes live in the `-wal` file beside it.
-
-Locked out of every admin account? `docker exec -it frirss node
-scripts/reset-password.js` sets a new password from the terminal.
+Every setting is optional. The environment variables — time zone, user, FreshRSS on a private network, reverse proxy, Redis cache, limits — are listed by need in **[docs/CONFIGURATION.md](docs/CONFIGURATION.md)**.
 
 ## Security
 
-FriRSS holds the credentials to your FreshRSS server, so a few things are not optional:
-
-- FreshRSS passwords and tokens are **encrypted at rest**. Once a server is added they never reach the browser again — not in a response, not in a URL, not in a log — and changing a server's address requires new credentials, so the stored tokens can never be pointed at another host.
-- All FreshRSS traffic goes through an authenticated **same-origin proxy** with an anti-SSRF guard: it rejects targets that *resolve* to a private address, and re-checks every redirect hop.
-- The app page **and its static assets** carry a **Content-Security-Policy** (`script-src 'self'`) along with `X-Frame-Options`, `X-Content-Type-Options` and `Referrer-Policy`.
-- The backend runs **unprivileged** in the container (`PUID`/`PGID`, 1000 by default): code execution inside Node no longer owns the data directory, where the JWT secret and the token-encryption key live. The data directory is adopted on start, so upgrading needs no action.
-- **Registration is closed by default.** Only the very first account — the administrator — can be created without someone opening sign-ups in *Preferences → Administration*.
-- Proxied requests are **rate-limited per user** (`FRIRSS_PROXY_RATE_LIMIT`), so an account cannot turn the backend into an open relay, and each one is bounded in time. Behind a reverse proxy, the login limit counts each client separately, and changing your password is limited per account.
-- Article and feed links that are not `http`/`https` are never opened nor turned into links.
-- JWT verification is pinned to HS256, and the runtime image ships neither npm nor its dependency tree — nothing there is executed, and it was the source of most reported CVEs.
-
-Dependency and image scans run on every push and can be launched by hand; the current state is in [GitHub Actions](https://github.com/Fripix/Frirss/actions/workflows/security.yml).
-
-Found a security issue? Please follow [`SECURITY.md`](SECURITY.md) rather than opening a public issue.
+FreshRSS credentials are encrypted at rest and never reach the browser; all FreshRSS traffic goes through an authenticated same-origin proxy with an anti-SSRF guard; registration is closed by default. The full list, and how to report an issue: [`SECURITY.md`](SECURITY.md).
 
 ## Feedback & Contributing
 

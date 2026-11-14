@@ -20,6 +20,9 @@ services:
       # - PGID=1000
       # Public base URL — set this behind a reverse proxy (also fixes OIDC redirect URIs)
       # - FRIRSS_BASE_URL=https://frirss.example.com
+      # FreshRSS on a private address (LAN IP or Docker service name)? Trust it here,
+      # otherwise connecting fails with "POST /api/proxy 403" in the container log
+      # - PROXY_INTERNAL_HOSTS=192.168.1.20
       # Optional Redis cache (instant loads via stale-while-revalidate)
       # - REDIS_URL=redis://redis:6379
       # - CACHE_SYNC_INTERVAL=15
