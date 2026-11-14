@@ -269,3 +269,28 @@ l'écrit. Donc, dans le même commit que le guide :
 - `FEATURES.md` : aucune fonctionnalité de l'app ne change ; pas d'entrée, sauf
   si le test `featuresDoc` le réclame. `RELEASE-NEXT.md` : rien (documentation
   publiée sur `main` hors cycle, comme les commits README précédents).
+
+## Évolution après validation (2026-11-14, décisions du propriétaire)
+
+Le README réécrit en étapes restait trop long. Après comparaison avec 17 README
+de projets auto-hébergés populaires (médiane ≈ 700 mots), le propriétaire a
+choisi une **vitrine courte** :
+
+- **README** (≈ 740 mots) : accroche, encadré « FriRSS needs a working
+  FreshRSS », image d'aperçu, site et démo, About, **douze fonctionnalités en
+  une ligne**, `## Installation` court (une commande, deux étapes, la phrase IA),
+  `## Configuration` d'une ligne. Ces deux titres restent pour les anciens liens.
+- **`docs/INSTALL.md`** : l'installation complète (Compose, Unraid, reverse
+  proxy, mise à jour) et les sauvegardes. **`docs/CONFIGURATION.md`** : toutes
+  les variables, groupées par besoin. **`SECURITY.md`** reçoit la liste de
+  sécurité qui était dans le README.
+- **Le test** `installWithAiDoc.test.ts` compare le guide IA à
+  `docs/CONFIGURATION.md`, et les commandes au README, à `docs/INSTALL.md` et au
+  guide. Le script de contrôle du site lit aussi `docs/CONFIGURATION.md`.
+- **Captures** : les trois anciennes (juin, en français, données de test,
+  contenu d'un tiers) sont remplacées par **une image composée** sur fond
+  transparent : MacBook Air (thème clair, résumé IA), iPad (grille, Night) et
+  un éventail d'iPhone (le même article en trois thèmes), appareils dessinés en
+  CSS ; variante étroite à quatre iPhone. Prises sur l'instance de dev, adresse
+  du serveur remplacée par `rss.example.com`, contenu choisi (pas d'arabe, rien
+  d'animal ni de médical), compte de test remis dans son état d'origine.
