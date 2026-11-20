@@ -316,7 +316,8 @@
       "sidebar": "Barra lateral",
       "articleList": "Lista de artículos",
       "reading": "Lectura",
-      "grid": "Cuadrícula"
+      "grid": "Cuadrícula",
+      "readingColumn": "Columna de lectura"
     },
     "fontKeys": {
       "sidebar-feed": "Nombre de la fuente",
@@ -581,6 +582,11 @@
       "ratio": "Formato de imagen",
       "fill": "Llenar la fila",
       "fillHint": "Las tarjetas se ensanchan hasta ocupar toda la fila. Desactivado, conservan exactamente el ancho elegido. En el móvil, la cuadrícula siempre ocupa toda la pantalla."
+    },
+    "readingColumn": {
+      "limit": "Limitar el ancho de la columna",
+      "width": "Ancho de columna",
+      "limitHint": "Centra el artículo en una columna más estrecha y con márgenes más amplios; las imágenes y los vídeos se reducen con ella. Desactivado, el artículo ocupa todo el panel de lectura."
     },
     "resetTheme": "Restablecer",
     "resetThemeTooltip": "Deshacer los cambios de colores y tamaños hechos desde que se guardó el tema",

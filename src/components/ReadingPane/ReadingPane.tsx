@@ -169,6 +169,8 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   const sidebarVisible = useUiStore((s) => s.sidebarVisible);
   const toggleSidebar = useUiStore((s) => s.toggleSidebar);
   const inlineVideos = useUiStore((s) => s.inlineVideos);
+  const limitReadingColumn = useUiStore((s) => s.limitReadingColumn);
+  const readingColumnWidth = useUiStore((s) => s.readingColumnWidth);
   // Which saved-category picker is open (null = none).
   const [filing, setFiling] = useState<{ prefix: string; x: number; y: number } | null>(null);
   const toggleReadingFocus = useUiStore((s) => s.toggleReadingFocus);
@@ -1998,7 +2000,8 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
         >
           <article
             ref={articleRef}
-            className="article-enter px-4 py-4 md:px-8 md:py-6 lg:px-12 lg:py-8"
+            className={`article-enter px-4 py-4 md:px-8 md:py-6 lg:px-12 lg:py-8${limitReadingColumn ? ' reading-column-limited' : ''}`}
+            style={limitReadingColumn ? ({ '--reading-column-width': `${readingColumnWidth}px` } as CSSProperties) : undefined}
           >
           {/* Source / Author / Date / Reading time */}
           {isMobileOrTablet ? (

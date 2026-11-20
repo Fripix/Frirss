@@ -316,7 +316,8 @@
       "sidebar": "Zijbalk",
       "articleList": "Artikellijst",
       "reading": "Lezen",
-      "grid": "Raster"
+      "grid": "Raster",
+      "readingColumn": "Leeskolom"
     },
     "fontKeys": {
       "sidebar-feed": "Feednaam",
@@ -581,6 +582,11 @@
       "ratio": "Beeldverhouding",
       "fill": "Rij vullen",
       "fillHint": "Kaarten worden breder tot ze de hele rij vullen. Uitgeschakeld houden ze precies de gekozen breedte. Op een telefoon vult het raster altijd het scherm."
+    },
+    "readingColumn": {
+      "limit": "Kolombreedte beperken",
+      "width": "Kolombreedte",
+      "limitHint": "Centreert het artikel in een smallere kolom met bredere marges; afbeeldingen en video’s krimpen mee. Uitgeschakeld vult het artikel het hele leespaneel."
     },
     "resetTheme": "Opnieuw instellen",
     "resetThemeTooltip": "Wijzigingen aan kleuren en groottes sinds het laatste opslaan van het thema ongedaan maken",

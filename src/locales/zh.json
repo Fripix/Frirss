@@ -316,7 +316,8 @@
       "sidebar": "侧边栏",
       "articleList": "文章列表",
       "reading": "阅读",
-      "grid": "网格"
+      "grid": "网格",
+      "readingColumn": "阅读栏"
     },
     "fontKeys": {
       "sidebar-feed": "订阅源名称",
@@ -581,6 +582,11 @@
       "ratio": "图片比例",
       "fill": "填满整行",
       "fillHint": "卡片会加宽以填满整行。关闭后，卡片保持所选宽度不变。在手机上，网格始终填满屏幕。"
+    },
+    "readingColumn": {
+      "limit": "限制栏宽",
+      "width": "列宽",
+      "limitHint": "将文章居中显示在更窄的栏中，两侧留白更宽；图片和视频会随栏宽缩小。关闭时，文章占满整个阅读面板。"
     },
     "resetTheme": "重置",
     "resetThemeTooltip": "撤销自上次保存主题以来对颜色和尺寸的更改",

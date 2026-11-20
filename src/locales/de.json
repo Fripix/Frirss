@@ -316,7 +316,8 @@
       "sidebar": "Seitenleiste",
       "articleList": "Artikelliste",
       "reading": "Lesen",
-      "grid": "Raster"
+      "grid": "Raster",
+      "readingColumn": "Lesespalte"
     },
     "fontKeys": {
       "sidebar-feed": "Feed-Name",
@@ -581,6 +582,11 @@
       "ratio": "Bildformat",
       "fill": "Zeile ausfüllen",
       "fillHint": "Die Karten werden breiter, bis sie die ganze Zeile füllen. Ausgeschaltet behalten sie genau die gewählte Breite. Auf dem Smartphone füllt das Raster immer den Bildschirm."
+    },
+    "readingColumn": {
+      "limit": "Spaltenbreite begrenzen",
+      "width": "Spaltenbreite",
+      "limitHint": "Zentriert den Artikel in einer schmaleren Spalte mit breiteren Rändern; Bilder und Videos schrumpfen mit. Ausgeschaltet füllt der Artikel den gesamten Lesebereich."
     },
     "resetTheme": "Zurücksetzen",
     "resetThemeTooltip": "Farb- und Größenänderungen seit dem letzten Speichern des Themes verwerfen",
