@@ -316,7 +316,8 @@
       "sidebar": "Sidebar",
       "articleList": "Article list",
       "reading": "Reading",
-      "grid": "Grid"
+      "grid": "Grid",
+      "readingColumn": "Reading column"
     },
     "fontKeys": {
       "sidebar-feed": "Feed name",
@@ -581,6 +582,10 @@
       "ratio": "Image ratio",
       "fill": "Fill the row",
       "fillHint": "Cards widen to fill the whole row. When off, they keep exactly the chosen width. On phones, the grid always fills the screen."
+    },
+    "readingColumn": {
+      "limit": "Limit column width",
+      "limitHint": "Centers the article in a narrower column with wider margins; images and videos shrink with it. When off, the article fills the whole reading pane."
     },
     "resetTheme": "Reset",
     "resetThemeTooltip": "Undo the color and size changes made since the theme was last saved",

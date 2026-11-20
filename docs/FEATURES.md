@@ -673,6 +673,25 @@ issue). Les défauts reproduisent exactement la grille d'avant.
   « Nom du flux » existent deux fois, et rien ne les distinguait à l'oreille.
   Test : `namedGroups.test.tsx`.
 
+### Colonne de lecture limitée
+Un réglage dans **Préférences › Apparence › Tailles**, section « Colonne de
+lecture », sous les tailles de texte : **Limiter la largeur de la colonne**
+(interrupteur, désactivé par défaut). Activé, l'article est centré dans une
+colonne d'au plus 48 rem (`.article-enter.reading-column-limited` dans
+`index.css`) : les marges latérales grandissent et les images et vidéos,
+qui se calent sur la colonne, rétrécissent d'autant — sur un écran large,
+le texte occupait sinon tout le panneau, bien au-delà des ~75 caractères
+lisibles par ligne. Désactivé, rien ne change : la pleine largeur reste le
+comportement historique. Sur un écran étroit, le plafond ne change rien.
+
+- **Où** : `uiStore.limitReadingColumn` / `setLimitReadingColumn`
+  (synchronisé, comme les réglages de la grille), `ReadingColumnSection`
+  dans `AppearanceTab.tsx`, la classe posée sur l'`<article>` de
+  `ReadingPane.tsx`, `index.css`. « Réinitialiser les tailles » le
+  désactive. Les `iframe` et `video` du corps d'article sont en outre
+  bornées à la largeur de la colonne dans tous les cas : elles n'avaient
+  aucune contrainte et pouvaient déborder du panneau.
+
 ### Vue à l'ouverture
 Ce que FriRSS ouvre au lancement et au rechargement : **Dernière vue**
 (défaut — la vue quittée sur ce serveur, `lastView.ts`, locale à l'appareil),

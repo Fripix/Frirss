@@ -316,7 +316,8 @@
       "sidebar": "Barre latérale",
       "articleList": "Liste d’articles",
       "reading": "Lecture",
-      "grid": "Grille"
+      "grid": "Grille",
+      "readingColumn": "Colonne de lecture"
     },
     "fontKeys": {
       "sidebar-feed": "Nom du flux",
@@ -581,6 +582,10 @@
       "ratio": "Format d’image",
       "fill": "Remplir la ligne",
       "fillHint": "Les cartes s’élargissent pour occuper toute la ligne. Désactivé, elles gardent exactement la largeur choisie. Sur téléphone, la grille remplit toujours l’écran."
+    },
+    "readingColumn": {
+      "limit": "Limiter la largeur de la colonne",
+      "limitHint": "Centre l’article dans une colonne plus étroite, aux marges plus larges ; les images et les vidéos rétrécissent avec elle. Désactivé, l’article occupe tout le panneau de lecture."
     },
     "resetTheme": "Réinitialiser",
     "resetThemeTooltip": "Annuler les modifications de couleurs et de tailles faites depuis le dernier enregistrement du thème",
