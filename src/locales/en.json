@@ -585,6 +585,7 @@
     },
     "readingColumn": {
       "limit": "Limit column width",
+      "width": "Column width",
       "limitHint": "Centers the article in a narrower column with wider margins; images and videos shrink with it. When off, the article fills the whole reading pane."
     },
     "resetTheme": "Reset",

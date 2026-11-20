@@ -585,6 +585,7 @@
     },
     "readingColumn": {
       "limit": "Kolombreedte beperken",
+      "width": "Kolombreedte",
       "limitHint": "Centreert het artikel in een smallere kolom met bredere marges; afbeeldingen en video’s krimpen mee. Uitgeschakeld vult het artikel het hele leespaneel."
     },
     "resetTheme": "Opnieuw instellen",

@@ -585,6 +585,7 @@
     },
     "readingColumn": {
       "limit": "Limiter la largeur de la colonne",
+      "width": "Largeur de la colonne",
       "limitHint": "Centre l’article dans une colonne plus étroite, aux marges plus larges ; les images et les vidéos rétrécissent avec elle. Désactivé, l’article occupe tout le panneau de lecture."
     },
     "resetTheme": "Réinitialiser",
