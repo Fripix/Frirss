@@ -585,6 +585,7 @@
     },
     "readingColumn": {
       "limit": "Limitar a largura da coluna",
+      "width": "Largura da coluna",
       "limitHint": "Centra o artigo numa coluna mais estreita, com margens mais largas; as imagens e os vídeos encolhem com ela. Desativado, o artigo ocupa todo o painel de leitura."
     },
     "resetTheme": "Repor",

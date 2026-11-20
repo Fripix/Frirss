@@ -615,6 +615,7 @@
     },
     "readingColumn": {
       "limit": "Ogranicz szerokość kolumny",
+      "width": "Szerokość kolumny",
       "limitHint": "Wyśrodkowuje artykuł w węższej kolumnie z szerszymi marginesami; obrazy i filmy zmniejszają się wraz z nią. Gdy wyłączone, artykuł wypełnia cały panel czytania."
     },
     "resetTheme": "Resetuj",

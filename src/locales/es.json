@@ -585,6 +585,7 @@
     },
     "readingColumn": {
       "limit": "Limitar el ancho de la columna",
+      "width": "Ancho de columna",
       "limitHint": "Centra el artículo en una columna más estrecha y con márgenes más amplios; las imágenes y los vídeos se reducen con ella. Desactivado, el artículo ocupa todo el panel de lectura."
     },
     "resetTheme": "Restablecer",
