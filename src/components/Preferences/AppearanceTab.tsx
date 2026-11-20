@@ -684,6 +684,7 @@ function SizesSection() {
   const { t } = useTranslation();
   const { theme, setFontSize, resetFontSizes } = useThemeStore();
   const resetGridCards = useUiStore((s) => s.resetGridCards);
+  const setLimitReadingColumn = useUiStore((s) => s.setLimitReadingColumn);
   // Sur un appareil tactile, le corps de lecture suit une taille propre à
   // l'appareil (celle de A− / A+), pas celle du thème : le curseur la règle.
   const touch = useBreakpoint() !== 'desktop';
@@ -735,6 +736,7 @@ function SizesSection() {
           </div>
         </div>
       ))}
+      <ReadingColumnSection />
       <GridCardsSection />
       <TabResetButton
         label={t('preferences.fonts.resetFonts')}
@@ -743,9 +745,46 @@ function SizesSection() {
         onReset={() => {
           resetFontSizes();
           resetGridCards();
+          setLimitReadingColumn(false);
           setDeviceBody(MOBILE_READING_DEFAULT);
         }}
       />
+    </div>
+  );
+}
+
+/* Colonne de lecture limitée : réglage d'affichage, pas du thème — il reste
+   quand on change de thème, comme ceux de la grille ci-dessous. Un seul
+   interrupteur, dans la même ligne que « Remplir la ligne ». */
+function ReadingColumnSection() {
+  const { t } = useTranslation();
+  const limit = useUiStore((s) => s.limitReadingColumn);
+  const setLimit = useUiStore((s) => s.setLimitReadingColumn);
+
+  return (
+    <div>
+      <h3
+        className="text-[11px] font-bold uppercase tracking-widest mb-2"
+        style={{ color: 'var(--list-summary)' }}
+      >
+        {t('preferences.fontSections.readingColumn')}
+      </h3>
+      <div className="flex items-start justify-between gap-3">
+        <span className="text-xs min-w-0" style={{ color: 'var(--reading-text)' }}>
+          {t('preferences.readingColumn.limit')}
+          <span id="reading-column-limit-hint" className="block text-[11px] opacity-70 mt-0.5" style={{ color: 'var(--list-summary)' }}>
+            {t('preferences.readingColumn.limitHint')}
+          </span>
+        </span>
+        <span className="mt-0.5 shrink-0">
+          <ToggleSwitch
+            checked={limit}
+            onChange={(v: boolean) => setLimit(v)}
+            ariaLabel={t('preferences.readingColumn.limit')}
+            describedBy="reading-column-limit-hint"
+          />
+        </span>
+      </div>
     </div>
   );
 }

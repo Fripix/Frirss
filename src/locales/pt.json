@@ -316,7 +316,8 @@
       "sidebar": "Barra lateral",
       "articleList": "Lista de artigos",
       "reading": "Leitura",
-      "grid": "Grelha"
+      "grid": "Grelha",
+      "readingColumn": "Coluna de leitura"
     },
     "fontKeys": {
       "sidebar-feed": "Nome do feed",
@@ -581,6 +582,10 @@
       "ratio": "Formato da imagem",
       "fill": "Preencher a linha",
       "fillHint": "Os cartões alargam-se até ocupar toda a linha. Desativado, mantêm exatamente a largura escolhida. No telemóvel, a grelha ocupa sempre o ecrã."
+    },
+    "readingColumn": {
+      "limit": "Limitar a largura da coluna",
+      "limitHint": "Centra o artigo numa coluna mais estreita, com margens mais largas; as imagens e os vídeos encolhem com ela. Desativado, o artigo ocupa todo o painel de leitura."
     },
     "resetTheme": "Repor",
     "resetThemeTooltip": "Anular as alterações de cores e tamanhos feitas desde que o tema foi guardado",
