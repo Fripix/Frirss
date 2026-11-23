@@ -705,8 +705,7 @@ Un réglage dans **Préférences › Apparence › Tailles**, section « Colonne
 lecture », sous les tailles de texte : **Limiter la largeur de la colonne**
 (interrupteur, désactivé par défaut). Activé, l'article est centré dans une
 colonne dont la largeur est au choix du lecteur (curseur « Largeur de la
-colonne », 480 à 1 200 px, défaut 768 px — les 48 rem de la première
-version), posée en variable `--reading-column-width` sur l'`<article>`
+colonne », 480 à 1 200 px par pas de 8, défaut 768 px, soit 48 rem), posée en variable `--reading-column-width` sur l'`<article>`
 (`.article-enter.reading-column-limited` dans `index.css`) : les marges
 latérales grandissent et les images et vidéos, qui se calent sur la
 colonne, rétrécissent d'autant — sur un écran large, le texte occupait
@@ -723,6 +722,9 @@ comportement historique. Sur un écran étroit, le plafond ne change rien.
   ramène la largeur au défaut. Les `iframe` et `video` du corps d'article
   sont en outre bornées à la largeur de la colonne dans tous les cas :
   elles n'avaient aucune contrainte et pouvaient déborder du panneau.
+- Contribution de babenaldt (PR #32, 1.9.2). Test de l'écran :
+  `AppearanceTab.readingColumn.test.tsx` ; magasin :
+  `uiStore.limitReadingColumn.test.ts`.
 
 ### Vue à l'ouverture
 Ce que FriRSS ouvre au lancement et au rechargement : **Dernière vue**

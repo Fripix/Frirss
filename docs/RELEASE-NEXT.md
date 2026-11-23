@@ -28,8 +28,15 @@ la release publiée.
   l'affichage d'avant). Elles se voient avec la densité Aperçu, dans la liste
   comme dans la vue côte à côte ; dans une liste étroite, une grande vignette
   s'arrête à 40 % de la ligne pour laisser la place au titre. Issue #34.
+- **La colonne de lecture peut se limiter** : Préférences → Apparence →
+  Tailles → Colonne de lecture. Désactivé par défaut ; activé, l'article se
+  centre dans une colonne de 480 à 1200 px (768 par défaut), et ses images et
+  vidéos rétrécissent avec elle. Sur un grand écran, les lignes ne courent
+  plus sur toute la largeur. Contribution de babenaldt (PR #32).
 
 ## Sous le capot
 
 - **Une variable `PORT` ne casse plus l'API** : elle déplaçait le serveur Node
   interne hors du port 3001 où nginx l'attend. Le conteneur le fixe désormais.
+- **Les vidéos d'un article ne débordent plus du panneau de lecture** (même
+  colonne non limitée), venu avec la PR #32.

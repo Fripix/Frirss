@@ -4,8 +4,7 @@
  *
  * Un réglage synchronisé, compagnon de l'interrupteur `limitReadingColumn` :
  * la largeur choisie devient le plafond de la colonne quand l'interrupteur
- * est actif. Le défaut reproduit la largeur fixe d'origine (48 rem à
- * 16 px), pour que les lecteurs déjà réglés ne voient aucun changement.
+ * est actif. Défaut : 768 px (48 rem à 16 px).
  */
 export const READING_COLUMN_WIDTH_MIN = 480;
 export const READING_COLUMN_WIDTH_MAX = 1200;
