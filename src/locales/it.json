@@ -582,6 +582,10 @@
       "fill": "Riempi la riga",
       "fillHint": "Le schede si allargano fino a occupare tutta la riga. Se disattivato, mantengono esattamente la larghezza scelta. Sul telefono la griglia riempie sempre lo schermo."
     },
+    "listThumb": {
+      "width": "Miniature",
+      "hint": "Visibili con la densità Anteprima."
+    },
     "resetTheme": "Reimposta",
     "resetThemeTooltip": "Annulla le modifiche a colori e dimensioni fatte dall’ultimo salvataggio del tema",
     "resetThemeTitle": "Reimpostare il tema?",

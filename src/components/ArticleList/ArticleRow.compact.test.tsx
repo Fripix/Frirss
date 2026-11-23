@@ -164,3 +164,26 @@ describe('ArticleRow — mode compact', () => {
     expect(ev.defaultPrevented).toBe(true);
   });
 });
+
+describe('vignette de la vue Aperçu (issue #34)', () => {
+  it('suit la taille réglée (variable CSS), sans taille fixe en classes', () => {
+    const { container } = render(
+      <ArticleRow
+        article={{ ...base, content: '<p><img src="https://example.com/a.jpg"></p>' }}
+        viewMode="preview"
+        showSource
+        rowActions={DEFAULT_ROW_ACTIONS}
+        active={false}
+        onSelect={noop}
+        onToggleStar={noop}
+        onToggleRead={noop}
+        onToggleReadLater={noop}
+        onOpenSource={noop}
+      />,
+    );
+    const thumb = container.querySelector('.article-row__thumb') as HTMLElement;
+    expect(thumb).toBeTruthy();
+    expect(thumb.querySelector('img')?.getAttribute('src')).toBe('https://example.com/a.jpg');
+    expect(thumb.className).not.toMatch(/\bw-20\b|\bh-16\b/);
+  });
+});

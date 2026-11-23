@@ -582,6 +582,10 @@
       "fill": "Remplir la ligne",
       "fillHint": "Les cartes s’élargissent pour occuper toute la ligne. Désactivé, elles gardent exactement la largeur choisie. Sur téléphone, la grille remplit toujours l’écran."
     },
+    "listThumb": {
+      "width": "Vignettes",
+      "hint": "Visibles avec la densité Aperçu."
+    },
     "resetTheme": "Réinitialiser",
     "resetThemeTooltip": "Annuler les modifications de couleurs et de tailles faites depuis le dernier enregistrement du thème",
     "resetThemeTitle": "Réinitialiser le thème ?",

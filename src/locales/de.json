@@ -582,6 +582,10 @@
       "fill": "Zeile ausfüllen",
       "fillHint": "Die Karten werden breiter, bis sie die ganze Zeile füllen. Ausgeschaltet behalten sie genau die gewählte Breite. Auf dem Smartphone füllt das Raster immer den Bildschirm."
     },
+    "listThumb": {
+      "width": "Vorschaubilder",
+      "hint": "Sichtbar mit der Darstellung Vorschau."
+    },
     "resetTheme": "Zurücksetzen",
     "resetThemeTooltip": "Farb- und Größenänderungen seit dem letzten Speichern des Themes verwerfen",
     "resetThemeTitle": "Theme zurücksetzen?",

@@ -1402,6 +1402,16 @@ html {
   overflow: hidden;
 }
 .article-card__thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* Vignette d'une ligne en vue Aperçu (#34). `--list-thumb-w` est posée sur la
+   zone de défilement (`listThumbStyle`) ; sans elle, 80 × 64, la vignette
+   d'origine (`w-20 h-16`). Bornée à 40 % de la ligne, jamais sous 80 px : dans
+   une liste étroite (téléphone, colonne côte à côte), une grande vignette
+   écrasait le titre. */
+.article-row__thumb {
+  width: min(var(--list-thumb-w, 80px), max(80px, 40%));
+  aspect-ratio: 5 / 4;
+}
 .article-card__fallback {
   width: 100%; height: 100%;
   display: flex; align-items: center; justify-content: center;

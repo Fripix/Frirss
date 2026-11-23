@@ -23,6 +23,7 @@ import { listOverflows, publishListCanScroll, resetListCanScroll } from '../../l
 import { ROW_SLICE, mountedRows, nextRowLimit } from '../../lib/listWindow';
 import { revealScrollTop, listAnchor, anchoredScrollTop, type ListAnchor } from '../../lib/listScroll';
 import { extractImageFromContent } from '../../lib/articleThumbnail';
+import { listThumbStyle } from '../../lib/listThumbnail';
 import { openArticleAtSource } from '../../lib/openArticleAtSource';
 import { markReadOnBackgroundOpen } from '../../lib/titleLink';
 import type { RowActionSettings } from '../../lib/rowActions';
@@ -173,6 +174,7 @@ export default function ArticleList() {
     () => gridCardStyle(gridCardWidth, gridImageRatio) as CSSProperties,
     [gridCardWidth, gridImageRatio],
   );
+  const listThumbWidth = useUiStore((s) => s.listThumbWidth);
   const toggleGridDateSeparators = useUiStore((s) => s.toggleGridDateSeparators);
   const confirmMarkAllRead = useUiStore((s) => s.confirmMarkAllRead);
   const topbarVisible = useUiStore((s) => s.topbarVisible);
@@ -1424,7 +1426,7 @@ export default function ArticleList() {
         className={`flex-1 overflow-y-auto overflow-x-hidden nice-scroll relative outline-none${sidebarRescue ? ' list-body--rail' : ''}`}
         // Les séparateurs de date descendent sous le bandeau tant qu'il
         // s'affiche, au lieu d'être recouverts (`newArticlesOffsetStyle`).
-        style={newArticlesOffsetStyle(newArticlesBannerShown)}
+        style={{ ...newArticlesOffsetStyle(newArticlesBannerShown), ...listThumbStyle(listThumbWidth) } as CSSProperties}
       >
         <NewArticlesBanner
           enabled={showNewArticlesPill}
@@ -2242,7 +2244,7 @@ export function ArticleRow({ article, viewMode, showSource, rowActions, favicon,
       style={{ borderBottom: '1px solid var(--panel-border)', ...(stagger?.style ?? {}) }}
     >
       {thumbnail && viewMode === 'preview' && (
-        <div className="w-20 h-16 rounded overflow-hidden flex-shrink-0 bg-gray-100">
+        <div className="article-row__thumb rounded overflow-hidden flex-shrink-0 bg-gray-100">
           <img
             src={thumbnail}
             alt=""

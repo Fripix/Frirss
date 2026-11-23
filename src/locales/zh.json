@@ -582,6 +582,10 @@
       "fill": "填满整行",
       "fillHint": "卡片会加宽以填满整行。关闭后，卡片保持所选宽度不变。在手机上，网格始终填满屏幕。"
     },
+    "listThumb": {
+      "width": "缩略图",
+      "hint": "在“预览”显示密度下显示。"
+    },
     "resetTheme": "重置",
     "resetThemeTooltip": "撤销自上次保存主题以来对颜色和尺寸的更改",
     "resetThemeTitle": "重置主题？",

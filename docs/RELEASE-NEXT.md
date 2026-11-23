@@ -23,6 +23,11 @@ la release publiée.
   réseau « host », ou une IP à lui (`br0` d'Unraid, macvlan). Avec `-p`, rien
   ne change. Une valeur invalide arrête le conteneur avec un message dans
   `docker logs`. Issue #33.
+- **La taille des vignettes de la liste se règle** : Préférences → Apparence →
+  Tailles → Liste d'articles → Vignettes, de 56 à 160 px (80 par défaut,
+  l'affichage d'avant). Elles se voient avec la densité Aperçu, dans la liste
+  comme dans la vue côte à côte ; dans une liste étroite, une grande vignette
+  s'arrête à 40 % de la ligne pour laisser la place au titre. Issue #34.
 
 ## Sous le capot
 

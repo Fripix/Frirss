@@ -582,6 +582,10 @@
       "fill": "Rij vullen",
       "fillHint": "Kaarten worden breder tot ze de hele rij vullen. Uitgeschakeld houden ze precies de gekozen breedte. Op een telefoon vult het raster altijd het scherm."
     },
+    "listThumb": {
+      "width": "Miniaturen",
+      "hint": "Zichtbaar met de dichtheid Voorbeeld."
+    },
     "resetTheme": "Opnieuw instellen",
     "resetThemeTooltip": "Wijzigingen aan kleuren en groottes sinds het laatste opslaan van het thema ongedaan maken",
     "resetThemeTitle": "Thema opnieuw instellen?",

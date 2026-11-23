@@ -612,6 +612,10 @@
       "fill": "Wypełniaj wiersz",
       "fillHint": "Karty poszerzają się, aż wypełnią cały wiersz. Po wyłączeniu zachowują dokładnie wybraną szerokość. Na telefonie siatka zawsze wypełnia ekran."
     },
+    "listThumb": {
+      "width": "Miniatury",
+      "hint": "Widoczne przy gęstości Podgląd."
+    },
     "resetTheme": "Resetuj",
     "resetThemeTooltip": "Cofnij zmiany kolorów i rozmiarów od ostatniego zapisania motywu",
     "resetThemeTitle": "Zresetować motyw?",

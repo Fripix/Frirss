@@ -419,3 +419,13 @@ describe('traits orphelins remesurés quand le titre change', () => {
     expect(markOrphanSeparators).toHaveBeenCalled();
   });
 });
+
+describe('taille des vignettes (issue #34)', () => {
+  it('pose la taille réglée sur la zone de défilement de la liste', () => {
+    useUiStore.setState({ listThumbWidth: 136 } as never);
+    const c = show();
+    const scroll = c.container.querySelector('[data-article-scroll]') as HTMLElement;
+    expect(scroll.style.getPropertyValue('--list-thumb-w')).toBe('136px');
+    useUiStore.setState({ listThumbWidth: 80 } as never);
+  });
+});

@@ -17,6 +17,7 @@ import { isAiLanguage, type AiLanguage } from '../lib/aiLanguages';
 import { normalizeUnreadScope, switchUnreadScope, unreadOnlyFor, type UnreadScope } from '../lib/unreadScope';
 import { clampReadingBody, MOBILE_READING_DEFAULT } from '../lib/readingFontSize';
 import { GRID_CARD_WIDTH_DEFAULT, normalizeGridCardFill, normalizeGridCardWidth, normalizeGridImageRatio, type GridImageRatio } from '../lib/gridCards';
+import { LIST_THUMB_WIDTH_DEFAULT, normalizeListThumbWidth } from '../lib/listThumbnail';
 
 function loadJson<T>(key: string, fallback: T): T {
   try {
@@ -301,6 +302,11 @@ export interface UiState {
   gridCardFill: boolean;
   setGridCardFill: (v: boolean) => void;
   resetGridCards: () => void;
+  // Vignette des lignes en vue Aperçu (#34) : largeur 56…160 px, 80 par
+  // défaut (la vignette d'origine). Synchronisée, comme la grille.
+  listThumbWidth: number;
+  setListThumbWidth: (v: number) => void;
+  resetListThumb: () => void;
   // Routage des fournisseurs d'IA. Synchronisé, jamais une clé : seulement des
   // identifiants de fournisseurs. `null` = aucune préférence (le premier de la
   // liste). Résolution : flux > catégorie > préféré.
@@ -777,6 +783,14 @@ export const useUiStore = create<UiState>()((set, get) => ({
     get().setGridImageRatio('16:9');
     get().setGridCardFill(true);
   },
+
+  listThumbWidth: normalizeListThumbWidth(loadJson<unknown>('frirss_listThumbWidth', LIST_THUMB_WIDTH_DEFAULT)),
+  setListThumbWidth: (v) => {
+    const value = normalizeListThumbWidth(v);
+    localStorage.setItem('frirss_listThumbWidth', JSON.stringify(value));
+    set({ listThumbWidth: value });
+  },
+  resetListThumb: () => get().setListThumbWidth(LIST_THUMB_WIDTH_DEFAULT),
 
   aiPreferredProvider: normalizeAiProviderId(loadJson<unknown>('frirss_aiPreferredProvider', null)),
   setAiPreferredProvider: (id) => {
@@ -1329,7 +1343,7 @@ export const useUiStore = create<UiState>()((set, get) => ({
       'labelsCollapsed', 'savedCollapsed', 'savedCategoryNames', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnlyByFeed', 'unreadOnlyScope', 'unreadOnlyAll', 'hideReadFeeds',
       'confirmMarkAllRead', 'markReadOnScroll', 'showNewArticlesPill', 'showListFavicons', 'offlineImagePreset', 'inlineVideos', 'refreshHintDismissed',
       'rowActions', 'toolbarVisibility', 'articleOrder', 'autoExtractDefault', 'startupView', 'aiPanelCollapsed', 'aiSummaryRatio',
-      'gridCardWidth', 'gridImageRatio', 'gridCardFill',
+      'gridCardWidth', 'gridImageRatio', 'gridCardFill', 'listThumbWidth',
       'randomCount', 'randomWindowAmount', 'randomWindowUnit', 'randomViews',
       'aiPreferredProvider', 'aiFallback', 'aiAutoSummary', 'aiCategoryProviders',
       'aiTranslationLanguage', 'aiTranslationProvider', 'aiCategoryAutoTranslate', 'aiCategoryAutoSummary',
@@ -1361,6 +1375,7 @@ export const useUiStore = create<UiState>()((set, get) => ({
           : k === 'gridCardWidth' ? normalizeGridCardWidth(prefs[k])
           : k === 'gridImageRatio' ? normalizeGridImageRatio(prefs[k])
           : k === 'gridCardFill' ? normalizeGridCardFill(prefs[k])
+          : k === 'listThumbWidth' ? normalizeListThumbWidth(prefs[k])
           : k === 'aiPreferredProvider' ? normalizeAiProviderId(prefs[k])
           : k === 'aiCategoryProviders' ? normalizeAiCategoryProviders(prefs[k])
           : k === 'aiTranslationLanguage' ? normalizeAiTranslationLanguage(prefs[k])
@@ -1408,7 +1423,7 @@ export const UI_SYNC_KEYS = [
   'labelsCollapsed', 'savedCollapsed', 'savedCategoryNames', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnlyByFeed', 'unreadOnlyScope', 'unreadOnlyAll', 'hideReadFeeds',
   'confirmMarkAllRead', 'markReadOnScroll', 'showNewArticlesPill', 'showListFavicons',
   'offlineImagePreset', 'inlineVideos', 'refreshHintDismissed', 'rowActions', 'toolbarVisibility', 'articleOrder', 'autoExtractDefault', 'startupView',
-  'aiPanelCollapsed', 'aiSummaryRatio', 'gridCardWidth', 'gridImageRatio', 'gridCardFill',
+  'aiPanelCollapsed', 'aiSummaryRatio', 'gridCardWidth', 'gridImageRatio', 'gridCardFill', 'listThumbWidth',
   'randomCount', 'randomWindowAmount', 'randomWindowUnit', 'randomViews',
   'aiPreferredProvider', 'aiFallback', 'aiAutoSummary', 'aiCategoryProviders',
   'aiTranslationLanguage', 'aiTranslationProvider', 'aiCategoryAutoTranslate', 'aiCategoryAutoSummary',

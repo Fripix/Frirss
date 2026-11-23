@@ -673,6 +673,34 @@ issue). Les défauts reproduisent exactement la grille d'avant.
   « Nom du flux » existent deux fois, et rien ne les distinguait à l'oreille.
   Test : `namedGroups.test.tsx`.
 
+### Taille des vignettes de la liste
+Un curseur **Vignettes** dans **Préférences › Apparence › Tailles**, groupe
+« Liste d'articles », sous les tailles de texte (issue #34, 1.9.2) : largeur de
+la vignette des lignes, de 56 à 160 px par pas de 4, **défaut 80**. La hauteur
+suit le rapport 5:4 d'origine (80 × 64, l'ancien `w-20 h-16`). La vignette ne
+s'affiche qu'avec la densité Aperçu, et la ligne d'aide sous le curseur le
+dit : en Standard ou Compact, le curseur semblait sans effet. Vaut pour toutes
+les listes (deux colonnes et côte à côte) ; la grille a ses propres réglages.
+
+- **Où** : `src/lib/listThumbnail.ts` (bornes, `normalizeListThumbWidth`,
+  `listThumbStyle`), `uiStore.listThumbWidth` / `resetListThumb`,
+  `ListThumbRow` dans `AppearanceTab.tsx`, la zone de défilement
+  (`[data-article-scroll]`) et `.article-row__thumb` d'`ArticleList.tsx`,
+  `index.css`
+- **Pas d'interrupteur**, assumé avec le propriétaire : comme pour les autres
+  tailles, le curseur à sa valeur de départ **est** l'affichage d'origine, et
+  « Réinitialiser les tailles » y revient. Un interrupteur n'aurait rien fait
+  de plus.
+- **Bornée à la ligne** : `width: min(var(--list-thumb-w, 80px), max(80px,
+  40%))`. Dans une liste étroite (téléphone à 320 px, colonne de la vue côte à
+  côte), une vignette de 160 px écrasait le titre ; elle s'arrête à 40 % de la
+  ligne, et ne descend jamais sous les 80 px d'origine.
+- **Synchronisée, commune à tous les thèmes** (`UI_SYNC_KEYS`), comme la
+  grille ; une valeur hors bornes retombe sur 80.
+- Tests : `listThumbnail.test.ts` (bornes et règle CSS),
+  `AppearanceTab.listThumb.test.tsx`, `uiStore.test.ts`,
+  `ArticleRow.compact.test.tsx`, `ArticleList.toolbar.test.tsx`.
+
 ### Vue à l'ouverture
 Ce que FriRSS ouvre au lancement et au rechargement : **Dernière vue**
 (défaut — la vue quittée sur ce serveur, `lastView.ts`, locale à l'appareil),

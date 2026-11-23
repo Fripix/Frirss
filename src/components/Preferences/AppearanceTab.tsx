@@ -10,6 +10,7 @@ import ToggleSwitch from '../ToggleSwitch';
 import { hasRealHighlight, PREVIEW_ZONES } from './colorHighlight';
 import { READING_BODY_BOUNDS, MOBILE_READING_DEFAULT } from '../../lib/readingFontSize';
 import { GRID_CARD_WIDTH_MAX, GRID_CARD_WIDTH_MIN, GRID_CARD_WIDTH_STEP, GRID_IMAGE_RATIOS } from '../../lib/gridCards';
+import { LIST_THUMB_WIDTH_MAX, LIST_THUMB_WIDTH_MIN, LIST_THUMB_WIDTH_STEP } from '../../lib/listThumbnail';
 
 type Sub = 'theme' | 'colors' | 'sizes' | 'identity';
 
@@ -684,6 +685,7 @@ function SizesSection() {
   const { t } = useTranslation();
   const { theme, setFontSize, resetFontSizes } = useThemeStore();
   const resetGridCards = useUiStore((s) => s.resetGridCards);
+  const resetListThumb = useUiStore((s) => s.resetListThumb);
   // Sur un appareil tactile, le corps de lecture suit une taille propre à
   // l'appareil (celle de A− / A+), pas celle du thème : le curseur la règle.
   const touch = useBreakpoint() !== 'desktop';
@@ -732,6 +734,7 @@ function SizesSection() {
                 />
               ),
             )}
+            {section.titleKey === 'articleList' && <ListThumbRow />}
           </div>
         </div>
       ))}
@@ -743,9 +746,34 @@ function SizesSection() {
         onReset={() => {
           resetFontSizes();
           resetGridCards();
+          resetListThumb();
           setDeviceBody(MOBILE_READING_DEFAULT);
         }}
       />
+    </div>
+  );
+}
+
+/* Vignette des lignes (#34) : comme la grille, un réglage synchronisé hors du
+   thème, rangé avec les tailles de la liste qu'il touche. Elle ne se voit qu'en
+   vue Aperçu : la ligne d'aide le dit, sans quoi le curseur semble sans effet. */
+function ListThumbRow() {
+  const { t } = useTranslation();
+  const width = useUiStore((s) => s.listThumbWidth);
+  const setWidth = useUiStore((s) => s.setListThumbWidth);
+  return (
+    <div>
+      <FontRow
+        label={t('preferences.listThumb.width')}
+        value={String(width)}
+        min={LIST_THUMB_WIDTH_MIN}
+        max={LIST_THUMB_WIDTH_MAX}
+        step={LIST_THUMB_WIDTH_STEP}
+        onChange={(v) => setWidth(Number(v))}
+      />
+      <p className="text-[11px] mt-1" style={{ color: 'var(--list-summary)' }}>
+        {t('preferences.listThumb.hint')}
+      </p>
     </div>
   );
 }

@@ -582,6 +582,10 @@
       "fill": "Preencher a linha",
       "fillHint": "Os cartões alargam-se até ocupar toda a linha. Desativado, mantêm exatamente a largura escolhida. No telemóvel, a grelha ocupa sempre o ecrã."
     },
+    "listThumb": {
+      "width": "Miniaturas",
+      "hint": "Visíveis com a densidade Pré-visualização."
+    },
     "resetTheme": "Repor",
     "resetThemeTooltip": "Anular as alterações de cores e tamanhos feitas desde que o tema foi guardado",
     "resetThemeTitle": "Repor o tema?",

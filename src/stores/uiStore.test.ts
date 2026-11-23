@@ -808,6 +808,30 @@ describe('uiStore — cartes de la grille (#26)', () => {
   });
 });
 
+describe('taille de la vignette de liste (issue #34)', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    useUiStore.setState({ listThumbWidth: 80 });
+  });
+
+  it('persiste, se synchronise, et une valeur hors bornes rend le défaut', () => {
+    useUiStore.getState().setListThumbWidth(120);
+    expect(useUiStore.getState().listThumbWidth).toBe(120);
+    expect(localStorage.getItem('frirss_listThumbWidth')).toBe('120');
+    expect(UI_SYNC_KEYS).toContain('listThumbWidth');
+    useUiStore.getState().applyServerPrefs({ listThumbWidth: 100 });
+    expect(useUiStore.getState().listThumbWidth).toBe(100);
+    useUiStore.getState().applyServerPrefs({ listThumbWidth: 5000 });
+    expect(useUiStore.getState().listThumbWidth).toBe(80);
+  });
+
+  it('resetListThumb revient à la vignette d’origine', () => {
+    useUiStore.getState().setListThumbWidth(140);
+    useUiStore.getState().resetListThumb();
+    expect(useUiStore.getState().listThumbWidth).toBe(80);
+  });
+});
+
 describe('compteurs de Favoris et d’À lire plus tard (issue #29)', () => {
   it('persistent, se synchronisent, et un non-booléen ne change rien', () => {
     useUiStore.setState({ showSpecialTotals: true, showSpecialUnread: false });
