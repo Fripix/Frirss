@@ -18,6 +18,7 @@ import { normalizeUnreadScope, switchUnreadScope, unreadOnlyFor, type UnreadScop
 import { clampReadingBody, MOBILE_READING_DEFAULT } from '../lib/readingFontSize';
 import { GRID_CARD_WIDTH_DEFAULT, normalizeGridCardFill, normalizeGridCardWidth, normalizeGridImageRatio, type GridImageRatio } from '../lib/gridCards';
 import { LIST_THUMB_WIDTH_DEFAULT, normalizeListThumbWidth } from '../lib/listThumbnail';
+import { READING_COLUMN_WIDTH_DEFAULT, normalizeReadingColumnWidth } from '../lib/readingColumn';
 
 function loadJson<T>(key: string, fallback: T): T {
   try {
@@ -307,6 +308,16 @@ export interface UiState {
   listThumbWidth: number;
   setListThumbWidth: (v: number) => void;
   resetListThumb: () => void;
+  // Colonne de lecture limitée : l'article est centré dans une colonne plus
+  // étroite — marges latérales plus larges, images et vidéos réduites
+  // d'autant. Synchronisé, désactivé par défaut (la pleine largeur reste
+  // le comportement historique).
+  limitReadingColumn: boolean;
+  setLimitReadingColumn: (v: boolean) => void;
+  // Largeur de cette colonne, au choix du lecteur (curseur dans la même
+  // section). Synchronisée, elle ne sert que si l'interrupteur est actif.
+  readingColumnWidth: number;
+  setReadingColumnWidth: (v: number) => void;
   // Routage des fournisseurs d'IA. Synchronisé, jamais une clé : seulement des
   // identifiants de fournisseurs. `null` = aucune préférence (le premier de la
   // liste). Résolution : flux > catégorie > préféré.
@@ -791,6 +802,17 @@ export const useUiStore = create<UiState>()((set, get) => ({
     set({ listThumbWidth: value });
   },
   resetListThumb: () => get().setListThumbWidth(LIST_THUMB_WIDTH_DEFAULT),
+  limitReadingColumn: loadJson<boolean>('frirss_limitReadingColumn', false) === true,
+  setLimitReadingColumn: (v) => {
+    localStorage.setItem('frirss_limitReadingColumn', JSON.stringify(v));
+    set({ limitReadingColumn: v });
+  },
+  readingColumnWidth: normalizeReadingColumnWidth(loadJson<unknown>('frirss_readingColumnWidth', READING_COLUMN_WIDTH_DEFAULT)),
+  setReadingColumnWidth: (v) => {
+    const value = normalizeReadingColumnWidth(v);
+    localStorage.setItem('frirss_readingColumnWidth', JSON.stringify(value));
+    set({ readingColumnWidth: value });
+  },
 
   aiPreferredProvider: normalizeAiProviderId(loadJson<unknown>('frirss_aiPreferredProvider', null)),
   setAiPreferredProvider: (id) => {
@@ -1343,7 +1365,7 @@ export const useUiStore = create<UiState>()((set, get) => ({
       'labelsCollapsed', 'savedCollapsed', 'savedCategoryNames', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnlyByFeed', 'unreadOnlyScope', 'unreadOnlyAll', 'hideReadFeeds',
       'confirmMarkAllRead', 'markReadOnScroll', 'showNewArticlesPill', 'showListFavicons', 'offlineImagePreset', 'inlineVideos', 'refreshHintDismissed',
       'rowActions', 'toolbarVisibility', 'articleOrder', 'autoExtractDefault', 'startupView', 'aiPanelCollapsed', 'aiSummaryRatio',
-      'gridCardWidth', 'gridImageRatio', 'gridCardFill', 'listThumbWidth',
+      'gridCardWidth', 'gridImageRatio', 'gridCardFill', 'listThumbWidth', 'limitReadingColumn', 'readingColumnWidth',
       'randomCount', 'randomWindowAmount', 'randomWindowUnit', 'randomViews',
       'aiPreferredProvider', 'aiFallback', 'aiAutoSummary', 'aiCategoryProviders',
       'aiTranslationLanguage', 'aiTranslationProvider', 'aiCategoryAutoTranslate', 'aiCategoryAutoSummary',
@@ -1376,6 +1398,9 @@ export const useUiStore = create<UiState>()((set, get) => ({
           : k === 'gridImageRatio' ? normalizeGridImageRatio(prefs[k])
           : k === 'gridCardFill' ? normalizeGridCardFill(prefs[k])
           : k === 'listThumbWidth' ? normalizeListThumbWidth(prefs[k])
+          // Comme autoExtractDefault : un non-booléen laisse la valeur courante.
+          : k === 'limitReadingColumn' ? (typeof prefs[k] === 'boolean' ? prefs[k] : get().limitReadingColumn)
+          : k === 'readingColumnWidth' ? normalizeReadingColumnWidth(prefs[k])
           : k === 'aiPreferredProvider' ? normalizeAiProviderId(prefs[k])
           : k === 'aiCategoryProviders' ? normalizeAiCategoryProviders(prefs[k])
           : k === 'aiTranslationLanguage' ? normalizeAiTranslationLanguage(prefs[k])
@@ -1424,6 +1449,7 @@ export const UI_SYNC_KEYS = [
   'confirmMarkAllRead', 'markReadOnScroll', 'showNewArticlesPill', 'showListFavicons',
   'offlineImagePreset', 'inlineVideos', 'refreshHintDismissed', 'rowActions', 'toolbarVisibility', 'articleOrder', 'autoExtractDefault', 'startupView',
   'aiPanelCollapsed', 'aiSummaryRatio', 'gridCardWidth', 'gridImageRatio', 'gridCardFill', 'listThumbWidth',
+  'limitReadingColumn', 'readingColumnWidth',
   'randomCount', 'randomWindowAmount', 'randomWindowUnit', 'randomViews',
   'aiPreferredProvider', 'aiFallback', 'aiAutoSummary', 'aiCategoryProviders',
   'aiTranslationLanguage', 'aiTranslationProvider', 'aiCategoryAutoTranslate', 'aiCategoryAutoSummary',

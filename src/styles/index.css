@@ -374,6 +374,19 @@ html {
   border-radius: 4px;
 }
 
+/* Colonne de lecture limitée (préférence `limitReadingColumn`, désactivée
+   par défaut) : sans plafond, le texte court sur toute la largeur du
+   panneau et les images et vidéos suivent — sur un écran large, les lignes
+   dépassent largement les ~75 caractères lisibles et un média prend tout
+   le panneau. Le plafond centre la colonne ; l'espace restant devient la
+   marge latérale. Sur un écran étroit, le plafond ne change rien. La
+   largeur du plafond est au choix du lecteur (`readingColumnWidth`,
+   posée en variable par ReadingPane) ; 48 rem en est le défaut. */
+.article-enter.reading-column-limited {
+  max-width: var(--reading-column-width, 48rem);
+  margin-inline: auto;
+}
+
 /* Article content styles */
 .article-content a {
   color: var(--reading-link);
@@ -388,6 +401,11 @@ html {
 
 .article-content p {
   margin-bottom: 1em;
+}
+
+.article-content iframe,
+.article-content video {
+  max-width: 100%;
 }
 
 .article-content img {

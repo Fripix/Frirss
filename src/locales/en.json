@@ -316,7 +316,8 @@
       "sidebar": "Sidebar",
       "articleList": "Article list",
       "reading": "Reading",
-      "grid": "Grid"
+      "grid": "Grid",
+      "readingColumn": "Reading column"
     },
     "fontKeys": {
       "sidebar-feed": "Feed name",
@@ -585,6 +586,11 @@
     "listThumb": {
       "width": "Thumbnails",
       "hint": "Shown with the Preview density."
+    },
+    "readingColumn": {
+      "limit": "Limit column width",
+      "width": "Column width",
+      "limitHint": "Centers the article in a narrower column with wider margins; images and videos shrink with it. When off, the article fills the whole reading pane."
     },
     "resetTheme": "Reset",
     "resetThemeTooltip": "Undo the color and size changes made since the theme was last saved",

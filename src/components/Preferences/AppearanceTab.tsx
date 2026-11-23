@@ -11,6 +11,7 @@ import { hasRealHighlight, PREVIEW_ZONES } from './colorHighlight';
 import { READING_BODY_BOUNDS, MOBILE_READING_DEFAULT } from '../../lib/readingFontSize';
 import { GRID_CARD_WIDTH_MAX, GRID_CARD_WIDTH_MIN, GRID_CARD_WIDTH_STEP, GRID_IMAGE_RATIOS } from '../../lib/gridCards';
 import { LIST_THUMB_WIDTH_MAX, LIST_THUMB_WIDTH_MIN, LIST_THUMB_WIDTH_STEP } from '../../lib/listThumbnail';
+import { READING_COLUMN_WIDTH_DEFAULT, READING_COLUMN_WIDTH_MAX, READING_COLUMN_WIDTH_MIN, READING_COLUMN_WIDTH_STEP } from '../../lib/readingColumn';
 
 type Sub = 'theme' | 'colors' | 'sizes' | 'identity';
 
@@ -686,6 +687,8 @@ function SizesSection() {
   const { theme, setFontSize, resetFontSizes } = useThemeStore();
   const resetGridCards = useUiStore((s) => s.resetGridCards);
   const resetListThumb = useUiStore((s) => s.resetListThumb);
+  const setLimitReadingColumn = useUiStore((s) => s.setLimitReadingColumn);
+  const setReadingColumnWidth = useUiStore((s) => s.setReadingColumnWidth);
   // Sur un appareil tactile, le corps de lecture suit une taille propre à
   // l'appareil (celle de A− / A+), pas celle du thème : le curseur la règle.
   const touch = useBreakpoint() !== 'desktop';
@@ -738,6 +741,7 @@ function SizesSection() {
           </div>
         </div>
       ))}
+      <ReadingColumnSection />
       <GridCardsSection />
       <TabResetButton
         label={t('preferences.fonts.resetFonts')}
@@ -747,6 +751,8 @@ function SizesSection() {
           resetFontSizes();
           resetGridCards();
           resetListThumb();
+          setLimitReadingColumn(false);
+          setReadingColumnWidth(READING_COLUMN_WIDTH_DEFAULT);
           setDeviceBody(MOBILE_READING_DEFAULT);
         }}
       />
@@ -774,6 +780,56 @@ function ListThumbRow() {
       <p className="text-[11px] mt-1" style={{ color: 'var(--list-summary)' }}>
         {t('preferences.listThumb.hint')}
       </p>
+    </div>
+  );
+}
+
+/* Colonne de lecture limitée : réglage d'affichage, pas du thème — il reste
+   quand on change de thème, comme ceux de la grille ci-dessous. Un seul
+   interrupteur, dans la même ligne que « Remplir la ligne ». */
+function ReadingColumnSection() {
+  const { t } = useTranslation();
+  const limit = useUiStore((s) => s.limitReadingColumn);
+  const setLimit = useUiStore((s) => s.setLimitReadingColumn);
+  const width = useUiStore((s) => s.readingColumnWidth);
+  const setWidth = useUiStore((s) => s.setReadingColumnWidth);
+
+  return (
+    <div>
+      <h3
+        className="text-[11px] font-bold uppercase tracking-widest mb-2"
+        style={{ color: 'var(--list-summary)' }}
+      >
+        {t('preferences.fontSections.readingColumn')}
+      </h3>
+      <div className="space-y-2">
+        <div className="flex items-start justify-between gap-3">
+          <span className="text-xs min-w-0" style={{ color: 'var(--reading-text)' }}>
+            {t('preferences.readingColumn.limit')}
+            <span id="reading-column-limit-hint" className="block text-[11px] opacity-70 mt-0.5" style={{ color: 'var(--list-summary)' }}>
+              {t('preferences.readingColumn.limitHint')}
+            </span>
+          </span>
+          <span className="mt-0.5 shrink-0">
+            <ToggleSwitch
+              checked={limit}
+              onChange={(v: boolean) => setLimit(v)}
+              ariaLabel={t('preferences.readingColumn.limit')}
+              describedBy="reading-column-limit-hint"
+            />
+          </span>
+        </div>
+        {limit && (
+          <FontRow
+            label={t('preferences.readingColumn.width')}
+            value={String(width)}
+            min={READING_COLUMN_WIDTH_MIN}
+            max={READING_COLUMN_WIDTH_MAX}
+            step={READING_COLUMN_WIDTH_STEP}
+            onChange={(v) => setWidth(Number(v))}
+          />
+        )}
+      </div>
     </div>
   );
 }

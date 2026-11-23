@@ -316,7 +316,8 @@
       "sidebar": "侧边栏",
       "articleList": "文章列表",
       "reading": "阅读",
-      "grid": "网格"
+      "grid": "网格",
+      "readingColumn": "阅读栏"
     },
     "fontKeys": {
       "sidebar-feed": "订阅源名称",
@@ -585,6 +586,11 @@
     "listThumb": {
       "width": "缩略图",
       "hint": "在“预览”显示密度下显示。"
+    },
+    "readingColumn": {
+      "limit": "限制栏宽",
+      "width": "列宽",
+      "limitHint": "将文章居中显示在更窄的栏中，两侧留白更宽；图片和视频会随栏宽缩小。关闭时，文章占满整个阅读面板。"
     },
     "resetTheme": "重置",
     "resetThemeTooltip": "撤销自上次保存主题以来对颜色和尺寸的更改",

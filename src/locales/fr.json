@@ -316,7 +316,8 @@
       "sidebar": "Barre latérale",
       "articleList": "Liste d’articles",
       "reading": "Lecture",
-      "grid": "Grille"
+      "grid": "Grille",
+      "readingColumn": "Colonne de lecture"
     },
     "fontKeys": {
       "sidebar-feed": "Nom du flux",
@@ -585,6 +586,11 @@
     "listThumb": {
       "width": "Vignettes",
       "hint": "Visibles avec la densité Aperçu."
+    },
+    "readingColumn": {
+      "limit": "Limiter la largeur de la colonne",
+      "width": "Largeur de la colonne",
+      "limitHint": "Centre l’article dans une colonne plus étroite, aux marges plus larges ; les images et les vidéos rétrécissent avec elle. Désactivé, l’article occupe tout le panneau de lecture."
     },
     "resetTheme": "Réinitialiser",
     "resetThemeTooltip": "Annuler les modifications de couleurs et de tailles faites depuis le dernier enregistrement du thème",
