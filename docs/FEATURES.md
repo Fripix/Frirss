@@ -694,7 +694,9 @@ les listes (deux colonnes et côte à côte) ; la grille a ses propres réglages
 - **Bornée à la ligne** : `width: min(var(--list-thumb-w, 80px), max(80px,
   40%))`. Dans une liste étroite (téléphone à 320 px, colonne de la vue côte à
   côte), une vignette de 160 px écrasait le titre ; elle s'arrête à 40 % de la
-  ligne, et ne descend jamais sous les 80 px d'origine.
+  ligne, et ne descend jamais sous les 80 px d'origine. **`align-self:
+  flex-start`** : la ligne étire ses enfants, et une hauteur étirée l'emporte
+  sur `aspect-ratio` (80 × 138 au premier déploiement de test).
 - **Synchronisée, commune à tous les thèmes** (`UI_SYNC_KEYS`), comme la
   grille ; une valeur hors bornes retombe sur 80.
 - Tests : `listThumbnail.test.ts` (bornes et règle CSS),

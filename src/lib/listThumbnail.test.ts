@@ -37,6 +37,12 @@ describe('index.css — .article-row__thumb', () => {
     expect(rule).toMatch(/aspect-ratio:\s*5\s*\/\s*4/);
   });
 
+  // La ligne étire ses enfants (flex) : sans cela, la hauteur étirée gagnait
+  // sur le rapport et la vignette mesurait 80 × 138 au lieu de 80 × 64.
+  it('ne s’étire pas sur la hauteur de la ligne', () => {
+    expect(rule).toMatch(/align-self:\s*flex-start/);
+  });
+
   // Une grande vignette dans une liste étroite (téléphone, colonne de la vue
   // côte à côte) écrasait le titre : elle est bornée à une part de la ligne,
   // jamais sous les 80 px d'origine.
