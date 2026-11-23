@@ -47,6 +47,7 @@ docker run -d --name frirss \
 
 - Replace `Europe/Zurich` with their time zone.
 - `8080` is the port on their machine; if it is taken, use another (`-p 8081:80`) and use that port everywhere below.
+- Without a port mapping (`--network host`, `network_mode: host`, or a container with its own IP such as Unraid's `br0` or a macvlan network), `-p` does nothing and FriRSS listens on **80**. To use another port there, set `FRIRSS_PORT` (e.g. `-e FRIRSS_PORT=8081`; 1–65535, never 3001, which is the backend's internal port). Never use `PORT` for this: it is not a FriRSS setting. With a normal `-p` mapping, leave `FRIRSS_PORT` unset and change the left side.
 - If FreshRSS is on a private address or a Docker name (answer 1), add `-e PROXY_INTERNAL_HOSTS=<host>` before the image name — see [Connect FreshRSS](#connect-freshrss).
 - If a reverse proxy is **installed directly on the same machine** (not in Docker), publish the port on loopback only: `-p 127.0.0.1:8080:80`. Docker opens published ports past most host firewalls (ufw included), so a plain `-p 8080:80` is reachable from the internet on a server. If the proxy **runs in a container** (Nginx Proxy Manager, Traefik, Caddy in Docker), loopback is out of its reach: put FriRSS on the proxy's Docker network (`--network <name>`) and point the proxy at `http://frirss:80`.
 - **Run every later `docker run` from the same folder.** `$PWD/frirss-data` is relative to it: from another folder, Docker creates an empty data folder and FriRSS starts as a brand-new instance.
@@ -136,6 +137,7 @@ Only if they want it:
 | `403` with a **public** FreshRSS URL | The name resolves to a private address on their network | `PROXY_INTERNAL_HOSTS=<that host name>` |
 | The FreshRSS address was `http://localhost:…` | `localhost` is the FriRSS container | Use the machine's LAN address, or the Docker name on a shared network |
 | `docker run` says the port is already allocated | Another service uses 8080 | `-p 8081:80` (or any free port) |
+| Container stops at once, `docker logs` names `FRIRSS_PORT` | Not a port number, or 3001 | A number from 1 to 65535 other than 3001, or remove the variable |
 | `no matching manifest for linux/arm/v7` when pulling | 32-bit OS (Raspberry Pi) | A 64-bit OS (`dpkg --print-architecture` → `arm64`) |
 | Health check gives no answer | The container is not running, or started less than 15 s ago | `docker ps -a`, `docker logs frirss` |
 | Files in the data folder owned by an unexpected user | The NAS expects a given user | `PUID` / `PGID` (`id -u`, `id -g`; Unraid: 99 / 100) |
@@ -167,6 +169,7 @@ All optional. `docker run`: `-e NAME=value` before the image name. Compose: unde
 | `PROXY_INTERNAL_HOSTS` | Private hosts the backend may reach, comma-separated, host only. Needed when FreshRSS is on a LAN or Docker address | — |
 | `PROXY_REWRITES` | Public→internal URL rewrites (`from=to`, comma-separated), e.g. `https://rss.example.com=http://freshrss:80` | — |
 | `CORS_ORIGIN` | Allowed CORS origin(s); only for split front/back deployments, almost never needed | — |
+| `FRIRSS_PORT` | Port FriRSS listens on inside the container (1–65535, not 3001). Only without a port mapping (host network, Unraid `br0`, macvlan); with `-p`, change the host side instead | `80` |
 | `REDIS_URL` | Enables the Redis cache, e.g. `redis://redis:6379`; empty disables it | — |
 | `CACHE_ARTICLES_PER_FEED` | Articles kept per feed in the cache | `50` |
 | `CACHE_TTL` | Cache key expiry, in seconds | `86400` |

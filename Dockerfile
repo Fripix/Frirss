@@ -92,11 +92,13 @@ VOLUME /app/data
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 
+# 80 by default; FRIRSS_PORT moves it (see docker-entrypoint.sh).
 EXPOSE 80
 
 # Use 127.0.0.1 (not localhost): inside the container localhost resolves to
 # IPv6 ::1, where nginx doesn't listen → the check would always fail.
+# The port follows FRIRSS_PORT, or a container on another port looks unhealthy.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD wget -qO- http://127.0.0.1:80/api/health >/dev/null 2>&1 || exit 1
+  CMD wget -qO- "http://127.0.0.1:${FRIRSS_PORT:-80}/api/health" >/dev/null 2>&1 || exit 1
 
 CMD ["/docker-entrypoint.sh"]

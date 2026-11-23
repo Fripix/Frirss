@@ -9254,8 +9254,23 @@ divergentes).
   root le temps d'adopter `/app/data` — toute installation antérieure l'a en
   root, et échouer dessus casserait chaque mise à jour — puis abaisse Node via
   `su-exec`.
-- **nginx garde sa répartition standard** : master root qui se lie au port 80,
-  workers abaissés au compte `nginx` par la directive `user`. Ce sont les
+- **Port d'écoute réglable** (1.9.2, issue #33) : `FRIRSS_PORT`, 80 par
+  défaut. Sert quand le conteneur n'a pas de correspondance de ports (réseau
+  « host », IP propre en macvlan ou `br0` d'Unraid) ; avec `-p`, on change le
+  côté hôte. L'entrypoint valide la valeur (1–65535, pas 3001), puis réécrit
+  la seule ligne `listen` de `/etc/nginx/http.d/default.conf`, et seulement si
+  elle diffère : idempotent au redémarrage, aucune écriture dans le cas
+  habituel. Une valeur invalide arrête le démarrage avec un message, plutôt
+  qu'un repli silencieux sur 80. Le `HEALTHCHECK` lit la même variable : il
+  interrogeait `:80` en dur, et un conteneur sur un autre port aurait passé
+  pour malade. **Node reste fixé à 3001** (`PORT=3001` posé par
+  l'entrypoint) : `server/index.ts` lit `PORT`, nginx envoie l'API sur 3001 en
+  dur, et un `PORT=8081` tenté pour changer le port public déplaçait Node et
+  cassait toute l'API. Garde-fous : `server/test/containerPort.test.ts` et
+  l'étape « Assert FRIRSS_PORT moves nginx and its health check » du job
+  `docker` de la CI (réseau host, port 8089, valeurs refusées).
+- **nginx garde sa répartition standard** : master root qui se lie à son port
+  (80 par défaut), workers abaissés au compte `nginx` par la directive `user`. Ce sont les
   workers qui touchent aux données des requêtes.
 - **Piège — ne pas « finir le travail » en rendant le master non privilégié.**
   Ça marche, avec `cap_net_bind_service` posée sur le binaire, et c'est ce qui

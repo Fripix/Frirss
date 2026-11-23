@@ -42,6 +42,7 @@ docker run -d --name frirss \
 
 - Replace `Europe/Zurich` with your [time zone](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones).
 - `8080` is the port on your machine: change it if something already uses it.
+- **No port mapping** (`--network host`, or a container with its own IP such as Unraid's `br0`)? FriRSS listens on port 80; set `-e FRIRSS_PORT=8081` to use another one.
 - **FreshRSS on your home network?** Add `-e PROXY_INTERNAL_HOSTS=<its host or IP only>` (e.g. `192.168.1.20`) before the image name — see step 3.
 - The same image is on Docker Hub as `fripix/frirss:latest`.
 

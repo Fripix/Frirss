@@ -15,3 +15,16 @@ la release publiée.
 > Pour la 1.4.12, le menu du clic droit passé aux icônes et groupes, et le
 > correctif de la feuille du bas sur iOS, manquaient tous deux au journal : ni
 > l'un ni l'autre n'avait touché `en.json`. Relire aussi `git log`.
+
+## Fonctionnalités
+
+- **Le port d'écoute du conteneur se règle** avec `FRIRSS_PORT` (80 par
+  défaut). Utile quand le conteneur n'a pas de correspondance de ports :
+  réseau « host », ou une IP à lui (`br0` d'Unraid, macvlan). Avec `-p`, rien
+  ne change. Une valeur invalide arrête le conteneur avec un message dans
+  `docker logs`. Issue #33.
+
+## Sous le capot
+
+- **Une variable `PORT` ne casse plus l'API** : elle déplaçait le serveur Node
+  interne hors du port 3001 où nginx l'attend. Le conteneur le fixe désormais.

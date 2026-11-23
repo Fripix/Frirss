@@ -203,6 +203,41 @@ jobs:
             exit 1
           fi
 
+      # FRIRSS_PORT (#33) : en réseau « host », `-p` ne s'applique pas et nginx
+      # doit écouter là où on le lui dit. Le contrôle de santé de l'image doit
+      # suivre (il interrogeait :80 en dur), une variable PORT ne doit pas
+      # déplacer Node hors de 3001, et une valeur invalide doit arrêter le
+      # démarrage au lieu de retomber sur 80 sans rien dire.
+      - name: Assert FRIRSS_PORT moves nginx and its health check
+        run: |
+          docker run -d --name frirss-port --network host \
+            -e FRIRSS_PORT=8089 -e PORT=8090 frirss:ci
+          ok=no
+          for i in $(seq 1 30); do
+            status=$(docker inspect --format '{{.State.Health.Status}}' frirss-port)
+            if [ "$status" = "healthy" ] && curl -fsS http://127.0.0.1:8089/api/health | grep -q '"status":"ok"'; then
+              ok=yes; break
+            fi
+            sleep 3
+          done
+          if [ "$ok" != yes ]; then
+            echo "::error::container on FRIRSS_PORT=8089 is not healthy (status: $status)"
+            docker logs frirss-port; exit 1
+          fi
+          if curl -fsS -o /dev/null http://127.0.0.1:80/ 2>/dev/null; then
+            echo "::error::nginx still answers on 80 with FRIRSS_PORT=8089"
+            exit 1
+          fi
+          docker rm -f frirss-port
+          for bad in abc 0 70000 3001; do
+            if docker run --rm -e FRIRSS_PORT=$bad frirss:ci >/tmp/port.log 2>&1; then
+              echo "::error::FRIRSS_PORT=$bad was accepted"
+              exit 1
+            fi
+            grep -q 'FRIRSS_PORT' /tmp/port.log || { echo "::error::no message for FRIRSS_PORT=$bad"; cat /tmp/port.log; exit 1; }
+          done
+          echo "FRIRSS_PORT moves nginx and the health check, PORT cannot move Node, bad values stop the start"
+
       - name: Stop container
         if: always()
-        run: docker rm -f frirss || true
+        run: docker rm -f frirss frirss-port || true
