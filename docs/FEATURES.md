@@ -489,6 +489,20 @@ tard » l'y classe — **à la souris seulement** (au doigt, l'appui long ouvre
 le menu ; voir *Menu d'un article*, piège Chrome Android).
 
 - **Où** : `src/components/Sidebar/Sidebar.tsx`, `src/stores/uiStore.ts`
+- **Icônes des flux** (`src/components/FeedFavicon.tsx`, `src/lib/faviconCache.ts`) :
+  l'`iconUrl` de FreshRSS (`f.php?h=…`) passe par le client authentifié et
+  se garde en `data:` dans le `localStorage` (`frirss_favicon:<url>`) : affichée
+  dès le premier rendu après un rechargement, sans éclair. Repli sur une
+  pastille-lettre si rien ne charge. **Revérifiée chaque semaine** (1.9.2) :
+  une icône gardée depuis plus de 7 jours, ou sans date (gardée avant la
+  1.9.2, `frirss_faviconChecked`), reste affichée et se redemande une fois en
+  arrière-plan, une requête par adresse et par session (`refreshFavicon`) ;
+  un échec garde l'ancienne. Avant, elle était gardée pour toujours : un
+  navigateur qui avait chargé les icônes pendant que FreshRSS servait son
+  **icône par défaut** (un globe, en 200, pour une adresse qu'il n'a pas —
+  après le passage de ses adresses de 8 à 11 caractères) gardait le globe,
+  alors que FreshRSS avait depuis la vraie icône (REG-256). Tests :
+  `faviconCache.test.ts`, `FeedFavicon.test.tsx`.
 - **« Ajouter un flux » dans le tiroir du téléphone** (1.9.0) : le libellé
   est **dans** le bouton, contre son « + », à droite de la ligne ; toute la
   pastille « Ajouter un flux + » se touche. Seul à gauche, il suivait

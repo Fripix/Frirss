@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getFavicon, setFavicon, blobToDataUrl } from '../lib/faviconCache';
+import { getFavicon, setFavicon, blobToDataUrl, faviconIsStale, refreshFavicon } from '../lib/faviconCache';
 import { readableTextOn } from '../lib/readableText';
 import client from '../api/client';
 
@@ -57,6 +57,20 @@ export function LetterAvatar({ title, size = 14 }: { title?: string; size?: numb
   );
 }
 
+/**
+ * L'icône par le client authentifié (proxy + jeton), en `data:` gardable ;
+ * `null` si la réponse n'est pas une image (page d'erreur HTML) ou échoue.
+ */
+async function fetchFaviconDataUrl(iconUrl: string): Promise<string | null> {
+  try {
+    const response = await client.get<Blob>(iconUrl, { responseType: 'blob' });
+    if (!response.data.type || !response.data.type.startsWith('image')) return null;
+    return await blobToDataUrl(response.data);
+  } catch {
+    return null;
+  }
+}
+
 export default function FeedFavicon({ iconUrl, title, size = 14 }: { iconUrl?: string; title?: string; size?: number }) {
   // Seed synchronously from the persistent cache → the icon paints on the
   // first frame after a reload, with no flash and no re-fetch.
@@ -69,30 +83,33 @@ export default function FeedFavicon({ iconUrl, title, size = 14 }: { iconUrl?: s
       return;
     }
 
-    // Already resolved (this session or a previous one).
+    let cancelled = false;
+
+    // Already resolved (this session or a previous one): shown at once. A
+    // kept `data:` icon is asked again in the background once it is a week
+    // old (or undated, from before 1.9.2) — FreshRSS's default globe used to
+    // stay forever (`refreshFavicon`). A directly-loadable URL needs nothing:
+    // the browser revalidates it itself.
     const cached = getFavicon(iconUrl);
     if (cached) {
       setSrc(cached);
       setFailed(false);
-      return;
+      if (cached.startsWith('data:') && faviconIsStale(iconUrl)) {
+        void refreshFavicon(iconUrl, fetchFaviconDataUrl).then((fresh) => {
+          if (!cancelled && fresh) setSrc(fresh);
+        });
+      }
+      return () => { cancelled = true; };
     }
-
-    let cancelled = false;
 
     // Strategy 1: fetch through the authenticated client (proxy + auth), then
     // persist as a data URL so it survives reloads.
-    client
-      .get<Blob>(iconUrl, { responseType: 'blob' })
-      .then(async (response) => {
-        // Check that we got an image (not an HTML error page)
-        if (response.data.type && response.data.type.startsWith('image')) {
-          const dataUrl = await blobToDataUrl(response.data);
-          if (cancelled) return;
-          setFavicon(iconUrl, dataUrl);
-          setSrc(dataUrl);
-        } else {
-          throw new Error('Not an image');
-        }
+    fetchFaviconDataUrl(iconUrl)
+      .then((dataUrl) => {
+        if (!dataUrl) throw new Error('Not an image');
+        if (cancelled) return;
+        setFavicon(iconUrl, dataUrl);
+        setSrc(dataUrl);
       })
       .catch(() => {
         if (cancelled) return;

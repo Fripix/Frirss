@@ -41,6 +41,10 @@ la release publiée.
   interne hors du port 3001 où nginx l'attend. Le conteneur le fixe désormais.
 - **Les vidéos d'un article ne débordent plus du panneau de lecture** (même
   colonne non limitée), venu avec la PR #32.
+- **Les icônes des flux se réparent seules** : un navigateur qui affichait un
+  globe à la place de la plupart des icônes (l'icône par défaut de FreshRSS,
+  gardée pour toujours) les retrouve au prochain chargement ; ensuite, chaque
+  icône est revérifiée une fois par semaine, en arrière-plan.
 - **Une adresse web très longue dans un article se coupe** au lieu de sortir
   de la colonne de lecture (et de l'écran d'un téléphone), où elle était rognée.
 - **Le balayage entre articles (téléphone, tablette) montre l'article tel
