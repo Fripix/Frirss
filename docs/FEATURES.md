@@ -9408,6 +9408,17 @@ divergentes).
   celle de nginx sur le corps compressé : une trentaine d'octets en brotli
   devenaient 5 Mo analysés, avant toute authentification. Aucun client de
   FriRSS n'envoie de corps compressé.
+- **Imbrication bornée à 64 niveaux** (1.9.2, `server/jsonDepth.ts`) : mesurée
+  sur le texte, avant toute analyse — `verify` d'`express.json` (corps reçus,
+  restauration comprise → 400 `invalid_json`, `code: too_deep`), réponses
+  FreshRSS mises en cache (`cacheableEntry`, `trimStreamJson` : pas de copie),
+  contenu déchiffré d'une sauvegarde. Trouvé au passage à Node 26 : V8 y
+  sérialise une imbrication de 4 millions de niveaux que Node 24 refusait
+  aussitôt, et une réponse piégée de 8 Mo bloquait le serveur 4,1 s à la
+  réécriture pour le cache (4 ms sous Node 24). Un serveur FreshRSS est choisi
+  par chaque compte : c'était à portée de n'importe quel utilisateur. Une vraie
+  réponse, des préférences ou une sauvegarde tiennent en une dizaine de
+  niveaux. Tests : `jsonDepth.test.ts`, `cache.test.ts`, `api.test.ts`.
 - **Délai de lecture** : `proxy_read_timeout 120s` sur `/api/`. Un résumé IA
   tient jusqu'à 50 s, un lot de traduction jusqu'à 110 s (échéance
   proportionnelle au lot, plafonnée 10 s sous ce délai ; voir « Résumés et

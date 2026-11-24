@@ -82,6 +82,17 @@ describe('api error responses', () => {
     expect(res.body).toEqual({ error: 'invalid_json' });
   });
 
+  // Node 26 : une imbrication extrême se sérialise en secondes au lieu
+  // d'échouer aussitôt (réglages réécrits, sauvegarde restaurée). Refusée
+  // avant l'analyse, sur le texte (`jsonTooDeep`).
+  it('answers a too deeply nested body with JSON 400, before parsing it', async () => {
+    const deep = '['.repeat(100_000) + ']'.repeat(100_000);
+    const res = await request(app).post('/api/auth/login')
+      .set('Content-Type', 'application/json').send(`{"username":${deep}}`);
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: 'invalid_json', code: 'too_deep' });
+  });
+
   it('answers an oversized body with JSON 413', async () => {
     const res = await request(app).post('/api/auth/login')
       .set('Content-Type', 'application/json')

@@ -1,3 +1,4 @@
+import { rejectTooDeep, JSON_TOO_DEEP } from './jsonBody.js';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -65,7 +66,7 @@ if (process.env.CORS_ORIGIN) {
 // `inflate: false` : aucun client n'envoie de corps compressé, et un corps
 // compressé contourne toute limite de taille (32 octets en brotli donnaient
 // 4,9 Mo analysés).
-const json = express.json({ limit: '5mb', inflate: false }); // allow logo uploads
+const json = express.json({ limit: '5mb', inflate: false, verify: rejectTooDeep }); // allow logo uploads
 app.use((req, res, next) => (RESTORE_PATH.test(req.path) ? next() : json(req, res, next)));
 
 // ── Request logging ──────────────────────────────────────────────────
@@ -140,6 +141,8 @@ app.use((err: unknown, req: express.Request, res: express.Response, next: expres
   const type = (err as { type?: string } | null)?.type;
   if (type === 'entity.parse.failed') {
     res.status(400).json({ error: 'invalid_json' });
+  } else if (type === JSON_TOO_DEEP) {
+    res.status(400).json({ error: 'invalid_json', code: 'too_deep' });
   } else if (type === 'entity.too.large') {
     // Le code dit que le refus vient de FriRSS : un 413 sans code vient d'un
     // proxy placé devant, dont la limite est à relever (`backupErrors.ts`).

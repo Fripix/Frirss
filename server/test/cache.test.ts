@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import fs from 'fs';
 import path from 'path';
-import { extractKey, cacheKey, serverCacheIdentity, userCachePattern, serverCachePattern, cacheableEntry, claimCacheRead, MAX_CACHED_ENTRY_BYTES, MAX_CACHE_READS_AT_ONCE, MAX_CACHE_READ_BYTES_PER_MINUTE } from '../cache.js';
+import { extractKey, cacheKey, serverCacheIdentity, userCachePattern, serverCachePattern, cacheableEntry, trimStreamJson, claimCacheRead, MAX_CACHED_ENTRY_BYTES, MAX_CACHE_READS_AT_ONCE, MAX_CACHE_READ_BYTES_PER_MINUTE } from '../cache.js';
 import { EXTRACT_VERSION } from '../extractVersion.js';
 import { EXTRACT_VERSION as CLIENT_EXTRACT_VERSION } from '../../src/lib/extractVersion.js';
 
@@ -181,15 +181,23 @@ describe('claimCacheRead', () => {
 });
 
 describe('cacheableEntry, imbrication extrême', () => {
-  // Ce qui compte : ne jamais lever, la réponse est déjà partie. Sous Node 24,
-  // `JSON.stringify` d'une imbrication de 4 millions de niveaux levait et
-  // l'entrée valait `null` ; Node 26 la sérialise, et l'entrée réduite est
-  // alors correcte. Le test tenait le comportement d'un seul moteur.
-  it('ne lève pas : null, ou l’entrée réduite si le moteur sait la sérialiser', () => {
+  // Ne jamais lever (la réponse est déjà partie), et ne pas bloquer le
+  // serveur : sous Node 26, `JSON.stringify` de cette imbrication prenait
+  // 4,1 s au lieu d'échouer en 4 ms (Node 24). Refusée sur le texte, avant
+  // toute analyse, quel que soit le moteur.
+  it('rend null vite, sans analyser : la réponse est déjà partie', () => {
     const deep = `${'['.repeat(4_000_000)}${']'.repeat(4_000_000)}`;
     const body = `{"items":[${Array(60).fill('1').join(',')}],"x":${deep}}`;
-    let out: string | null = null;
-    expect(() => { out = cacheableEntry(body); }).not.toThrow();
-    if (out !== null) expect((JSON.parse(out) as { items: unknown[] }).items).toHaveLength(50);
+    const t = performance.now();
+    expect(cacheableEntry(body)).toBeNull();
+    expect(performance.now() - t).toBeLessThan(500);
+  });
+
+  it('trimStreamJson laisse une réponse trop imbriquée telle quelle, sans l’analyser', () => {
+    const deep = `${'['.repeat(4_000_000)}${']'.repeat(4_000_000)}`;
+    const body = `{"items":[${Array(60).fill('1').join(',')}],"x":${deep}}`;
+    const t = performance.now();
+    expect(trimStreamJson(body)).toBe(body);
+    expect(performance.now() - t).toBeLessThan(500);
   });
 });

@@ -1,3 +1,4 @@
+import { jsonTooDeep } from './jsonDepth.js';
 import { Redis } from 'ioredis';
 import { createHash } from 'crypto';
 import { EXTRACT_VERSION } from './extractVersion.js';
@@ -194,6 +195,8 @@ export async function cacheSet(key: string, value: string, ttl = TTL_SECONDS): P
  * (keeps the most recent — the API already returns newest-first).
  */
 export function trimStreamJson(jsonString: string, max = MAX_PER_FEED): string {
+  // Imbrication extrême : ni analyse ni réécriture (`jsonTooDeep`, Node 26).
+  if (jsonTooDeep(jsonString)) return jsonString;
   try {
     const obj = JSON.parse(jsonString) as { items?: unknown[] };
     if (Array.isArray(obj.items) && obj.items.length > max) {
@@ -231,6 +234,9 @@ export const MAX_CACHED_ENTRY_BYTES = 8 * 1024 * 1024;
 export function cacheableEntry(body: string, max = MAX_PER_FEED, maxBytes = MAX_CACHED_ENTRY_BYTES): string | null {
   if (Buffer.byteLength(body) > maxBytes) return null;
   const text = body.charCodeAt(0) === 0xfeff ? body.slice(1) : body;
+  // Avant l'analyse : sous Node 26, la réécriture d'une imbrication extrême
+  // bloquait le serveur 4 s au lieu d'échouer (`jsonTooDeep`).
+  if (jsonTooDeep(text)) return null;
   let parsed: unknown;
   try { parsed = JSON.parse(text); } catch { return null; }
   if (parsed === null || typeof parsed !== 'object') return null;

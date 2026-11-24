@@ -1,3 +1,4 @@
+import { jsonTooDeep } from './jsonDepth.js';
 import { randomBytes, scryptSync, createCipheriv, createDecipheriv } from 'crypto';
 
 export const BACKUP_FORMAT = 'frirss-backup';
@@ -185,6 +186,8 @@ export function readBackup(envelope: unknown, passphrase: string): OpenedBackup 
       decipher.update(Buffer.from(e.payload, 'base64')),
       decipher.final(),
     ]).toString('utf8');
+    // Contenu déchiffré : même garde que tout corps JSON reçu (`jsonTooDeep`).
+    if (jsonTooDeep(plain)) throw new Error('too deep');
     const payload: unknown = JSON.parse(plain);
     return authenticated
       ? { payload, createdAt: e.createdAt as string, appVersion: e.appVersion as string }

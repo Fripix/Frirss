@@ -1,3 +1,4 @@
+import { rejectTooDeep } from '../jsonBody.js';
 import express, { Router, type Request, type Response, type NextFunction } from 'express';
 import rateLimit from 'express-rate-limit';
 import { userCount } from '../db.js';
@@ -141,7 +142,7 @@ export const RESTORE_PATH = /^\/api\/(admin|setup)\/restore(\/preview)?\/?$/i;
  * Node. `inflate: false` : le client n'envoie jamais de corps compressé, et la
  * limite de nginx, elle, porte sur le corps compressé.
  */
-const restoreJson = express.json({ limit: MAX_BACKUP_BYTES, inflate: false });
+const restoreJson = express.json({ limit: MAX_BACKUP_BYTES, inflate: false, verify: rejectTooDeep });
 
 let restoreBusy = false;
 /**
