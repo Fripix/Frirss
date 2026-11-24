@@ -45,8 +45,10 @@ fi
 # et cette image casserait alors là où elle fonctionnait avant.
 nginx
 
-# Node écoute toujours sur 3001, où nginx lui envoie l'API : une variable PORT
-# posée pour changer le port public le déplaçait et cassait toute l'API.
+# Node écoute toujours sur 127.0.0.1:3001, où nginx lui envoie l'API : une
+# variable PORT posée pour changer le port public le déplaçait et cassait toute
+# l'API ; et en réseau « host », écouter partout exposait le 3001 sans nginx
+# (limites de connexion contournables). Seul nginx a besoin de Node.
 #
 # Node, lui, exécute le code applicatif, analyse du contenu non fiable et détient
 # la base — c'est là que root coûtait cher. Il tourne donc sans privilèges.
@@ -56,9 +58,9 @@ if [ "$(id -u)" = "0" ]; then
   mkdir -p /app/data
   chown -R "$PUID:$PGID" /app/data
   # shellcheck disable=SC2086
-  NODE_ENV=production PORT=3001 exec su-exec "$PUID:$PGID" node server-dist/index.js
+  NODE_ENV=production PORT=3001 FRIRSS_BACKEND_HOST=127.0.0.1 exec su-exec "$PUID:$PGID" node server-dist/index.js
 fi
 
 # Déjà non privilégié (`docker run --user`) : rien à abandonner, et le chown
 # échouerait. On fait confiance à l'opérateur qui a choisi cet utilisateur.
-NODE_ENV=production PORT=3001 exec node server-dist/index.js
+NODE_ENV=production PORT=3001 FRIRSS_BACKEND_HOST=127.0.0.1 exec node server-dist/index.js

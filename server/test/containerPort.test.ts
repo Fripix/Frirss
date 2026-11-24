@@ -45,3 +45,30 @@ describe('FRIRSS_PORT — port d’écoute de nginx', () => {
     expect(entrypoint).toMatch(/FRIRSS_PORT[^\n]*3001|3001[^\n]*FRIRSS_PORT/);
   });
 });
+
+// M2, campagne 1.9.2 : en réseau « host » ou avec une IP propre (les
+// déploiements de FRIRSS_PORT), Node écoutait sur toutes les interfaces : le
+// 3001 était joignable sans nginx, et `trust proxy` croyait le
+// `X-Forwarded-For` du premier venu, ce qui contournait les limites par IP
+// (connexion, inscription, sauvegarde). Seul nginx a besoin de Node, par
+// 127.0.0.1 : l'image l'y attache. Le comportement réel est vérifié par le
+// job `docker` de la CI.
+describe('Node écoute seulement l’intérieur du conteneur', () => {
+  const server = fs.readFileSync(path.join(root, 'server/index.ts'), 'utf8');
+
+  it('l’entrypoint attache Node à 127.0.0.1, à côté du port 3001', () => {
+    const nodeLaunches = entrypoint.split('\n').filter((l) => /exec .*node server-dist\/index\.js/.test(l));
+    expect(nodeLaunches.length).toBe(2);
+    for (const line of nodeLaunches) expect(line).toMatch(/FRIRSS_BACKEND_HOST=127\.0\.0\.1 /);
+  });
+
+  it('le serveur écoute sur cette adresse quand elle est donnée, partout sinon (développement)', () => {
+    expect(server).toMatch(/app\.listen\(Number\(PORT\), BACKEND_HOST/);
+    expect(server).toMatch(/const BACKEND_HOST = process\.env\.FRIRSS_BACKEND_HOST \|\| undefined/);
+  });
+
+  it('nginx joint bien Node par 127.0.0.1', () => {
+    expect(nginxConf).not.toMatch(/proxy_pass http:\/\/(localhost|\[::1\]):3001/);
+    expect(nginxConf.match(/proxy_pass http:\/\/127\.0\.0\.1:3001;/g)?.length).toBeGreaterThan(0);
+  });
+});

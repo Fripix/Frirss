@@ -228,6 +228,18 @@ jobs:
             echo "::error::nginx still answers on 80 with FRIRSS_PORT=8089"
             exit 1
           fi
+          # M2 : seul nginx joint Node. Depuis l'adresse réseau de la machine,
+          # nginx répond et le 3001 refuse ; sinon les limites par IP de
+          # connexion se contournent en parlant à Node sans nginx.
+          ip=$(hostname -I | awk '{print $1}')
+          if ! curl -fsS -m 5 "http://$ip:8089/api/health" | grep -q '"status":"ok"'; then
+            echo "::error::nginx does not answer on $ip:8089"
+            exit 1
+          fi
+          if curl -sS -m 5 -o /dev/null "http://$ip:3001/api/health" 2>/dev/null; then
+            echo "::error::the backend answers on $ip:3001 without nginx"
+            exit 1
+          fi
           docker rm -f frirss-port
           for bad in abc 0 70000 3001; do
             if docker run --rm -e FRIRSS_PORT=$bad frirss:ci >/tmp/port.log 2>&1; then
@@ -236,7 +248,7 @@ jobs:
             fi
             grep -q 'FRIRSS_PORT' /tmp/port.log || { echo "::error::no message for FRIRSS_PORT=$bad"; cat /tmp/port.log; exit 1; }
           done
-          echo "FRIRSS_PORT moves nginx and the health check, PORT cannot move Node, bad values stop the start"
+          echo "FRIRSS_PORT moves nginx and the health check, PORT cannot move Node, Node is not reachable without nginx, bad values stop the start"
 
       - name: Stop container
         if: always()

@@ -9364,9 +9364,18 @@ divergentes).
   pour malade. **Node reste fixé à 3001** (`PORT=3001` posé par
   l'entrypoint) : `server/index.ts` lit `PORT`, nginx envoie l'API sur 3001 en
   dur, et un `PORT=8081` tenté pour changer le port public déplaçait Node et
-  cassait toute l'API. Garde-fous : `server/test/containerPort.test.ts` et
-  l'étape « Assert FRIRSS_PORT moves nginx and its health check » du job
-  `docker` de la CI (réseau host, port 8089, valeurs refusées).
+  cassait toute l'API. **Et seulement sur 127.0.0.1** (1.9.2, M2 de la
+  campagne : `FRIRSS_BACKEND_HOST=127.0.0.1` posé par l'entrypoint,
+  `server/index.ts` écoute partout sans elle, en développement) : en réseau
+  host ou avec une IP propre, Node écoutait sur toutes les interfaces, le 3001
+  était joignable sans nginx et `trust proxy` croyait le `X-Forwarded-For` de
+  n'importe qui (sonde : 40 essais de connexion, 40 × 401, jamais 429). Seul
+  nginx joint Node, par 127.0.0.1. Conséquence en réseau host : le
+  `127.0.0.1:3001` de l'hôte doit être libre (docs). Garde-fous :
+  `server/test/containerPort.test.ts` et l'étape « Assert FRIRSS_PORT moves
+  nginx and its health check » du job `docker` de la CI (réseau host, port
+  8089, nginx répond sur l'adresse réseau de la machine et le 3001 refuse,
+  valeurs refusées).
 - **nginx garde sa répartition standard** : master root qui se lie à son port
   (80 par défaut), workers abaissés au compte `nginx` par la directive `user`. Ce sont les
   workers qui touchent aux données des requêtes.

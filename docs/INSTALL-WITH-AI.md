@@ -138,6 +138,7 @@ Only if they want it:
 | The FreshRSS address was `http://localhost:…` | `localhost` is the FriRSS container | Use the machine's LAN address, or the Docker name on a shared network |
 | `docker run` says the port is already allocated | Another service uses 8080 | `-p 8081:80` (or any free port) |
 | Container stops at once, `docker logs` names `FRIRSS_PORT` | Not a port number, or 3001 | A number from 1 to 65535 other than 3001, or remove the variable |
+| Host networking: the container stops at once (or restarts in a loop), `docker logs` shows `EADDRINUSE` with port 3001 | Another program on the host already uses port 3001 | Free port 3001 on the host, or run FriRSS with a normal `-p` port mapping |
 | `no matching manifest for linux/arm/v7` when pulling | 32-bit OS (Raspberry Pi) | A 64-bit OS (`dpkg --print-architecture` → `arm64`) |
 | Health check gives no answer | The container is not running, or started less than 15 s ago | `docker ps -a`, `docker logs frirss` |
 | Files in the data folder owned by an unexpected user | The NAS expects a given user | `PUID` / `PGID` (`id -u`, `id -g`; Unraid: 99 / 100) |
@@ -169,7 +170,7 @@ All optional. `docker run`: `-e NAME=value` before the image name. Compose: unde
 | `PROXY_INTERNAL_HOSTS` | Private hosts the backend may reach, comma-separated, host only. Needed when FreshRSS is on a LAN or Docker address | — |
 | `PROXY_REWRITES` | Public→internal URL rewrites (`from=to`, comma-separated), e.g. `https://rss.example.com=http://freshrss:80` | — |
 | `CORS_ORIGIN` | Allowed CORS origin(s); only for split front/back deployments, almost never needed | — |
-| `FRIRSS_PORT` | Port FriRSS listens on inside the container (1–65535, not 3001). Only without a port mapping (host network, Unraid `br0`, macvlan); with `-p`, change the host side instead | `80` |
+| `FRIRSS_PORT` | Port FriRSS listens on inside the container (1–65535, not 3001). Only without a port mapping (host network, Unraid `br0`, macvlan); with `-p`, change the host side instead. With host networking, `127.0.0.1:3001` on the host must also be free (internal backend) | `80` |
 | `REDIS_URL` | Enables the Redis cache, e.g. `redis://redis:6379`; empty disables it | — |
 | `CACHE_ARTICLES_PER_FEED` | Articles kept per feed in the cache | `50` |
 | `CACHE_TTL` | Cache key expiry, in seconds | `86400` |

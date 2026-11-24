@@ -37,6 +37,11 @@ la release publiée.
 
 ## Sous le capot
 
+- **Le serveur interne n'écoute plus que l'intérieur du conteneur**
+  (127.0.0.1:3001) : en réseau « host » ou avec une IP propre, il était
+  joignable sans nginx, et la limite de tentatives de connexion se contournait.
+  Rien ne change avec une correspondance de ports classique. En réseau host,
+  le port 3001 de la machine doit être libre.
 - **Une variable `PORT` ne casse plus l'API** : elle déplaçait le serveur Node
   interne hors du port 3001 où nginx l'attend. Le conteneur le fixe désormais.
 - **Les vidéos d'un article ne débordent plus du panneau de lecture** (même

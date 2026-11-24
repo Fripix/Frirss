@@ -23,7 +23,7 @@ When FreshRSS lives on your local network or in Docker, or when FriRSS sits behi
 | `PROXY_INTERNAL_HOSTS` | Anti-SSRF allowlist: private hosts the proxy may reach directly, comma-separated. Needed when FreshRSS sits on a LAN or Docker address. The OIDC issuer host is trusted automatically | — |
 | `PROXY_REWRITES` | public→internal URL rewrites for the backend proxy (`from=to`, comma-separated) | — |
 | `CORS_ORIGIN` | Allowed CORS origin(s) — only for split front/back deployments | — |
-| `FRIRSS_PORT` | Port FriRSS listens on **inside** the container (1–65535, not 3001). Only needed when the container has no port mapping: `network_mode: host`, or its own IP (macvlan, Unraid `br0`). With `-p`, change the host side instead (`-p 8081:80`) and leave this unset. An invalid value stops the container with a message in `docker logs` | `80` |
+| `FRIRSS_PORT` | Port FriRSS listens on **inside** the container (1–65535, not 3001). Only needed when the container has no port mapping: `network_mode: host`, or its own IP (macvlan, Unraid `br0`). With `-p`, change the host side instead (`-p 8081:80`) and leave this unset. An invalid value stops the container with a message in `docker logs`. With host networking the backend also uses `127.0.0.1:3001` on the host, inside the container: that port must be free | `80` |
 
 ## Cache (Redis)
 

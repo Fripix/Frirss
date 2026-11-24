@@ -50,6 +50,9 @@ basics that matter:
   reverse proxy sits. Docker Desktop, rootless Docker and some IPv6 setups make
   direct visitors arrive from a private address too: they could then announce
   any address and get past the login limit.
+- The backend inside the container listens on `127.0.0.1:3001` only: with host
+  networking or a container IP of its own, it is not reachable without the
+  bundled nginx.
 - Back up the `/app/data` volume — it holds the database, the JWT secret and the
   token-encryption key (all generated on first launch).
 - The backend proxy blocks internal/private targets by default (anti-SSRF); only

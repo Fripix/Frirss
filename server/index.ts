@@ -25,6 +25,13 @@ migrateEncryptTokens();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 3001;
+// Adresse d'écoute. L'image la fixe à 127.0.0.1 (`docker-entrypoint.sh`) :
+// seul nginx, dans le même conteneur, joint Node. En réseau « host » ou avec
+// une IP propre, écouter partout rendait le 3001 joignable sans nginx, et
+// `trust proxy` croyait alors le `X-Forwarded-For` de n'importe qui (limites
+// par IP contournées, M2 de la campagne 1.9.2). Absente (développement,
+// `npm run dev`) : toutes les interfaces, comme avant.
+const BACKEND_HOST = process.env.FRIRSS_BACKEND_HOST || undefined;
 
 // Behind a reverse proxy (nginx/Traefik) in production → trust the first hop
 // so rate-limiting and req.protocol use the real client IP / scheme.
@@ -149,9 +156,11 @@ app.use((err: unknown, req: express.Request, res: express.Response, next: expres
 // ── Start ───────────────────────────────────────────────────────────
 // Skip the listener under test — supertest binds its own ephemeral port.
 if (process.env.NODE_ENV !== 'test') {
-  app.listen(PORT, () => {
-    console.log(`FriRSS backend listening on port ${PORT}`);
-  });
+  const onListen = () => {
+    console.log(`FriRSS backend listening on ${BACKEND_HOST ?? '*'}:${PORT}`);
+  };
+  if (BACKEND_HOST) app.listen(Number(PORT), BACKEND_HOST, onListen);
+  else app.listen(PORT, onListen);
   startBackgroundSync(); // no-op unless REDIS_URL + CACHE_SYNC_INTERVAL are set
 }
 
