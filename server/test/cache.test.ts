@@ -181,9 +181,15 @@ describe('claimCacheRead', () => {
 });
 
 describe('cacheableEntry, imbrication extrême', () => {
-  it('rend null au lieu de lever : la réponse est déjà partie', () => {
+  // Ce qui compte : ne jamais lever, la réponse est déjà partie. Sous Node 24,
+  // `JSON.stringify` d'une imbrication de 4 millions de niveaux levait et
+  // l'entrée valait `null` ; Node 26 la sérialise, et l'entrée réduite est
+  // alors correcte. Le test tenait le comportement d'un seul moteur.
+  it('ne lève pas : null, ou l’entrée réduite si le moteur sait la sérialiser', () => {
     const deep = `${'['.repeat(4_000_000)}${']'.repeat(4_000_000)}`;
     const body = `{"items":[${Array(60).fill('1').join(',')}],"x":${deep}}`;
-    expect(cacheableEntry(body)).toBeNull();
+    let out: string | null = null;
+    expect(() => { out = cacheableEntry(body); }).not.toThrow();
+    if (out !== null) expect((JSON.parse(out) as { items: unknown[] }).items).toHaveLength(50);
   });
 });

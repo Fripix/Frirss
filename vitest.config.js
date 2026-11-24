@@ -31,5 +31,14 @@ export default defineConfig({
     include: ['server/**/*.test.{js,ts}', 'src/**/*.test.{js,jsx,ts,tsx}', 'scripts/**/*.test.ts'],
     setupFiles: ['./server/test/setup.ts'],
     fileParallelism: false, // backend tests share a temp DB → run serially
+    // Node 25+ définit son propre `localStorage` (Web Storage) sur l'objet
+    // global : sans `--localstorage-file`, un accesseur qui rend `undefined`.
+    // L'environnement jsdom ne remplace pas une propriété déjà là, et 293
+    // tests voyaient `localStorage` indéfini sous Node 26. Sans Web Storage
+    // côté Node, celui de jsdom reprend sa place. Le drapeau n'est passé que si
+    // ce Node le connaît (Node 24 l'accepte aussi).
+    execArgv: process.allowedNodeEnvironmentFlags.has('--no-experimental-webstorage')
+      ? ['--no-experimental-webstorage']
+      : [],
   },
 });
