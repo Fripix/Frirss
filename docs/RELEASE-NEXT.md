@@ -42,6 +42,9 @@ la release publiée.
   joignable sans nginx, et la limite de tentatives de connexion se contournait.
   Rien ne change avec une correspondance de ports classique. En réseau host,
   le port 3001 de la machine doit être libre.
+- **Dépendances** : `i18next` 26.7.2 (avis modéré GHSA-6jcc-5g8w-32mx, corrigé en 26.3.4, présent dans l'image) ;
+  outils de développement mis à jour dans leurs versions (`typescript-eslint` 8.74…). Image de base reconstruite :
+  OpenSSL 3.5.9-r1 et nginx 1.30.7 (la 1.9.1 publiée en compte 19 failles à ce jour).
 - **Une variable `PORT` ne casse plus l'API** : elle déplaçait le serveur Node
   interne hors du port 3001 où nginx l'attend. Le conteneur le fixe désormais.
 - **Les vidéos d'un article ne débordent plus du panneau de lecture** (même
