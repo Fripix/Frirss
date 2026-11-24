@@ -1,5 +1,5 @@
 # ── Stage 1: Build frontend + compile native deps ───────────────────
-FROM node:24-alpine AS builder
+FROM node:26-alpine AS builder
 WORKDIR /app
 
 # Build tools for native modules (better-sqlite3)
@@ -22,12 +22,12 @@ RUN npm run build && find server-dist -name '*.test.js' -delete
 RUN npm prune --omit=dev
 
 # ── Stage 2: Production (nginx + Express) ───────────────────────────
-FROM node:24-alpine
+FROM node:26-alpine
 WORKDIR /app
 
 # `apk upgrade` first: the base image is rebuilt on its own schedule, so the
 # Alpine packages it ships (openssl in particular, which nginx links against)
-# are as old as the last node:24-alpine build. Upgrading at build time pulls
+# are as old as the last node:26-alpine build. Upgrading at build time pulls
 # the patched versions from the branch the base image already pins — patch
 # level only, never a distro jump. Without it the published image carries
 # whatever CVEs the base picked up since its last rebuild.
