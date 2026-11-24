@@ -40,3 +40,20 @@ describe('code en ligne dans un article (R2-7)', () => {
     expect(decl(rule('.article-content pre code'), 'overflow-wrap')).toBe('normal');
   });
 });
+
+// M3, campagne 1.9.2 : une adresse de 110 caractères sans trait d'union, dans
+// un paragraphe ou un lien, sortait de la colonne de lecture limitée et se
+// faisait couper par le volet (`overflow-x: hidden`) ; sur un téléphone de
+// 375 px, avec ou sans colonne. Seul le `<code>` en ligne savait se couper.
+describe('mot trop long dans un article (M3, 1.9.2)', () => {
+  it('se coupe dans tout le corps de l’article, paragraphes, listes et liens compris', () => {
+    expect(decl(rule('.article-content'), 'overflow-wrap')).toBe('break-word');
+  });
+
+  // Le piège de R2-7 : `anywhere` réduirait la largeur min-content des
+  // cellules, et les tableaux se tasseraient au lieu de défiler.
+  it('jamais avec `anywhere`, qui tasserait les tableaux', () => {
+    const bodyRules = [...css.matchAll(/\.article-content[^{]*\{([^}]*)\}/g)].map((m) => m[1]);
+    for (const body of bodyRules) expect(decl(body, 'overflow-wrap')).not.toBe('anywhere');
+  });
+});

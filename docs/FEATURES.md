@@ -3339,6 +3339,14 @@ libellés disaient « plein écran » jusqu'en 1.8.0) au double-clic. Contenu bi
   pas celui d'un `<pre>`, qui défile. Dans une cellule de tableau, il ne se
   coupe pas (`white-space: nowrap`) : c'est le tableau qui défile
   (`inlineCodeWrap.test.ts`).
+  **Un mot trop long ailleurs** (1.9.2, M3 de la campagne) : `.article-content`
+  porte `overflow-wrap: break-word`, hérité par paragraphes, listes, liens et
+  citations. Une adresse de 110 caractères sans trait d'union sortait de la
+  colonne de lecture limitée (et d'un téléphone de 375 px) et le volet la
+  rognait. Mesuré dans Chrome contre la feuille construite : adresse en
+  paragraphe, lien et liste à 384 px, 661 px avant, dans la colonne après ;
+  tableau `Option | Description` à 288 px inchangé (414 px, défile, code sur
+  une ligne) ; `<pre>` inchangé (défile). Garde-fou : `inlineCodeWrap.test.ts`.
   ⚠️ **Pas `overflow-wrap: anywhere`** (première version de M-11, relecture
   du second round) : `anywhere` réduit la largeur min-content, et un tableau
   qui contient du code se tassait dans la colonne au lieu de défiler.

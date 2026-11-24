@@ -41,6 +41,8 @@ la release publiée.
   interne hors du port 3001 où nginx l'attend. Le conteneur le fixe désormais.
 - **Les vidéos d'un article ne débordent plus du panneau de lecture** (même
   colonne non limitée), venu avec la PR #32.
+- **Une adresse web très longue dans un article se coupe** au lieu de sortir
+  de la colonne de lecture (et de l'écran d'un téléphone), où elle était rognée.
 - **Le balayage entre articles (téléphone, tablette) montre l'article tel
   qu'il arrivera** : un texte arabe ou persan déjà calé à droite, la boîte
   « Résumé IA » déjà à sa place, la colonne de lecture déjà appliquée. Avant,
