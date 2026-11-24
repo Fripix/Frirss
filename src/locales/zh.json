@@ -309,15 +309,14 @@
     "fonts": {
       "resetFonts": "重置字号",
       "resetFontsTitle": "重置尺寸？",
-      "resetFontsMessage": "文字尺寸将恢复为已保存主题的尺寸，网格恢复为初始设置（240 px、填满、16:9）。",
+      "resetFontsMessage": "文字尺寸将恢复为已保存主题的尺寸，网格恢复为初始设置（240 px、填满、16:9），列表缩略图恢复为 80 px。",
       "readingBodyDevice": "仅限此设备：电脑保留自己的大小。"
     },
     "fontSections": {
       "sidebar": "侧边栏",
       "articleList": "文章列表",
       "reading": "阅读",
-      "grid": "网格",
-      "readingColumn": "阅读栏"
+      "grid": "网格"
     },
     "fontKeys": {
       "sidebar-feed": "订阅源名称",
@@ -585,12 +584,13 @@
     },
     "listThumb": {
       "width": "缩略图",
-      "hint": "在“预览”显示密度下显示。"
+      "hint": "在“预览”显示密度下显示。列表较窄时，缩略图不会大到挤压标题。仅限此设备。"
     },
     "readingColumn": {
+      "title": "阅读栏",
       "limit": "限制栏宽",
       "width": "栏宽",
-      "limitHint": "将文章居中显示在更窄的栏中，两侧留白更宽；图片和视频会随栏宽缩小。关闭时，文章占满整个阅读面板。"
+      "limitHint": "将文章居中显示在更窄的栏中；图片和视频会随栏宽缩小。阅读窗格本身已比栏窄时不起作用。仅限此设备。"
     },
     "resetTheme": "重置",
     "resetThemeTooltip": "撤销自上次保存主题以来对颜色和尺寸的更改",

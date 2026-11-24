@@ -10,7 +10,6 @@ import { useUiStore } from '../../stores/uiStore';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { buildArticleBody, displayedHtml, readingMinutes } from '../../lib/articleBody';
 import { extractShown, readingBodyKind, showsSkeleton, showsReadingTime } from '../../lib/readingBody';
-import { sanitizeArticleBody } from '../../utils/sanitizeHtml';
 import { readProgressPercent } from '../../lib/readProgress';
 import type { Article } from '../../types';
 import { articleTitle } from '../../lib/articleTitle';
@@ -32,6 +31,7 @@ import { IMAGE_CACHE_NAME, PREPARED_IMAGE_CACHE_NAME } from '../../lib/storageEs
 import SavedCategoryPicker from '../ArticleList/SavedCategoryPicker';
 import BottomSheet from '../BottomSheet';
 import AiSummary, { type AiSummaryProps } from './AiSummary';
+import { fillSwipeGhost, removeSwipeGhost, type GhostAi } from './swipeGhost';
 import { expandOnFirstSummary } from './aiPanelExpand';
 import { useAiStore, aiEnabled } from '../../stores/aiStore';
 import { requestAiSummary, requestAiTranslation, type AiSummaryResult, type AiProviderView } from '../../api/backend';
@@ -254,6 +254,9 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   // Résumé IA — un état par article affiché ; remis à zéro quand il change.
   const aiOn = useAiStore(aiEnabled);
   const aiProviders = useAiStore((s) => s.config?.providers) ?? NO_AI_PROVIDERS;
+  // La boîte « Résumé IA » que le rendu montrera pour un article voisin : lue
+  // par le fantôme du balayage, mise à jour après chaque rendu (`swipeGhost`).
+  const ghostAiRef = useRef<(adj: Article) => GhostAi | null>(() => null);
   const [aiStatus, setAiStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle');
   const [aiResult, setAiResult] = useState<AiSummaryResult | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
@@ -519,20 +522,15 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     if (!el) return;
 
     function cleanupPreview(t?: SwipeTouch) {
-      if (t?.preview?.parentElement) t.preview.parentElement.removeChild(t.preview);
+      removeSwipeGhost(t?.preview);
       if (t) t.preview = null;
-    }
-
-    function esc(s: string | null | undefined): string {
-      if (!s) return '';
-      return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
 
     function onTouchStart(e: TouchEvent) {
       if (animatingRef.current) return;
       // Remove any lingering ghost from a previous swipe still waiting on
       // extraction — snaps it to its end so two swipes never overlap.
-      contentWrapperRef.current?.querySelectorAll('.swipe-ghost').forEach((g) => g.remove());
+      contentWrapperRef.current?.querySelectorAll('.swipe-ghost').forEach((g) => removeSwipeGhost(g));
       swipeTouchRef.current = {
         startX: e.touches[0].clientX,
         startY: e.touches[0].clientY,
@@ -598,66 +596,16 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
               background:var(--panel-bg);
               z-index:1;overflow-y:auto;pointer-events:none;
             `;
-            const adjDate = formatArticleDate(adj.published);
-            // Le fantôme montre EXACTEMENT ce que le rendu montrera : même
-            // décision (`readingBodyKind`), même contenu (`displayedHtml`),
-            // extrait compris s'il est déjà en mémoire — sinon le contenu du
-            // flux, qui l'est toujours. Avant la 1.4.10, un flux à extraction
-            // automatique donnait ici un squelette : on balayait d'un article
-            // gris à l'autre alors que le texte était disponible.
             const uiNow = useUiStore.getState();
             const adjAuto = effectiveAutoExtract(uiNow.autoExtractDefault, uiNow.feedSettings, adj.sourceId) && worthAutoExtracting(adj.url);
-            const adjExtract = peekExtract(adj.id)?.content ?? null;
-            const adjKind = readingBodyKind({ rssHtml: adj.content, extractedHtml: adjExtract, autoExtract: adjAuto });
-            const adjHtml = adjKind === 'skeleton' ? '' : displayedHtml(adj.content, adjExtract);
-            // Durée de lecture du contenu réellement montré, comme dans le rendu.
-            const wc = adjHtml.replace(/<[^<>]*>/g, ' ').split(/\s+/).filter(Boolean).length;
-            const rt = readingMinutes(wc);
-            // Tags — use same Tailwind classes as React render
-            const tags = adj.tags || [];
-            const tagsHtml = tags.length > 0
-              ? '<div class="flex flex-wrap gap-1.5 mb-5">' +
-                  tags.map(function(tag) {
-                    return '<span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-medium" style="background:var(--list-active);color:var(--reading-meta);border:1px solid var(--panel-border)">' + esc(tag) + '</span>';
-                  }).join('') +
-                '</div>'
-              : '';
-            // Use exact same Tailwind classes as the React-rendered article
-            preview.innerHTML =
-              '<div class="px-4 py-4">' +
-                // ── Mobile header: same classes as React render ──
-                '<div class="flex items-stretch gap-3 mb-3">' +
-                  '<div class="flex-1 min-w-0">' +
-                    '<div class="text-xs font-semibold uppercase tracking-wide truncate" style="color:var(--list-source)">' +
-                      esc(adj.source) +
-                    '</div>' +
-                    '<div class="text-xs truncate mt-0.5" style="color:var(--reading-meta)">' +
-                      (adj.author ? esc(adj.author) + ' &middot; ' : '') + adjDate +
-                    '</div>' +
-                  '</div>' +
-                  (adjKind === 'skeleton' ? '' :
-                    '<span class="flex items-center gap-1 px-2.5 rounded-lg text-[11px] font-medium flex-shrink-0" style="color:var(--accent);background:var(--accent-glow)">' +
-                      '<svg class="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>' +
-                      // Le texte du rendu, unité comprise (« 3 Min. », « 3 分钟 ») :
-                      // « min » en dur changeait au moment où l'article arrivait.
-                      esc(i18n.t('readingPane.readingTime', { count: rt })) +
-                    '</span>') +
-                '</div>' +
-                // ── Title — same classes as React render ──
-                '<h1 class="font-bold leading-tight mb-4" style="color:var(--reading-title);font-size:var(--fs-reading-title)">' +
-                  esc(articleTitle(adj, (k) => i18n.t(k))) +
-                '</h1>' +
-                // ── Tags ──
-                tagsHtml +
-                // ── Contenu — le même que celui que le rendu posera ──
-                (adjKind === 'skeleton'
-                  ? SKELETON_HTML
-                  : '<div class="article-content leading-relaxed" style="color:var(--reading-text);font-size:var(--fs-reading-body)">' +
-                      // Même passe sur l'arbre que le rendu (format réservé,
-                      // paragraphes vides), sans chargement différé ni `dir`.
-                      sanitizeArticleBody(adjHtml, Infinity, { blockDir: false }) +
-                    '</div>') +
-              '</div>';
+            fillSwipeGhost(preview, adj, {
+              autoExtract: adjAuto,
+              extractedHtml: peekExtract(adj.id)?.content ?? null,
+              columnWidth: uiNow.limitReadingColumn ? uiNow.readingColumnWidth : null,
+              ai: ghostAiRef.current(adj),
+              t: (k, o) => i18n.t(k, o),
+              skeletonHtml: SKELETON_HTML,
+            });
             contentWrapperRef.current.appendChild(preview);
             t.preview = preview;
             t.previewSide = side;
@@ -1132,6 +1080,16 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   // repart à zéro à l'article suivant, et le panneau avec lui.
   const panelAlwaysHere = panelFor(selectedArticle?.sourceId, subscriptions, { ...autoPrefs, aiCategoryPanel, aiPanelAlways });
   const showAiPanel = aiUsable && (aiStatus !== 'idle' || aiResult !== null || panelAlwaysHere);
+  useLayoutEffect(() => {
+    ghostAiRef.current = (adj) => {
+      if (!aiUsable) return null;
+      // Mêmes règles que pour l'article affiché : panneau toujours là pour ce
+      // flux, ou résumé automatique qui partira dès l'arrivée de l'article.
+      const loading = online && autoFor('summary', adj.sourceId, subscriptions, autoPrefs);
+      if (!loading && !panelFor(adj.sourceId, subscriptions, { ...autoPrefs, aiCategoryPanel, aiPanelAlways })) return null;
+      return { providers: aiProviders, targetLang: aiTargetLang, loading };
+    };
+  });
   const autoSummary = !!selectedArticle && autoFor('summary', selectedArticle.sourceId, subscriptions, autoPrefs);
   // Panneau masqué par réglage et rien demandé : « Résumer » en tient lieu —
   // bouton de la barre d'outils au bureau, première rangée de la feuille « … »

@@ -697,18 +697,27 @@ les listes (deux colonnes et côte à côte) ; la grille a ses propres réglages
   ligne, et ne descend jamais sous les 80 px d'origine. **`align-self:
   flex-start`** : la ligne étire ses enfants, et une hauteur étirée l'emporte
   sur `aspect-ratio` (80 × 138 au premier déploiement de test).
-- **Synchronisée, commune à tous les thèmes** (`UI_SYNC_KEYS`), comme la
-  grille ; une valeur hors bornes retombe sur 80.
+- **Propre à l'appareil** (décision du 2026-11-24), hors `UI_SYNC_KEYS` : la
+  bonne taille n'est pas la même sur téléphone et sur grand écran. Commune à
+  tous les thèmes ; une valeur hors bornes retombe sur 80. L'aide sous le
+  curseur le dit, ainsi que la borne de 40 % (en vue côte à côte, le curseur
+  au-delà de ~120 px ne change plus rien : c'est voulu).
 - Tests : `listThumbnail.test.ts` (bornes et règle CSS),
   `AppearanceTab.listThumb.test.tsx`, `uiStore.test.ts`,
   `ArticleRow.compact.test.tsx`, `ArticleList.toolbar.test.tsx`.
 ### Colonne de lecture limitée
-Un réglage dans **Préférences › Apparence › Tailles**, section « Colonne de
-lecture », sous les tailles de texte : **Limiter la largeur de la colonne**
-(interrupteur, désactivé par défaut). Activé, l'article est centré dans une
-colonne dont la largeur est au choix du lecteur (curseur « Largeur de la
-colonne », 480 à 1 200 px par pas de 8, défaut 768 px, soit 48 rem), posée en variable `--reading-column-width` sur l'`<article>`
-(`.article-enter.reading-column-limited` dans `index.css`) : les marges
+Un réglage dans **Préférences › Mise en page**, partie « Sur tous les
+écrans », zone « Colonne de lecture » (dans Apparence › Tailles avant la
+sortie de la 1.9.2, déplacé le 2026-11-24 avec les réglages de disposition) :
+**Limiter la largeur de la colonne** (interrupteur, désactivé par défaut).
+Activé, l'article est centré dans une colonne dont la largeur est au choix
+du lecteur (curseur « Largeur de la colonne », 480 à 1 200 px par pas de 8,
+défaut 768 px). **La largeur compte les marges intérieures** de l'article
+(48 px de chaque côté sur ordinateur) : 480 donne 384 px de texte, 768 en
+donne 672. Elle est en px et ne suit pas la taille du texte. Posée en
+variable `--reading-column-width` sur l'`<article>` (`.reading-column-limited`
+dans `index.css`, une seule classe : `ReadingPane` retire puis remet
+`article-enter` à chaque article, et le fantôme du balayage ne l'a pas) : les marges
 latérales grandissent et les images et vidéos, qui se calent sur la
 colonne, rétrécissent d'autant — sur un écran large, le texte occupait
 sinon tout le panneau, bien au-delà des ~75 caractères lisibles par
@@ -717,15 +726,19 @@ comportement historique. Sur un écran étroit, le plafond ne change rien.
 
 - **Où** : `uiStore.limitReadingColumn` / `setLimitReadingColumn` et
   `uiStore.readingColumnWidth` / `setReadingColumnWidth` (bornes et
-  normalisation dans `lib/readingColumn.ts`), synchronisés comme les
-  réglages de la grille ; `ReadingColumnSection` dans `AppearanceTab.tsx`,
-  la classe et la variable posées sur l'`<article>` de `ReadingPane.tsx`,
-  `index.css`. « Réinitialiser les tailles » désactive l'interrupteur et
-  ramène la largeur au défaut. Les `iframe` et `video` du corps d'article
+  normalisation dans `lib/readingColumn.ts`), **propres à l'appareil**
+  (hors `UI_SYNC_KEYS`, décision du 2026-11-24) comme la largeur des
+  panneaux : c'est un réglage géométrique. Zone dans `LayoutTab.tsx` (la
+  ligne à curseur `FontRow` est exportée d'`AppearanceTab.tsx`) ; la classe
+  et la variable posées sur l'`<article>` de `ReadingPane.tsx` et sur le
+  fantôme du balayage (`swipeGhost.tsx`) ; `index.css`. Aucune
+  réinitialisation : l'interrupteur suffit. L'aide dit qu'elle est sans
+  effet quand le volet est déjà plus étroit que la colonne (vue côte à côte
+  sur un écran de 1 280 px, téléphone). Les `iframe` et `video` du corps d'article
   sont en outre bornées à la largeur de la colonne dans tous les cas :
   elles n'avaient aucune contrainte et pouvaient déborder du panneau.
 - Contribution de babenaldt (PR #32, 1.9.2). Test de l'écran :
-  `AppearanceTab.readingColumn.test.tsx` ; magasin :
+  `LayoutTab.readingColumn.test.tsx` ; magasin :
   `uiStore.limitReadingColumn.test.ts`.
 
 ### Vue à l'ouverture
@@ -3299,6 +3312,14 @@ libellés disaient « plein écran » jusqu'en 1.8.0) au double-clic. Contenu bi
   l'animation) porte l'article visé. À l'arrivée, le vrai article est commité
   en `flushSync` **derrière** le fantôme, qui ne se fond qu'ensuite : sans ce
   maintien, le fondu découvrirait un article encore vide.
+  **Le fantôme montre ce que le rendu montrera** (`swipeGhost.tsx`, 1.9.2) :
+  `dir="auto"` sur le titre, le corps et chaque bloc, mêmes marges que
+  l'`<article>`, colonne de lecture limitée de l'appareil, et la boîte
+  « Résumé IA » quand le rendu l'aura (panneau toujours là pour ce flux, ou
+  résumé automatique qui partira — alors en cours), rendue par le vrai
+  `AiSummary` dans une racine React à part, inerte, démontée avec le fantôme
+  (`removeSwipeGhost`). Sur iPhone, un texte arabe ne se calait à droite
+  qu'après le geste et la boîte surgissait à l'arrivée (REG-254).
   **Un geste né dans un bloc qui défile de côté lui revient** (second round,
   M-11, `src/lib/horizontalScroller.ts`) : tableau enveloppé, `<pre>`, tout
   élément entre le doigt et le volet dont `overflow-x` est `auto`/`scroll` et
@@ -10124,7 +10145,9 @@ laisse passer les autres. Tests : « api error responses » dans
 Les valeurs par défaut et les explications détaillées sont dans le `README.md`.
 
 **Réglages de déploiement** — `NODE_ENV` (`production` active le service des
-fichiers statiques et `trust proxy`) · `PORT` (port interne d'Express, 3001) ·
+fichiers statiques et `trust proxy`) · `FRIRSS_PORT` (port d'écoute de nginx
+dans le conteneur, 80) · `PORT` (port d'Express en développement ; l'image le
+fixe à 3001, nginx y envoie l'API) ·
 `PUID` · `PGID` · `FRIRSS_DATA_DIR` · `FRIRSS_BASE_URL` · `CORS_ORIGIN`
 
 **Proxy sortant** — `PROXY_REWRITES` · `PROXY_INTERNAL_HOSTS` ·

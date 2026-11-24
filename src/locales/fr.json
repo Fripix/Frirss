@@ -309,15 +309,14 @@
     "fonts": {
       "resetFonts": "Réinitialiser les tailles",
       "resetFontsTitle": "Réinitialiser les tailles ?",
-      "resetFontsMessage": "Les tailles de texte reviennent à celles du thème enregistré, et la grille à ses réglages d’origine (240 px, remplissage, 16:9).",
+      "resetFontsMessage": "Les tailles de texte reviennent à celles du thème enregistré, la grille à ses réglages d’origine (240 px, remplissage, 16:9) et les vignettes de la liste à 80 px.",
       "readingBodyDevice": "Propre à cet appareil : l’ordinateur garde sa propre taille."
     },
     "fontSections": {
       "sidebar": "Barre latérale",
       "articleList": "Liste d’articles",
       "reading": "Lecture",
-      "grid": "Grille",
-      "readingColumn": "Colonne de lecture"
+      "grid": "Grille"
     },
     "fontKeys": {
       "sidebar-feed": "Nom du flux",
@@ -585,12 +584,13 @@
     },
     "listThumb": {
       "width": "Vignettes",
-      "hint": "Visibles avec la densité Aperçu."
+      "hint": "Visibles avec la densité Aperçu. Dans une liste étroite, elles s’arrêtent avant d’écraser le titre. Propre à cet appareil."
     },
     "readingColumn": {
+      "title": "Colonne de lecture",
       "limit": "Limiter la largeur de la colonne",
       "width": "Largeur de la colonne",
-      "limitHint": "Centre l’article dans une colonne plus étroite, aux marges plus larges ; les images et les vidéos rétrécissent avec elle. Désactivé, l’article occupe tout le panneau de lecture."
+      "limitHint": "Centre l’article dans une colonne plus étroite ; ses images et ses vidéos rétrécissent avec elle. Sans effet quand le volet de lecture est déjà plus étroit que la colonne. Propre à cet appareil."
     },
     "resetTheme": "Réinitialiser",
     "resetThemeTooltip": "Annuler les modifications de couleurs et de tailles faites depuis le dernier enregistrement du thème",

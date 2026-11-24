@@ -309,15 +309,14 @@
     "fonts": {
       "resetFonts": "Größen zurücksetzen",
       "resetFontsTitle": "Größen zurücksetzen?",
-      "resetFontsMessage": "Die Textgrößen kehren zu denen des gespeicherten Themes zurück, das Raster zu seinen ursprünglichen Einstellungen (240 px, Füllen, 16:9).",
+      "resetFontsMessage": "Die Textgrößen kehren zu denen des gespeicherten Themes zurück, das Raster zu seinen ursprünglichen Einstellungen (240 px, Füllen, 16:9) und die Vorschaubilder der Liste zu 80 px.",
       "readingBodyDevice": "Nur für dieses Gerät: Der Computer behält seine eigene Größe."
     },
     "fontSections": {
       "sidebar": "Seitenleiste",
       "articleList": "Artikelliste",
       "reading": "Lesen",
-      "grid": "Raster",
-      "readingColumn": "Lesespalte"
+      "grid": "Raster"
     },
     "fontKeys": {
       "sidebar-feed": "Feed-Name",
@@ -585,12 +584,13 @@
     },
     "listThumb": {
       "width": "Vorschaubilder",
-      "hint": "Sichtbar mit der Darstellung Vorschau."
+      "hint": "Sichtbar mit der Darstellung Vorschau. In einer schmalen Liste wachsen sie nur so weit, dass der Titel Platz behält. Nur für dieses Gerät."
     },
     "readingColumn": {
+      "title": "Lesespalte",
       "limit": "Spaltenbreite begrenzen",
       "width": "Spaltenbreite",
-      "limitHint": "Zentriert den Artikel in einer schmaleren Spalte mit breiteren Rändern; Bilder und Videos schrumpfen mit. Ausgeschaltet füllt der Artikel den gesamten Lesebereich."
+      "limitHint": "Zentriert den Artikel in einer schmaleren Spalte; Bilder und Videos schrumpfen mit. Ohne Wirkung, wenn die Leseansicht schon schmaler als die Spalte ist. Nur für dieses Gerät."
     },
     "resetTheme": "Zurücksetzen",
     "resetThemeTooltip": "Farb- und Größenänderungen seit dem letzten Speichern des Themes verwerfen",

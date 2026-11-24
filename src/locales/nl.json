@@ -309,15 +309,14 @@
     "fonts": {
       "resetFonts": "Groottes herstellen",
       "resetFontsTitle": "Groottes opnieuw instellen?",
-      "resetFontsMessage": "De tekstgroottes keren terug naar die van het opgeslagen thema en het raster naar zijn oorspronkelijke instellingen (240 px, vullen, 16:9).",
+      "resetFontsMessage": "De tekstgroottes keren terug naar die van het opgeslagen thema, het raster naar zijn oorspronkelijke instellingen (240 px, vullen, 16:9) en de miniaturen van de lijst naar 80 px.",
       "readingBodyDevice": "Alleen op dit apparaat: de computer houdt zijn eigen grootte."
     },
     "fontSections": {
       "sidebar": "Zijbalk",
       "articleList": "Artikellijst",
       "reading": "Lezen",
-      "grid": "Raster",
-      "readingColumn": "Leeskolom"
+      "grid": "Raster"
     },
     "fontKeys": {
       "sidebar-feed": "Feednaam",
@@ -585,12 +584,13 @@
     },
     "listThumb": {
       "width": "Miniaturen",
-      "hint": "Zichtbaar met de dichtheid Voorbeeld."
+      "hint": "Zichtbaar met de dichtheid Voorbeeld. In een smalle lijst groeien ze niet verder dan de titel toelaat. Alleen op dit apparaat."
     },
     "readingColumn": {
+      "title": "Leeskolom",
       "limit": "Kolombreedte beperken",
       "width": "Kolombreedte",
-      "limitHint": "Centreert het artikel in een smallere kolom met bredere marges; afbeeldingen en video’s krimpen mee. Uitgeschakeld vult het artikel het hele leespaneel."
+      "limitHint": "Centreert het artikel in een smallere kolom; afbeeldingen en video’s krimpen mee. Geen effect als het leesvenster al smaller is dan de kolom. Alleen op dit apparaat."
     },
     "resetTheme": "Opnieuw instellen",
     "resetThemeTooltip": "Wijzigingen aan kleuren en groottes sinds het laatste opslaan van het thema ongedaan maken",

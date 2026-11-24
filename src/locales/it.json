@@ -309,15 +309,14 @@
     "fonts": {
       "resetFonts": "Reimposta le dimensioni",
       "resetFontsTitle": "Reimpostare le dimensioni?",
-      "resetFontsMessage": "Le dimensioni del testo tornano a quelle del tema salvato e la griglia alle impostazioni originali (240 px, riempimento, 16:9).",
+      "resetFontsMessage": "Le dimensioni del testo tornano a quelle del tema salvato, la griglia alle impostazioni originali (240 px, riempimento, 16:9) e le miniature dell’elenco a 80 px.",
       "readingBodyDevice": "Solo su questo dispositivo: il computer mantiene la propria dimensione."
     },
     "fontSections": {
       "sidebar": "Barra laterale",
       "articleList": "Elenco articoli",
       "reading": "Lettura",
-      "grid": "Griglia",
-      "readingColumn": "Colonna di lettura"
+      "grid": "Griglia"
     },
     "fontKeys": {
       "sidebar-feed": "Nome del feed",
@@ -585,12 +584,13 @@
     },
     "listThumb": {
       "width": "Miniature",
-      "hint": "Visibili con la densità Anteprima."
+      "hint": "Visibili con la densità Anteprima. In un elenco stretto smettono di crescere prima di schiacciare il titolo. Solo su questo dispositivo."
     },
     "readingColumn": {
+      "title": "Colonna di lettura",
       "limit": "Limita la larghezza della colonna",
       "width": "Larghezza della colonna",
-      "limitHint": "Centra l’articolo in una colonna più stretta, con margini più ampi; immagini e video si riducono di conseguenza. Se disattivato, l’articolo occupa l’intero pannello di lettura."
+      "limitHint": "Centra l’articolo in una colonna più stretta; immagini e video si riducono di conseguenza. Nessun effetto se il pannello di lettura è già più stretto della colonna. Solo su questo dispositivo."
     },
     "resetTheme": "Reimposta",
     "resetThemeTooltip": "Annulla le modifiche a colori e dimensioni fatte dall’ultimo salvataggio del tema",

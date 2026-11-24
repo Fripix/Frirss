@@ -309,15 +309,14 @@
     "fonts": {
       "resetFonts": "Reset sizes",
       "resetFontsTitle": "Reset the sizes?",
-      "resetFontsMessage": "Text sizes go back to those of the saved theme, and the grid to its original settings (240 px, fill, 16:9).",
+      "resetFontsMessage": "Text sizes go back to those of the saved theme, the grid to its original settings (240 px, fill, 16:9), and list thumbnails to 80 px.",
       "readingBodyDevice": "This device only: the computer keeps its own size."
     },
     "fontSections": {
       "sidebar": "Sidebar",
       "articleList": "Article list",
       "reading": "Reading",
-      "grid": "Grid",
-      "readingColumn": "Reading column"
+      "grid": "Grid"
     },
     "fontKeys": {
       "sidebar-feed": "Feed name",
@@ -585,12 +584,13 @@
     },
     "listThumb": {
       "width": "Thumbnails",
-      "hint": "Shown with the Preview density."
+      "hint": "Shown with the Preview density. In a narrow list they stop growing before crowding the title. This device only."
     },
     "readingColumn": {
+      "title": "Reading column",
       "limit": "Limit column width",
       "width": "Column width",
-      "limitHint": "Centers the article in a narrower column with wider margins; images and videos shrink with it. When off, the article fills the whole reading pane."
+      "limitHint": "Centers the article in a narrower column; its images and videos shrink with it. No effect when the reading pane is already narrower than the column. This device only."
     },
     "resetTheme": "Reset",
     "resetThemeTooltip": "Undo the color and size changes made since the theme was last saved",

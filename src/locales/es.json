@@ -309,15 +309,14 @@
     "fonts": {
       "resetFonts": "Restablecer los tamaños",
       "resetFontsTitle": "¿Restablecer los tamaños?",
-      "resetFontsMessage": "Los tamaños de texto vuelven a los del tema guardado y la cuadrícula a sus ajustes originales (240 px, rellenar, 16:9).",
+      "resetFontsMessage": "Los tamaños de texto vuelven a los del tema guardado, la cuadrícula a sus ajustes originales (240 px, rellenar, 16:9) y las miniaturas de la lista a 80 px.",
       "readingBodyDevice": "Solo en este dispositivo: el ordenador conserva su propio tamaño."
     },
     "fontSections": {
       "sidebar": "Barra lateral",
       "articleList": "Lista de artículos",
       "reading": "Lectura",
-      "grid": "Cuadrícula",
-      "readingColumn": "Columna de lectura"
+      "grid": "Cuadrícula"
     },
     "fontKeys": {
       "sidebar-feed": "Nombre de la fuente",
@@ -585,12 +584,13 @@
     },
     "listThumb": {
       "width": "Miniaturas",
-      "hint": "Visibles con la densidad Vista previa."
+      "hint": "Visibles con la densidad Vista previa. En una lista estrecha dejan de crecer antes de apretar el título. Solo en este dispositivo."
     },
     "readingColumn": {
+      "title": "Columna de lectura",
       "limit": "Limitar el ancho de la columna",
       "width": "Ancho de columna",
-      "limitHint": "Centra el artículo en una columna más estrecha y con márgenes más amplios; las imágenes y los vídeos se reducen con ella. Desactivado, el artículo ocupa todo el panel de lectura."
+      "limitHint": "Centra el artículo en una columna más estrecha; sus imágenes y vídeos se reducen con ella. Sin efecto si el panel de lectura ya es más estrecho que la columna. Solo en este dispositivo."
     },
     "resetTheme": "Restablecer",
     "resetThemeTooltip": "Deshacer los cambios de colores y tamaños hechos desde que se guardó el tema",

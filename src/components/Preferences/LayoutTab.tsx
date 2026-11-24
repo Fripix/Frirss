@@ -6,6 +6,8 @@ import { ROW_ACTION_ORDER } from '../../lib/rowActions';
 import { TOOLBAR_ITEMS, type ToolbarZone } from '../../lib/toolbarItems';
 import { commandKeyLabel } from '../../lib/platformKeys';
 import ToggleSwitch from '../ToggleSwitch';
+import { FontRow } from './AppearanceTab';
+import { READING_COLUMN_WIDTH_MAX, READING_COLUMN_WIDTH_MIN, READING_COLUMN_WIDTH_STEP } from '../../lib/readingColumn';
 
 /**
  * Préférences → Mise en page.
@@ -15,8 +17,10 @@ import ToggleSwitch from '../ToggleSwitch';
  * élément masqué reste dans la palette (Ctrl/⌘ K) ; ailleurs que sur desktop,
  * ces réglages sont ignorés.
  *
- * « Sur tous les écrans » : la barre des serveurs et les icônes d'une LIGNE,
- * qui valent pour tous les formats et le restent. Les icônes d'une ligne ne
+ * « Sur tous les écrans » : la barre des serveurs, la colonne de lecture et
+ * les icônes d'une LIGNE, qui valent pour tous les formats et le restent. La
+ * colonne de lecture (PR #32) est rangée ici, avec la disposition, et propre à
+ * l'appareil comme la largeur des panneaux : elle dépend de l'écran. Les icônes d'une ligne ne
  * touchent pas au volet de lecture : masquer le ✓ de la liste ne doit pas
  * retirer le moyen de marquer lu l'article qu'on est en train de lire.
  */
@@ -29,6 +33,10 @@ export default function LayoutTab() {
   const topbarVisible = useUiStore((s) => s.topbarVisible);
   const toggleTopbar = useUiStore((s) => s.toggleTopbar);
   const rowActions = useUiStore((s) => s.rowActions);
+  const limitColumn = useUiStore((s) => s.limitReadingColumn);
+  const setLimitColumn = useUiStore((s) => s.setLimitReadingColumn);
+  const columnWidth = useUiStore((s) => s.readingColumnWidth);
+  const setColumnWidth = useUiStore((s) => s.setReadingColumnWidth);
   const setRowAction = useUiStore((s) => s.setRowAction);
 
   const items = (zone: ToolbarZone) => TOOLBAR_ITEMS.filter((i) => i.zone === zone);
@@ -80,6 +88,25 @@ export default function LayoutTab() {
         <GroupTitle>{t('preferences.toolbars.everywhereTitle')}</GroupTitle>
         <Row label={t('preferences.toolbars.serverBar')} checked={topbarVisible} onChange={() => toggleTopbar()} />
 
+        <section className="mt-6" aria-labelledby="reading-column-title">
+          <ZoneTitle id="reading-column-title">{t('preferences.readingColumn.title')}</ZoneTitle>
+          <Hint>{t('preferences.readingColumn.limitHint')}</Hint>
+          <Row label={t('preferences.readingColumn.limit')} checked={limitColumn} onChange={setLimitColumn} />
+          {limitColumn && (
+            <div className="mt-2.5">
+              <FontRow
+                label={t('preferences.readingColumn.width')}
+                value={String(columnWidth)}
+                min={READING_COLUMN_WIDTH_MIN}
+                max={READING_COLUMN_WIDTH_MAX}
+                step={READING_COLUMN_WIDTH_STEP}
+                onChange={(v) => setColumnWidth(Number(v))}
+                labelColor="var(--list-summary)"
+              />
+            </div>
+          )}
+        </section>
+
         <ZoneTitle className="mt-6">{t('preferences.layout.title')}</ZoneTitle>
         <Hint>{t('preferences.layout.hint')}</Hint>
         {ROW_ACTION_ORDER.map((kind) => (
@@ -99,9 +126,9 @@ function GroupTitle({ children }: { children: ReactNode }) {
   );
 }
 
-function ZoneTitle({ children, className = '' }: { children: ReactNode; className?: string }) {
+function ZoneTitle({ children, className = '', id }: { children: ReactNode; className?: string; id?: string }) {
   return (
-    <h4 className={`text-xs font-semibold ${className}`} style={{ color: 'var(--list-title)' }}>
+    <h4 id={id} className={`text-xs font-semibold ${className}`} style={{ color: 'var(--list-title)' }}>
       {children}
     </h4>
   );

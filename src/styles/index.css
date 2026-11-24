@@ -381,8 +381,11 @@ html {
    le panneau. Le plafond centre la colonne ; l'espace restant devient la
    marge latérale. Sur un écran étroit, le plafond ne change rien. La
    largeur du plafond est au choix du lecteur (`readingColumnWidth`,
-   posée en variable par ReadingPane) ; 48 rem en est le défaut. */
-.article-enter.reading-column-limited {
+   posée en variable par ReadingPane) ; 768 px par défaut, marges
+   intérieures comprises (`box-sizing`). Une seule classe, sans
+   `.article-enter` : ReadingPane retire puis remet celle-ci à chaque
+   article, et le fantôme du balayage (`swipeGhost.tsx`) ne l'a pas. */
+.reading-column-limited {
   max-width: var(--reading-column-width, 48rem);
   margin-inline: auto;
 }

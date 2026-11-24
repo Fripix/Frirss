@@ -814,14 +814,16 @@ describe('taille de la vignette de liste (issue #34)', () => {
     useUiStore.setState({ listThumbWidth: 80 });
   });
 
-  it('persiste, se synchronise, et une valeur hors bornes rend le défaut', () => {
+  // Propre à l'appareil (décision du 2026-11-24) : la bonne taille n'est pas
+  // la même sur téléphone et sur grand écran.
+  it('persiste sur l’appareil, ne se synchronise pas, et une valeur hors bornes rend le défaut', () => {
     useUiStore.getState().setListThumbWidth(120);
     expect(useUiStore.getState().listThumbWidth).toBe(120);
     expect(localStorage.getItem('frirss_listThumbWidth')).toBe('120');
-    expect(UI_SYNC_KEYS).toContain('listThumbWidth');
+    expect(UI_SYNC_KEYS).not.toContain('listThumbWidth');
     useUiStore.getState().applyServerPrefs({ listThumbWidth: 100 });
-    expect(useUiStore.getState().listThumbWidth).toBe(100);
-    useUiStore.getState().applyServerPrefs({ listThumbWidth: 5000 });
+    expect(useUiStore.getState().listThumbWidth).toBe(120);
+    useUiStore.getState().setListThumbWidth(5000);
     expect(useUiStore.getState().listThumbWidth).toBe(80);
   });
 

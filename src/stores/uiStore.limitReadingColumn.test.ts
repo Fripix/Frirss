@@ -13,20 +13,17 @@ describe('uiStore — colonne de lecture limitée', () => {
     expect(useUiStore.getState().limitReadingColumn).toBe(false);
   });
 
-  it('setLimitReadingColumn retient le choix, le persiste, et la clé est synchronisée', () => {
+  // Propre à l'appareil (décision du 2026-11-24), comme la largeur des panneaux.
+  it('setLimitReadingColumn retient le choix sur l’appareil, sans le synchroniser', () => {
     useUiStore.getState().setLimitReadingColumn(true);
     expect(useUiStore.getState().limitReadingColumn).toBe(true);
     expect(JSON.parse(localStorage.getItem('frirss_limitReadingColumn')!)).toBe(true);
-    expect(UI_SYNC_KEYS).toContain('limitReadingColumn');
+    expect(UI_SYNC_KEYS).not.toContain('limitReadingColumn');
     useUiStore.getState().setLimitReadingColumn(false);
   });
 
-  it('applyServerPrefs reprend la valeur du serveur, et ignore ce qui n’est pas un booléen', () => {
+  it('applyServerPrefs ne touche pas au réglage de l’appareil', () => {
     useUiStore.getState().applyServerPrefs({ limitReadingColumn: true });
-    expect(useUiStore.getState().limitReadingColumn).toBe(true);
-    useUiStore.getState().applyServerPrefs({ limitReadingColumn: 'yes' });
-    expect(useUiStore.getState().limitReadingColumn).toBe(true);
-    useUiStore.getState().applyServerPrefs({ limitReadingColumn: false });
     expect(useUiStore.getState().limitReadingColumn).toBe(false);
   });
 });
@@ -42,19 +39,20 @@ describe('uiStore — largeur de la colonne de lecture', () => {
     expect(READING_COLUMN_WIDTH_DEFAULT).toBe(768);
   });
 
-  it('setReadingColumnWidth retient le choix, le persiste, et la clé est synchronisée', () => {
+  it('setReadingColumnWidth retient le choix sur l’appareil, sans le synchroniser', () => {
     useUiStore.getState().setReadingColumnWidth(900);
     expect(useUiStore.getState().readingColumnWidth).toBe(900);
     expect(JSON.parse(localStorage.getItem('frirss_readingColumnWidth')!)).toBe(900);
-    expect(UI_SYNC_KEYS).toContain('readingColumnWidth');
+    expect(UI_SYNC_KEYS).not.toContain('readingColumnWidth');
   });
 
-  it('applyServerPrefs reprend une largeur valide ; hors bornes ou non numérique, le défaut gagne', () => {
-    useUiStore.getState().applyServerPrefs({ readingColumnWidth: 640 });
+  it('une largeur hors bornes ou non numérique rend le défaut ; le serveur n’y touche pas', () => {
+    useUiStore.getState().setReadingColumnWidth(200);
+    expect(useUiStore.getState().readingColumnWidth).toBe(768);
+    useUiStore.getState().setReadingColumnWidth('wide' as unknown as number);
+    expect(useUiStore.getState().readingColumnWidth).toBe(768);
+    useUiStore.getState().setReadingColumnWidth(640);
+    useUiStore.getState().applyServerPrefs({ readingColumnWidth: 900 });
     expect(useUiStore.getState().readingColumnWidth).toBe(640);
-    useUiStore.getState().applyServerPrefs({ readingColumnWidth: 200 });
-    expect(useUiStore.getState().readingColumnWidth).toBe(768);
-    useUiStore.getState().applyServerPrefs({ readingColumnWidth: 'wide' });
-    expect(useUiStore.getState().readingColumnWidth).toBe(768);
   });
 });

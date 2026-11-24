@@ -25,14 +25,15 @@ la release publiée.
   `docker logs`. Issue #33.
 - **La taille des vignettes de la liste se règle** : Préférences → Apparence →
   Tailles → Liste d'articles → Vignettes, de 56 à 160 px (80 par défaut,
-  l'affichage d'avant). Elles se voient avec la densité Aperçu, dans la liste
-  comme dans la vue côte à côte ; dans une liste étroite, une grande vignette
-  s'arrête à 40 % de la ligne pour laisser la place au titre. Issue #34.
-- **La colonne de lecture peut se limiter** : Préférences → Apparence →
-  Tailles → Colonne de lecture. Désactivé par défaut ; activé, l'article se
-  centre dans une colonne de 480 à 1200 px (768 par défaut), et ses images et
-  vidéos rétrécissent avec elle. Sur un grand écran, les lignes ne courent
-  plus sur toute la largeur. Contribution de babenaldt (PR #32).
+  l'affichage d'avant), propre à chaque appareil. Elles se voient avec la
+  densité Aperçu, dans la liste comme dans la vue côte à côte ; dans une liste
+  étroite, une grande vignette s'arrête à 40 % de la ligne pour laisser la
+  place au titre. Issue #34.
+- **La colonne de lecture peut se limiter** : Préférences → Mise en page →
+  Colonne de lecture, propre à chaque appareil. Désactivé par défaut ; activé,
+  l'article se centre dans une colonne de 480 à 1200 px (768 par défaut), et
+  ses images et vidéos rétrécissent avec elle. Sur un grand écran, les lignes
+  ne courent plus sur toute la largeur. Contribution de babenaldt (PR #32).
 
 ## Sous le capot
 
@@ -40,3 +41,7 @@ la release publiée.
   interne hors du port 3001 où nginx l'attend. Le conteneur le fixe désormais.
 - **Les vidéos d'un article ne débordent plus du panneau de lecture** (même
   colonne non limitée), venu avec la PR #32.
+- **Le balayage entre articles (téléphone, tablette) montre l'article tel
+  qu'il arrivera** : un texte arabe ou persan déjà calé à droite, la boîte
+  « Résumé IA » déjà à sa place, la colonne de lecture déjà appliquée. Avant,
+  tout cela changeait à la fin du geste.

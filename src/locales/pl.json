@@ -317,15 +317,14 @@
     "fonts": {
       "resetFonts": "Zresetuj rozmiary",
       "resetFontsTitle": "Zresetować rozmiary?",
-      "resetFontsMessage": "Rozmiary tekstu wracają do zapisanego motywu, a siatka do ustawień początkowych (240 px, wypełnianie, 16:9).",
+      "resetFontsMessage": "Rozmiary tekstu wracają do zapisanego motywu, siatka do ustawień początkowych (240 px, wypełnianie, 16:9), a miniatury listy do 80 px.",
       "readingBodyDevice": "Tylko na tym urządzeniu: komputer zachowuje własny rozmiar."
     },
     "fontSections": {
       "sidebar": "Pasek boczny",
       "articleList": "Lista artykułów",
       "reading": "Czytanie",
-      "grid": "Siatka",
-      "readingColumn": "Kolumna czytania"
+      "grid": "Siatka"
     },
     "fontKeys": {
       "sidebar-feed": "Nazwa kanału",
@@ -615,12 +614,13 @@
     },
     "listThumb": {
       "width": "Miniatury",
-      "hint": "Widoczne przy gęstości Podgląd."
+      "hint": "Widoczne przy gęstości Podgląd. Na wąskiej liście przestają rosnąć, zanim ścisną tytuł. Tylko na tym urządzeniu."
     },
     "readingColumn": {
+      "title": "Kolumna czytania",
       "limit": "Ogranicz szerokość kolumny",
       "width": "Szerokość kolumny",
-      "limitHint": "Wyśrodkowuje artykuł w węższej kolumnie z szerszymi marginesami; obrazy i filmy zmniejszają się wraz z nią. Gdy wyłączone, artykuł wypełnia cały panel czytania."
+      "limitHint": "Wyśrodkowuje artykuł w węższej kolumnie; obrazy i filmy zmniejszają się wraz z nią. Bez efektu, gdy panel czytania jest już węższy niż kolumna. Tylko na tym urządzeniu."
     },
     "resetTheme": "Resetuj",
     "resetThemeTooltip": "Cofnij zmiany kolorów i rozmiarów od ostatniego zapisania motywu",
