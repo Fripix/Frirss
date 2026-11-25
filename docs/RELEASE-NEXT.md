@@ -28,7 +28,8 @@ la release publiée.
   « Replier les autres sections » (Mise en page) rétablit le repli
   automatique. Le titre de chaque sous-partie est un bandeau qui reste collé en
   haut pendant qu'on la lit ; celle qu'on choisit dans la navigation est
-  teintée de la couleur d'accent.
+  teintée de la couleur d'accent. Sur téléphone, la liste déplie aussi ses
+  sous-titres, et « Retour » reste en haut de la page pendant le défilement.
   Chaînes ajoutées : `preferences.sections.reading` / `keyboard` / `account`,
   `preferences.reading.*`, `preferences.prefsNav.*`, `preferences.navShort.*`, `preferences.offline.prepareTitle`,
   `preferences.account.passwordTitle` ; retirées : `preferences.sections.general`,

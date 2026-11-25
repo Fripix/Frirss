@@ -8372,8 +8372,15 @@ marqué pendant la lecture (suivi du défilement, tu pendant un défilement lanc
 par un clic : la dernière sous-partie, trop courte pour monter en haut, aurait
 volé la sélection). Une pastille teintée (`--accent-glow`) glisse d'une
 section à l'autre ; teintée et non pleine, pour que le libellé garde sa couleur
-pendant le trajet. Sur téléphone, la liste reste un écran à part (on touche
-une section, elle s'ouvre en plein écran avec « Retour ») et ne déplie rien.
+pendant le trajet. **Sur téléphone**, la liste reste un écran à part mais
+déplie de la même façon : toucher une section déplie ses sous-titres (sa page
+est montée, cachée, pour qu'on puisse les lire), toucher un sous-titre ouvre
+la page à cet endroit. Une section sans sous-titre (Étiquettes,
+`SECTIONS_WITHOUT_SUBS`) s'ouvre tout de suite. Dans la page, une **barre
+collante** porte « Retour » et le nom de la section (le `h2` de la page est
+masqué) : le bouton était en tête de page, il fallait remonter tout en haut
+pour sortir. Les bandeaux des sous-parties collent sous elle
+(`--prefs-sticky-top`, 3 rem sur téléphone, 0 ailleurs).
 - **Les sous-titres sont lus dans la page**, pas recopiés : la navigation
   prend les `h3` marqués `data-pref-sub` de la section ouverte
   (`PrefHeading`, `prefsUi.tsx`), en ordre de document, et un

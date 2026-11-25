@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { render, cleanup, screen, fireEvent } from '@testing-library/react';
 
-vi.hoisted(() => {
+const bp = vi.hoisted(() => {
   if (typeof window !== 'undefined' && !window.matchMedia) {
     Object.defineProperty(window, 'matchMedia', {
       writable: true,
@@ -13,13 +13,14 @@ vi.hoisted(() => {
       }),
     });
   }
+  return { value: 'desktop' as 'mobile' | 'desktop' };
 });
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (k: string) => k, i18n: { language: 'fr', changeLanguage: () => {} } }),
   initReactI18next: { type: '3rdParty', init: () => {} },
 }));
-vi.mock('../../hooks/useBreakpoint', () => ({ useBreakpoint: () => 'desktop' }));
+vi.mock('../../hooks/useBreakpoint', () => ({ useBreakpoint: () => bp.value }));
 // Deux sections factices, chacune avec ses sous-parties : c'est la navigation
 // qui est sous test, pas leur contenu.
 vi.mock('./ReadingTab', async () => {
@@ -33,7 +34,7 @@ vi.mock('./LayoutTab', async () => {
 vi.mock('./FeedsTab', () => ({ default: () => null }));
 vi.mock('./AdminTab', () => ({ default: () => null }));
 vi.mock('./OfflineTab', () => ({ default: () => null }));
-vi.mock('./LabelsTab', () => ({ default: () => null }));
+vi.mock('./LabelsTab', () => ({ default: () => <p>Contenu des étiquettes</p> }));
 vi.mock('./AppearanceTab', () => ({ default: () => null }));
 vi.mock('./KeyboardTab', () => ({ default: () => null }));
 vi.mock('./AccountTab', () => ({ default: () => null }));
@@ -47,6 +48,7 @@ const section = (id: string) => screen.getByRole('button', { name: `preferences.
 const expanded = (id: string) => section(id).getAttribute('aria-expanded');
 
 beforeEach(() => {
+  bp.value = 'desktop';
   localStorage.clear();
   useThemeStore.setState({ preferencesTab: null });
 });
@@ -110,5 +112,40 @@ describe('Préférences — navigation dépliable', () => {
     fireEvent.click(section('layout'));
     fireEvent.click(screen.getByRole('button', { name: 'Aléatoire' }));
     expect(section('reading').getAttribute('aria-current')).toBe('page');
+  });
+});
+
+describe('Préférences — navigation sur téléphone', () => {
+  const nav = () => document.querySelector('nav') as HTMLElement;
+  const content = () => document.querySelector('.prefs-content') as HTMLElement;
+
+  it('toucher une section déplie ses sous-titres sans quitter la liste', () => {
+    bp.value = 'mobile';
+    render(<Preferences />);
+    fireEvent.click(section('layout'));
+    expect(nav().hidden).toBe(false);
+    expect(content().hidden).toBe(true);
+    expect(screen.getByRole('button', { name: 'Barre de la liste' })).toBeTruthy();
+  });
+
+  it('toucher un sous-titre ouvre la page de la section, avec « Retour » dans une barre', () => {
+    bp.value = 'mobile';
+    render(<Preferences />);
+    fireEvent.click(section('layout'));
+    fireEvent.click(screen.getByRole('button', { name: 'Colonne' }));
+    expect(nav().hidden).toBe(true);
+    expect(content().hidden).toBe(false);
+    const bar = document.querySelector('.prefs-mobile-bar') as HTMLElement;
+    expect(bar.textContent).toContain('preferences.sections.layout');
+    fireEvent.click(screen.getByRole('button', { name: 'preferences.nav.back' }));
+    expect(nav().hidden).toBe(false);
+  });
+
+  it('une section sans sous-titre s’ouvre tout de suite', () => {
+    bp.value = 'mobile';
+    render(<Preferences />);
+    fireEvent.click(section('labels'));
+    expect(nav().hidden).toBe(true);
+    expect(screen.getByText('Contenu des étiquettes')).toBeTruthy();
   });
 });

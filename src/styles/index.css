@@ -1850,8 +1850,48 @@ html {
 }
 
 /* ── La page d'une section ── */
-.prefs-content { --prefs-pad: 1.75rem; }
-[data-layout="mobile"] .prefs-content { --prefs-pad: 1rem; }
+.prefs-content { --prefs-pad: 1.75rem; --prefs-sticky-top: 0px; }
+[data-layout="mobile"] .prefs-content { --prefs-pad: 1rem; --prefs-sticky-top: 3rem; }
+/* Téléphone : « Retour » et le nom de la section restent en haut de la page.
+   Hauteur fixe (3rem) : les bandeaux des sous-parties collent juste dessous. */
+.prefs-mobile-bar {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 3rem;
+  padding: 0 var(--prefs-pad);
+  background: var(--panel-bg);
+  border-bottom: 1px solid var(--panel-border);
+}
+.prefs-mobile-bar__back {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-height: 44px;
+  flex-shrink: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--accent);
+}
+.prefs-mobile-bar__title {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  /* Centré sur l'écran, pas sur la place restante : le bouton est compensé. */
+  margin-right: 4.5rem;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--list-title);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Le titre de la page est dans la barre : le h2 de la page ferait doublon. */
+[data-layout="mobile"] .prefs-pane > .prefs-h2 { display: none; }
+[data-layout="mobile"] .prefs-subnav-item { font-size: 15px; padding: 0.625rem 0.75rem; }
 .prefs-pane { max-width: 36rem; }
 .prefs-h2 {
   font-size: 20px;
@@ -1871,7 +1911,7 @@ html {
 .prefs-h3-row,
 .prefs-h3:not(.prefs-h3-row > .prefs-h3) {
   position: sticky;
-  top: 0;
+  top: var(--prefs-sticky-top);
   z-index: 2;
   margin: 2.25rem calc(-1 * var(--prefs-pad)) 0.875rem;
   padding: 0.75rem var(--prefs-pad) 0.625rem;

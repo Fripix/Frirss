@@ -55,6 +55,8 @@ interface SubSection { el: HTMLElement; label: string }
 const SPY_OFFSET = 96;
 
 const NO_SUBS: SubSection[] = [];
+/** Sections d'un seul tenant : sur téléphone, elles s'ouvrent au lieu de se déplier. */
+const SECTIONS_WITHOUT_SUBS: readonly SectionId[] = ['labels'];
 
 function sameSubs(a: SubSection[], b: SubSection[]) {
   return a.length === b.length && a.every((s, i) => s.el === b[i].el && s.label === b[i].label);
@@ -270,8 +272,21 @@ export default function Preferences() {
 
   function openSection(id: SectionId) {
     if (isMobile) {
-      setTab(id);
-      setShowNav(false);
+      // Sur téléphone, la liste est un écran à part : toucher une section
+      // déplie ses sous-titres, toucher un sous-titre ouvre la page à cet
+      // endroit. Une section sans sous-titre s'ouvre tout de suite. La page
+      // est montée (cachée) pour que ses sous-titres puissent être lus.
+      const known = subsBySection[id];
+      if (SECTIONS_WITHOUT_SUBS.includes(id) || (known && known.length === 0)) {
+        setTab(id);
+        setShowNav(false);
+        return;
+      }
+      setVisited((cur) => (cur.has(id) ? cur : new Set(cur).add(id)));
+      setOpenSections((cur) => {
+        if (cur.has(id)) { const next = new Set(cur); next.delete(id); return next; }
+        return autoCollapse ? new Set([id]) : new Set(cur).add(id);
+      });
       return;
     }
     if (id === tab) {
@@ -289,9 +304,10 @@ export default function Preferences() {
   function goToSub(section: SectionId, i: number) {
     const el = subsBySection[section]?.[i]?.el;
     if (!el) return;
-    if (section !== tab) {
+    if (section !== tab || (isMobile && showNav)) {
       pendingSub.current = { el, i };
       setTab(section);
+      if (isMobile) setShowNav(false);
       if (autoCollapse) setOpenSections(new Set([section]));
       return;
     }
@@ -301,8 +317,10 @@ export default function Preferences() {
   function scrollToSub(el: HTMLElement, i: number, smooth: boolean) {
     const sc = scrollRef.current;
     if (!sc) return;
-    // Le bandeau du sous-titre colle en haut : on l'amène pile à cette place.
-    const top = flowTop(bandOf(el)) - sc.getBoundingClientRect().top + sc.scrollTop;
+    // Le bandeau du sous-titre colle en haut (sous la barre « Retour » sur
+    // téléphone) : on l'amène pile à cette place.
+    const stickyTop = parseFloat(getComputedStyle(sc).getPropertyValue('--prefs-sticky-top')) || 0;
+    const top = flowTop(bandOf(el)) - sc.getBoundingClientRect().top + sc.scrollTop - stickyTop;
     const p = programmatic.current;
     if (p.timer) clearTimeout(p.timer);
     // Filet de sécurité : déjà à la bonne place, aucun défilement n'arrive.
@@ -552,7 +570,8 @@ export default function Preferences() {
               )}
               {sections.map((s) => {
                 const active = tab === s.id;
-                const sectionSubs = isMobile ? NO_SUBS : subsBySection[s.id] ?? NO_SUBS;
+                const sectionSubs = subsBySection[s.id] ?? NO_SUBS;
+                const opensDirectly = isMobile && SECTIONS_WITHOUT_SUBS.includes(s.id);
                 const hasSubs = sectionSubs.length > 0;
                 const open = hasSubs && openSections.has(s.id);
                 const listId = `${subListId}-${s.id}`;
@@ -571,11 +590,11 @@ export default function Preferences() {
                         <path strokeLinecap="round" strokeLinejoin="round" d={SECTION_ICONS[s.id]} />
                       </svg>
                       <span className="flex-1 min-w-0 truncate">{s.label}</span>
-                      {isMobile ? (
+                      {opensDirectly ? (
                         <svg className="w-4 h-4 opacity-50 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                         </svg>
-                      ) : hasSubs && (
+                      ) : (hasSubs || isMobile) && (
                         <svg className="prefs-nav-chevron" data-open={open ? 'true' : undefined} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                         </svg>
@@ -612,24 +631,26 @@ export default function Preferences() {
             hidden={isMobile && showNav}
             className="prefs-content flex-1 overflow-y-auto min-w-0"
           >
+            {isMobile && (
+              /* Toujours à portée : la barre colle en haut de la page, les
+                 bandeaux des sous-parties collent juste dessous
+                 (`--prefs-sticky-top`). Le bouton Retour était en tête de
+                 page : il fallait remonter tout en haut pour sortir. */
+              <div className="prefs-mobile-bar">
+                <button
+                  onClick={() => setShowNav(true)}
+                  className="prefs-mobile-bar__back"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                  </svg>
+                  {t('preferences.nav.back')}
+                </button>
+                <h2 className="prefs-mobile-bar__title">{sections.find((x) => x.id === tab)?.label}</h2>
+              </div>
+            )}
             <div ref={contentRef} className={`relative isolate ${isMobile ? 'px-4 pt-2 pb-10' : 'px-7 pt-6 pb-16'}`}>
             {marked && <SubMark el={marked} container={contentRef} />}
-            {isMobile && (
-              <button
-                onClick={() => setShowNav(true)}
-                /* The way back, not the subject of the screen: it needs to
-                   read at a glance without becoming the primary action, so
-                   it borrows the accent colour and a heavier weight rather
-                   than a filled button. 44pt tap target via min-height. */
-                className="flex items-center gap-1.5 text-[13px] font-semibold min-h-[44px]"
-                style={{ color: 'var(--accent)' }}
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-                </svg>
-                {t('preferences.nav.back')}
-              </button>
-            )}
           {/* `display:none` en ligne plutôt que l'attribut `hidden` seul : la
               règle `.prefs-panel-body > [hidden]` ne vise que les enfants
               directs, et `hidden` perd contre une classe utilitaire d'affichage
