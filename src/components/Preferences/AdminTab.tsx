@@ -619,7 +619,7 @@ export default function AdminTab({ active = true }: { active?: boolean }) {
 
       {/* ── Login animation ────────────────────────────────── */}
       <div>
-        <PrefHeading>
+        <PrefHeading navLabel={t('preferences.navShort.loginAnimation')}>
           {t('admin.loginAnimation')}
         </PrefHeading>
         <div className="flex flex-wrap gap-1.5">
@@ -649,7 +649,7 @@ export default function AdminTab({ active = true }: { active?: boolean }) {
 
       {/* ── SSO Configuration ──────────────────────────────── */}
       <div>
-        <PrefHeading>
+        <PrefHeading navLabel={t('preferences.navShort.sso')}>
           {t('admin.ssoConfig')}
         </PrefHeading>
 

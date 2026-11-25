@@ -28,7 +28,7 @@ vi.mock('./ReadingTab', async () => {
 });
 vi.mock('./LayoutTab', async () => {
   const { PrefHeading } = await import('./prefsUi');
-  return { default: () => <><PrefHeading tag="Sur ordinateur">Barre de la liste</PrefHeading><PrefHeading>Colonne</PrefHeading></> };
+  return { default: () => <><PrefHeading tag="Sur ordinateur">Barre de la liste</PrefHeading><PrefHeading navLabel="Colonne">Colonne de lecture limitée</PrefHeading></> };
 });
 vi.mock('./FeedsTab', () => ({ default: () => null }));
 vi.mock('./AdminTab', () => ({ default: () => null }));
@@ -59,6 +59,13 @@ describe('Préférences — navigation dépliable', () => {
     fireEvent.click(section('layout'));
     expect(screen.getByRole('button', { name: 'Barre de la liste' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: /Sur ordinateur/ })).toBeNull();
+  });
+
+  it('montre le libellé court d’un sous-titre dans la navigation, le titre entier dans la page', () => {
+    render(<Preferences />);
+    fireEvent.click(section('layout'));
+    expect(screen.getByRole('button', { name: 'Colonne' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Colonne de lecture limitée' })).toBeTruthy();
   });
 
   it('par défaut, ouvrir une autre section laisse la précédente dépliée', () => {

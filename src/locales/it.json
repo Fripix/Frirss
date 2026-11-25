@@ -588,6 +588,17 @@
       "autoCollapse": "Comprimi le altre sezioni",
       "autoCollapseHint": "Aprire una sezione comprime quelle espanse. Se disattivato, ognuna resta espansa finché non ci fai clic."
     },
+    "navShort": {
+      "actionIcons": "Icone di azione",
+      "panel": "Questo pannello",
+      "shortcuts": "Scorciatoie",
+      "gestures": "Gesti e tasti",
+      "images": "Immagini",
+      "routing": "Per feed",
+      "loginAnimation": "Animazione",
+      "sso": "SSO",
+      "restore": "Ripristino"
+    },
     "gridCards": {
       "width": "Larghezza delle schede",
       "ratio": "Formato immagine",

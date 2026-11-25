@@ -618,6 +618,17 @@
       "autoCollapse": "Zwijaj pozostałe sekcje",
       "autoCollapseHint": "Otwarcie sekcji zwija rozwinięte. Po wyłączeniu każda pozostaje rozwinięta, dopóki jej nie klikniesz."
     },
+    "navShort": {
+      "actionIcons": "Ikony akcji",
+      "panel": "Ten panel",
+      "shortcuts": "Skróty",
+      "gestures": "Gesty i klawisze",
+      "images": "Obrazy",
+      "routing": "Według kanału",
+      "loginAnimation": "Animacja",
+      "sso": "SSO",
+      "restore": "Przywracanie"
+    },
     "gridCards": {
       "width": "Szerokość kart",
       "ratio": "Proporcje obrazu",

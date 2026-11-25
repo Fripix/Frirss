@@ -60,6 +60,24 @@ function sameSubs(a: SubSection[], b: SubSection[]) {
   return a.length === b.length && a.every((s, i) => s.el === b[i].el && s.label === b[i].label);
 }
 
+/**
+ * Où un bandeau de sous-partie se trouve dans la page, pas où il est collé.
+ * Un bandeau déjà dépassé reste collé en haut : sa position mesurée disait
+ * « déjà en haut », et un clic sur une sous-partie située plus haut ne
+ * faisait pas défiler. Il est mesuré une fraction d'instant sans `sticky`,
+ * sans rendu intermédiaire.
+ */
+function bandOf(el: HTMLElement): HTMLElement {
+  return el.closest<HTMLElement>('.prefs-h3-row') ?? el;
+}
+function flowTop(band: HTMLElement): number {
+  const prev = band.style.position;
+  band.style.position = 'static';
+  const top = band.getBoundingClientRect().top;
+  band.style.position = prev;
+  return top;
+}
+
 function prefersReducedMotion() {
   return typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 }
@@ -284,7 +302,7 @@ export default function Preferences() {
     const sc = scrollRef.current;
     if (!sc) return;
     // Le bandeau du sous-titre colle en haut : on l'amène pile à cette place.
-    const top = el.getBoundingClientRect().top - sc.getBoundingClientRect().top + sc.scrollTop;
+    const top = flowTop(bandOf(el)) - sc.getBoundingClientRect().top + sc.scrollTop;
     const p = programmatic.current;
     if (p.timer) clearTimeout(p.timer);
     // Filet de sécurité : déjà à la bonne place, aucun défilement n'arrive.
@@ -664,17 +682,18 @@ function SubMark({ el, container }: { el: HTMLElement; container: React.RefObjec
     const pane = el.closest<HTMLElement>('[data-pane]');
     if (!host || !pane) return;
     // Le bandeau collant porte la même teinte, opaque : il passe par-dessus.
-    const band = el.closest<HTMLElement>('.prefs-h3-row') ?? el;
+    const band = bandOf(el);
     band.setAttribute('data-pref-marked', '');
     const measure = () => {
       const origin = host.getBoundingClientRect().top;
       const heads = Array.from(pane.querySelectorAll<HTMLElement>('[data-pref-sub]'));
       const next = heads[heads.indexOf(el) + 1];
-      const nextBand = next ? next.closest<HTMLElement>('.prefs-h3-row') ?? next : null;
-      const top = band.getBoundingClientRect().top - origin;
+      const nextBand = next ? bandOf(next) : null;
+      // Positions dans la page : un bandeau collé mentirait (voir `flowTop`).
+      const top = flowTop(band) - origin;
       // Jusqu'à mi-chemin de l'espace qui précède le bandeau suivant.
       const bottom = nextBand
-        ? nextBand.getBoundingClientRect().top - origin - parseFloat(getComputedStyle(nextBand).marginTop || '0') / 2
+        ? flowTop(nextBand) - origin - parseFloat(getComputedStyle(nextBand).marginTop || '0') / 2
         : pane.getBoundingClientRect().bottom - origin + 24;
       setBox((cur) => (cur && cur.top === top && cur.height === bottom - top ? cur : { top, height: Math.max(0, bottom - top) }));
     };

@@ -21,7 +21,7 @@ export default function BackupBlock() {
       </div>
 
       <div>
-        <PrefHeading>{t('backup.restoreTitle')}</PrefHeading>
+        <PrefHeading navLabel={t('preferences.navShort.restore')}>{t('backup.restoreTitle')}</PrefHeading>
         {/* La restauration remplace les comptes : la session courante ne vaut
             plus rien ensuite, on déconnecte plutôt que de laisser l'utilisateur
             devant une interface qui ne répond plus. Le délai lui laisse le

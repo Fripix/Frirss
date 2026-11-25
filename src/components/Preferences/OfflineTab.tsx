@@ -225,7 +225,7 @@ export default function OfflineTab({ active = true }: { active?: boolean }) {
 
       {/* Offline images — budget, real usage, purge */}
       <div className="space-y-2">
-        <PrefHeading>{t('preferences.offline.imagesTitle')}</PrefHeading>
+        <PrefHeading navLabel={t('preferences.navShort.images')}>{t('preferences.offline.imagesTitle')}</PrefHeading>
         <PrefIntro>{t('preferences.offline.imagesHint')}</PrefIntro>
 
         {/* Off switch — greys the sizes out rather than hiding them. */}

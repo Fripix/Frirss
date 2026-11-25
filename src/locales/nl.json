@@ -588,6 +588,17 @@
       "autoCollapse": "Andere secties inklappen",
       "autoCollapseHint": "Een sectie openen klapt de uitgeklapte secties in. Uitgeschakeld blijft elke sectie uitgeklapt tot je erop klikt."
     },
+    "navShort": {
+      "actionIcons": "Actiepictogrammen",
+      "panel": "Dit paneel",
+      "shortcuts": "Sneltoetsen",
+      "gestures": "Gebaren en toetsen",
+      "images": "Afbeeldingen",
+      "routing": "Per feed",
+      "loginAnimation": "Animatie",
+      "sso": "SSO",
+      "restore": "Herstellen"
+    },
     "gridCards": {
       "width": "Kaartbreedte",
       "ratio": "Beeldverhouding",

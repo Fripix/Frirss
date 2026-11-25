@@ -588,6 +588,17 @@
       "autoCollapse": "Contraer las demás secciones",
       "autoCollapseHint": "Abrir una sección contrae las que estaban desplegadas. Desactivado, cada una sigue desplegada hasta que hagas clic en ella."
     },
+    "navShort": {
+      "actionIcons": "Iconos de acción",
+      "panel": "Este panel",
+      "shortcuts": "Atajos",
+      "gestures": "Gestos y teclas",
+      "images": "Imágenes",
+      "routing": "Por fuente",
+      "loginAnimation": "Animación",
+      "sso": "SSO",
+      "restore": "Restauración"
+    },
     "gridCards": {
       "width": "Ancho de las tarjetas",
       "ratio": "Formato de imagen",

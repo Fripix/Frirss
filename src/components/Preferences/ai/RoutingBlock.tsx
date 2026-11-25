@@ -262,7 +262,7 @@ export default function RoutingBlock() {
 
   return (
     <section className="space-y-3">
-      <BlockTitle>{t('ai.routing.title')}</BlockTitle>
+      <BlockTitle navLabel={t('preferences.navShort.routing')}>{t('ai.routing.title')}</BlockTitle>
       <RoutingKey id={keyId} />
       <div className="ai-routing">
         <div data-routing-grid data-touch={touch ? '' : undefined} className="ai-routing__grid">

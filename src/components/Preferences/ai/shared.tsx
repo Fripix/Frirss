@@ -6,8 +6,8 @@ import ConfirmDialog from '../../ConfirmDialog';
 import { PrefHeading } from '../prefsUi';
 
 /** Le titre d'un bloc de la section IA : une sous-partie listée par la navigation. */
-export function BlockTitle({ children, action }: { children: string; action?: ReactNode }) {
-  return <PrefHeading action={action}>{children}</PrefHeading>;
+export function BlockTitle({ children, action, navLabel }: { children: string; action?: ReactNode; navLabel?: string }) {
+  return <PrefHeading action={action} navLabel={navLabel}>{children}</PrefHeading>;
 }
 
 /** Les `<option>` d'une liste de fournisseurs, selon `providerChoices`. */

@@ -588,6 +588,17 @@
       "autoCollapse": "Andere Bereiche einklappen",
       "autoCollapseHint": "Beim Öffnen eines Bereichs werden die aufgeklappten eingeklappt. Ausgeschaltet bleibt jeder aufgeklappt, bis du ihn anklickst."
     },
+    "navShort": {
+      "actionIcons": "Aktionssymbole",
+      "panel": "Dieser Bereich",
+      "shortcuts": "Tastenkürzel",
+      "gestures": "Gesten und Tasten",
+      "images": "Bilder",
+      "routing": "Pro Feed",
+      "loginAnimation": "Animation",
+      "sso": "SSO",
+      "restore": "Wiederherstellung"
+    },
     "gridCards": {
       "width": "Kartenbreite",
       "ratio": "Bildformat",

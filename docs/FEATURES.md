@@ -8397,7 +8397,15 @@ une section, elle s'ouvre en plein écran avec « Retour ») et ne déplie rien.
 - **Sous-titres de la navigation sur une seule ligne** : colonne de 240 px
   (panneau de 720 px), retrait réduit ; « Icônes d'action des articles », le
   plus long en français, tient en gras. Plus long (allemand), le libellé se
-  coupe par « … » et reste entier au survol (`title`).
+  coupe par « … » et reste entier au survol (`title`). Les titres longs ont
+  un **libellé court** pour la navigation (`navLabel`, clés
+  `preferences.navShort.*` : « Icônes d'action », « Gestes et touches »,
+  « Images », « Par flux », « SSO »…), le titre entier restant dans la page.
+- **Piège du bandeau collant** : un bandeau déjà dépassé reste collé en haut,
+  donc sa position mesurée est « en haut ». Un clic sur une sous-partie située
+  plus haut ne défilait pas. La position se lit dans la page (`flowTop`,
+  bandeau mesuré un instant sans `sticky`), pour le défilement comme pour la
+  teinte.
 - **Sous-partie choisie teintée** : un clic sur un sous-titre de la navigation
   teinte toute la sous-partie dans la page (`--accent-glow`, filets d'accent
   haut et bas), bandeau compris (`data-pref-marked`, la même teinte posée sur

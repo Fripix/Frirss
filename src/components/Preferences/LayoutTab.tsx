@@ -116,7 +116,7 @@ export default function LayoutTab() {
         </PrefCard>
       </section>
 
-      <PrefHeading>{t('preferences.layout.title')}</PrefHeading>
+      <PrefHeading navLabel={t('preferences.navShort.actionIcons')}>{t('preferences.layout.title')}</PrefHeading>
       <PrefIntro>{t('preferences.layout.hint')}</PrefIntro>
       <PrefCard>
         {ROW_ACTION_ORDER.map((kind) => (
@@ -127,7 +127,7 @@ export default function LayoutTab() {
 
       {/* Le panneau lui-même : sur téléphone, sa liste de sections est un
           écran à part qui ne déplie rien, d'où l'étiquette. */}
-      <PrefHeading tag={desktopTag}>{t('preferences.prefsNav.title')}</PrefHeading>
+      <PrefHeading tag={desktopTag} navLabel={t('preferences.navShort.panel')}>{t('preferences.prefsNav.title')}</PrefHeading>
       <PrefCard>
         <PrefRow
           label={t('preferences.prefsNav.autoCollapse')}

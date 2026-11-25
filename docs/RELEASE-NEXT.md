@@ -30,7 +30,7 @@ la release publiée.
   haut pendant qu'on la lit ; celle qu'on choisit dans la navigation est
   teintée de la couleur d'accent.
   Chaînes ajoutées : `preferences.sections.reading` / `keyboard` / `account`,
-  `preferences.reading.*`, `preferences.prefsNav.*`, `preferences.offline.prepareTitle`,
+  `preferences.reading.*`, `preferences.prefsNav.*`, `preferences.navShort.*`, `preferences.offline.prepareTitle`,
   `preferences.account.passwordTitle` ; retirées : `preferences.sections.general`,
   `preferences.general.title`, `preferences.account.title`,
   `preferences.offline.title`, `preferences.toolbars.everywhereTitle`.

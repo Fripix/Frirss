@@ -191,7 +191,7 @@ export default function AccountSection() {
         const secondaryStyle = { border: '1px solid var(--panel-border)', color: 'var(--list-title)' };
         return (
           <section aria-labelledby={ids.sso} className="space-y-2">
-            <PrefHeading id={ids.sso}>{t('preferences.account.ssoTitle', { provider })}</PrefHeading>
+            <PrefHeading id={ids.sso} navLabel={provider}>{t('preferences.account.ssoTitle', { provider })}</PrefHeading>
             {ssoLinked ? (
               <>
                 <p className="text-xs" style={{ color: 'var(--list-summary)' }}>

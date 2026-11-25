@@ -588,6 +588,17 @@
       "autoCollapse": "Recolher as outras secções",
       "autoCollapseHint": "Abrir uma secção recolhe as que estavam expandidas. Desativado, cada uma fica expandida até clicar nela."
     },
+    "navShort": {
+      "actionIcons": "Ícones de ação",
+      "panel": "Este painel",
+      "shortcuts": "Atalhos",
+      "gestures": "Gestos e teclas",
+      "images": "Imagens",
+      "routing": "Por feed",
+      "loginAnimation": "Animação",
+      "sso": "SSO",
+      "restore": "Restauro"
+    },
     "gridCards": {
       "width": "Largura dos cartões",
       "ratio": "Formato da imagem",

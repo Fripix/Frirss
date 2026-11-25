@@ -588,6 +588,17 @@
       "autoCollapse": "Collapse other sections",
       "autoCollapseHint": "Opening a section collapses the ones that were expanded. When off, each stays expanded until you click it."
     },
+    "navShort": {
+      "actionIcons": "Action icons",
+      "panel": "This panel",
+      "shortcuts": "Shortcuts",
+      "gestures": "Gestures and keys",
+      "images": "Images",
+      "routing": "Per feed",
+      "loginAnimation": "Animation",
+      "sso": "SSO",
+      "restore": "Restore"
+    },
     "gridCards": {
       "width": "Card width",
       "ratio": "Image ratio",

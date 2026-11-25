@@ -588,6 +588,17 @@
       "autoCollapse": "Replier les autres sections",
       "autoCollapseHint": "Ouvrir une section replie celles qui étaient dépliées. Désactivé, chacune reste dépliée jusqu’à un clic sur elle."
     },
+    "navShort": {
+      "actionIcons": "Icônes d’action",
+      "panel": "Ce panneau",
+      "shortcuts": "Raccourcis",
+      "gestures": "Gestes et touches",
+      "images": "Images",
+      "routing": "Par flux",
+      "loginAnimation": "Animation",
+      "sso": "SSO",
+      "restore": "Restauration"
+    },
     "gridCards": {
       "width": "Largeur des cartes",
       "ratio": "Format d’image",

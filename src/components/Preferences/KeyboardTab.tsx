@@ -58,6 +58,7 @@ export default function KeyboardTab() {
   return (
       <div>
         <PrefHeading
+          navLabel={t('preferences.navShort.shortcuts')}
           action={
             <button
               onClick={() => setConfirmReset(true)}
@@ -127,7 +128,7 @@ export default function KeyboardTab() {
 
         {/* Built-in gestures / keys — not remappable, listed for discoverability. */}
         <div data-builtin-gestures>
-          <PrefHeading>{t('preferences.shortcuts.builtInTitle')}</PrefHeading>
+          <PrefHeading navLabel={t('preferences.navShort.gestures')}>{t('preferences.shortcuts.builtInTitle')}</PrefHeading>
           <PrefCard>
           {/* La liste même de l'aide « ? » (A4). */}
           {builtInGestures(t).map(({ key: keyLabel, label }) => (
