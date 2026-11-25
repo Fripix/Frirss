@@ -12,6 +12,7 @@ import { useBackLayer } from '../../hooks/useAndroidBack';
 import { swatchPopoverWidth, isCoarsePointer } from '../../lib/swatchPopover';
 import { nameOwners, takenBy, type NameOwners } from '../../lib/labelNames';
 import NameRefusal from '../NameRefusal';
+import { PrefCard, PrefIntro, PrefRow } from './prefsUi';
 
 // Label grouping item (Preferences labels tab)
 interface PrefLabelChild { tag: Tag; leafName: string; fullName: string }
@@ -226,7 +227,9 @@ export default function LabelsTab({ resetLabelColors }: { resetLabelColors: () =
     // réglages restent atteignables.
     return (
       <div className="space-y-3">
-        <SpecialCountsToggles />
+        <PrefCard>
+          <SpecialCountsToggles />
+        </PrefCard>
         <div className="text-center py-8">
           <p className="text-sm" style={{ color: 'var(--list-summary)' }}>
             {t('preferences.labels.noLabels')}. {t('preferences.labels.noLabelsHint')}
@@ -241,53 +244,37 @@ export default function LabelsTab({ resetLabelColors }: { resetLabelColors: () =
       className="space-y-4"
       onDragOver={(e) => { if (dragId) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; } }}
     >
-      {/* Sort toggle */}
-      <div className="flex items-center justify-between">
-        <p className="text-[11px]" style={{ color: 'var(--list-summary)' }}>
-          {t('preferences.labels.description')}
-        </p>
-        <div className="flex items-center gap-2 select-none flex-shrink-0">
-          <ToggleSwitch checked={labelSortAlpha} onChange={setLabelSortAlpha} ariaLabel="A→Z" />
-          <span className="text-[11px] whitespace-nowrap" style={{ color: 'var(--list-summary)' }}>
-            A→Z
-          </span>
-        </div>
-      </div>
-
-      {/* Show article count per label */}
-      <div className="flex items-center justify-between select-none">
-        <span className="text-[11px]" style={{ color: 'var(--list-summary)' }}>
-          {t('preferences.labels.showCounts')}
-        </span>
-        <ToggleSwitch
-          checked={showLabelCounts}
-          onChange={(next) => {
-            setShowLabelCounts(next);
-            if (next) loadLabelCounts();
-          }}
-          ariaLabel={t('preferences.labels.showCounts')}
+      <PrefIntro>{t('preferences.labels.description')}</PrefIntro>
+      <PrefCard>
+        <PrefRow
+          label="A→Z"
+          control={<ToggleSwitch checked={labelSortAlpha} onChange={setLabelSortAlpha} ariaLabel="A→Z" />}
         />
-      </div>
-      {/* Non-lus par étiquette, indépendants du total (issue #29). Le relevé
-          d'un serveur d'avant FreshRSS 1.26 part de la sidebar à l'allumage. */}
-      <div className="flex items-center justify-between gap-3 select-none">
-        <span className="text-[11px] min-w-0" style={{ color: 'var(--list-summary)' }}>
-          {t('preferences.labels.showLabelUnread')}
-        </span>
-        <span className="shrink-0">
-          <ToggleSwitch checked={showLabelUnread} onChange={setShowLabelUnread} ariaLabel={t('preferences.labels.showLabelUnread')} />
-        </span>
-      </div>
-      {/* Avant FreshRSS 1.26, `unread-count` ignore les étiquettes : rien ne
-          s'affiche, et on le dit ici plutôt que de laisser un interrupteur
-          sans effet (décision du propriétaire, 2026-11-11). */}
-      {labelUnreadServer === false && (
-        <p className="text-[11px] -mt-1" style={{ color: 'var(--list-summary)', opacity: 0.8 }}>
-          {t('preferences.labels.unreadNeedsFreshRss')}
-        </p>
-      )}
-
-      <SpecialCountsToggles />
+        <PrefRow
+          label={t('preferences.labels.showCounts')}
+          control={
+            <ToggleSwitch
+              checked={showLabelCounts}
+              onChange={(next) => {
+                setShowLabelCounts(next);
+                if (next) loadLabelCounts();
+              }}
+              ariaLabel={t('preferences.labels.showCounts')}
+            />
+          }
+        />
+        {/* Non-lus par étiquette, indépendants du total (issue #29). Le relevé
+            d'un serveur d'avant FreshRSS 1.26 part de la sidebar à l'allumage.
+            Avant FreshRSS 1.26, `unread-count` ignore les étiquettes : rien ne
+            s'affiche, et on le dit ici plutôt que de laisser un interrupteur
+            sans effet (décision du propriétaire, 2026-11-11). */}
+        <PrefRow
+          label={t('preferences.labels.showLabelUnread')}
+          hint={labelUnreadServer === false ? t('preferences.labels.unreadNeedsFreshRss') : undefined}
+          control={<ToggleSwitch checked={showLabelUnread} onChange={setShowLabelUnread} ariaLabel={t('preferences.labels.showLabelUnread')} />}
+        />
+        <SpecialCountsToggles />
+      </PrefCard>
 
       {/* Standalone labels — always rendered to prevent layout shift during drag */}
       <div>
@@ -373,7 +360,7 @@ export default function LabelsTab({ resetLabelColors }: { resetLabelColors: () =
                       onChange={() => toggleLabelInherit(parentId)}
                       className="accent-[var(--accent)] w-3.5 h-3.5"
                     />
-                    <span className="text-[11px]" style={{ color: 'var(--list-summary)' }}>
+                    <span className="text-xs" style={{ color: 'var(--list-summary)' }}>
                       {t('preferences.labels.applyToSub')}
                     </span>
                   </label>
@@ -451,7 +438,7 @@ function GroupDropHeader({ label, groupName, dragId, dropGroupTarget, setDropGro
 
   return (
     <h3
-      className={`text-[11px] font-bold uppercase tracking-widest mb-2 px-2 -mx-2 rounded-md transition-all ${
+      className={`text-xs font-bold uppercase tracking-widest mb-2 px-2 -mx-2 rounded-md transition-all ${
         isOver && isDifferentGroup ? 'ring-2' : ''
       }`}
       style={{
@@ -480,12 +467,12 @@ function GroupDropHeader({ label, groupName, dragId, dropGroupTarget, setDropGro
     >
       {label}
       {showDropZone && !isOver && (
-        <span className="ml-2 text-[10px] font-normal normal-case tracking-normal opacity-50" style={{ color: 'var(--list-summary)' }}>
+        <span className="ml-2 text-[11px] font-normal normal-case tracking-normal opacity-50" style={{ color: 'var(--list-summary)' }}>
           ← {t('preferences.labels.dropHere')}
         </span>
       )}
       {isOver && isDifferentGroup && (
-        <span className="ml-2 text-[10px] font-normal normal-case tracking-normal" style={{ color: 'var(--accent)' }}>
+        <span className="ml-2 text-[11px] font-normal normal-case tracking-normal" style={{ color: 'var(--accent)' }}>
           ← {t('preferences.labels.dropHere')}
         </span>
       )}
@@ -564,7 +551,7 @@ function LabelRow({
             aria-describedby={refusalId}
             value={renameValue}
             onChange={(e) => setRenameValue(e.target.value)}
-            className="flex-1 min-w-0 text-xs px-2 py-1 rounded border outline-none"
+            className="flex-1 min-w-0 text-[13px] px-2 py-1 rounded border outline-none"
             style={{
               borderColor: 'var(--accent)',
               color: 'var(--list-title)',
@@ -612,11 +599,11 @@ function LabelRow({
 
     return (
       <div className="flex items-center gap-2 py-1.5 px-2 rounded-md" style={{ background: 'var(--panel-header-bg)' }}>
-        <span className="text-xs" style={{ color: 'var(--list-summary)' }}>{t('preferences.labels.moveTo')}</span>
+        <span className="text-[13px]" style={{ color: 'var(--list-summary)' }}>{t('preferences.labels.moveTo')}</span>
         <select
           autoFocus
           aria-label={t('preferences.labels.moveTo')}
-          className="flex-1 text-xs px-2 py-1 rounded border outline-none"
+          className="flex-1 text-[13px] px-2 py-1 rounded border outline-none"
           style={{
             borderColor: 'var(--accent)',
             color: 'var(--list-title)',
@@ -731,17 +718,17 @@ function LabelRow({
 
         {/* Label name */}
         <span
-          className={`flex-1 text-xs truncate ${isParent ? 'font-semibold' : ''}`}
+          className={`flex-1 text-[13px] truncate ${isParent ? 'font-semibold' : ''}`}
           style={{ color: isDropOnto ? 'var(--accent)' : 'var(--reading-text)' }}
         >
           {name}
           {isDropOnto && (
-            <span className="ml-1.5 text-[10px] font-normal" style={{ color: 'var(--accent)' }}>
+            <span className="ml-1.5 text-[11px] font-normal" style={{ color: 'var(--accent)' }}>
               ← {t('preferences.labels.nestHere')}
             </span>
           )}
           {!isDropOnto && inherited && (
-            <span className="ml-1 text-[10px] italic" style={{ color: 'var(--list-summary)' }}>
+            <span className="ml-1 text-[11px] italic" style={{ color: 'var(--list-summary)' }}>
               ({t('preferences.labels.inherited')})
             </span>
           )}
@@ -1024,7 +1011,7 @@ function LabelColorPicker({ labelName, color, effectiveColor, onChangeColor, onR
             <div className="flex-1 flex items-center rounded-md border overflow-hidden"
               style={{ borderColor: 'var(--panel-border)', background: 'var(--panel-header-bg)' }}
             >
-              <span className="pl-2 text-[11px] font-mono" style={{ color: 'var(--list-summary)' }}>#</span>
+              <span className="pl-2 text-xs font-mono" style={{ color: 'var(--list-summary)' }}>#</span>
               <input
                 type="text"
                 value={hex.replace('#', '')}
@@ -1035,7 +1022,7 @@ function LabelColorPicker({ labelName, color, effectiveColor, onChangeColor, onR
                 }}
                 onBlur={() => applyHex(hex)}
                 onKeyDown={(e) => { if (e.key === 'Enter') { applyHex(hex); e.currentTarget.blur(); } }}
-                className="flex-1 text-[11px] font-mono px-1 py-1.5 bg-transparent outline-none"
+                className="flex-1 text-xs font-mono px-1 py-1.5 bg-transparent outline-none"
                 style={{ color: 'var(--list-title)' }}
                 maxLength={6}
                 aria-label={t('preferences.labels.hexColor')}
@@ -1065,14 +1052,11 @@ function SpecialCountsToggles() {
   return (
     <>
       {rows.map(([key, checked, setChecked]) => (
-        <div key={key} className="flex items-center justify-between gap-3 select-none">
-          <span className="text-[11px] min-w-0" style={{ color: 'var(--list-summary)' }}>
-            {t(`preferences.labels.${key}`)}
-          </span>
-          <span className="shrink-0">
-            <ToggleSwitch checked={checked} onChange={setChecked} ariaLabel={t(`preferences.labels.${key}`)} />
-          </span>
-        </div>
+        <PrefRow
+          key={key}
+          label={t(`preferences.labels.${key}`)}
+          control={<ToggleSwitch checked={checked} onChange={setChecked} ariaLabel={t(`preferences.labels.${key}`)} />}
+        />
       ))}
     </>
   );

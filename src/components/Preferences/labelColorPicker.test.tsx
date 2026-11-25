@@ -33,7 +33,7 @@ vi.mock('../../api/backend', () => ({
 vi.mock('./FeedsTab', () => ({ default: () => null }));
 vi.mock('./AdminTab', () => ({ default: () => null }));
 vi.mock('./OfflineTab', () => ({ default: () => null }));
-vi.mock('./GeneralTab', () => ({ default: () => null }));
+vi.mock('./ReadingTab', () => ({ default: () => null }));
 vi.mock('./AppearanceTab', () => ({ default: () => null }));
 vi.mock('./LayoutTab', () => ({ default: () => null }));
 

@@ -199,7 +199,6 @@
   "preferences": {
     "title": "偏好设置",
     "general": {
-      "title": "通用",
       "confirmMarkAllRead": "全部标为已读前先确认",
       "confirmMarkAllReadHint": "关闭后，“全部标为已读”一次点击即可生效，无需确认。",
       "inlineVideos": "在文章内播放视频",
@@ -229,6 +228,12 @@
       "randomDays": "天",
       "randomCountHint": "列表上“随机”按钮显示的文章数量，1 到 500。",
       "randomWindowHint": "将“随机”按钮限制为最近收到的文章。留空：全部文章。"
+    },
+    "reading": {
+      "list": "文章列表",
+      "markRead": "标记为已读",
+      "article": "文章",
+      "random": "随机"
     },
     "branding": {
       "language": "语言",
@@ -454,7 +459,7 @@
       "unassigned": "未设置按键"
     },
     "offline": {
-      "title": "离线",
+      "prepareTitle": "准备",
       "hint": "缓存全部订阅源最近 30 天的内容（文字 + 图片），供离线阅读。会消耗流量，建议在 Wi-Fi 下使用。",
       "button": "缓存离线内容（30 天）",
       "preparing": "准备中…",
@@ -519,14 +524,16 @@
       "save": "保存"
     },
     "sections": {
-      "general": "通用",
+      "reading": "阅读",
       "appearance": "外观",
-      "labels": "标签",
-      "feeds": "订阅源",
-      "offline": "离线",
-      "admin": "管理",
       "layout": "操作图标",
-      "ai": "AI"
+      "keyboard": "键盘",
+      "feeds": "订阅源",
+      "labels": "标签",
+      "offline": "离线",
+      "ai": "AI",
+      "account": "账户",
+      "admin": "管理"
     },
     "appearance": {
       "theme": "主题",
@@ -598,8 +605,8 @@
     "resetThemeMessage": "颜色和尺寸将恢复为已保存的“{{name}}”主题。其他偏好设置不变。",
     "resetThemeConfirm": "重置",
     "account": {
-      "title": "账户",
       "hint": "更改密码会关闭你的其他已打开会话：你需要在其他设备上重新登录。",
+      "passwordTitle": "密码",
       "current": "当前密码",
       "new": "新密码",
       "confirm": "确认新密码",
@@ -634,7 +641,6 @@
       "shortcutBar": "快捷键栏",
       "shortcutBarWhole": "显示快捷键栏",
       "showAll": "全部重新显示",
-      "everywhereTitle": "在所有屏幕上",
       "serverBar": "服务器栏",
       "items": {
         "search": "搜索",

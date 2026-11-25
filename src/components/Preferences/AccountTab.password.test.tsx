@@ -17,7 +17,7 @@ vi.mock('../../api/backend', () => ({
   getMe: vi.fn().mockResolvedValue(undefined),
 }));
 
-import GeneralTab from './GeneralTab';
+import AccountTab from './AccountTab';
 import { useAuthStore } from '../../stores/authStore';
 import { changePassword, getOidcConfig, linkOidcAccount, unlinkOidcAccount, getMe } from '../../api/backend';
 
@@ -32,7 +32,7 @@ const submit = () => act(async () => { fireEvent.click(screen.getByRole('button'
 
 // La route existait depuis toujours, mais aucun écran ne l'appelait depuis
 // août : un compte local ne pouvait pas changer son propre mot de passe.
-describe('Préférences › Général — changer son mot de passe', () => {
+describe('Préférences › Compte — changer son mot de passe', () => {
   beforeEach(() => {
     vi.mocked(changePassword).mockReset();
     useAuthStore.setState({ backendUser: { id: 1, username: 'root', role: 'user', auth_provider: 'local' } as never });
@@ -44,19 +44,19 @@ describe('Préférences › Général — changer son mot de passe', () => {
   // (le retour SSO lit l'utilisateur par /me, qui l'inclut toujours).
   it('apparaît pour une session locale qui ne connaît pas encore son fournisseur', () => {
     useAuthStore.setState({ backendUser: { id: 1, username: 'root', role: 'user' } as never });
-    render(<GeneralTab />);
+    render(<AccountTab />);
     expect(screen.getByLabelText('preferences.account.current')).toBeTruthy();
   });
 
   it('n’apparaît pas pour un compte SSO, qui n’a pas de mot de passe ici', () => {
     useAuthStore.setState({ backendUser: { id: 1, username: 'root', role: 'user', auth_provider: 'oidc' } as never });
-    render(<GeneralTab />);
+    render(<AccountTab />);
     expect(screen.queryByLabelText('preferences.account.current')).toBeNull();
   });
 
   it('change le mot de passe et le dit', async () => {
     vi.mocked(changePassword).mockResolvedValue(undefined);
-    render(<GeneralTab />);
+    render(<AccountTab />);
     fill('old-secret', 'new-secret', 'new-secret');
     await submit();
     expect(changePassword).toHaveBeenCalledWith('old-secret', 'new-secret');
@@ -68,7 +68,7 @@ describe('Préférences › Général — changer son mot de passe', () => {
   // restait affichée pendant qu'on retapait un autre mot de passe.
   it('annonce la réussite dans une région déjà montée, effacée dès qu’on retape', async () => {
     vi.mocked(changePassword).mockResolvedValue(undefined);
-    render(<GeneralTab />);
+    render(<AccountTab />);
     const region = screen.getAllByRole('status').find((r) => r.closest('form'));
     expect(region?.textContent).toBe('');
     fill('old-secret', 'new-secret', 'new-secret');
@@ -81,14 +81,14 @@ describe('Préférences › Général — changer son mot de passe', () => {
   // Sans champ identifiant, un gestionnaire de mots de passe ne sait pas à
   // quel compte rattacher le nouveau mot de passe (Chrome le signale).
   it('porte l’identifiant du compte pour les gestionnaires de mots de passe', () => {
-    const { container } = render(<GeneralTab />);
+    const { container } = render(<AccountTab />);
     const user = container.querySelector('input[autocomplete="username"]') as HTMLInputElement | null;
     expect(user?.value).toBe('root');
     expect(user?.closest('form')).toBe(screen.getByLabelText('preferences.account.current').closest('form'));
   });
 
   it('refuse deux saisies différentes sans appeler le serveur', async () => {
-    render(<GeneralTab />);
+    render(<AccountTab />);
     fill('old-secret', 'new-secret', 'new-secreT');
     await submit();
     expect(changePassword).not.toHaveBeenCalled();
@@ -96,7 +96,7 @@ describe('Préférences › Général — changer son mot de passe', () => {
   });
 
   it('refuse un nouveau mot de passe trop court sans appeler le serveur', async () => {
-    render(<GeneralTab />);
+    render(<AccountTab />);
     fill('old-secret', 'abc', 'abc');
     await submit();
     expect(changePassword).not.toHaveBeenCalled();
@@ -105,7 +105,7 @@ describe('Préférences › Général — changer son mot de passe', () => {
 
   it('dit que le mot de passe actuel est faux', async () => {
     vi.mocked(changePassword).mockRejectedValue(http(401, 'Current password is incorrect'));
-    render(<GeneralTab />);
+    render(<AccountTab />);
     fill('wrong', 'new-secret', 'new-secret');
     await submit();
     expect(screen.getByRole('alert').textContent).toBe('preferences.account.wrongCurrent');
@@ -113,7 +113,7 @@ describe('Préférences › Général — changer son mot de passe', () => {
 
   it('dit qu’il faut attendre après trop d’essais', async () => {
     vi.mocked(changePassword).mockRejectedValue(http(429, 'Too many attempts, please try again later'));
-    render(<GeneralTab />);
+    render(<AccountTab />);
     fill('wrong', 'new-secret', 'new-secret');
     await submit();
     expect(screen.getByRole('alert').textContent).toBe('preferences.account.tooMany');
@@ -123,13 +123,13 @@ describe('Préférences › Général — changer son mot de passe', () => {
 // Seul chemin de rattachement au SSO depuis 1.8.0 : depuis le compte, connecté.
 // Le rattachement d'office par adresse e-mail donnait le compte (admin compris)
 // à qui inscrivait cette adresse dans son profil chez le fournisseur.
-describe('Préférences › Général — lier son compte au SSO', () => {
+describe('Préférences › Compte — lier son compte au SSO', () => {
   afterEach(cleanup);
 
   it('propose le rattachement quand le SSO est actif et le compte pas encore lié', async () => {
     vi.mocked(getOidcConfig).mockResolvedValue({ enabled: true, buttonLabel: 'Authentik' });
     useAuthStore.setState({ backendUser: { id: 1, username: 'root', role: 'admin', auth_provider: 'local', sso_linked: false } as never });
-    render(<GeneralTab />);
+    render(<AccountTab />);
     const btn = await screen.findByRole('button', { name: 'preferences.account.ssoLink' });
     await act(async () => { fireEvent.click(btn); });
     // Le mot de passe actuel d'abord : une session volée ne suffit plus.
@@ -143,7 +143,7 @@ describe('Préférences › Général — lier son compte au SSO', () => {
     vi.mocked(getOidcConfig).mockResolvedValue({ enabled: true, buttonLabel: 'Authentik' });
     vi.mocked(linkOidcAccount).mockRejectedValueOnce(http(401, 'Current password is incorrect'));
     useAuthStore.setState({ backendUser: { id: 1, username: 'root', role: 'admin', auth_provider: 'local', sso_linked: false } as never });
-    render(<GeneralTab />);
+    render(<AccountTab />);
     { const btn = await screen.findByRole('button', { name: 'preferences.account.ssoLink' }); await act(async () => { fireEvent.click(btn); }); }
     fireEvent.change(screen.getByLabelText('preferences.account.ssoPassword'), { target: { value: 'faux' } });
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'preferences.account.ssoLink' })); });
@@ -153,7 +153,7 @@ describe('Préférences › Général — lier son compte au SSO', () => {
   it('délie un compte lié', async () => {
     vi.mocked(getOidcConfig).mockResolvedValue({ enabled: true, buttonLabel: 'Authentik' });
     useAuthStore.setState({ backendUser: { id: 1, username: 'root', role: 'admin', auth_provider: 'local', sso_linked: true } as never });
-    render(<GeneralTab />);
+    render(<AccountTab />);
     { const btn = await screen.findByRole('button', { name: 'preferences.account.ssoUnlink' }); await act(async () => { fireEvent.click(btn); }); }
     expect(unlinkOidcAccount).toHaveBeenCalled();
     expect(useAuthStore.getState().backendUser?.sso_linked).toBe(false);
@@ -166,7 +166,7 @@ describe('Préférences › Général — lier son compte au SSO', () => {
     vi.mocked(getOidcConfig).mockResolvedValue({ enabled: true, buttonLabel: 'Authentik' });
     vi.mocked(linkOidcAccount).mockRejectedValueOnce(http(409, 'Account already linked'));
     useAuthStore.setState({ backendUser: { id: 1, username: 'root', role: 'admin', auth_provider: 'local' } as never });
-    render(<GeneralTab />);
+    render(<AccountTab />);
     { const btn = await screen.findByRole('button', { name: 'preferences.account.ssoLink' }); await act(async () => { fireEvent.click(btn); }); }
     fireEvent.change(screen.getByLabelText('preferences.account.ssoPassword'), { target: { value: 'secret123' } });
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'preferences.account.ssoLink' })); });
@@ -177,7 +177,7 @@ describe('Préférences › Général — lier son compte au SSO', () => {
   it('dit que le compte est lié, sans bouton', async () => {
     vi.mocked(getOidcConfig).mockResolvedValue({ enabled: true, buttonLabel: 'Authentik' });
     useAuthStore.setState({ backendUser: { id: 1, username: 'root', role: 'admin', auth_provider: 'local', sso_linked: true } as never });
-    render(<GeneralTab />);
+    render(<AccountTab />);
     expect(await screen.findByText('preferences.account.ssoLinked')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'preferences.account.ssoLink' })).toBeNull();
   });
@@ -187,7 +187,7 @@ describe('Préférences › Général — lier son compte au SSO', () => {
   it('garde l’état délié après un rechargement', async () => {
     vi.mocked(getOidcConfig).mockResolvedValue({ enabled: true, buttonLabel: 'Authentik' });
     useAuthStore.setState({ backendToken: 'tok', backendUser: { id: 1, username: 'root', role: 'admin', auth_provider: 'local', sso_linked: true } as never });
-    render(<GeneralTab />);
+    render(<AccountTab />);
     { const btn = await screen.findByRole('button', { name: 'preferences.account.ssoUnlink' }); await act(async () => { fireEvent.click(btn); }); }
     expect(JSON.parse(localStorage.getItem('frirss_backendUser') ?? 'null')?.sso_linked).toBe(false);
   });
@@ -198,7 +198,7 @@ describe('Préférences › Général — lier son compte au SSO', () => {
     vi.mocked(getOidcConfig).mockResolvedValue({ enabled: true, buttonLabel: 'Authentik' });
     vi.mocked(getMe).mockResolvedValueOnce({ id: 1, username: 'root', role: 'admin', auth_provider: 'local', sso_linked: true } as never);
     useAuthStore.setState({ backendToken: 'tok', backendUser: { id: 1, username: 'root', role: 'admin', auth_provider: 'local' } as never });
-    render(<GeneralTab />);
+    render(<AccountTab />);
     expect(await screen.findByText('preferences.account.ssoLinked')).toBeTruthy();
   });
 
@@ -209,7 +209,7 @@ describe('Préférences › Général — lier son compte au SSO', () => {
     let answer: (u: unknown) => void = () => {};
     vi.mocked(getMe).mockReturnValueOnce(new Promise((r) => { answer = r; }) as never);
     useAuthStore.setState({ backendToken: 'tok', backendUser: { id: 1, username: 'root', role: 'admin', auth_provider: 'local', sso_linked: true } as never });
-    render(<GeneralTab />);
+    render(<AccountTab />);
     { const btn = await screen.findByRole('button', { name: 'preferences.account.ssoUnlink' }); await act(async () => { fireEvent.click(btn); }); }
     await act(async () => { answer({ id: 1, username: 'root', role: 'admin', auth_provider: 'local', sso_linked: true }); });
     expect(useAuthStore.getState().backendUser?.sso_linked).toBe(false);
@@ -219,7 +219,7 @@ describe('Préférences › Général — lier son compte au SSO', () => {
     vi.mocked(getOidcConfig).mockResolvedValue({ enabled: true, buttonLabel: 'Authentik' });
     vi.mocked(getMe).mockResolvedValueOnce({ id: 2, username: 'autre', role: 'user', auth_provider: 'local', sso_linked: true } as never);
     useAuthStore.setState({ backendToken: 'tok', backendUser: { id: 1, username: 'root', role: 'admin', auth_provider: 'local', sso_linked: false } as never });
-    render(<GeneralTab />);
+    render(<AccountTab />);
     await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
     expect(useAuthStore.getState().backendUser?.sso_linked).toBe(false);
   });
@@ -227,7 +227,7 @@ describe('Préférences › Général — lier son compte au SSO', () => {
   it('ne montre rien quand le SSO est éteint', async () => {
     vi.mocked(getOidcConfig).mockResolvedValue({ enabled: false });
     useAuthStore.setState({ backendUser: { id: 1, username: 'root', role: 'admin', auth_provider: 'local' } as never });
-    render(<GeneralTab />);
+    render(<AccountTab />);
     await act(async () => {});
     expect(screen.queryByRole('button', { name: 'preferences.account.ssoLink' })).toBeNull();
   });

@@ -126,8 +126,8 @@ qu'un autre onglet avait ouvert depuis.
   mot de passe actuel au changement de mot de passe (« Current password is
   incorrect ») éjectait l'utilisateur. La déconnexion volontaire après une
   restauration (`BackupBlock.tsx`) reste, elle, explicite.
-- **Changer son mot de passe** (1.8.0) : Préférences › Général, section
-  « Compte » (`AccountSection.tsx`), **comptes locaux seulement** — un compte
+- **Changer son mot de passe** (1.8.0) : Préférences › Compte, sous-partie
+  « Mot de passe » (`AccountSection.tsx`), **comptes locaux seulement** — un compte
   SSO le change chez son fournisseur. Mot de passe actuel, nouveau,
   confirmation ; le minimum (6) et l'égalité des deux saisies sont vérifiés
   avant l'appel, et chaque refus a son message (`preferences.account.*` :
@@ -181,7 +181,7 @@ le dit aussi).
   limite de connexion par adresse ; sans repli en mode SSO seul, hors `?local=1`. Un `state` émis avant la mise à jour n'a
   pas de `jti` et répond `invalid_state`.
 - **Rattacher un compte existant : depuis le compte seulement** (1.8.0,
-  décision du propriétaire). Préférences › Général › Compte, « Lier à
+  décision du propriétaire). Préférences › Compte, « Lier à
   {fournisseur} » (comptes locaux, SSO actif, pas encore liés) :
   `POST /api/auth/oidc/link` (authentifié, **mot de passe actuel exigé**,
   même plafond par compte que le changement de mot de passe) rend l'URL du
@@ -720,8 +720,8 @@ les listes (deux colonnes et côte à côte) ; la grille a ses propres réglages
   `AppearanceTab.listThumb.test.tsx`, `uiStore.test.ts`,
   `ArticleRow.compact.test.tsx`, `ArticleList.toolbar.test.tsx`.
 ### Colonne de lecture limitée
-Un réglage dans **Préférences › Mise en page**, partie « Sur tous les
-écrans », zone « Colonne de lecture » (dans Apparence › Tailles avant la
+Un réglage dans **Préférences › Mise en page**, sous-partie « Colonne de
+lecture », valable sur tous les écrans (dans Apparence › Tailles avant la
 sortie de la 1.10.0, déplacé le 2026-11-24 avec les réglages de disposition) :
 **Limiter la largeur de la colonne** (interrupteur, désactivé par défaut).
 Activé, l'article est centré dans une colonne dont la largeur est au choix
@@ -758,7 +758,7 @@ comportement historique. Sur un écran étroit, le plafond ne change rien.
 ### Vue à l'ouverture
 Ce que FriRSS ouvre au lancement et au rechargement : **Dernière vue**
 (défaut — la vue quittée sur ce serveur, `lastView.ts`, locale à l'appareil),
-**Tous les flux** ou **Non lus**, toujours. Préférences → Général, synchronisé.
+**Tous les flux** ou **Non lus**, toujours. Préférences → Lecture, synchronisé.
 Demandé dans la discussion #19 par un lecteur qui ne veut pas rétablir le
 filtre Non lus à chaque ouverture.
 
@@ -778,7 +778,7 @@ filtre Non lus à chaque ouverture.
 
 ### Ordre des articles
 Plus récents d'abord (défaut) ou **plus anciens d'abord**. Réglage global dans
-Préférences → Général (synchronisé), surchargeable **par flux** depuis le menu
+Préférences → Lecture (synchronisé), surchargeable **par flux** depuis le menu
 contextuel du flux, sous le sélecteur de disposition. Demandé dans l'issue #20
 par un lecteur qui lit dans l'ordre de parution.
 
@@ -815,7 +815,7 @@ par un lecteur qui lit dans l'ordre de parution.
   serveur (clé = URL complète) ne mélangent jamais les deux sens. L'ordre par
   défaut garde l'ancienne forme de clé.
 - **Changer l'ordre recharge la vue** — c'est l'appelant qui le fait
-  (`loadArticles()` depuis l'onglet Général et depuis le menu du flux quand ce
+  (`loadArticles()` depuis la section Lecture et depuis le menu du flux quand ce
   flux est affiché), pas le store : `uiStore` ne peut pas importer `feedStore`.
   Un nouveau point de réglage doit le faire aussi.
 - **Piège — « Marquer au-dessus / en dessous »** : les libellés sont des
@@ -881,7 +881,7 @@ trouvait pas.
   demande : le choix doit rester fixe. ⚠️ Pas un ordre : `effectiveOrder` n'en sait
   rien, pour que clés de vue et listes gardées ne bougent pas. Le menu choisit l'un
   ou l'autre ; le bouton laisse `order` en place pour le jour où on l'éteint.
-- **Réglages** : Préférences → Général, sous l'ordre des articles, synchronisés :
+- **Réglages** : Préférences → Lecture, sous-partie « Aléatoire », synchronisés :
   `randomCount` (champ libre, 1 à 500, 20 par défaut) ; ancienneté maximale,
   `randomWindowAmount` (champ libre, vide ou 0 = tous) et `randomWindowUnit`
   (heures ou jours). Une valeur synchronisée illisible revient au défaut.
@@ -1120,14 +1120,14 @@ Navigation et actions au clavier, chaque raccourci réassignable. Gestes intégr
 non réassignables : Échap, double-clic (mode Focus), clic prolongé (ranger).
 
 - **Où** : `src/hooks/useKeyboardNav.ts`, `src/components/ShortcutBar.tsx`,
-  `src/components/ShortcutHelp.tsx`, Préférences → Général
+  `src/components/ShortcutHelp.tsx`, Préférences → Clavier
 - **Libellé d'une touche** : une seule fonction, `src/lib/keyLabel.ts`, pour
   la barre, l'aide-mémoire, les Préférences et l'infobulle de la barre
   latérale (1.8.0). Trois copies divergeaient : la barre écrivait « Suppr » en
   français dans toutes les langues, l'aide-mémoire « Esc » quand les
   Préférences disaient « Échap » ; et l'infobulle « Masquer la barre
   latérale » écrivait « (B) » en dur, faux après une réassignation.
-- **Masquable** (1.9.0) depuis Préférences → Mise en page → Sur ordinateur,
+- **Masquable** (1.9.0) depuis Préférences → Mise en page → Barre des raccourcis,
   d'un seul interrupteur (voir « Barres personnalisables sur desktop »).
 - **Barre du bas** : les deux entrées globales — palette (⌘K / Ctrl+K) et
   aide-mémoire (`?`) — sont poussées à droite derrière un séparateur et leur
@@ -1171,7 +1171,7 @@ non réassignables : Échap, double-clic (mode Focus), clic prolongé (ranger).
   configurables avec les touches **réellement configurées**, plus les gestes
   intégrés dans une section à part — les mélanger laisserait croire qu'on peut
   les réassigner. **L'aide et la section « Gestes et touches intégrés » de
-  Préférences → Général lisent la même liste** (`src/lib/builtInGestures.ts`,
+  Préférences → Clavier lisent la même liste** (`src/lib/builtInGestures.ts`,
   1.9.0) : Échap → Quitter le mode Focus, Échap → Retour à la grille,
   Double-clic, Clic prolongé, **⌘K / Ctrl+K → Palette de commandes** (la
   touche du clavier, `isAppleKeyboard`) et **`?` → Raccourcis clavier** —
@@ -2422,7 +2422,7 @@ FriRSS (voir « Le titre est un vrai lien » plus bas).
 
 ### Filtre Non lus
 Le bouton **Non lus** de l'en-tête filtre la vue. Sa portée se règle dans
-Préférences → Général (synchronisée) : **Par flux** (défaut) ou **Tous les
+Préférences → Lecture (synchronisée) : **Par flux** (défaut) ou **Tous les
 flux**.
 
 - **Où** : `src/lib/unreadScope.ts` (la règle et les changements de portée,
@@ -2471,7 +2471,7 @@ Un bandeau « ↑ N nouveaux articles » en haut de la liste signale les article
 arrivés dans la vue affichée depuis son chargement ; un clic dessus les charge
 et remonte en haut. Une croix, à droite, l'ignore sans rien charger — il
 réapparaîtra à la prochaine arrivée. La liste ne change jamais d'elle-même.
-Réglage « Signaler les nouveaux articles » (Préférences → Général, synchronisé,
+Réglage « Signaler les nouveaux articles » (Préférences → Lecture, synchronisé,
 **activé** par défaut). Demandé dans la discussion #14 ; devenu un bandeau
 (retouche visuelle, demande du propriétaire — la pastille d'origine était jugée
 mieux qu'avant mais encore trop discrète).
@@ -2602,7 +2602,7 @@ mieux qu'avant mais encore trop discrète).
   un clic sur Rafraîchir.
 
 ### Marquer lu au défilement
-Option **éteinte par défaut** (Préférences → Général, synchronisée) : un article
+Option **éteinte par défaut** (Préférences → Lecture, synchronisée) : un article
 est marqué lu une seconde après être sorti par le **haut** de la liste.
 
 - **Où** : `src/lib/markReadOnScroll.ts` (les décisions, testées),
@@ -5176,7 +5176,7 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
 - **Raccourcis clavier et palette** : deux actions configurables,
   **`summarize`** (touche **`s`** par défaut, « Résumer l'article (IA) ») et
   **`translate`** (touche **`t`**, « Traduire l'article (IA) »), réassignables
-  comme les autres (Préférences → Général ; libellés
+  comme les autres (Préférences → Clavier ; libellés
   `preferences.shortcuts.summarize` / `.translate`). `useKeyboardNav.ts` ne
   fait `preventDefault` et ne diffuse l'événement de fenêtre
   `frirss:ai-summarize` ou `frirss:ai-translate` (même mécanisme que
@@ -5220,7 +5220,7 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   - Les deux raccourcis sont **masqués** de la barre du bas (contexte lecture
     seulement) et de l'aide-mémoire `?` tant que l'IA est éteinte ou
     inutilisable (`AI_SHORTCUTS`, `uiStore.ts`) : un raccourci pour une
-    fonction absente n'est que du bruit. Préférences → Général les liste
+    fonction absente n'est que du bruit. Préférences → Clavier les liste
     toujours, pour qu'on puisse les réassigner. Aucune touche en dur ne s'y
     oppose : `s` et `t` ne sont utilisées nulle part ailleurs dans
     l'application, et `t` nu n'est une touche ni du navigateur ni du système.
@@ -5301,7 +5301,7 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
 
 ### Extraction du contenu complet
 Pour les flux tronqués, récupération de l'article complet, avec cache à deux
-niveaux. **Par défaut global** (Préférences → Général → « Article complet par
+niveaux. **Par défaut global** (Préférences → Lecture → « Article complet par
 défaut », synchronisé, **désactivé** d'origine — décision du propriétaire,
 2026-10-13), **surchargeable par flux** à trois positions (*Par défaut / Oui /
 Non*) depuis le menu du flux. Demandé dans la discussion #19 par un lecteur
@@ -8357,13 +8357,47 @@ réglage clair/sombre du système.
 
 ## Préférences
 
-**Une seule typographie pour tous les onglets** (1.8.0, décision du
-propriétaire) : titres de section en capitales de 11 px espacées
-(`text-[11px] font-bold uppercase tracking-widest`, couleur `--list-summary`),
-libellés en 12 px (`text-xs`, `--list-summary`), aides en 11 px. Les onglets IA
-et Administration (et la sauvegarde) avaient leur propre langage — titres gras
-de 14 px précédés d'une barre d'accent, libellés de 14 px plus foncés — qui se
-lisait comme un autre écran. Les champs, listes et boutons gardent leur taille.
+**Navigation dépliable, une page par section** (1.10.1, décision du
+propriétaire). La colonne de gauche liste les sections, chacune avec son
+icône. Un clic ouvre la section **et déplie ses sous-titres** sous son nom ; un
+second clic sur la section ouverte les replie. Un clic sur un sous-titre fait
+défiler la page jusqu'à lui et y met le focus, et le sous-titre à l'écran est
+marqué pendant la lecture (suivi du défilement, tu pendant un défilement lancé
+par un clic : la dernière sous-partie, trop courte pour monter en haut, aurait
+volé la sélection). Une pastille teintée (`--accent-glow`) glisse d'une
+section à l'autre ; teintée et non pleine, pour que le libellé garde sa couleur
+pendant le trajet. Sur téléphone, la liste reste un écran à part (on touche
+une section, elle s'ouvre en plein écran avec « Retour ») et ne déplie rien.
+- **Les sous-titres sont lus dans la page**, pas recopiés : la navigation
+  prend les `h3` marqués `data-pref-sub` de la section ouverte
+  (`PrefHeading`, `prefsUi.tsx`), en ordre de document, et un
+  `MutationObserver` la tient à jour. Un bloc absent (mot de passe d'un compte
+  SSO, fournisseurs IA hors admin) n'apparaît pas ; un bloc ajouté avec
+  `PrefHeading` apparaît seul. `navLabel` donne un libellé court quand le titre
+  porte plus que son nom (« Utilisateurs — 3 comptes »).
+- **Fin des onglets dans l'onglet** : Apparence avait ses propres onglets
+  (Thème, Couleurs, Tailles, Identité). Ce sont maintenant quatre sous-parties
+  d'une même page, listées par la navigation. L'encadrement d'une couleur
+  survolée ou épinglée ne dépend donc plus d'un sous-onglet ouvert.
+- **Hiérarchie** : nom de la section en `h2` (20 px), sous-parties en `h3`
+  (15 px, couleur des titres, 2 rem d'air au-dessus), groupes internes en `h4`
+  (12,5 px). Les réglages d'une sous-partie sont groupés dans un bloc à filets
+  (`PrefCard`, `PrefRow`) : libellé 13 px couleur des titres, aide 12 px. Le
+  reste du panneau est passé d'un cran (12 → 13 px, 11 → 12 px, 10 → 11 px) et
+  les aides ont perdu leur opacité de 70 %, qui les faisait passer sous le
+  contraste lisible. Les anciens titres en capitales grises de 11 px (1.8.0)
+  étaient le texte le plus petit et le plus pâle de la page.
+
+Sections, dans l'ordre : **Lecture** (liste d'articles, marquer comme lu,
+article, aléatoire), **Apparence** (thème, couleurs, tailles, identité),
+**Mise en page** (barres du desktop, barre des serveurs, colonne de lecture,
+icônes d'action), **Clavier** (raccourcis, touches et gestes fixes), **Flux**
+(serveurs FreshRSS, catégories), **Étiquettes**, **Hors ligne** (préparer,
+images), **IA** (montrée quand l'IA est activée ou pour un administrateur),
+**Compte** (langue, mot de passe, liaison SSO), puis **Administration** pour les
+administrateurs. « Général », un bloc de onze réglages sans ordre, a été
+réparti entre Lecture, Clavier et Compte ; `openPreferences('general')` mène
+encore à Lecture.
 
 **Échap ferme le panneau même quand le focus est retombé sur la page**
 (1.8.0) : la touche est écoutée sur le panneau (`onKeyDown`) ET sur le
@@ -8392,19 +8426,10 @@ n'est donc plus rendu : les thèmes restent tous dans la section Apparence.
 Tablette et desktop le gardent. Test : `Preferences.header.test.tsx`.
 
 
-Panneau à navigation verticale : **Général** (langue, lecture, raccourcis,
-compte : mot de passe et liaison SSO),
-**Apparence** (thème, couleurs, tailles, identité), **Mise en page** (icônes
-d'action de la ligne d'article), **Étiquettes**, **Flux** (gestion des
-serveurs FreshRSS et jeton maître de chacun), **Hors-ligne**, **IA**
-(fournisseurs, résumés, traduction, réglages par flux et catégorie ; montrée
-quand l'IA est activée ou pour un administrateur), plus **Administration**
-pour les administrateurs.
-
 - **Où** : `src/components/Preferences/`
 - **Spec** : `docs/superpowers/specs/2026-08-21-preferences-rework-design.md`
 - **Garde-fou** : `src/components/Preferences/settingsCoverage.test.ts` fige un
-  relevé de **231 réglages** et échoue si l'un cesse d'être référencé. Ne jamais
+  relevé de **229 réglages** et échoue si l'un cesse d'être référencé. Ne jamais
   modifier le relevé pour faire passer le test. Deux changements assumés le
   2026-10-28 (1.8.0) : `preferences.resetAll` / `resetAllTooltip` deviennent
   `resetTheme` / `resetThemeTooltip` (le bouton promettait de « tout »
@@ -8413,7 +8438,9 @@ pour les administrateurs.
   bouton qui se changeait en confirmation, remplacé partout par
   `ConfirmDialog` sur décision du propriétaire. Son parcours est **récursif**
   depuis le 2026-08-26 : à plat, il déclarait disparu tout réglage déplacé dans
-  un sous-dossier du panneau.
+  un sous-dossier du panneau. Deux titres sortis le 2026-11-25 avec la
+  navigation dépliable : `preferences.general.title` (la section n'existe
+  plus) et `preferences.offline.title` (il doublait le nom de la section).
 - **Montage des sections** : une section n'est montée qu'à sa **première
   visite**, puis y reste, masquée par un `display:none` en ligne. Le montage
   conditionnel d'origine la détruisait à chaque changement : Flux et
@@ -8437,13 +8464,14 @@ pour les administrateurs.
 - **Synchronisation** : les préférences logiques sont synchronisées par le serveur
   (`UI_SYNC_KEYS`) ; les préférences géométriques — largeurs de panneaux,
   visibilité de la barre latérale — restent locales à chaque appareil.
-- **Mise en page** (`src/components/Preferences/LayoutTab.tsx`) : deux
-  groupes. **« Sur ordinateur »** règle les barres du format desktop (voir
-  « Barres personnalisables sur desktop » ci-dessous). **« Sur tous les
-  écrans »** porte la barre des serveurs (`topbarVisible`, la même bascule que
-  dans la piste d'options) et les icônes d'une ligne, qui valent pour tous les
-  formats et le restent : les ranger sous « Sur ordinateur » laisserait croire
-  le contraire. Les icônes d'une ligne : quatre
+- **Mise en page** (`src/components/Preferences/LayoutTab.tsx`) : six
+  sous-parties. Les trois barres du format desktop (liste, volet de lecture,
+  raccourcis ; voir « Barres personnalisables sur desktop » ci-dessous)
+  portent l'étiquette **« Sur ordinateur »** à côté de leur titre. Les trois
+  autres valent pour tous les écrans : la barre des serveurs (`topbarVisible`,
+  la même bascule que dans la piste d'options), la colonne de lecture et les
+  icônes d'une ligne ; les ranger sous « Sur ordinateur » laisserait croire le
+  contraire. Les icônes d'une ligne : quatre
   interrupteurs, un par icône de la barre d'actions d'une ligne d'article
   (favori, à lire plus tard, ouvrir à la source, ✓) — toutes actives par
   défaut. Un seul objet en stockage (`useUiStore(s => s.rowActions)`,
@@ -10123,7 +10151,7 @@ qu'un terme n'est pas déjà pris avant de le réutiliser.
 | POST | `/api/auth/login` | Ouvrir une session |
 | POST | `/api/auth/logout` | Fermer la session |
 | GET | `/api/auth/me` | Utilisateur courant |
-| POST | `/api/auth/change-password` | Changer son mot de passe (Préférences › Général › Compte ; limite par compte) |
+| POST | `/api/auth/change-password` | Changer son mot de passe (Préférences › Compte ; limite par compte) |
 | GET | `/api/auth/status` | Inscriptions ouvertes, existence d'un compte |
 | GET | `/api/auth/oidc/config` | Configuration SSO exposée au client |
 | GET | `/api/auth/oidc/login` | Démarrer le flux OIDC |

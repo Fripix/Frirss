@@ -15,7 +15,7 @@ vi.mock('../../api/backend', () => ({
   changePassword: vi.fn(), linkOidcAccount: vi.fn(), unlinkOidcAccount: vi.fn(), getMe: vi.fn(),
 }));
 
-import GeneralTab from './GeneralTab';
+import KeyboardTab from './KeyboardTab';
 import KeysBlock from './ai/KeysBlock';
 import { useUiStore } from '../../stores/uiStore';
 import { useAiStore } from '../../stores/aiStore';
@@ -34,7 +34,7 @@ describe('actions qui suppriment : une confirmation', () => {
   it('réinitialiser les raccourcis', async () => {
     const reset = vi.fn();
     useUiStore.setState({ resetShortcuts: reset } as never);
-    render(<GeneralTab />);
+    render(<KeyboardTab />);
     fireEvent.click(screen.getByRole('button', { name: 'preferences.shortcuts.resetShortcuts' }));
     expect(reset).not.toHaveBeenCalled();
     const confirm = within(screen.getByRole('dialog')).getByRole('button', { name: 'preferences.shortcuts.reset' });

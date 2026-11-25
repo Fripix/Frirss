@@ -11,6 +11,7 @@ import { getStorageEstimate, formatBytes, clearImageCache } from '../../lib/stor
 import { cachedImageStats, type CachedImageStats } from '../../lib/imageCache';
 import { useOnlineStatus } from '../../hooks/useOnlineStatus';
 import ConfirmDialog from '../ConfirmDialog';
+import { PrefHeading } from './prefsUi';
 import { prepRemainingMs, etaMessage } from '../../lib/offlinePrepEta';
 
 export default function OfflineTab({ active = true }: { active?: boolean }) {
@@ -123,13 +124,8 @@ export default function OfflineTab({ active = true }: { active?: boolean }) {
   return (
     <div className="space-y-6">
       <div>
-        <h3
-          className="text-[11px] font-bold uppercase tracking-widest mb-2"
-          style={{ color: 'var(--list-summary)' }}
-        >
-          {t('preferences.offline.title')}
-        </h3>
-        <p className="text-xs mb-3" style={{ color: 'var(--list-summary)' }}>
+        <PrefHeading>{t('preferences.offline.prepareTitle')}</PrefHeading>
+        <p className="text-[13px] mb-3" style={{ color: 'var(--list-summary)' }}>
           {t('preferences.offline.hint')}
         </p>
         <div className="flex flex-wrap items-center gap-2">
@@ -140,7 +136,7 @@ export default function OfflineTab({ active = true }: { active?: boolean }) {
               prepareOffline({ userInitiated: true });
             }}
             disabled={offlinePrep?.running || !online}
-            className="px-4 py-2 text-xs font-medium rounded-lg transition-colors disabled:opacity-50"
+            className="px-4 py-2 text-[13px] font-medium rounded-lg transition-colors disabled:opacity-50"
             style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
           >
             {offlinePrep?.running
@@ -158,7 +154,7 @@ export default function OfflineTab({ active = true }: { active?: boolean }) {
                 cancelOfflinePrep();
               }}
               aria-disabled={cancelling || undefined}
-              className="px-4 py-2 text-xs rounded-lg transition-colors aria-disabled:opacity-50"
+              className="px-4 py-2 text-[13px] rounded-lg transition-colors aria-disabled:opacity-50"
               style={{ border: '1px solid var(--panel-border)', color: 'var(--list-title)' }}
             >
               {cancelling ? t('preferences.offline.cancelling') : t('preferences.offline.cancel')}
@@ -166,22 +162,22 @@ export default function OfflineTab({ active = true }: { active?: boolean }) {
           )}
         </div>
         {eta && (
-          <p className="text-[11px] mt-2" style={{ color: 'var(--list-summary)' }}>
+          <p className="text-xs mt-2" style={{ color: 'var(--list-summary)' }}>
             {eta}
           </p>
         )}
         {waitingServer > 0 && (
-          <p role="status" className="text-[11px] mt-2" style={{ color: 'var(--list-summary)' }}>
+          <p role="status" className="text-xs mt-2" style={{ color: 'var(--list-summary)' }}>
             {t('preferences.offline.waitingServer', { count: waitingServer })}
           </p>
         )}
         {!online && (
-          <p className="text-[11px] mt-2" style={{ color: 'var(--list-summary)' }}>
+          <p className="text-xs mt-2" style={{ color: 'var(--list-summary)' }}>
             {t('preferences.offline.needsNetwork')}
           </p>
         )}
         {offlinePrep && !offlinePrep.running && offlinePrep.phase === 'done' && (
-          <p className="text-[11px] mt-2" style={{ color: 'var(--list-summary)' }}>
+          <p className="text-xs mt-2" style={{ color: 'var(--list-summary)' }}>
             {stopped
               ? t('preferences.offline.cancelledReport', { done: offlinePrep.done, total: offlinePrep.total, count: offlinePrep.total })
               : missingFull > 0
@@ -220,9 +216,9 @@ export default function OfflineTab({ active = true }: { active?: boolean }) {
 
       {/* Auto-update toggle */}
       <div className="flex items-start justify-between gap-4 select-none">
-        <span className="text-xs" style={{ color: 'var(--list-summary)' }}>
+        <span className="text-[13px]" style={{ color: 'var(--list-summary)' }}>
           {t('preferences.offline.auto')}
-          <span className="block text-[11px] opacity-70 mt-0.5">{t('preferences.offline.autoHint')}</span>
+          <span className="block text-xs mt-0.5">{t('preferences.offline.autoHint')}</span>
         </span>
         <span className="mt-0.5">
           <ToggleSwitch checked={autoOffline} onChange={setAutoOffline} ariaLabel={t('preferences.offline.auto')} />
@@ -231,16 +227,14 @@ export default function OfflineTab({ active = true }: { active?: boolean }) {
 
       {/* Offline images — budget, real usage, purge */}
       <div className="space-y-2">
-        <h3 className="text-[11px] font-bold uppercase tracking-widest" style={{ color: 'var(--list-summary)' }}>
-          {t('preferences.offline.imagesTitle')}
-        </h3>
-        <p className="text-xs" style={{ color: 'var(--list-summary)' }}>
+        <PrefHeading>{t('preferences.offline.imagesTitle')}</PrefHeading>
+        <p className="text-[13px]" style={{ color: 'var(--list-summary)' }}>
           {t('preferences.offline.imagesHint')}
         </p>
 
         {/* Off switch — greys the sizes out rather than hiding them. */}
         <div className="flex items-center justify-between gap-4 select-none">
-          <span className="text-xs" style={{ color: 'var(--list-summary)' }}>
+          <span className="text-[13px]" style={{ color: 'var(--list-summary)' }}>
             {t('preferences.offline.imagesDownload')}
           </span>
           <ToggleSwitch
@@ -270,13 +264,13 @@ export default function OfflineTab({ active = true }: { active?: boolean }) {
                 <button
                   onClick={() => setOfflineImagePreset(id)}
                   disabled={imagesOff}
-                  className="flex-1 text-left text-xs"
+                  className="flex-1 text-left text-[13px]"
                   style={{ color: active ? 'var(--accent)' : 'var(--list-title)' }}
                   aria-pressed={active}
                 >
                   {presetLabels[id]}
                   {id === 'light' && (
-                    <span className="block text-[10px] opacity-60">{t('preferences.offline.imagesLightHint')}</span>
+                    <span className="block text-[11px] opacity-60">{t('preferences.offline.imagesLightHint')}</span>
                   )}
                 </button>
                 <input
@@ -287,11 +281,11 @@ export default function OfflineTab({ active = true }: { active?: boolean }) {
                   disabled={imagesOff}
                   value={offlineImageSizes[id] ?? suggested}
                   onChange={(e) => setOfflineImageSize(id, Number(e.target.value))}
-                  className="w-24 px-2 py-1 rounded-md text-xs text-right"
+                  className="w-24 px-2 py-1 rounded-md text-[13px] text-right"
                   style={{ border: '1px solid var(--panel-border)', background: 'var(--panel-header-bg)', color: 'var(--list-title)' }}
                   aria-label={presetLabels[id]}
                 />
-                <span className="text-[11px] w-6" style={{ color: 'var(--list-summary)' }}>
+                <span className="text-xs w-6" style={{ color: 'var(--list-summary)' }}>
                   {t('preferences.offline.imagesMb')}
                 </span>
               </div>
@@ -303,7 +297,7 @@ export default function OfflineTab({ active = true }: { active?: boolean }) {
             "nothing was stored" from "stored but not served". Prepared images
             came through the proxy, so their real size is known. */}
         {images && (
-          <p className="text-[11px]" style={{ color: 'var(--list-summary)' }}>
+          <p className="text-xs" style={{ color: 'var(--list-summary)' }}>
             {t('preferences.offline.imagesCached', { count: images.total })}
             {images.prepared > 0 && (
               <span className="block">
@@ -317,7 +311,7 @@ export default function OfflineTab({ active = true }: { active?: boolean }) {
             image (kept on display, from another site) by several megabytes:
             12 Go reported for a few hundred real Mo. Named for what it is. */}
         {estimate && (
-          <p className="text-[11px]" style={{ color: 'var(--list-summary)' }}>
+          <p className="text-xs" style={{ color: 'var(--list-summary)' }}>
             {t('preferences.offline.imagesUsage', { used: size(estimate.usage) })}
             {estimate.quota > 0 && ` · ${t('preferences.offline.imagesQuota', { quota: size(estimate.quota) })}`}
             {(images?.browsing ?? 0) > 0 && (
@@ -327,7 +321,7 @@ export default function OfflineTab({ active = true }: { active?: boolean }) {
         )}
 
         {overQuota && (
-          <p className="text-[11px]" style={{ color: 'var(--accent)' }}>
+          <p className="text-xs" style={{ color: 'var(--accent)' }}>
             {t('preferences.offline.imagesOverQuota')}
           </p>
         )}
@@ -335,7 +329,7 @@ export default function OfflineTab({ active = true }: { active?: boolean }) {
         <div className="flex flex-wrap gap-2">
           <button
             onClick={() => setConfirmClear(true)}
-            className="px-3 py-1.5 text-xs rounded-lg transition-colors"
+            className="px-3 py-1.5 text-[13px] rounded-lg transition-colors"
             style={{ border: '1px solid var(--panel-border)', color: 'var(--list-title)' }}
           >
             {cleared ? t('preferences.offline.imagesCleared') : t('preferences.offline.imagesClear')}
@@ -343,7 +337,7 @@ export default function OfflineTab({ active = true }: { active?: boolean }) {
           {edited && (
             <button
               onClick={resetOfflineImageSizes}
-              className="px-3 py-1.5 text-xs rounded-lg transition-colors"
+              className="px-3 py-1.5 text-[13px] rounded-lg transition-colors"
               style={{ border: '1px solid var(--panel-border)', color: 'var(--accent)' }}
             >
               {t('preferences.offline.imagesResetSizes')}

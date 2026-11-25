@@ -17,6 +17,7 @@ import {
 } from '../../../lib/serverList';
 import type { ServerConnection } from '../../../types';
 import ServerRow from './ServerRow';
+import { PrefHeading } from '../prefsUi';
 import AddServerDialog from './AddServerDialog';
 
 /**
@@ -139,6 +140,7 @@ export default function ServerList() {
 
   return (
     <div className="space-y-4">
+      <PrefHeading>{t('servers.label')}</PrefHeading>
       {/* L'échec se dit même quand des données connues restent affichées :
           montrer du périmé en silence serait mentir. */}
       {loadFailed && (
@@ -146,13 +148,13 @@ export default function ServerList() {
           className="flex items-center justify-between gap-2 rounded-lg px-3 py-2"
           style={{ border: '1px solid var(--panel-border)' }}
         >
-          <span className="text-xs" role="alert" style={{ color: 'var(--danger)' }}>
+          <span className="text-[13px]" role="alert" style={{ color: 'var(--danger)' }}>
             {t('servers.errorGeneric')}
           </span>
           <button
             type="button"
             onClick={() => reload()}
-            className="px-3 py-1.5 text-xs font-medium rounded-lg min-h-[44px] flex-shrink-0 transition-colors hover-tint"
+            className="px-3 py-1.5 text-[13px] font-medium rounded-lg min-h-[44px] flex-shrink-0 transition-colors hover-tint"
             style={{ border: '1px solid var(--panel-border)', color: 'var(--list-title)' }}
           >
             {t('readingPane.retry')}
@@ -201,7 +203,7 @@ export default function ServerList() {
         ref={addButtonRef}
         type="button"
         onClick={() => setAddOpen(true)}
-        className="w-full px-4 py-2 text-xs font-medium rounded-lg min-h-[44px] transition-colors inline-flex items-center justify-center gap-1.5"
+        className="w-full px-4 py-2 text-[13px] font-medium rounded-lg min-h-[44px] transition-colors inline-flex items-center justify-center gap-1.5"
         style={{ border: '1px dashed var(--panel-border)', color: 'var(--list-title)' }}
       >
         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">

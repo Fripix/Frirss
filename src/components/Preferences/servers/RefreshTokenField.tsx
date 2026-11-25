@@ -107,7 +107,7 @@ export default function RefreshTokenField({ serverId, isActive, configured, onSa
   return (
     <div className="space-y-3">
       <div>
-        <label htmlFor={tokenId} className="block text-xs font-medium mb-1.5" style={{ color: 'var(--list-summary)' }}>
+        <label htmlFor={tokenId} className="block text-[13px] font-medium mb-1.5" style={{ color: 'var(--list-summary)' }}>
           {t('preferences.refresh.tokenLabel')}
         </label>
         <input
@@ -124,7 +124,7 @@ export default function RefreshTokenField({ serverId, isActive, configured, onSa
             background: 'var(--panel-header-bg)',
           }}
         />
-        <span className="block text-[11px] opacity-70 mt-1.5" style={{ color: 'var(--list-summary)' }}>
+        <span className="block text-xs mt-1.5" style={{ color: 'var(--list-summary)' }}>
           {t('preferences.refresh.tokenHelp')}
         </span>
       </div>
@@ -133,7 +133,7 @@ export default function RefreshTokenField({ serverId, isActive, configured, onSa
           tout, pas seulement au rafraîchissement : il reste dans le flux
           plutôt que replié derrière un dépliant. */}
       <div
-        className="px-4 py-3 rounded-lg text-xs flex items-start gap-2"
+        className="px-4 py-3 rounded-lg text-[13px] flex items-start gap-2"
         style={{ background: 'var(--danger-light)', color: 'var(--danger)', border: '1px solid var(--danger)' }}
       >
         <svg className="w-4 h-4 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
@@ -148,7 +148,7 @@ export default function RefreshTokenField({ serverId, isActive, configured, onSa
           onClick={save}
           disabled={saving || !edited}
           aria-busy={saving}
-          className="px-4 py-2 text-xs font-medium rounded-lg transition-colors disabled:opacity-50 inline-flex items-center gap-1.5 min-h-[44px]"
+          className="px-4 py-2 text-[13px] font-medium rounded-lg transition-colors disabled:opacity-50 inline-flex items-center gap-1.5 min-h-[44px]"
           style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
         >
           {saving && (
@@ -167,7 +167,7 @@ export default function RefreshTokenField({ serverId, isActive, configured, onSa
           // jusqu'au Save, donc vérifier avant de valider était impossible.
           disabled={(!configured && token === '') || saving || test === 'testing'}
           aria-busy={test === 'testing'}
-          className="px-3 py-1.5 text-xs font-medium rounded-md transition-colors hover-tint disabled:opacity-50 inline-flex items-center gap-1.5 min-h-[44px]"
+          className="px-3 py-1.5 text-[13px] font-medium rounded-md transition-colors hover-tint disabled:opacity-50 inline-flex items-center gap-1.5 min-h-[44px]"
           style={{ border: '1px solid var(--panel-border)', color: 'var(--list-title)' }}
         >
           {test === 'testing' && (
@@ -179,7 +179,7 @@ export default function RefreshTokenField({ serverId, isActive, configured, onSa
         </button>
         {/* Une région montée en permanence, vide au repos (liveRegions.test). */}
         <span
-          className={test === 'idle' || test === 'testing' ? 'sr-only' : `text-[11px]${test === 'ok' ? ' success-note' : ''}`}
+          className={test === 'idle' || test === 'testing' ? 'sr-only' : `text-xs${test === 'ok' ? ' success-note' : ''}`}
           role="status"
           style={test === 'ok' ? undefined : { color: test === 'fail' || test === 'saveFailed' ? 'var(--danger)' : 'var(--list-summary)' }}
         >

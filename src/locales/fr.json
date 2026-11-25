@@ -199,7 +199,6 @@
   "preferences": {
     "title": "Préférences",
     "general": {
-      "title": "Général",
       "confirmMarkAllRead": "Confirmer avant de tout marquer comme lu",
       "confirmMarkAllReadHint": "Désactivé, « Tout marquer comme lu » agit en un seul clic, sans confirmation.",
       "inlineVideos": "Lire les vidéos dans l’article",
@@ -229,6 +228,12 @@
       "randomDays": "jours",
       "randomCountHint": "Nombre d’articles affichés par le bouton Aléatoire de la liste, de 1 à 500.",
       "randomWindowHint": "Limite le bouton Aléatoire aux articles arrivés récemment. Vide : tous les articles."
+    },
+    "reading": {
+      "list": "Liste d’articles",
+      "markRead": "Marquer comme lu",
+      "article": "Article",
+      "random": "Aléatoire"
     },
     "branding": {
       "language": "Langue",
@@ -454,7 +459,7 @@
       "unassigned": "Aucune touche"
     },
     "offline": {
-      "title": "Hors ligne",
+      "prepareTitle": "Préparer",
       "hint": "Télécharge les 30 derniers jours de tous les flux (textes + images) pour la lecture hors ligne. Consomme du réseau — privilégiez le Wi-Fi.",
       "button": "Préparer le hors ligne (30 j)",
       "preparing": "Préparation…",
@@ -519,14 +524,16 @@
       "save": "Enregistrer"
     },
     "sections": {
-      "general": "Général",
+      "reading": "Lecture",
       "appearance": "Apparence",
-      "labels": "Étiquettes",
-      "feeds": "Flux",
-      "offline": "Hors ligne",
-      "admin": "Administration",
       "layout": "Mise en page",
-      "ai": "IA"
+      "keyboard": "Clavier",
+      "feeds": "Flux",
+      "labels": "Étiquettes",
+      "offline": "Hors ligne",
+      "ai": "IA",
+      "account": "Compte",
+      "admin": "Administration"
     },
     "appearance": {
       "theme": "Thème",
@@ -598,8 +605,8 @@
     "resetThemeMessage": "Les couleurs et les tailles reviennent à celles du thème « {{name}} » tel qu’il a été enregistré. Le reste de vos préférences ne change pas.",
     "resetThemeConfirm": "Réinitialiser",
     "account": {
-      "title": "Compte",
       "hint": "Changer le mot de passe ferme vos autres sessions ouvertes : il faudra vous reconnecter sur vos autres appareils.",
+      "passwordTitle": "Mot de passe",
       "current": "Mot de passe actuel",
       "new": "Nouveau mot de passe",
       "confirm": "Confirmer le nouveau mot de passe",
@@ -634,7 +641,6 @@
       "shortcutBar": "Barre des raccourcis",
       "shortcutBarWhole": "Afficher la barre des raccourcis",
       "showAll": "Tout réafficher",
-      "everywhereTitle": "Sur tous les écrans",
       "serverBar": "Barre des serveurs",
       "items": {
         "search": "Rechercher",

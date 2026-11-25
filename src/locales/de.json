@@ -199,7 +199,6 @@
   "preferences": {
     "title": "Einstellungen",
     "general": {
-      "title": "Allgemein",
       "confirmMarkAllRead": "Vor „Alles als gelesen markieren“ bestätigen",
       "confirmMarkAllReadHint": "Wenn deaktiviert, wirkt „Alles als gelesen markieren“ mit einem Klick, ohne Bestätigung.",
       "inlineVideos": "Videos im Artikel abspielen",
@@ -229,6 +228,12 @@
       "randomDays": "Tage",
       "randomCountHint": "Anzahl der Artikel, die die Schaltfläche Zufällig in der Liste zeigt, von 1 bis 500.",
       "randomWindowHint": "Beschränkt die Schaltfläche Zufällig auf kürzlich eingetroffene Artikel. Leer: alle Artikel."
+    },
+    "reading": {
+      "list": "Artikelliste",
+      "markRead": "Als gelesen markieren",
+      "article": "Artikel",
+      "random": "Zufällig"
     },
     "branding": {
       "language": "Sprache",
@@ -454,7 +459,7 @@
       "unassigned": "Keine Taste"
     },
     "offline": {
-      "title": "Offline",
+      "prepareTitle": "Vorbereiten",
       "hint": "Lädt die letzten 30 Tage aller Feeds (Text + Bilder) zum Offline-Lesen. Verbraucht Daten – am besten WLAN.",
       "button": "Offline vorbereiten (30 Tage)",
       "preparing": "Wird vorbereitet…",
@@ -519,14 +524,16 @@
       "save": "Speichern"
     },
     "sections": {
-      "general": "Allgemein",
+      "reading": "Lesen",
       "appearance": "Erscheinungsbild",
-      "labels": "Labels",
-      "feeds": "Feeds",
-      "offline": "Offline",
-      "admin": "Verwaltung",
       "layout": "Layout",
-      "ai": "KI"
+      "keyboard": "Tastatur",
+      "feeds": "Feeds",
+      "labels": "Labels",
+      "offline": "Offline",
+      "ai": "KI",
+      "account": "Konto",
+      "admin": "Verwaltung"
     },
     "appearance": {
       "theme": "Theme",
@@ -598,8 +605,8 @@
     "resetThemeMessage": "Farben und Größen kehren zum Theme „{{name}}“ zurück, wie es gespeichert wurde. Ihre übrigen Einstellungen bleiben unverändert.",
     "resetThemeConfirm": "Zurücksetzen",
     "account": {
-      "title": "Konto",
       "hint": "Das Ändern des Passworts beendet Ihre anderen offenen Sitzungen: Sie müssen sich auf Ihren anderen Geräten neu anmelden.",
+      "passwordTitle": "Passwort",
       "current": "Aktuelles Passwort",
       "new": "Neues Passwort",
       "confirm": "Neues Passwort bestätigen",
@@ -634,7 +641,6 @@
       "shortcutBar": "Tastenkürzel-Leiste",
       "shortcutBarWhole": "Tastenkürzel-Leiste anzeigen",
       "showAll": "Alles wieder anzeigen",
-      "everywhereTitle": "Auf allen Bildschirmen",
       "serverBar": "Serverleiste",
       "items": {
         "search": "Suchen",

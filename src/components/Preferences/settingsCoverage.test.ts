@@ -81,11 +81,15 @@ describe('couverture des réglages du panneau Préférences', () => {
     fs.readFileSync(path.join(DIR, 'settings-baseline.json'), 'utf8'),
   );
 
-  it('fige 231 réglages', () => {
+  it('fige 229 réglages', () => {
     // 232 jusqu'au 2026-10-28 : `preferences.confirm` (« Confirmer ? ») est
     // parti avec le bouton qui se changeait en confirmation, remplacé par
     // `ConfirmDialog` (décision du propriétaire). Retrait assumé dans FEATURES.md.
-    expect(baseline).toHaveLength(231);
+    // 231 jusqu'au 2026-11-25 : les titres `preferences.general.title`
+    // (« Général ») et `preferences.offline.title` (« Hors ligne ») sont partis
+    // avec la refonte de la navigation. Le premier n'a plus de section, le
+    // second doublait le nom de la section. Ce sont des titres, pas des réglages.
+    expect(baseline).toHaveLength(229);
   });
 
   it('référence encore chaque réglage du relevé', () => {

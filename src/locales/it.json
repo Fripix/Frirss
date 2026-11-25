@@ -199,7 +199,6 @@
   "preferences": {
     "title": "Preferenze",
     "general": {
-      "title": "Generale",
       "confirmMarkAllRead": "Conferma prima di segnare tutto come letto",
       "confirmMarkAllReadHint": "Se disattivato, «Segna tutto come letto» agisce con un solo clic, senza conferma.",
       "inlineVideos": "Riproduci i video nell’articolo",
@@ -229,6 +228,12 @@
       "randomDays": "giorni",
       "randomCountHint": "Numero di articoli mostrati dal pulsante Casuale dell’elenco, da 1 a 500.",
       "randomWindowHint": "Limita il pulsante Casuale agli articoli arrivati di recente. Vuoto: tutti gli articoli."
+    },
+    "reading": {
+      "list": "Elenco degli articoli",
+      "markRead": "Segnare come letto",
+      "article": "Articolo",
+      "random": "Casuale"
     },
     "branding": {
       "language": "Lingua",
@@ -454,7 +459,7 @@
       "unassigned": "Nessun tasto"
     },
     "offline": {
-      "title": "Offline",
+      "prepareTitle": "Preparazione",
       "hint": "Scarica gli ultimi 30 giorni di tutti i feed (testo + immagini) per la lettura offline. Consuma dati — meglio il Wi-Fi.",
       "button": "Prepara offline (30 giorni)",
       "preparing": "Preparazione…",
@@ -519,14 +524,16 @@
       "save": "Salva"
     },
     "sections": {
-      "general": "Generale",
+      "reading": "Lettura",
       "appearance": "Aspetto",
-      "labels": "Etichette",
-      "feeds": "Feed",
-      "offline": "Offline",
-      "admin": "Amministrazione",
       "layout": "Layout",
-      "ai": "IA"
+      "keyboard": "Tastiera",
+      "feeds": "Feed",
+      "labels": "Etichette",
+      "offline": "Offline",
+      "ai": "IA",
+      "account": "Account",
+      "admin": "Amministrazione"
     },
     "appearance": {
       "theme": "Tema",
@@ -598,8 +605,8 @@
     "resetThemeMessage": "Colori e dimensioni tornano a quelli del tema «{{name}}» come è stato salvato. Le altre preferenze non cambiano.",
     "resetThemeConfirm": "Reimposta",
     "account": {
-      "title": "Account",
       "hint": "Cambiare la password chiude le altre sessioni aperte: dovrai accedere di nuovo sugli altri dispositivi.",
+      "passwordTitle": "Password",
       "current": "Password attuale",
       "new": "Nuova password",
       "confirm": "Conferma la nuova password",
@@ -634,7 +641,6 @@
       "shortcutBar": "Barra delle scorciatoie",
       "shortcutBarWhole": "Mostra la barra delle scorciatoie",
       "showAll": "Mostra di nuovo tutto",
-      "everywhereTitle": "Su tutti gli schermi",
       "serverBar": "Barra dei server",
       "items": {
         "search": "Cerca",

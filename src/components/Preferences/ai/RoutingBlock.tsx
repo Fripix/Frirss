@@ -267,7 +267,7 @@ export default function RoutingBlock() {
       <div className="ai-routing">
         <div data-routing-grid data-touch={touch ? '' : undefined} className="ai-routing__grid">
           {/* Les mots des colonnes, une fois. Décoratifs : chaque contrôle porte son nom complet ; le `title` dit ce que fait la colonne. */}
-          <div data-routing-header aria-hidden="true" className={`${rowClass} pb-1 border-x border-transparent text-[11px] leading-tight`} style={{ color: 'var(--list-summary)' }}>
+          <div data-routing-header aria-hidden="true" className={`${rowClass} pb-1 border-x border-transparent text-xs leading-tight`} style={{ color: 'var(--list-summary)' }}>
             <span />
             {columns.map((c) => <span key={c.kind} title={c.title} className="text-center whitespace-nowrap">{c.word}</span>)}
             <span className="text-center whitespace-nowrap"><span className="ai-routing__wide-text">{t('ai.routing.providerColumn')}</span></span>
@@ -293,7 +293,7 @@ export default function RoutingBlock() {
                       <span className="ai-routing__cat-label">
                         <span className="truncate text-[13px] font-semibold" title={name}>{name}</span>
                         {/* Le compte cède la place avant le nom (`shrink-[100]`) ; à l'étroit, il passe sous lui. */}
-                        <span className="truncate shrink-[100] text-[11px] font-normal" style={{ color: 'var(--list-summary)' }}>
+                        <span className="truncate shrink-[100] text-xs font-normal" style={{ color: 'var(--list-summary)' }}>
                           {t('ai.routing.feedCount', { count: group.feeds.length })}
                           {count > 0 && <span style={{ color: 'var(--accent)' }}>{t('ai.routing.overrides', { count })}</span>}
                         </span>

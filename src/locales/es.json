@@ -199,7 +199,6 @@
   "preferences": {
     "title": "Preferencias",
     "general": {
-      "title": "General",
       "confirmMarkAllRead": "Confirmar antes de marcar todo como leído",
       "confirmMarkAllReadHint": "Si está desactivado, «Marcar todo como leído» actúa con un solo clic, sin confirmación.",
       "inlineVideos": "Reproducir los vídeos en el artículo",
@@ -229,6 +228,12 @@
       "randomDays": "días",
       "randomCountHint": "Número de artículos que muestra el botón Aleatorio de la lista, de 1 a 500.",
       "randomWindowHint": "Limita el botón Aleatorio a los artículos llegados recientemente. Vacío: todos los artículos."
+    },
+    "reading": {
+      "list": "Lista de artículos",
+      "markRead": "Marcar como leído",
+      "article": "Artículo",
+      "random": "Aleatorio"
     },
     "branding": {
       "language": "Idioma",
@@ -454,7 +459,7 @@
       "unassigned": "Sin tecla"
     },
     "offline": {
-      "title": "Sin conexión",
+      "prepareTitle": "Preparar",
       "hint": "Descarga los últimos 30 días de todas las fuentes (texto + imágenes) para leer sin conexión. Usa datos — mejor con Wi-Fi.",
       "button": "Preparar sin conexión (30 días)",
       "preparing": "Preparando…",
@@ -519,14 +524,16 @@
       "save": "Guardar"
     },
     "sections": {
-      "general": "General",
+      "reading": "Lectura",
       "appearance": "Apariencia",
-      "labels": "Etiquetas",
-      "feeds": "Fuentes",
-      "offline": "Sin conexión",
-      "admin": "Administración",
       "layout": "Diseño",
-      "ai": "IA"
+      "keyboard": "Teclado",
+      "feeds": "Fuentes",
+      "labels": "Etiquetas",
+      "offline": "Sin conexión",
+      "ai": "IA",
+      "account": "Cuenta",
+      "admin": "Administración"
     },
     "appearance": {
       "theme": "Tema",
@@ -598,8 +605,8 @@
     "resetThemeMessage": "Los colores y tamaños vuelven a los del tema «{{name}}» tal como se guardó. El resto de tus preferencias no cambia.",
     "resetThemeConfirm": "Restablecer",
     "account": {
-      "title": "Cuenta",
       "hint": "Cambiar la contraseña cierra tus otras sesiones abiertas: tendrás que volver a iniciar sesión en tus otros dispositivos.",
+      "passwordTitle": "Contraseña",
       "current": "Contraseña actual",
       "new": "Nueva contraseña",
       "confirm": "Confirmar la nueva contraseña",
@@ -634,7 +641,6 @@
       "shortcutBar": "Barra de atajos",
       "shortcutBarWhole": "Mostrar la barra de atajos",
       "showAll": "Volver a mostrar todo",
-      "everywhereTitle": "En todas las pantallas",
       "serverBar": "Barra de servidores",
       "items": {
         "search": "Buscar",

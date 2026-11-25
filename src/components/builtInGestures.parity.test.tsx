@@ -11,7 +11,7 @@ vi.mock('../stores/feedStore', () => ({
 }));
 
 import ShortcutHelp from './ShortcutHelp';
-import GeneralTab from './Preferences/GeneralTab';
+import KeyboardTab from './Preferences/KeyboardTab';
 import { useUiStore } from '../stores/uiStore';
 
 /** Les gestes intégrés d'un écran, en paires [touche, libellé], dans l'ordre. */
@@ -31,7 +31,7 @@ describe('gestes intégrés — l’aide « ? » et Préférences → Général 
     render(<ShortcutHelp />);
     const help = gestures();
     cleanup();
-    render(<GeneralTab />);
+    render(<KeyboardTab />);
     const prefs = gestures();
     expect(help.length).toBeGreaterThan(0);
     expect(prefs).toEqual(help);

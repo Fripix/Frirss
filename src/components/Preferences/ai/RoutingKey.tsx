@@ -94,7 +94,7 @@ export default function RoutingKey({ id }: { id: string }) {
         className="ai-routing__states px-3 pt-2.5 pb-3"
         style={{ background: 'var(--panel-header-bg)', borderTop: '1px solid var(--panel-border)' }}
       >
-        <p data-routing-states-title className="text-xs font-semibold mb-2" style={{ color: 'var(--list-summary)' }}>
+        <p data-routing-states-title className="text-[13px] font-semibold mb-2" style={{ color: 'var(--list-summary)' }}>
           {t('ai.routing.keyStatesTitle')}
         </p>
         <ul className="ai-routing__states-list">
@@ -102,10 +102,10 @@ export default function RoutingKey({ id }: { id: string }) {
           <State state="on" samples={['on']} name={t('ai.routing.keySet')}>{t('ai.routing.keySetText')}</State>
           <State state="inherited" samples={['inherited', 'inheritedOff']} name={t('ai.routing.keyInherited')}>{t('ai.routing.keyInheritedText')}</State>
         </ul>
-        <p className="text-xs mt-3 pt-2" style={{ color: 'var(--list-summary)', borderTop: '1px solid var(--panel-border)' }}>
+        <p className="text-[13px] mt-3 pt-2" style={{ color: 'var(--list-summary)', borderTop: '1px solid var(--panel-border)' }}>
           {t('ai.routing.keyCycle')}
         </p>
-        <p className="text-xs mt-1" style={{ color: 'var(--list-summary)' }}>
+        <p className="text-[13px] mt-1" style={{ color: 'var(--list-summary)' }}>
           {t('ai.routing.keyPrecedence')}
         </p>
       </div>

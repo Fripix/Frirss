@@ -104,7 +104,7 @@ export default function AddServerDialog({ onClose, onAdded }: AddServerDialogPro
         <h2 id={titleId} className="text-lg font-bold mb-1" style={{ color: 'var(--list-title)' }}>
           {t('servers.addTitle')}
         </h2>
-        <p className="text-xs mb-4" style={{ color: 'var(--list-summary)' }}>
+        <p className="text-[13px] mb-4" style={{ color: 'var(--list-summary)' }}>
           {t('login.serverHint')}
         </p>
 
@@ -133,7 +133,7 @@ export default function AddServerDialog({ onClose, onAdded }: AddServerDialogPro
               onChange={setFreshrssPassword}
               required
             />
-            <p className="mt-1 text-[10px]" style={{ color: 'var(--list-summary)' }}>
+            <p className="mt-1 text-[11px]" style={{ color: 'var(--list-summary)' }}>
               {t('login.freshrssPasswordHint')}
             </p>
           </div>
@@ -150,7 +150,7 @@ export default function AddServerDialog({ onClose, onAdded }: AddServerDialogPro
               seeing what it grants first. */}
           <details className="pt-1">
             <summary
-              className="cursor-pointer text-xs font-medium select-none"
+              className="cursor-pointer text-[13px] font-medium select-none"
               style={{ color: 'var(--list-summary)' }}
             >
               {t('preferences.refresh.title')}
@@ -170,11 +170,11 @@ export default function AddServerDialog({ onClose, onAdded }: AddServerDialogPro
                   color: 'var(--list-title)',
                 }}
               />
-              <p className="text-[11px] opacity-70" style={{ color: 'var(--list-summary)' }}>
+              <p className="text-xs" style={{ color: 'var(--list-summary)' }}>
                 {t('preferences.refresh.tokenHelp')}
               </p>
               <div
-                className="px-3 py-2 rounded-lg text-xs flex items-start gap-2"
+                className="px-3 py-2 rounded-lg text-[13px] flex items-start gap-2"
                 style={{ background: 'var(--danger-light)', color: 'var(--danger)', border: '1px solid var(--danger)' }}
               >
                 <svg className="w-4 h-4 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -186,7 +186,7 @@ export default function AddServerDialog({ onClose, onAdded }: AddServerDialogPro
           </details>
 
           {error && (
-            <p role="alert" className="danger-note text-xs text-center rounded-lg py-2 px-3">{error}</p>
+            <p role="alert" className="danger-note text-[13px] text-center rounded-lg py-2 px-3">{error}</p>
           )}
 
           <div className="flex gap-2 justify-end pt-1">
@@ -229,7 +229,7 @@ function Field({ label, type = 'text', value, onChange, placeholder, required, a
     onChange((e.target as HTMLInputElement).value);
   return (
     <div>
-      <label htmlFor={id} className="block text-xs font-medium mb-1.5" style={{ color: 'var(--list-summary)' }}>
+      <label htmlFor={id} className="block text-[13px] font-medium mb-1.5" style={{ color: 'var(--list-summary)' }}>
         {label}
       </label>
       <input

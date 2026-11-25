@@ -94,7 +94,7 @@ export default function ServerCredentialsForm({ server, isActive, onSaved, onClo
       className="space-y-2 outline-none"
     >
       <div>
-        <label htmlFor={userId} className="block text-xs font-medium mb-1" style={{ color: 'var(--list-summary)' }}>
+        <label htmlFor={userId} className="block text-[13px] font-medium mb-1" style={{ color: 'var(--list-summary)' }}>
           {t('login.freshrssUser')}
         </label>
         <input
@@ -108,7 +108,7 @@ export default function ServerCredentialsForm({ server, isActive, onSaved, onClo
         />
       </div>
       <div>
-        <label htmlFor={passwordId} className="block text-xs font-medium mb-1" style={{ color: 'var(--list-summary)' }}>
+        <label htmlFor={passwordId} className="block text-[13px] font-medium mb-1" style={{ color: 'var(--list-summary)' }}>
           {t('login.freshrssPassword')}
         </label>
         <input
@@ -124,7 +124,7 @@ export default function ServerCredentialsForm({ server, isActive, onSaved, onClo
           className="w-full text-sm px-2.5 py-1.5 rounded-lg outline-none focus:ring-2"
           style={inputStyle}
         />
-        <p id={hintId} className="mt-1 text-[10px]" style={{ color: 'var(--list-summary)' }}>
+        <p id={hintId} className="mt-1 text-[11px]" style={{ color: 'var(--list-summary)' }}>
           {t('login.freshrssPasswordHint')}
         </p>
       </div>
@@ -133,7 +133,7 @@ export default function ServerCredentialsForm({ server, isActive, onSaved, onClo
           type="submit"
           disabled={busy}
           aria-busy={busy}
-          className="px-3 py-1.5 text-xs font-medium rounded-lg min-h-[44px] disabled:opacity-50"
+          className="px-3 py-1.5 text-[13px] font-medium rounded-lg min-h-[44px] disabled:opacity-50"
           style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
         >
           {t('servers.credentialsSave')}
@@ -142,18 +142,18 @@ export default function ServerCredentialsForm({ server, isActive, onSaved, onClo
           type="button"
           onClick={onClose}
           disabled={busy}
-          className="px-3 py-1.5 text-xs font-medium rounded-lg min-h-[44px] transition-colors hover-tint disabled:opacity-50"
+          className="px-3 py-1.5 text-[13px] font-medium rounded-lg min-h-[44px] transition-colors hover-tint disabled:opacity-50"
           style={{ border: '1px solid var(--panel-border)', color: 'var(--list-title)' }}
         >
           {saved ? t('app.close') : t('sidebar.cancel')}
         </button>
       </div>
       {/* Montée en permanence, vide au repos (liveRegions.test). */}
-      <p role="status" className={saved ? 'text-[11px] success-note' : 'sr-only'}>
+      <p role="status" className={saved ? 'text-xs success-note' : 'sr-only'}>
         {saved ? t('servers.credentialsSaved') : ''}
       </p>
       {error && (
-        <p role="alert" className="text-[11px]" style={{ color: 'var(--danger)' }}>
+        <p role="alert" className="text-xs" style={{ color: 'var(--danger)' }}>
           {error}
         </p>
       )}

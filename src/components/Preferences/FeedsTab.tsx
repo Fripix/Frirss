@@ -9,7 +9,7 @@ import CategoryList from './CategoryList';
  */
 export default function FeedsTab() {
   return (
-    <div className="space-y-6">
+    <div>
       <ServerList />
       <CategoryList />
     </div>

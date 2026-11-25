@@ -129,7 +129,7 @@ export default function ShortcutHelp() {
         <button
           type="button"
           className="shortcut-help__customize"
-          onClick={() => { setOpen(false); openPreferences('general'); }}
+          onClick={() => { setOpen(false); openPreferences('keyboard'); }}
         >
           {t('preferences.shortcuts.customize')}
         </button>

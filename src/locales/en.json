@@ -199,7 +199,6 @@
   "preferences": {
     "title": "Preferences",
     "general": {
-      "title": "General",
       "confirmMarkAllRead": "Confirm before marking all as read",
       "confirmMarkAllReadHint": "When off, “Mark all as read” acts in a single click, with no confirmation.",
       "inlineVideos": "Play videos in the article",
@@ -229,6 +228,12 @@
       "randomDays": "days",
       "randomCountHint": "How many articles the Random button on the list shows, from 1 to 500.",
       "randomWindowHint": "Limits the Random button to recently arrived articles. Empty: all articles."
+    },
+    "reading": {
+      "list": "Article list",
+      "markRead": "Marking as read",
+      "article": "Article",
+      "random": "Random"
     },
     "branding": {
       "language": "Language",
@@ -454,7 +459,7 @@
       "unassigned": "No key"
     },
     "offline": {
-      "title": "Offline",
+      "prepareTitle": "Prepare",
       "hint": "Download the last 30 days of all feeds (text + images) for offline reading. Uses data — prefer Wi-Fi.",
       "button": "Prepare offline (30 days)",
       "preparing": "Preparing…",
@@ -519,14 +524,16 @@
       "save": "Save"
     },
     "sections": {
-      "general": "General",
+      "reading": "Reading",
       "appearance": "Appearance",
-      "labels": "Tags",
-      "feeds": "Feeds",
-      "offline": "Offline",
-      "admin": "Administration",
       "layout": "Layout",
-      "ai": "AI"
+      "keyboard": "Keyboard",
+      "feeds": "Feeds",
+      "labels": "Tags",
+      "offline": "Offline",
+      "ai": "AI",
+      "account": "Account",
+      "admin": "Administration"
     },
     "appearance": {
       "theme": "Theme",
@@ -598,8 +605,8 @@
     "resetThemeMessage": "Colors and sizes go back to the “{{name}}” theme as it was saved. The rest of your preferences doesn’t change.",
     "resetThemeConfirm": "Reset",
     "account": {
-      "title": "Account",
       "hint": "Changing the password closes your other open sessions: you’ll need to log in again on your other devices.",
+      "passwordTitle": "Password",
       "current": "Current password",
       "new": "New password",
       "confirm": "Confirm the new password",
@@ -634,7 +641,6 @@
       "shortcutBar": "Shortcut bar",
       "shortcutBarWhole": "Show the shortcut bar",
       "showAll": "Show all again",
-      "everywhereTitle": "On every screen",
       "serverBar": "Server bar",
       "items": {
         "search": "Search",

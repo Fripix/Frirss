@@ -10,10 +10,10 @@ vi.mock('../../stores/feedStore', () => ({
   useFeedStore: { getState: () => ({ selectedFeed: null }) },
 }));
 
-import GeneralTab from './GeneralTab';
+import ReadingTab from './ReadingTab';
 import { useUiStore } from '../../stores/uiStore';
 
-describe('GeneralTab — signaler les nouveaux articles', () => {
+describe('ReadingTab — signaler les nouveaux articles', () => {
   beforeEach(() => {
     localStorage.clear();
     useUiStore.setState({ showNewArticlesPill: true });
@@ -25,7 +25,7 @@ describe('GeneralTab — signaler les nouveaux articles', () => {
   });
 
   it('shows the setting on, and turns it off', () => {
-    render(<GeneralTab />);
+    render(<ReadingTab />);
     const toggle = screen.getByLabelText('preferences.general.newArticlesPill');
     expect(toggle.getAttribute('aria-checked')).toBe('true');
     fireEvent.click(toggle);

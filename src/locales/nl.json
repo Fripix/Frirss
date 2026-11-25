@@ -199,7 +199,6 @@
   "preferences": {
     "title": "Voorkeuren",
     "general": {
-      "title": "Algemeen",
       "confirmMarkAllRead": "Bevestigen voordat alles als gelezen wordt gemarkeerd",
       "confirmMarkAllReadHint": "Wanneer uit werkt ‘Alles als gelezen markeren’ met één klik, zonder bevestiging.",
       "inlineVideos": "Video's in het artikel afspelen",
@@ -229,6 +228,12 @@
       "randomDays": "dagen",
       "randomCountHint": "Aantal artikelen dat de knop Willekeurig in de lijst toont, van 1 tot 500.",
       "randomWindowHint": "Beperkt de knop Willekeurig tot recent binnengekomen artikelen. Leeg: alle artikelen."
+    },
+    "reading": {
+      "list": "Artikellijst",
+      "markRead": "Als gelezen markeren",
+      "article": "Artikel",
+      "random": "Willekeurig"
     },
     "branding": {
       "language": "Taal",
@@ -454,7 +459,7 @@
       "unassigned": "Geen toets"
     },
     "offline": {
-      "title": "Offline",
+      "prepareTitle": "Voorbereiden",
       "hint": "Download de laatste 30 dagen van alle feeds (tekst + afbeeldingen) voor offline lezen. Gebruikt data — liefst wifi.",
       "button": "Offline voorbereiden (30 dagen)",
       "preparing": "Voorbereiden…",
@@ -519,14 +524,16 @@
       "save": "Opslaan"
     },
     "sections": {
-      "general": "Algemeen",
+      "reading": "Lezen",
       "appearance": "Weergave",
-      "labels": "Labels",
-      "feeds": "Feeds",
-      "offline": "Offline",
-      "admin": "Beheer",
       "layout": "Lay-out",
-      "ai": "AI"
+      "keyboard": "Toetsenbord",
+      "feeds": "Feeds",
+      "labels": "Labels",
+      "offline": "Offline",
+      "ai": "AI",
+      "account": "Account",
+      "admin": "Beheer"
     },
     "appearance": {
       "theme": "Thema",
@@ -598,8 +605,8 @@
     "resetThemeMessage": "Kleuren en groottes keren terug naar het thema ‘{{name}}’ zoals het is opgeslagen. Uw overige voorkeuren blijven ongewijzigd.",
     "resetThemeConfirm": "Opnieuw instellen",
     "account": {
-      "title": "Account",
       "hint": "Het wachtwoord wijzigen sluit uw andere open sessies: u moet op uw andere apparaten opnieuw inloggen.",
+      "passwordTitle": "Wachtwoord",
       "current": "Huidig wachtwoord",
       "new": "Nieuw wachtwoord",
       "confirm": "Nieuw wachtwoord bevestigen",
@@ -634,7 +641,6 @@
       "shortcutBar": "Sneltoetsbalk",
       "shortcutBarWhole": "Sneltoetsbalk tonen",
       "showAll": "Alles weer tonen",
-      "everywhereTitle": "Op elk scherm",
       "serverBar": "Serverbalk",
       "items": {
         "search": "Zoeken",

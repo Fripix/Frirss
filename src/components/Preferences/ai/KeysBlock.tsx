@@ -48,7 +48,7 @@ function KeyRow({ provider }: { provider: AiProviderView }) {
     <li className="space-y-1.5">
       <div className="flex flex-wrap items-baseline justify-between gap-x-3">
         <span className="text-sm font-semibold [overflow-wrap:anywhere]" style={{ color: 'var(--list-title)' }}>{provider.name}</span>
-        <span className={`text-[11px]${provider.hasUserKey ? ' success-note' : ''}`} style={provider.hasUserKey ? undefined : { color: 'var(--list-summary)' }}>
+        <span className={`text-xs${provider.hasUserKey ? ' success-note' : ''}`} style={provider.hasUserKey ? undefined : { color: 'var(--list-summary)' }}>
           {t(provider.hasUserKey ? 'ai.keys.set' : 'ai.keys.none')}
         </span>
       </div>
@@ -61,7 +61,7 @@ function KeyRow({ provider }: { provider: AiProviderView }) {
       <div className="flex flex-wrap items-center gap-2">
         <button
           type="button" disabled={busy || !value.trim()} onClick={() => send(value, 'saved')}
-          className="prefs-tap-btn px-4 py-1.5 text-xs font-semibold rounded-md cursor-pointer disabled:opacity-40 disabled:cursor-default"
+          className="prefs-tap-btn px-4 py-1.5 text-[13px] font-semibold rounded-md cursor-pointer disabled:opacity-40 disabled:cursor-default"
           style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
         >
           {t('ai.keys.save')}
@@ -74,9 +74,9 @@ function KeyRow({ provider }: { provider: AiProviderView }) {
             {t('ai.keys.clear')}
           </button>
         )}
-        {outcome === 'error' && <span role="alert" className="text-xs" style={{ color: 'var(--danger)' }}>{t('ai.keys.error')}</span>}
+        {outcome === 'error' && <span role="alert" className="text-[13px]" style={{ color: 'var(--danger)' }}>{t('ai.keys.error')}</span>}
         {/* Région montée en permanence, vide au repos (liveRegions.test). */}
-        <span role="status" className={outcome && outcome !== 'error' ? 'text-xs success-note' : 'sr-only'}>
+        <span role="status" className={outcome && outcome !== 'error' ? 'text-[13px] success-note' : 'sr-only'}>
           {outcome === 'saved' ? t('ai.keys.saved') : outcome === 'cleared' ? t('ai.keys.cleared') : ''}
         </span>
       </div>
@@ -106,7 +106,7 @@ export default function KeysBlock() {
   return (
     <section className="space-y-3">
       <BlockTitle>{t('ai.keys.title')}</BlockTitle>
-      <p className="text-xs max-w-prose" style={{ color: 'var(--list-summary)' }}>{t('ai.keys.hint')}</p>
+      <p className="text-[13px] max-w-prose" style={{ color: 'var(--list-summary)' }}>{t('ai.keys.hint')}</p>
       <ul className="space-y-4">
         {providers.map((p) => <KeyRow key={p.id} provider={p} />)}
       </ul>

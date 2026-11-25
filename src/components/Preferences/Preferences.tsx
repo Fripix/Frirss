@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useId } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect, useId, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useThemeStore } from '../../stores/themeStore';
 import { useAuthStore } from '../../stores/authStore';
@@ -8,7 +8,9 @@ import FeedsTab from './FeedsTab';
 import AdminTab from './AdminTab';
 import OfflineTab from './OfflineTab';
 import LabelsTab from './LabelsTab';
-import GeneralTab from './GeneralTab';
+import ReadingTab from './ReadingTab';
+import KeyboardTab from './KeyboardTab';
+import AccountTab from './AccountTab';
 import AppearanceTab from './AppearanceTab';
 import LayoutTab from './LayoutTab';
 import AiTab from './AiTab';
@@ -19,6 +21,46 @@ import { useReturnFocus } from '../../hooks/useReturnFocus';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 
 interface HighlightRect { top: number; left: number; width: number; height: number }
+
+type SectionId = 'reading' | 'appearance' | 'layout' | 'keyboard' | 'feeds' | 'labels' | 'offline' | 'ai' | 'account' | 'admin';
+
+/** « Général » a été scindé en Lecture, Clavier et Compte : un ancien lien y mène encore. */
+const LEGACY_SECTIONS: Record<string, SectionId> = { general: 'reading' };
+const ALL_SECTIONS: readonly SectionId[] = ['reading', 'appearance', 'layout', 'keyboard', 'feeds', 'labels', 'offline', 'ai', 'account', 'admin'];
+
+function sectionOf(tab: string | null | undefined): SectionId {
+  if (!tab) return 'reading';
+  if (LEGACY_SECTIONS[tab]) return LEGACY_SECTIONS[tab];
+  return (ALL_SECTIONS as readonly string[]).includes(tab) ? (tab as SectionId) : 'reading';
+}
+
+/** Icônes de la navigation : même famille (contour 1,6) que le reste de l'interface. */
+const SECTION_ICONS: Record<SectionId, string> = {
+  reading: 'M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25',
+  appearance: 'M4.098 19.902a3.75 3.75 0 005.304 0l6.401-6.402M6.75 21A3.75 3.75 0 013 17.25V4.125C3 3.504 3.504 3 4.125 3h5.25c.621 0 1.125.504 1.125 1.125v4.072M6.75 21a3.75 3.75 0 003.75-3.75V8.197M6.75 21h13.125c.621 0 1.125-.504 1.125-1.125v-5.25c0-.621-.504-1.125-1.125-1.125h-4.072M10.5 8.197l2.88-2.88c.438-.439 1.15-.439 1.59 0l3.712 3.713c.44.44.44 1.152 0 1.59l-2.879 2.88M6.75 17.25h.008v.008H6.75v-.008z',
+  layout: 'M9 4.5v15m6-15v15m-10.875 0h15.75c.621 0 1.125-.504 1.125-1.125V5.625c0-.621-.504-1.125-1.125-1.125H4.125C3.504 4.5 3 5.004 3 5.625v12.75c0 .621.504 1.125 1.125 1.125z',
+  keyboard: 'M3.75 6.75h16.5a1.5 1.5 0 011.5 1.5v7.5a1.5 1.5 0 01-1.5 1.5H3.75a1.5 1.5 0 01-1.5-1.5v-7.5a1.5 1.5 0 011.5-1.5zM6.75 10.5h.008M9.75 10.5h.008M12.75 10.5h.008M15.75 10.5h.008M17.25 10.5h.008M8.25 14.25h7.5',
+  feeds: 'M12.75 19.5v-.75a7.5 7.5 0 00-7.5-7.5H4.5m0-6.75h.75c7.87 0 14.25 6.38 14.25 14.25v.75M6 18.75a.75.75 0 11-1.5 0 .75.75 0 011.5 0z',
+  labels: 'M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3zM6 6h.008v.008H6V6z',
+  offline: 'M12 9.75v6.75m0 0l-3-3m3 3l3-3m-8.25 6a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z',
+  ai: 'M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z',
+  account: 'M17.982 18.725A7.488 7.488 0 0012 15.75a7.488 7.488 0 00-5.982 2.975m11.963 0a9 9 0 10-11.963 0m11.963 0A8.966 8.966 0 0112 21a8.966 8.966 0 01-5.982-2.275M15 9.75a3 3 0 11-6 0 3 3 0 016 0z',
+  admin: 'M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z',
+};
+
+/** Une sous-partie de la section ouverte, telle que la page la rend. */
+interface SubSection { el: HTMLElement; label: string }
+
+/** Distance sous le haut de la zone de contenu à laquelle un titre devient « en cours ». */
+const SPY_OFFSET = 96;
+
+function sameSubs(a: SubSection[], b: SubSection[]) {
+  return a.length === b.length && a.every((s, i) => s.el === b[i].el && s.label === b[i].label);
+}
+
+function prefersReducedMotion() {
+  return typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+}
 
 export default function Preferences() {
   // Montées seulement ouvertes : le focus revient au bouton qui les a ouvertes.
@@ -35,14 +77,16 @@ export default function Preferences() {
   const preferencesOpenId = useThemeStore((s) => s.preferencesOpenId);
 
   const isMobile = useBreakpoint() === 'mobile';
-  const [tab, setTab] = useState<string>(preferencesTab || 'general');
+  const [tab, setTab] = useState<SectionId>(sectionOf(preferencesTab));
   const [showNav, setShowNav] = useState(!preferencesTab);
+  // La section ouverte montre ses sous-titres ; un second clic sur elle les replie.
+  const [expanded, setExpanded] = useState(true);
   const [highlightKey, setHighlightKey] = useState<string | null>(null);
   // Une section n'est montée qu'à sa première visite, puis le reste. Le montage
   // conditionnel d'origine la détruisait à chaque changement de section : Flux
   // et Administration, les deux seules à appeler le réseau au montage,
   // repayaient un aller-retour complet à chaque retour, écran vide.
-  const [visited, setVisited] = useState<Set<string>>(() => new Set([preferencesTab || 'general']));
+  const [visited, setVisited] = useState<Set<string>>(() => new Set([sectionOf(preferencesTab)]));
   const [highlightRects, setHighlightRects] = useState<HighlightRect[]>([]);
   const modalRef = useRef<HTMLDivElement>(null);
   useFocusTrap(modalRef, true);
@@ -54,8 +98,9 @@ export default function Preferences() {
   // Reset tab (and the mobile drill-down) every time preferences are opened
   // (preferencesOpenId changes each open)
   useEffect(() => {
-    setTab(preferencesTab || 'general');
+    setTab(sectionOf(preferencesTab));
     setShowNav(!preferencesTab);
+    setExpanded(true);
   }, [preferencesTab, preferencesOpenId]);
 
   useEffect(() => {
@@ -101,8 +146,136 @@ export default function Preferences() {
   const isAdmin = useAuthStore((s) => s.backendUser?.role === 'admin');
   const aiOn = useAiStore(aiEnabled);
   const showAi = aiOn || isAdmin;
-  const SECTIONS: readonly string[] = ['general', 'appearance', 'layout', 'labels', 'feeds', 'offline', ...(showAi ? ['ai'] : [])];
-  const sections = SECTIONS.map((id) => ({ id, label: t(`preferences.sections.${id}`) }));
+  const sections = ALL_SECTIONS
+    .filter((id) => (id === 'ai' ? showAi : id === 'admin' ? isAdmin : true))
+    .map((id) => ({ id, label: t(`preferences.sections.${id}`) }));
+
+  // ── Navigation dépliable ─────────────────────────────────────────────
+  // Les sous-titres de la section ouverte sont LUS dans sa page (les `h3`
+  // marqués `data-pref-sub`), pas recopiés dans une liste à tenir à jour :
+  // un bloc absent (mot de passe d'un compte SSO, fournisseurs IA hors admin)
+  // n'apparaît pas, un bloc ajouté apparaît seul.
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const navListRef = useRef<HTMLUListElement>(null);
+  const subListId = useId();
+  const [subs, setSubs] = useState<SubSection[]>([]);
+  const [currentSub, setCurrentSub] = useState(0);
+  // Pendant un défilement lancé par un clic, le suivi du défilement se tait :
+  // la dernière sous-partie, trop courte pour monter en haut, volerait sinon
+  // la sélection à celle qu'on vient de choisir.
+  const programmatic = useRef<{ timer: ReturnType<typeof setTimeout> | null }>({ timer: null });
+
+  useLayoutEffect(() => {
+    const root = scrollRef.current?.querySelector<HTMLElement>(`[data-pane="${tab}"]`);
+    if (!root) { setSubs([]); return; }
+    let raf = 0;
+    const read = () => {
+      raf = 0;
+      const next = Array.from(root.querySelectorAll<HTMLElement>('[data-pref-sub]')).map((el) => ({
+        el,
+        label: el.dataset.prefLabel || el.textContent?.trim() || '',
+      }));
+      setSubs((cur) => (sameSubs(cur, next) ? cur : next));
+    };
+    read();
+    if (typeof MutationObserver === 'undefined') return;
+    const mo = new MutationObserver(() => { if (!raf) raf = requestAnimationFrame(read); });
+    mo.observe(root, { childList: true, subtree: true, characterData: true });
+    return () => { mo.disconnect(); if (raf) cancelAnimationFrame(raf); };
+  }, [tab, visited]);
+
+  // Changer de section repart du haut de sa page.
+  useLayoutEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTop = 0;
+    setCurrentSub(0);
+  }, [tab, showNav]);
+
+  useEffect(() => {
+    const sc = scrollRef.current;
+    if (!sc || subs.length === 0) return;
+    let raf = 0;
+    const update = () => {
+      raf = 0;
+      const top = sc.getBoundingClientRect().top;
+      let idx = 0;
+      subs.forEach((sub, i) => { if (sub.el.getBoundingClientRect().top - top <= SPY_OFFSET) idx = i; });
+      // Tout en bas, les dernières sous-parties ne peuvent plus monter : on
+      // prend la dernière dont le titre est à l'écran.
+      if (sc.scrollTop > 0 && sc.scrollTop + sc.clientHeight >= sc.scrollHeight - 2) {
+        const bottom = sc.getBoundingClientRect().bottom;
+        subs.forEach((sub, i) => { if (sub.el.getBoundingClientRect().top < bottom) idx = Math.max(idx, i); });
+      }
+      setCurrentSub(idx);
+    };
+    const onScroll = () => {
+      const p = programmatic.current;
+      if (p.timer) {
+        clearTimeout(p.timer);
+        p.timer = setTimeout(() => { p.timer = null; }, 140);
+        return;
+      }
+      if (!raf) raf = requestAnimationFrame(update);
+    };
+    sc.addEventListener('scroll', onScroll, { passive: true });
+    return () => { sc.removeEventListener('scroll', onScroll); if (raf) cancelAnimationFrame(raf); };
+  }, [subs]);
+
+  useEffect(() => () => { if (programmatic.current.timer) clearTimeout(programmatic.current.timer); }, []);
+
+  function openSection(id: SectionId) {
+    if (isMobile) {
+      setTab(id);
+      setShowNav(false);
+      return;
+    }
+    if (id === tab) {
+      setExpanded((v) => !v);
+      return;
+    }
+    setTab(id);
+    setExpanded(true);
+  }
+
+  function goToSub(i: number) {
+    const sc = scrollRef.current;
+    const el = subs[i]?.el;
+    if (!sc || !el) return;
+    const top = el.getBoundingClientRect().top - sc.getBoundingClientRect().top + sc.scrollTop - 16;
+    const p = programmatic.current;
+    if (p.timer) clearTimeout(p.timer);
+    // Filet de sécurité : déjà à la bonne place, aucun défilement n'arrive.
+    p.timer = setTimeout(() => { p.timer = null; }, 900);
+    sc.scrollTo?.({ top: Math.max(0, top), behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
+    setCurrentSub(i);
+    // Le focus suit : un lecteur d'écran annonce le titre, Tab continue dans la sous-partie.
+    el.focus({ preventScroll: true });
+  }
+
+  // L'indicateur de la section active, mesuré dans la liste.
+  const [pill, setPill] = useState<{ y: number; h: number } | null>(null);
+  const [pillReady, setPillReady] = useState(false);
+  const measurePill = useCallback(() => {
+    const btn = navListRef.current?.querySelector<HTMLElement>(`[data-section="${tab}"]`);
+    setPill((cur) => {
+      if (!btn) return null;
+      const next = { y: btn.offsetTop, h: btn.offsetHeight };
+      return cur && cur.y === next.y && cur.h === next.h ? cur : next;
+    });
+  }, [tab]);
+  useLayoutEffect(() => { measurePill(); }, [measurePill, isMobile, sections.length]);
+  // Pas de glissement à l'ouverture : la pastille apparaît en place, puis glisse.
+  useEffect(() => {
+    if (!pill || pillReady) return;
+    const raf = requestAnimationFrame(() => setPillReady(true));
+    return () => cancelAnimationFrame(raf);
+  }, [pill, pillReady]);
+  useEffect(() => {
+    const list = navListRef.current;
+    if (!list || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => measurePill());
+    ro.observe(list);
+    return () => ro.disconnect();
+  }, [measurePill]);
 
   // Échap est écouté sur le panneau (`onKeyDown` plus bas), donc seulement
   // quand le focus y est. Un bouton qui se désactive pendant son travail
@@ -192,7 +365,7 @@ export default function Preferences() {
           {/* Label badge */}
           {highlightKey && i === 0 && (
             <span
-              className="absolute text-[10px] font-bold px-2.5 py-1 rounded-md whitespace-nowrap"
+              className="absolute text-[11px] font-bold px-2.5 py-1 rounded-md whitespace-nowrap"
               style={{
                 top: -14,
                 left: 8,
@@ -249,7 +422,7 @@ export default function Preferences() {
                 value={theme.name}
                 aria-label={t('preferences.appearance.theme')}
                 onChange={(e) => loadSavedTheme(e.target.value)}
-                className="text-xs px-2 py-1 rounded-md appearance-none cursor-pointer pr-6 prefs-tap-row min-w-[76px] flex-shrink truncate"
+                className="text-[13px] px-2 py-1 rounded-md appearance-none cursor-pointer pr-6 prefs-tap-row min-w-[76px] flex-shrink truncate"
                 style={{
                   border: '1px solid var(--panel-border)',
                   color: 'var(--list-title)',
@@ -267,7 +440,7 @@ export default function Preferences() {
           <div className="flex items-center gap-1 flex-shrink-0">
             <button
               onClick={() => setConfirmReset(true)}
-              className="text-[10px] px-2 py-1 rounded-md transition-colors prefs-tap-btn"
+              className="text-[11px] px-2 py-1 rounded-md transition-colors prefs-tap-btn"
               style={{ color: 'var(--danger)', background: 'transparent' }}
               title={t('preferences.resetThemeTooltip')}
             >
@@ -298,49 +471,80 @@ export default function Preferences() {
         <div className="prefs-panel-body flex-1 flex min-h-0">
           <nav
             hidden={isMobile && !showNav}
-            className={`${isMobile ? 'w-full' : 'w-[178px]'} flex-shrink-0 overflow-y-auto px-2.5 py-3 flex flex-col gap-0.5`}
+            className={`prefs-nav ${isMobile ? 'w-full' : 'w-[212px]'} flex-shrink-0 overflow-y-auto px-2.5 py-3`}
             style={{ borderRight: isMobile ? undefined : '1px solid var(--panel-border)', background: 'var(--panel-header-bg)' }}
             aria-label={t('preferences.title')}
           >
-            {sections.map((s) => (
-              <button
-                key={s.id}
-                onClick={() => { setTab(s.id); if (isMobile) setShowNav(false); }}
-                aria-current={tab === s.id ? 'page' : undefined}
-                className={`flex items-center text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors prefs-tap-row ${isMobile ? 'justify-between' : ''}`}
-                style={{
-                  background: tab === s.id ? 'var(--accent)' : 'transparent',
-                  color: tab === s.id ? 'var(--on-accent)' : 'var(--list-title)',
-                  fontWeight: tab === s.id ? 600 : 400,
-                }}
-              >
-                {s.label}
-                {/* Mobile only: this list is a drill-down (tap → section screen),
-                    not a pane switcher like on desktop, so it should read as
-                    navigation. */}
-                {isMobile && <span aria-hidden="true" className="opacity-60">›</span>}
-              </button>
-            ))}
-            {isAdmin && (
-              <>
-                <div className="h-px mx-2 mt-2.5 mb-0.5" style={{ background: 'var(--panel-border)' }} />
-                <button
-                  onClick={() => { setTab('admin'); if (isMobile) setShowNav(false); }}
-                  aria-current={tab === 'admin' ? 'page' : undefined}
-                  className={`flex items-center text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors prefs-tap-row ${isMobile ? 'justify-between' : ''}`}
-                  style={{
-                    background: tab === 'admin' ? 'var(--accent)' : 'transparent',
-                    color: tab === 'admin' ? 'var(--on-accent)' : 'var(--list-title)',
-                    fontWeight: tab === 'admin' ? 600 : 400,
-                  }}
-                >
-                  {t('preferences.sections.admin')}
-                  {isMobile && <span aria-hidden="true" className="opacity-60">›</span>}
-                </button>
-              </>
-            )}
+            <ul ref={navListRef} className="relative flex flex-col gap-0.5">
+              {/* L'indicateur glisse d'une section à l'autre au lieu de sauter :
+                  il dit d'où l'on vient. Une pastille teintée, pas un aplat :
+                  le libellé garde sa couleur pendant le trajet. */}
+              {!isMobile && pill && (
+                <li
+                  aria-hidden="true"
+                  className="prefs-nav-pill"
+                  data-ready={pillReady ? 'true' : undefined}
+                  style={{ transform: `translateY(${pill.y}px)`, height: pill.h }}
+                />
+              )}
+              {sections.map((s) => {
+                const active = tab === s.id;
+                const hasSubs = active && !isMobile && subs.length > 0;
+                const open = hasSubs && expanded;
+                return (
+                  <li key={s.id} className={s.id === 'admin' ? 'prefs-nav-sep' : undefined}>
+                    <button
+                      type="button"
+                      data-section={s.id}
+                      onClick={() => openSection(s.id)}
+                      aria-current={active ? 'page' : undefined}
+                      aria-expanded={hasSubs ? open : undefined}
+                      aria-controls={hasSubs ? subListId : undefined}
+                      className="prefs-nav-item prefs-tap-row"
+                    >
+                      <svg className="prefs-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.6} aria-hidden="true">
+                        <path strokeLinecap="round" strokeLinejoin="round" d={SECTION_ICONS[s.id]} />
+                      </svg>
+                      <span className="flex-1 min-w-0 truncate">{s.label}</span>
+                      {isMobile ? (
+                        <svg className="w-4 h-4 opacity-50 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                        </svg>
+                      ) : hasSubs && (
+                        <svg className="prefs-nav-chevron" data-open={open ? 'true' : undefined} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                        </svg>
+                      )}
+                    </button>
+                    {hasSubs && (
+                      <div className="prefs-subnav" data-open={open ? 'true' : 'false'}>
+                        <ul id={subListId} className="prefs-subnav-list" inert={!open}>
+                          {subs.map((sub, i) => (
+                            <li key={`${i}-${sub.label}`}>
+                              <button
+                                type="button"
+                                onClick={() => goToSub(i)}
+                                aria-current={i === currentSub ? 'location' : undefined}
+                                className="prefs-subnav-item"
+                              >
+                                {sub.label}
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
           </nav>
-          <div hidden={isMobile && showNav} className="flex-1 overflow-y-auto px-5 py-4 min-w-0">
+          <div
+            ref={scrollRef}
+            hidden={isMobile && showNav}
+            className="prefs-content flex-1 overflow-y-auto min-w-0"
+          >
+            <div className={isMobile ? 'px-4 pt-2 pb-10' : 'px-7 pt-6 pb-16'}>
             {isMobile && (
               <button
                 onClick={() => setShowNav(true)}
@@ -348,7 +552,7 @@ export default function Preferences() {
                    read at a glance without becoming the primary action, so
                    it borrows the accent colour and a heavier weight rather
                    than a filled button. 44pt tap target via min-height. */
-                className="flex items-center gap-1.5 mb-3 text-xs font-semibold min-h-[44px]"
+                className="flex items-center gap-1.5 text-[13px] font-semibold min-h-[44px]"
                 style={{ color: 'var(--accent)' }}
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden="true">
@@ -362,32 +566,32 @@ export default function Preferences() {
               directs, et `hidden` perd contre une classe utilitaire d'affichage
               (le piège déjà rencontré sur la navigation mobile). Un style en
               ligne, lui, ne peut pas être battu par une classe. */}
-          {visited.has('general') && <Pane id="general" tab={tab}><GeneralTab /></Pane>}
-          {visited.has('appearance') && (
-            <Pane id="appearance" tab={tab}>
-              <AppearanceTab onHighlight={setHighlightKey} active={tab === 'appearance'} />
+          {sections.map((s) => visited.has(s.id) && (
+            <Pane key={s.id} id={s.id} tab={tab} title={s.label}>
+              {renderSection(s.id)}
             </Pane>
-          )}
-          {visited.has('layout') && <Pane id="layout" tab={tab}><LayoutTab /></Pane>}
-          {visited.has('labels') && (
-            <Pane id="labels" tab={tab}><LabelsTab resetLabelColors={resetLabelColors} /></Pane>
-          )}
-          {visited.has('feeds') && <Pane id="feeds" tab={tab}><FeedsTab /></Pane>}
-          {visited.has('offline') && (
-            <Pane id="offline" tab={tab}><OfflineTab active={tab === 'offline'} /></Pane>
-          )}
-
-          {showAi && visited.has('ai') && (
-            <Pane id="ai" tab={tab}><AiTab active={tab === 'ai'} /></Pane>
-          )}
-          {isAdmin && visited.has('admin') && (
-            <Pane id="admin" tab={tab}><AdminTab active={tab === 'admin'} /></Pane>
-          )}
+          ))}
+            </div>
           </div>
         </div>
       </div>
     </div>
   );
+
+  function renderSection(id: SectionId) {
+    switch (id) {
+      case 'reading': return <ReadingTab />;
+      case 'appearance': return <AppearanceTab onHighlight={setHighlightKey} active={tab === 'appearance'} />;
+      case 'layout': return <LayoutTab />;
+      case 'keyboard': return <KeyboardTab />;
+      case 'feeds': return <FeedsTab />;
+      case 'labels': return <LabelsTab resetLabelColors={resetLabelColors} />;
+      case 'offline': return <OfflineTab active={tab === 'offline'} />;
+      case 'ai': return <AiTab active={tab === 'ai'} />;
+      case 'account': return <AccountTab />;
+      case 'admin': return <AdminTab active={tab === 'admin'} />;
+    }
+  }
 }
 
 /**
@@ -395,10 +599,11 @@ export default function Preferences() {
  * Garder la section montée rend le retour instantané ; `hidden` porte le sens
  * pour les technologies d'assistance, `display` garantit l'effet visuel.
  */
-function Pane({ id, tab, children }: { id: string; tab: string; children: React.ReactNode }) {
+function Pane({ id, tab, title, children }: { id: string; tab: string; title: string; children: React.ReactNode }) {
   const shown = tab === id;
   return (
-    <div hidden={!shown} style={{ display: shown ? undefined : 'none' }}>
+    <div data-pane={id} className="prefs-pane" hidden={!shown} style={{ display: shown ? undefined : 'none' }}>
+      <h2 className="prefs-h2">{title}</h2>
       {children}
     </div>
   );

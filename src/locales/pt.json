@@ -199,7 +199,6 @@
   "preferences": {
     "title": "Preferências",
     "general": {
-      "title": "Geral",
       "confirmMarkAllRead": "Confirmar antes de marcar tudo como lido",
       "confirmMarkAllReadHint": "Quando desativado, «Marcar tudo como lido» age com um único clique, sem confirmação.",
       "inlineVideos": "Reproduzir os vídeos no artigo",
@@ -229,6 +228,12 @@
       "randomDays": "dias",
       "randomCountHint": "Número de artigos mostrados pelo botão Aleatório da lista, de 1 a 500.",
       "randomWindowHint": "Limita o botão Aleatório aos artigos chegados recentemente. Vazio: todos os artigos."
+    },
+    "reading": {
+      "list": "Lista de artigos",
+      "markRead": "Marcar como lido",
+      "article": "Artigo",
+      "random": "Aleatório"
     },
     "branding": {
       "language": "Idioma",
@@ -454,7 +459,7 @@
       "unassigned": "Sem tecla"
     },
     "offline": {
-      "title": "Offline",
+      "prepareTitle": "Preparar",
       "hint": "Descarrega os últimos 30 dias de todos os feeds (texto + imagens) para leitura offline. Usa dados — prefira Wi-Fi.",
       "button": "Preparar offline (30 dias)",
       "preparing": "A preparar…",
@@ -519,14 +524,16 @@
       "save": "Guardar"
     },
     "sections": {
-      "general": "Geral",
+      "reading": "Leitura",
       "appearance": "Aparência",
-      "labels": "Etiquetas",
-      "feeds": "Feeds",
-      "offline": "Offline",
-      "admin": "Administração",
       "layout": "Disposição",
-      "ai": "IA"
+      "keyboard": "Teclado",
+      "feeds": "Feeds",
+      "labels": "Etiquetas",
+      "offline": "Offline",
+      "ai": "IA",
+      "account": "Conta",
+      "admin": "Administração"
     },
     "appearance": {
       "theme": "Tema",
@@ -598,8 +605,8 @@
     "resetThemeMessage": "As cores e os tamanhos voltam aos do tema «{{name}}» tal como foi guardado. As restantes preferências não mudam.",
     "resetThemeConfirm": "Repor",
     "account": {
-      "title": "Conta",
       "hint": "Mudar a palavra-passe fecha as suas outras sessões abertas: terá de voltar a iniciar sessão nos outros dispositivos.",
+      "passwordTitle": "Palavra-passe",
       "current": "Palavra-passe atual",
       "new": "Nova palavra-passe",
       "confirm": "Confirmar a nova palavra-passe",
@@ -634,7 +641,6 @@
       "shortcutBar": "Barra de atalhos",
       "shortcutBarWhole": "Mostrar a barra de atalhos",
       "showAll": "Mostrar tudo novamente",
-      "everywhereTitle": "Em todos os ecrãs",
       "serverBar": "Barra de servidores",
       "items": {
         "search": "Pesquisar",

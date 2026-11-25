@@ -261,7 +261,7 @@ export default function AdminProviders({ active }: { active: boolean }) {
     document.getElementById(`${uid}-model`)?.focus();
   }
 
-  const labelClass = 'block text-xs mb-1';
+  const labelClass = 'block text-[13px] mb-1';
   const labelStyle = { color: 'var(--list-summary)' };
   const draft = editing?.draft;
   const editedProvider = editing?.id != null ? providers.find((p) => p.id === editing.id) : undefined;
@@ -280,7 +280,7 @@ export default function AdminProviders({ active }: { active: boolean }) {
         onChange={(e) => setDraft({ [key]: e.target.value })}
         className={inputClass} style={inputStyle}
       />
-      {opts.hint && <p id={`${uid}-${key}-hint`} className="text-[11px] mt-1 break-words" style={{ color: 'var(--list-summary)' }}>{opts.hint}</p>}
+      {opts.hint && <p id={`${uid}-${key}-hint`} className="text-xs mt-1 break-words" style={{ color: 'var(--list-summary)' }}>{opts.hint}</p>}
     </div>
   );
 
@@ -294,7 +294,7 @@ export default function AdminProviders({ active }: { active: boolean }) {
   const menuItems = (p: AiProviderAdmin) => {
     const i = providers.findIndex((x) => x.id === p.id);
     const isDefault = settings.defaultProvider === p.id;
-    const row = `flex items-center gap-2.5 w-full text-left rounded-md cursor-pointer hover-tint aria-disabled:opacity-40 aria-disabled:cursor-default aria-disabled:hover:bg-transparent ${touch ? 'sheet-row px-4 text-[15px]' : 'px-3 py-1.5 text-xs'}`;
+    const row = `flex items-center gap-2.5 w-full text-left rounded-md cursor-pointer hover-tint aria-disabled:opacity-40 aria-disabled:cursor-default aria-disabled:hover:bg-transparent ${touch ? 'sheet-row px-4 text-[15px]' : 'px-3 py-1.5 text-[13px]'}`;
     const item = (label: string, icon: ReactNode, run: () => void, opts: { disabled?: boolean; danger?: boolean; ariaLabel?: string; iconColor?: string } = {}) => (
       <button
         type="button" role={touch ? undefined : 'menuitem'} aria-disabled={opts.disabled || undefined} aria-label={opts.ariaLabel}
@@ -334,12 +334,12 @@ export default function AdminProviders({ active }: { active: boolean }) {
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <BlockTitle>{t('ai.admin.title')}</BlockTitle>
         <div className="prefs-tap-row ml-auto flex items-center gap-3">
-          <span className="text-xs" style={{ color: 'var(--list-summary)' }}>{t('ai.admin.enable')}</span>
+          <span className="text-[13px]" style={{ color: 'var(--list-summary)' }}>{t('ai.admin.enable')}</span>
           <ToggleSwitch checked={settings.enabled} onChange={(v) => saveSettings({ enabled: v })} ariaLabel={t('ai.admin.enable')} />
         </div>
       </div>
 
-      {(error || loadFailed) && <p role="alert" className="text-xs" style={{ color: 'var(--danger)' }}>{error || t('ai.admin.loadError')}</p>}
+      {(error || loadFailed) && <p role="alert" className="text-[13px]" style={{ color: 'var(--danger)' }}>{error || t('ai.admin.loadError')}</p>}
 
       <div className="space-y-3">
         {providers.length > 0 && (
@@ -386,7 +386,7 @@ export default function AdminProviders({ active }: { active: boolean }) {
                   <button
                     type="button" onClick={fetchModels} aria-controls={`${uid}-models`}
                     disabled={!draft.baseUrl.trim() || models?.state === 'busy'}
-                    className="prefs-tap-btn px-3 py-1.5 min-h-[36px] text-xs font-semibold rounded-md cursor-pointer whitespace-nowrap disabled:opacity-40 disabled:cursor-default"
+                    className="prefs-tap-btn px-3 py-1.5 min-h-[36px] text-[13px] font-semibold rounded-md cursor-pointer whitespace-nowrap disabled:opacity-40 disabled:cursor-default"
                     style={{ border: '1px solid var(--panel-border)', color: 'var(--list-title)' }}
                   >
                     {t('ai.admin.models.list')}
@@ -417,23 +417,23 @@ export default function AdminProviders({ active }: { active: boolean }) {
                 )}
               </div>
               {keysMove && (
-                <p id={`${uid}-keyMoved`} className="text-[11px] mt-1 max-w-prose" style={{ color: 'var(--danger)' }}>{t('ai.admin.keyMoved')}</p>
+                <p id={`${uid}-keyMoved`} className="text-xs mt-1 max-w-prose" style={{ color: 'var(--danger)' }}>{t('ai.admin.keyMoved')}</p>
               )}
             </div>
             <div className="prefs-tap-row flex items-center justify-between gap-3">
-              <span className="text-xs" style={{ color: 'var(--list-summary)' }}>{t('ai.admin.shared')}</span>
+              <span className="text-[13px]" style={{ color: 'var(--list-summary)' }}>{t('ai.admin.shared')}</span>
               <ToggleSwitch checked={!!draft.shared} onChange={(v) => setDraft({ shared: v })} ariaLabel={t('ai.admin.shared')} />
             </div>
             <div className="flex flex-wrap items-center gap-2 pt-1">
-              <button type="button" onClick={saveProvider} disabled={saving} className="prefs-tap-btn disabled:opacity-60 disabled:cursor-default px-4 py-1.5 min-h-[32px] text-xs font-semibold rounded-md cursor-pointer" style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}>{t('ai.admin.save')}</button>
+              <button type="button" onClick={saveProvider} disabled={saving} className="prefs-tap-btn disabled:opacity-60 disabled:cursor-default px-4 py-1.5 min-h-[32px] text-[13px] font-semibold rounded-md cursor-pointer" style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}>{t('ai.admin.save')}</button>
               <button type="button" onClick={() => { editSeq.current++; dropModels(); setEditing(null); }} className={`${quietBtn} min-h-[32px] hover-tint`} style={{ color: 'var(--list-title)' }}>{t('ai.admin.close')}</button>
               {/* Région montée en permanence, vide au repos : née avec son
                   texte, elle n'était souvent pas annoncée (liveRegions.test). */}
-              <span role="status" className={saved ? 'text-xs success-note' : 'sr-only'}>{saved ? t('ai.admin.saved') : ''}</span>
+              <span role="status" className={saved ? 'text-[13px] success-note' : 'sr-only'}>{saved ? t('ai.admin.saved') : ''}</span>
             </div>
           </div>
         ) : (
-          <button type="button" onClick={() => startEdit(null)} className="prefs-tap-btn inline-flex items-center gap-1.5 pl-2.5 pr-3 py-1.5 min-h-[32px] text-xs font-semibold rounded-md cursor-pointer hover-tint" style={{ border: '1px solid var(--panel-border)', color: 'var(--list-title)' }}>
+          <button type="button" onClick={() => startEdit(null)} className="prefs-tap-btn inline-flex items-center gap-1.5 pl-2.5 pr-3 py-1.5 min-h-[32px] text-[13px] font-semibold rounded-md cursor-pointer hover-tint" style={{ border: '1px solid var(--panel-border)', color: 'var(--list-title)' }}>
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden="true"><path strokeLinecap="round" d="M12 5v14M5 12h14" /></svg>
             {t('ai.admin.add')}
           </button>
@@ -441,7 +441,7 @@ export default function AdminProviders({ active }: { active: boolean }) {
       </div>
 
       <div className="prefs-tap-row flex items-center justify-between gap-3">
-        <span className="text-xs" style={{ color: 'var(--list-summary)' }}>{t('ai.admin.userKeysAllowed')}</span>
+        <span className="text-[13px]" style={{ color: 'var(--list-summary)' }}>{t('ai.admin.userKeysAllowed')}</span>
         <ToggleSwitch checked={settings.userKeysAllowed} onChange={(v) => saveSettings({ userKeysAllowed: v })} ariaLabel={t('ai.admin.userKeysAllowed')} />
       </div>
       <div>
@@ -453,7 +453,7 @@ export default function AdminProviders({ active }: { active: boolean }) {
           onKeyDown={(e) => { if (e.key === 'Enter') commitCap(); }}
           className={`${inputClass} !w-32`} style={inputStyle}
         />
-        <p id={`${uid}-cap-hint`} className="text-[11px] mt-1" style={{ color: 'var(--list-summary)' }}>{t('ai.admin.dailyCapHint')}</p>
+        <p id={`${uid}-cap-hint`} className="text-xs mt-1" style={{ color: 'var(--list-summary)' }}>{t('ai.admin.dailyCapHint')}</p>
       </div>
 
       <ConfirmDialog
@@ -499,7 +499,7 @@ function TypeTag({ type, className = '' }: { type: AiProviderAdmin['type']; clas
   const label = type === 'anthropic' ? t('ai.admin.typeAnthropicShort') : t('ai.admin.typeOpenaiShort');
   return (
     <span
-      className={`inline-block max-w-[8rem] sm:max-w-[10rem] truncate px-1.5 rounded text-[11px] leading-[18px] ${className}`}
+      className={`inline-block max-w-[8rem] sm:max-w-[10rem] truncate px-1.5 rounded text-xs leading-[18px] ${className}`}
       style={{ border: '1px solid var(--panel-border)', color: 'var(--list-summary)' }}
     >
       {label}
@@ -530,7 +530,7 @@ function ProviderRow({ provider: p, first, isDefault, test: res, menuOpen, touch
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-sm font-semibold truncate" title={p.name} style={{ color: 'var(--list-title)' }}>{p.name}</span>
           {isDefault && (
-            <span className="flex-shrink-0 whitespace-nowrap px-1.5 rounded-full text-[11px] leading-[18px] font-medium" style={{ background: 'var(--accent-glow)', color: 'var(--accent)' }}>
+            <span className="flex-shrink-0 whitespace-nowrap px-1.5 rounded-full text-xs leading-[18px] font-medium" style={{ background: 'var(--accent-glow)', color: 'var(--accent)' }}>
               {t('ai.admin.defaultBadge')}
             </span>
           )}
@@ -538,7 +538,7 @@ function ProviderRow({ provider: p, first, isDefault, test: res, menuOpen, touch
         <TypeTag type={p.type} className="justify-self-end sm:justify-self-start" />
         {/* Le modèle se coupe, la mention de clé jamais : sans cela un écran
             étroit ne la montrerait pas. */}
-        <div className="col-span-2 sm:col-span-1 flex items-baseline gap-1 min-w-0 text-[11px]" style={{ color: muted }}>
+        <div className="col-span-2 sm:col-span-1 flex items-baseline gap-1 min-w-0 text-xs" style={{ color: muted }}>
           <span className="truncate min-w-0" title={p.model}>{p.model}</span>
           {p.hasAdminKey && (
             <span className="flex-shrink-0 whitespace-nowrap">
@@ -561,12 +561,12 @@ function ProviderRow({ provider: p, first, isDefault, test: res, menuOpen, touch
         </div>
       </div>
       {res && (
-        <div role="status" className="mt-1.5 flex items-start gap-1.5 text-xs" style={{ color: resColor }}>
+        <div role="status" className="mt-1.5 flex items-start gap-1.5 text-[13px]" style={{ color: resColor }}>
           {/* La pastille dit l'issue d'un coup d'œil ; le texte, la cause. */}
           <span aria-hidden="true" className="mt-[5px] w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: resColor }} />
           <div className="min-w-0">
             <p>{res.state === 'busy' ? t('ai.admin.testing') : res.state === 'ok' ? t('ai.admin.testOk') : t(testFailKey(res.kind))}</p>
-            {res.state === 'fail' && res.message && <p className="mt-0.5 text-[11px] opacity-80 break-words">{res.message}</p>}
+            {res.state === 'fail' && res.message && <p className="mt-0.5 text-xs opacity-80 break-words">{res.message}</p>}
           </div>
         </div>
       )}
@@ -591,12 +591,12 @@ function ModelList({ id, state, current, filter, onFilter, onPick, onClose }: {
     <div id={id} className="mt-2 rounded-md" style={{ border: '1px solid var(--panel-border)' }}>
       <div className="flex items-center justify-between gap-2 pl-3 pr-1.5 py-1" style={state.state === 'ok' && all.length ? { borderBottom: '1px solid var(--panel-border)' } : undefined}>
         {/* Une seule région de statut, montée en permanence (liveRegions.test). */}
-        <span role="status" className={state.state === 'busy' || state.state === 'ok' ? 'text-xs' : 'sr-only'} style={muted}>
+        <span role="status" className={state.state === 'busy' || state.state === 'ok' ? 'text-[13px]' : 'sr-only'} style={muted}>
           {state.state === 'busy' ? t('ai.admin.models.loading')
             : state.state === 'ok' ? (all.length ? t('ai.admin.models.count', { count: all.length }) : t('ai.admin.models.empty'))
             : ''}
         </span>
-        {state.state === 'fail' && <span role="alert" className="text-xs" style={{ color: 'var(--danger)' }}>{t(state.auth ? 'ai.admin.models.authFailed' : 'ai.admin.models.failed')}</span>}
+        {state.state === 'fail' && <span role="alert" className="text-[13px]" style={{ color: 'var(--danger)' }}>{t(state.auth ? 'ai.admin.models.authFailed' : 'ai.admin.models.failed')}</span>}
         {state.state !== 'busy' && (
           <button type="button" onClick={onClose} className={quietBtn} style={{ color: 'var(--list-title)' }}>{t('ai.admin.models.close')}</button>
         )}
@@ -631,7 +631,7 @@ function ModelList({ id, state, current, filter, onFilter, onPick, onClose }: {
               );
             })}
           </ul>
-        ) : <p className="px-3 py-2 text-xs" style={muted}>{t('ai.admin.models.noMatch')}</p>
+        ) : <p className="px-3 py-2 text-[13px]" style={muted}>{t('ai.admin.models.noMatch')}</p>
       )}
     </div>
   );

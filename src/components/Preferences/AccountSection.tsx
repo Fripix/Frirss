@@ -2,6 +2,7 @@ import { useEffect, useId, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../stores/authStore';
 import { changePassword, getMe, getOidcConfig, linkOidcAccount, unlinkOidcAccount, type OidcConfig } from '../../api/backend';
+import { PrefHeading } from './prefsUi';
 import { useUiStore } from '../../stores/uiStore';
 
 /** Même minimum que le serveur (`server/routes/auth.ts`) et que la création de compte. */
@@ -138,15 +139,13 @@ export default function AccountSection() {
 
   const field = 'w-full px-3 py-1.5 text-sm rounded-md';
   const fieldStyle = { border: '1px solid var(--panel-border)', color: 'var(--list-title)', background: 'var(--panel-header-bg)' };
-  const label = 'block text-xs mb-1';
+  const label = 'block text-[13px] mb-1';
 
   return (
     <div>
-      <h3 className="text-[11px] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--list-summary)' }}>
-        {t('preferences.account.title')}
-      </h3>
+      <PrefHeading>{t('preferences.account.passwordTitle')}</PrefHeading>
       <form onSubmit={submit} className="space-y-2.5 max-w-xs" aria-describedby={ids.hint}>
-        <p id={ids.hint} className="text-[11px]" style={{ color: 'var(--list-summary)' }}>
+        <p id={ids.hint} className="text-xs" style={{ color: 'var(--list-summary)' }}>
           {t('preferences.account.hint')}
         </p>
         {/* Pour les gestionnaires de mots de passe : sans identifiant dans le
@@ -168,14 +167,14 @@ export default function AccountSection() {
           <input id={ids.again} type="password" autoComplete="new-password" required value={again}
             onChange={edit(setAgain)} className={field} style={fieldStyle} />
         </div>
-        {error && <p role="alert" className="text-xs" style={{ color: 'var(--danger)' }}>{error}</p>}
+        {error && <p role="alert" className="text-[13px]" style={{ color: 'var(--danger)' }}>{error}</p>}
         {/* Région montée en permanence, vide au repos : insérée avec son texte,
             elle n'était souvent pas annoncée (liveRegions.test). */}
-        <p role="status" className={done ? 'text-xs success-note' : 'sr-only'}>{done ? t('preferences.account.done') : ''}</p>
+        <p role="status" className={done ? 'text-[13px] success-note' : 'sr-only'}>{done ? t('preferences.account.done') : ''}</p>
         <button
           type="submit"
           disabled={busy}
-          className="px-4 py-2 text-xs font-medium rounded-lg disabled:opacity-50 prefs-tap-btn"
+          className="px-4 py-2 text-[13px] font-medium rounded-lg disabled:opacity-50 prefs-tap-btn"
           style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
         >
           {busy ? t('preferences.account.saving') : t('preferences.account.submit')}
@@ -188,16 +187,14 @@ export default function AccountSection() {
           aide se lisait comme la suite du changement de mot de passe. */}
       {oidc?.enabled && (() => {
         const provider = oidc.buttonLabel || 'SSO';
-        const secondary = 'px-4 py-2 text-xs font-medium rounded-lg disabled:opacity-50 prefs-tap-btn hover-tint';
+        const secondary = 'px-4 py-2 text-[13px] font-medium rounded-lg disabled:opacity-50 prefs-tap-btn hover-tint';
         const secondaryStyle = { border: '1px solid var(--panel-border)', color: 'var(--list-title)' };
         return (
-          <section aria-labelledby={ids.sso} className="mt-6 pt-4 max-w-xs space-y-2" style={{ borderTop: '1px solid var(--panel-border)' }}>
-            <h4 id={ids.sso} className="text-xs font-semibold" style={{ color: 'var(--list-title)' }}>
-              {t('preferences.account.ssoTitle', { provider })}
-            </h4>
+          <section aria-labelledby={ids.sso} className="max-w-xs space-y-2">
+            <PrefHeading id={ids.sso}>{t('preferences.account.ssoTitle', { provider })}</PrefHeading>
             {ssoLinked ? (
               <>
-                <p className="text-[11px]" style={{ color: 'var(--list-summary)' }}>
+                <p className="text-xs" style={{ color: 'var(--list-summary)' }}>
                   {t('preferences.account.ssoLinked', { provider })}
                 </p>
                 <button type="button" onClick={unlink} disabled={unlinking} className={secondary} style={secondaryStyle}>
@@ -206,7 +203,7 @@ export default function AccountSection() {
               </>
             ) : (
               <>
-                <p className="text-[11px]" style={{ color: 'var(--list-summary)' }}>
+                <p className="text-xs" style={{ color: 'var(--list-summary)' }}>
                   {t('preferences.account.ssoLinkHint', { provider })}
                 </p>
                 {linkOpen ? (
@@ -219,15 +216,15 @@ export default function AccountSection() {
                         value={linkPassword} onChange={(e) => { setLinkPassword(e.target.value); setLinkError(''); }}
                         className={field} style={fieldStyle} />
                     </div>
-                    {linkError && <p role="alert" className="text-xs" style={{ color: 'var(--danger)' }}>{linkError}</p>}
+                    {linkError && <p role="alert" className="text-[13px]" style={{ color: 'var(--danger)' }}>{linkError}</p>}
                     <div className="flex flex-wrap items-center gap-2">
                       <button type="submit" disabled={linking}
-                        className="px-4 py-2 text-xs font-medium rounded-lg disabled:opacity-50 prefs-tap-btn"
+                        className="px-4 py-2 text-[13px] font-medium rounded-lg disabled:opacity-50 prefs-tap-btn"
                         style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}>
                         {t('preferences.account.ssoLink', { provider })}
                       </button>
                       <button type="button" onClick={() => { setLinkOpen(false); setLinkPassword(''); setLinkError(''); }}
-                        className="px-3 py-2 text-xs rounded-lg prefs-tap-btn hover-tint" style={{ color: 'var(--list-summary)' }}>
+                        className="px-3 py-2 text-[13px] rounded-lg prefs-tap-btn hover-tint" style={{ color: 'var(--list-summary)' }}>
                         {t('dialog.cancel')}
                       </button>
                     </div>

@@ -23,7 +23,7 @@ export function TabResetButton({ label, title, message, onReset }: {
     <div className="pt-3 flex justify-end" style={{ borderTop: '1px solid var(--panel-border)' }}>
       <button
         onClick={() => setConfirm(true)}
-        className="text-[11px] px-3 py-1.5 rounded-md transition-colors"
+        className="text-xs px-3 py-1.5 rounded-md transition-colors"
         style={{ color: 'var(--danger)', background: 'var(--danger-light)' }}
       >
         {label}

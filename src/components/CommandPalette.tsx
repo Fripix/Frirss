@@ -133,7 +133,7 @@ export default function CommandPalette() {
       ['layout2', t('articleList.listOnly'), () => setPanelLayout('2')],
       ['layout3', t('articleList.listAndReading'), () => setPanelLayout('3')],
       ['layoutGrid', t('articleList.gridLayout'), () => setPanelLayout('grid')],
-      ['prefsGeneral', t('preferences.sections.general'), () => openPreferences('general')],
+      ['prefsReading', t('preferences.sections.reading'), () => openPreferences('reading')],
       ['prefsAppearance', t('preferences.sections.appearance'), () => openPreferences('appearance')],
       ['prefsFeeds', t('preferences.sections.feeds'), () => openPreferences('feeds')],
     ];

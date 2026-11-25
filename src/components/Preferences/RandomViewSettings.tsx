@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useUiStore } from '../../stores/uiStore';
 import { normalizeRandomCount, type RandomWindowUnit } from '../../lib/randomDraw';
+import { PrefRow, Segmented } from './prefsUi';
 
 const INPUT_CLASS = 'w-20 flex-shrink-0 px-2 py-1.5 rounded-lg text-sm text-right';
 const INPUT_STYLE = { border: '1px solid var(--panel-border)', background: 'var(--panel-header-bg)', color: 'var(--list-title)' };
@@ -72,72 +73,58 @@ export default function RandomViewSettings() {
 
   return (
     <>
-      <div className="flex items-start justify-between gap-4 select-none mt-4">
-        <span className="text-xs" style={{ color: 'var(--list-summary)' }}>
-          <label htmlFor={countId}>{t('preferences.general.randomCount')}</label>
-          <span id={`${countId}-hint`} className="block text-[11px] opacity-70 mt-0.5">{t('preferences.general.randomCountHint')}</span>
-        </span>
-        <input
-          id={countId}
-          type="number"
-          inputMode="numeric"
-          min={1}
-          max={500}
-          aria-describedby={`${countId}-hint`}
-          value={count.draft ?? String(randomCount)}
-          onChange={(e) => count.onChange(e.target)}
-          onBlur={(e) => count.onBlur(e.target)}
-          className={INPUT_CLASS}
-          style={INPUT_STYLE}
-        />
-      </div>
-      <div className="select-none mt-4">
-        <span className="text-xs block" style={{ color: 'var(--list-summary)' }}>
-          <label htmlFor={amountId}>{t('preferences.general.randomWindow')}</label>
-          <span id={`${amountId}-hint`} className="block text-[11px] opacity-70 mt-0.5">{t('preferences.general.randomWindowHint')}</span>
-        </span>
-        <div className="flex items-center gap-2 mt-2">
+      <PrefRow
+        label={t('preferences.general.randomCount')}
+        labelFor={countId}
+        hint={t('preferences.general.randomCountHint')}
+        hintId={`${countId}-hint`}
+        control={
           <input
-            id={amountId}
+            id={countId}
             type="number"
             inputMode="numeric"
-            min={0}
-            aria-describedby={`${amountId}-hint`}
-            placeholder={t('preferences.general.randomWindowAll')}
-            value={age.draft ?? (amount ? String(amount) : '')}
-            onChange={(e) => age.onChange(e.target)}
-            onBlur={(e) => age.onBlur(e.target)}
+            min={1}
+            max={500}
+            aria-describedby={`${countId}-hint`}
+            value={count.draft ?? String(randomCount)}
+            onChange={(e) => count.onChange(e.target)}
+            onBlur={(e) => count.onBlur(e.target)}
             className={INPUT_CLASS}
             style={INPUT_STYLE}
           />
-          <div
-            className="flex-1 flex gap-1 p-0.5 rounded-lg"
-            role="radiogroup"
-            aria-label={t('preferences.general.randomWindowUnit')}
-            style={{ background: 'var(--panel-header-bg)', border: '1px solid var(--panel-border)' }}
-          >
-            {units.map((opt) => {
-              const selected = unit === opt.id;
-              return (
-                <button
-                  key={opt.id}
-                  type="button"
-                  role="radio"
-                  aria-checked={selected}
-                  onClick={() => setRandomWindow(useUiStore.getState().randomWindowAmount, opt.id)}
-                  className="flex-1 px-3 py-1.5 text-sm font-medium rounded-md transition-colors"
-                  style={{
-                    background: selected ? 'var(--accent)' : 'transparent',
-                    color: selected ? 'var(--on-accent)' : 'var(--list-title)',
-                  }}
-                >
-                  {opt.label}
-                </button>
-              );
-            })}
+        }
+      />
+      <PrefRow
+        stacked
+        label={t('preferences.general.randomWindow')}
+        labelFor={amountId}
+        hint={t('preferences.general.randomWindowHint')}
+        hintId={`${amountId}-hint`}
+        control={
+          <div className="flex items-center gap-2">
+            <input
+              id={amountId}
+              type="number"
+              inputMode="numeric"
+              min={0}
+              aria-describedby={`${amountId}-hint`}
+              placeholder={t('preferences.general.randomWindowAll')}
+              value={age.draft ?? (amount ? String(amount) : '')}
+              onChange={(e) => age.onChange(e.target)}
+              onBlur={(e) => age.onBlur(e.target)}
+              className={INPUT_CLASS}
+              style={INPUT_STYLE}
+            />
+            <Segmented
+              className="flex-1"
+              label={t('preferences.general.randomWindowUnit')}
+              value={unit}
+              onChange={(u) => setRandomWindow(useUiStore.getState().randomWindowAmount, u)}
+              options={units.map((u) => ({ value: u.id, label: u.label }))}
+            />
           </div>
-        </div>
-      </div>
+        }
+      />
     </>
   );
 }

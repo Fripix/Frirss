@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import BackupExport from '../../backup/BackupExport';
 import RestoreFlow from '../../backup/RestoreFlow';
+import { PrefHeading } from '../prefsUi';
 import { useAuthStore } from '../../../stores/authStore';
 
 /**
@@ -15,16 +16,12 @@ export default function BackupBlock() {
   return (
     <div className="space-y-10">
       <div>
-        <h3 className="text-[11px] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--list-summary)' }}>
-          {t('backup.title')}
-        </h3>
+        <PrefHeading>{t('backup.title')}</PrefHeading>
         <BackupExport />
       </div>
 
       <div>
-        <h3 className="text-[11px] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--list-summary)' }}>
-          {t('backup.restoreTitle')}
-        </h3>
+        <PrefHeading>{t('backup.restoreTitle')}</PrefHeading>
         {/* La restauration remplace les comptes : la session courante ne vaut
             plus rien ensuite, on déconnecte plutôt que de laisser l'utilisateur
             devant une interface qui ne répond plus. Le délai lui laisse le

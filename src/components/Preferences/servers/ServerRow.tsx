@@ -97,7 +97,7 @@ export default function ServerRow({
             {isActive && <Badge label={t('servers.active')} accent />}
             {isDefault && <Badge label={t('servers.defaultBadge')} />}
           </span>
-          <span className="text-[11px] truncate" style={{ color: 'var(--list-summary)' }}>
+          <span className="text-xs truncate" style={{ color: 'var(--list-summary)' }}>
             {hostnameOf(server.url)}
             {server.freshrss_user ? ` · ${server.freshrss_user}` : ''}
           </span>
@@ -149,7 +149,7 @@ export default function ServerRow({
               <button
                 type="submit"
                 disabled={busy}
-                className="px-3 py-1.5 text-xs font-medium rounded-lg min-h-[44px] disabled:opacity-50"
+                className="px-3 py-1.5 text-[13px] font-medium rounded-lg min-h-[44px] disabled:opacity-50"
                 style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
               >
                 {t('servers.rename')}
@@ -208,13 +208,13 @@ export default function ServerRow({
                   onClick={() => setConfirmDelete(true)}
                   disabled={busy || !canDelete}
                   title={canDelete ? undefined : t('servers.cannotDeleteLast')}
-                  className="px-3 py-1.5 text-xs font-medium rounded-lg min-h-[44px] transition-colors hover-tint disabled:opacity-50"
+                  className="px-3 py-1.5 text-[13px] font-medium rounded-lg min-h-[44px] transition-colors hover-tint disabled:opacity-50"
                   style={{ border: '1px solid var(--danger)', color: 'var(--danger)' }}
                 >
                   {t('servers.delete')}
                 </button>
                 {!canDelete && (
-                  <span className="block text-[11px] mt-1.5 opacity-70" style={{ color: 'var(--list-summary)' }}>
+                  <span className="block text-xs mt-1.5" style={{ color: 'var(--list-summary)' }}>
                     {t('servers.cannotDeleteLast')}
                   </span>
                 )}
@@ -222,7 +222,7 @@ export default function ServerRow({
           </div>
 
           {error && (
-            <p className="text-[11px]" role="alert" style={{ color: 'var(--danger)' }}>
+            <p className="text-xs" role="alert" style={{ color: 'var(--danger)' }}>
               {error}
             </p>
           )}
@@ -256,7 +256,7 @@ function RowAction({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="px-3 py-1.5 text-xs font-medium rounded-lg min-h-[44px] transition-colors hover-tint disabled:opacity-50"
+      className="px-3 py-1.5 text-[13px] font-medium rounded-lg min-h-[44px] transition-colors hover-tint disabled:opacity-50"
       style={{ border: '1px solid var(--panel-border)', color: 'var(--list-title)' }}
     >
       {label}

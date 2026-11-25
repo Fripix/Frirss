@@ -207,7 +207,6 @@
   "preferences": {
     "title": "Preferencje",
     "general": {
-      "title": "Ogólne",
       "confirmMarkAllRead": "Potwierdź przed oznaczeniem wszystkiego jako przeczytane",
       "confirmMarkAllReadHint": "Gdy wyłączone, „Oznacz wszystko jako przeczytane” działa jednym kliknięciem, bez potwierdzenia.",
       "inlineVideos": "Odtwarzaj wideo w artykule",
@@ -237,6 +236,12 @@
       "randomDays": "dni",
       "randomCountHint": "Liczba artykułów pokazywanych przez przycisk Losowo na liście, od 1 do 500.",
       "randomWindowHint": "Ogranicza przycisk Losowo do niedawno otrzymanych artykułów. Puste: wszystkie artykuły."
+    },
+    "reading": {
+      "list": "Lista artykułów",
+      "markRead": "Oznaczanie jako przeczytane",
+      "article": "Artykuł",
+      "random": "Losowo"
     },
     "branding": {
       "language": "Język",
@@ -464,7 +469,7 @@
       "unassigned": "Brak klawisza"
     },
     "offline": {
-      "title": "Offline",
+      "prepareTitle": "Przygotowanie",
       "hint": "Pobiera ostatnie 30 dni wszystkich kanałów (tekst + obrazy) do czytania offline. Zużywa dane — najlepiej Wi-Fi.",
       "button": "Przygotuj offline (30 dni)",
       "preparing": "Przygotowywanie…",
@@ -547,14 +552,16 @@
       "save": "Zapisz"
     },
     "sections": {
-      "general": "Ogólne",
+      "reading": "Czytanie",
       "appearance": "Wygląd",
-      "labels": "Etykiety",
-      "feeds": "Kanały",
-      "offline": "Offline",
-      "admin": "Administracja",
       "layout": "Układ",
-      "ai": "AI"
+      "keyboard": "Klawiatura",
+      "feeds": "Kanały",
+      "labels": "Etykiety",
+      "offline": "Offline",
+      "ai": "AI",
+      "account": "Konto",
+      "admin": "Administracja"
     },
     "appearance": {
       "theme": "Motyw",
@@ -628,8 +635,8 @@
     "resetThemeMessage": "Kolory i rozmiary wracają do motywu „{{name}}” w zapisanej postaci. Pozostałe preferencje się nie zmieniają.",
     "resetThemeConfirm": "Resetuj",
     "account": {
-      "title": "Konto",
       "hint": "Zmiana hasła zamyka pozostałe otwarte sesje: na innych urządzeniach trzeba będzie zalogować się ponownie.",
+      "passwordTitle": "Hasło",
       "current": "Obecne hasło",
       "new": "Nowe hasło",
       "confirm": "Potwierdź nowe hasło",
@@ -664,7 +671,6 @@
       "shortcutBar": "Pasek skrótów",
       "shortcutBarWhole": "Pokaż pasek skrótów",
       "showAll": "Pokaż wszystko ponownie",
-      "everywhereTitle": "Na każdym ekranie",
       "serverBar": "Pasek serwerów",
       "items": {
         "search": "Szukaj",

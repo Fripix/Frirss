@@ -65,10 +65,10 @@ export default function SummariesBlock({ showIntro }: { showIntro: boolean }) {
   return (
     <section className="space-y-3">
       <BlockTitle>{t('ai.user.title')}</BlockTitle>
-      {showIntro && <p className="text-xs max-w-prose" style={{ color: 'var(--list-summary)' }}>{t('ai.userIntro')}</p>}
+      {showIntro && <p className="text-[13px] max-w-prose" style={{ color: 'var(--list-summary)' }}>{t('ai.userIntro')}</p>}
       <div>
         <div className="flex items-baseline justify-between gap-3 mb-1">
-          <label htmlFor={`${uid}-ratio`} className="text-xs" style={{ color: 'var(--list-summary)' }}>{t('ai.user.ratio')}</label>
+          <label htmlFor={`${uid}-ratio`} className="text-[13px]" style={{ color: 'var(--list-summary)' }}>{t('ai.user.ratio')}</label>
           <span aria-hidden="true" className="text-sm font-semibold tabular-nums" style={{ color: 'var(--list-title)' }}>{shown}</span>
         </div>
         <input
@@ -77,11 +77,11 @@ export default function SummariesBlock({ showIntro }: { showIntro: boolean }) {
           onChange={(e) => setRatio(Number(e.target.value))}
           className="prefs-tap-row w-full cursor-pointer accent-[var(--accent)]"
         />
-        <p id={`${uid}-ratio-hint`} className="text-[11px] mt-1 max-w-prose" style={{ color: 'var(--list-summary)' }}>{t('ai.ratioHint')}</p>
+        <p id={`${uid}-ratio-hint`} className="text-xs mt-1 max-w-prose" style={{ color: 'var(--list-summary)' }}>{t('ai.ratioHint')}</p>
       </div>
 
       <div>
-        <label htmlFor={`${uid}-preferred`} className="block text-xs mb-1" style={{ color: 'var(--list-title)' }}>{t('ai.user.preferred')}</label>
+        <label htmlFor={`${uid}-preferred`} className="block text-[13px] mb-1" style={{ color: 'var(--list-title)' }}>{t('ai.user.preferred')}</label>
         <select
           id={`${uid}-preferred`} value={preferred === null ? '' : String(preferred)} className={inputClass} style={inputStyle}
           onChange={(e) => setPreferred(e.target.value ? Number(e.target.value) : null)}
@@ -92,39 +92,39 @@ export default function SummariesBlock({ showIntro }: { showIntro: boolean }) {
 
       <div>
         <div className="prefs-tap-row flex items-center justify-between gap-3">
-          <span className="text-xs" style={{ color: 'var(--list-summary)' }}>{t('ai.user.fallback')}</span>
+          <span className="text-[13px]" style={{ color: 'var(--list-summary)' }}>{t('ai.user.fallback')}</span>
           <ToggleSwitch checked={fallback} onChange={setFallback} ariaLabel={t('ai.user.fallback')} describedBy={`${uid}-fallback-hint ${uid}-fallback-manual-hint`} />
         </div>
-        <p id={`${uid}-fallback-hint`} className="text-[11px] mt-1 max-w-prose" style={{ color: 'var(--list-summary)' }}>{t('ai.user.fallbackHint')}</p>
-        <p id={`${uid}-fallback-manual-hint`} className="text-[11px] mt-1 max-w-prose" style={{ color: 'var(--list-summary)' }}>{t('ai.user.fallbackManualHint')}</p>
+        <p id={`${uid}-fallback-hint`} className="text-xs mt-1 max-w-prose" style={{ color: 'var(--list-summary)' }}>{t('ai.user.fallbackHint')}</p>
+        <p id={`${uid}-fallback-manual-hint`} className="text-xs mt-1 max-w-prose" style={{ color: 'var(--list-summary)' }}>{t('ai.user.fallbackManualHint')}</p>
       </div>
 
       <div>
         <div className="prefs-tap-row flex items-center justify-between gap-3">
-          <span className="text-xs" style={{ color: 'var(--list-summary)' }}>{t('ai.user.auto')}</span>
+          <span className="text-[13px]" style={{ color: 'var(--list-summary)' }}>{t('ai.user.auto')}</span>
           <ToggleSwitch checked={auto} onChange={(on) => (on && !autoConfirmed ? setConfirmAuto(true) : setAuto(on))} ariaLabel={t('ai.user.auto')} describedBy={`${uid}-auto-hint`} />
         </div>
-        <p id={`${uid}-auto-hint`} className="text-[11px] mt-1 max-w-prose" style={{ color: 'var(--list-summary)' }}>{t('ai.user.autoHint')}</p>
+        <p id={`${uid}-auto-hint`} className="text-xs mt-1 max-w-prose" style={{ color: 'var(--list-summary)' }}>{t('ai.user.autoHint')}</p>
       </div>
 
       <div>
         <div className="prefs-tap-row flex items-center justify-between gap-3">
-          <span className="text-xs" style={{ color: 'var(--list-summary)' }}>{t('ai.user.summaryTranslate')}</span>
+          <span className="text-[13px]" style={{ color: 'var(--list-summary)' }}>{t('ai.user.summaryTranslate')}</span>
           <ToggleSwitch checked={summaryTranslate} onChange={setSummaryTranslate} ariaLabel={t('ai.user.summaryTranslate')} describedBy={`${uid}-summary-translate-hint`} />
         </div>
-        <p id={`${uid}-summary-translate-hint`} className="text-[11px] mt-1 max-w-prose" style={{ color: 'var(--list-summary)' }}>{t('ai.user.summaryTranslateHint')}</p>
+        <p id={`${uid}-summary-translate-hint`} className="text-xs mt-1 max-w-prose" style={{ color: 'var(--list-summary)' }}>{t('ai.user.summaryTranslateHint')}</p>
       </div>
 
       <div>
         <div className="prefs-tap-row flex items-center justify-between gap-3">
-          <span className="text-xs" style={{ color: 'var(--list-summary)' }}>{t('ai.user.panel')}</span>
+          <span className="text-[13px]" style={{ color: 'var(--list-summary)' }}>{t('ai.user.panel')}</span>
           <ToggleSwitch checked={panelAlways} onChange={setPanelAlways} ariaLabel={t('ai.user.panel')} describedBy={`${uid}-panel-hint`} />
         </div>
-        <p id={`${uid}-panel-hint`} className="text-[11px] mt-1 max-w-prose" style={{ color: 'var(--list-summary)' }}>{t('ai.user.panelHint')}</p>
+        <p id={`${uid}-panel-hint`} className="text-xs mt-1 max-w-prose" style={{ color: 'var(--list-summary)' }}>{t('ai.user.panelHint')}</p>
       </div>
 
       {showUsage && (
-        <p className="text-xs" style={{ color: 'var(--list-summary)' }}>{t('ai.user.usage', { used: usageToday, cap: dailyCap })}</p>
+        <p className="text-[13px]" style={{ color: 'var(--list-summary)' }}>{t('ai.user.usage', { used: usageToday, cap: dailyCap })}</p>
       )}
 
       <AutoSummaryConfirm

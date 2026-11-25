@@ -4,6 +4,7 @@ import { useThemeStore, SHIPPED_THEMES } from '../../stores/themeStore';
 import { useUiStore } from '../../stores/uiStore';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { TabResetButton } from './TabResetButton';
+import { PrefGroupTitle, PrefHeading } from './prefsUi';
 import ConfirmDialog from '../ConfirmDialog';
 import ThemePreview from './ThemePreview';
 import ToggleSwitch from '../ToggleSwitch';
@@ -12,22 +13,19 @@ import { READING_BODY_BOUNDS, MOBILE_READING_DEFAULT } from '../../lib/readingFo
 import { GRID_CARD_WIDTH_MAX, GRID_CARD_WIDTH_MIN, GRID_CARD_WIDTH_STEP, GRID_IMAGE_RATIOS } from '../../lib/gridCards';
 import { LIST_THUMB_WIDTH_MAX, LIST_THUMB_WIDTH_MIN, LIST_THUMB_WIDTH_STEP } from '../../lib/listThumbnail';
 
-type Sub = 'theme' | 'colors' | 'sizes' | 'identity';
-
 export default function AppearanceTab({ onHighlight, active = true }: { onHighlight: (key: string | null) => void; active?: boolean }) {
   const { t } = useTranslation();
-  // La galerie de thèmes ouvre la section : c'est le geste le plus courant, et
-  // le seul qui change tout d'un coup. Les 36 couleurs viennent après.
-  const [sub, setSub] = useState<Sub>('theme');
-  const SUBS: Sub[] = ['theme', 'colors', 'sizes', 'identity'];
+  // Thème, Couleurs, Tailles, Identité se suivent sur une même page ; la
+  // navigation de gauche les liste et y fait défiler. Ils étaient des onglets
+  // dans l'onglet : la galerie de thèmes ouvre toujours la page, c'est le
+  // geste le plus courant et le seul qui change tout d'un coup.
   // Survol (transitoire) et sélection (persistante au clic/tap) — un seul
   // aperçu au sommet des sous-sections Couleurs et Tailles sert les deux.
   const [focusedKey, setFocusedKey] = useState<string | null>(null);
   const [pinnedKey, setPinnedKey] = useState<string | null>(null);
   // Une seule couleur « montrée » à la fois, quelle que soit la façon dont on
-  // l'a désignée. Hors de la sous-section Couleurs, plus rien n'est montré :
-  // une épingle survivante encadrerait un élément sans légende pour le dire.
-  const shown = sub === 'colors' ? (focusedKey ?? pinnedKey) : null;
+  // l'a désignée.
+  const shown = focusedKey ?? pinnedKey;
 
   // L'encadrement de l'élément réel suit `shown`, pas les événements souris.
   // Branché sur le survol seul, il disparaissait dès que le pointeur quittait
@@ -49,35 +47,20 @@ export default function AppearanceTab({ onHighlight, active = true }: { onHighli
 
   return (
     <div>
-      <div className="flex gap-1 mb-3.5" style={{ borderBottom: '1px solid var(--panel-border)' }}>
-        {SUBS.map((s) => (
-          <button
-            key={s}
-            onClick={() => setSub(s)}
-            aria-current={sub === s ? 'true' : 'false'}
-            className="px-2.5 py-2 text-xs -mb-px min-h-[44px]"
-            style={{
-              color: sub === s ? 'var(--list-title)' : 'var(--list-summary)',
-              fontWeight: sub === s ? 600 : 400,
-              borderBottom: `2px solid ${sub === s ? 'var(--accent)' : 'transparent'}`,
-            }}
-          >
-            {t(`preferences.appearance.${s}`)}
-          </button>
-        ))}
-      </div>
-      {sub === 'theme' && <ThemeSection />}
-      {sub === 'colors' && (
-        <ColorsSection
-          shown={shown}
-          isFullScreen={isFullScreen}
-          setFocusedKey={setFocusedKey}
-          pinnedKey={pinnedKey}
-          setPinnedKey={setPinnedKey}
-        />
-      )}
-      {sub === 'sizes' && <SizesSection />}
-      {sub === 'identity' && <IdentitySection />}
+      <PrefHeading>{t('preferences.appearance.theme')}</PrefHeading>
+      <ThemeSection />
+      <PrefHeading>{t('preferences.appearance.colors')}</PrefHeading>
+      <ColorsSection
+        shown={shown}
+        isFullScreen={isFullScreen}
+        setFocusedKey={setFocusedKey}
+        pinnedKey={pinnedKey}
+        setPinnedKey={setPinnedKey}
+      />
+      <PrefHeading>{t('preferences.appearance.sizes')}</PrefHeading>
+      <SizesSection />
+      <PrefHeading>{t('preferences.appearance.identity')}</PrefHeading>
+      <IdentitySection />
     </div>
   );
 }
@@ -121,12 +104,9 @@ function ThemeSection() {
 
       {/* Save current */}
       <div>
-        <h3
-          className="text-[11px] font-bold uppercase tracking-widest mb-2"
-          style={{ color: 'var(--list-summary)' }}
-        >
+        <PrefGroupTitle>
           {t('preferences.themes.saveTitle')}
-        </h3>
+        </PrefGroupTitle>
         <div className="flex gap-2">
           <input
             type="text"
@@ -145,7 +125,7 @@ function ThemeSection() {
           />
           <button
             onClick={saveCurrentTheme}
-            className="flex-shrink-0 whitespace-nowrap px-3 py-1.5 text-xs font-medium rounded-md"
+            className="flex-shrink-0 whitespace-nowrap px-3 py-1.5 text-[13px] font-medium rounded-md"
             style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
           >
             {t('preferences.themes.save')}
@@ -156,12 +136,9 @@ function ThemeSection() {
       {/* Saved themes list */}
       {savedThemes.length > 0 && (
         <div>
-          <h3
-            className="text-[11px] font-bold uppercase tracking-widest mb-2"
-            style={{ color: 'var(--list-summary)' }}
-          >
+          <PrefGroupTitle>
             {t('preferences.themes.savedThemes', { count: savedThemes.length })}
-          </h3>
+          </PrefGroupTitle>
           <div className="space-y-1">
             {savedThemes.map((st) => {
               // Les thèmes livrés ne se suppriment pas : ils reviendraient au
@@ -192,21 +169,21 @@ function ThemeSection() {
                   {!isActive && (
                     <button
                       onClick={() => loadSavedTheme(st.name)}
-                      className="text-[10px] font-medium px-2 py-0.5 rounded"
+                      className="text-[11px] font-medium px-2 py-0.5 rounded"
                       style={{ color: 'var(--accent)', background: 'var(--accent-glow)' }}
                     >
                       {t('preferences.themes.load')}
                     </button>
                   )}
                   {isActive && (
-                    <span className="text-[10px] font-medium px-2 py-0.5 rounded" style={{ color: 'var(--accent)' }}>
+                    <span className="text-[11px] font-medium px-2 py-0.5 rounded" style={{ color: 'var(--accent)' }}>
                       {t('preferences.themes.active')}
                     </span>
                   )}
                   {!isDefault && (
                     <button
                       onClick={() => setDeleting(st.name)}
-                      className="text-[10px] px-2 py-0.5 rounded hover:opacity-80"
+                      className="text-[11px] px-2 py-0.5 rounded hover:opacity-80"
                       style={{ color: 'var(--danger)' }}
                     >
                       {t('preferences.themes.deleteShort')}
@@ -230,16 +207,13 @@ function ThemeSection() {
 
       {/* Import / Export */}
       <div>
-        <h3
-          className="text-[11px] font-bold uppercase tracking-widest mb-2"
-          style={{ color: 'var(--list-summary)' }}
-        >
+        <PrefGroupTitle>
           {t('preferences.themes.share')}
-        </h3>
+        </PrefGroupTitle>
         <div className="flex gap-2">
           <button
             onClick={exportTheme}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors hover-tint"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium rounded-md transition-colors hover-tint"
             style={{
               border: '1px solid var(--panel-border)',
               color: 'var(--list-title)',
@@ -252,7 +226,7 @@ function ThemeSection() {
           </button>
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors hover-tint"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium rounded-md transition-colors hover-tint"
             style={{
               border: '1px solid var(--panel-border)',
               color: 'var(--list-title)',
@@ -272,7 +246,7 @@ function ThemeSection() {
           />
         </div>
         {importError && (
-          <p className="text-danger text-xs mt-1">{importError}</p>
+          <p className="text-danger text-[13px] mt-1">{importError}</p>
         )}
       </div>
     </div>
@@ -291,13 +265,10 @@ function ThemePresets() {
 
   return (
     <div>
-      <h3
-        className="text-[11px] font-bold uppercase tracking-widest mb-1"
-        style={{ color: 'var(--list-summary)' }}
-      >
+      <PrefGroupTitle>
         {t('preferences.themes.presets')}
-      </h3>
-      <p className="text-[11px] mb-2.5" style={{ color: 'var(--list-summary)' }}>
+      </PrefGroupTitle>
+      <p className="text-xs mb-2.5" style={{ color: 'var(--list-summary)' }}>
         {t('preferences.themes.presetsHint', { n: Object.keys(SHIPPED_THEMES[0].colors).length })}
       </p>
       <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(116px, 1fr))' }}>
@@ -342,7 +313,7 @@ function ThemePresets() {
                 </div>
               </div>
               <div
-                className="px-1.5 py-1 text-[10px] font-semibold truncate"
+                className="px-1.5 py-1 text-[11px] font-semibold truncate"
                 style={{
                   color: active ? 'var(--accent)' : 'var(--list-title)',
                   background: 'var(--panel-header-bg)',
@@ -382,7 +353,7 @@ function FollowSystem() {
           <p className="text-[13px] font-medium" style={{ color: 'var(--list-title)' }}>
             {t('preferences.themes.followSystem')}
           </p>
-          <p className="text-[11px]" style={{ color: 'var(--list-summary)' }}>
+          <p className="text-xs" style={{ color: 'var(--list-summary)' }}>
             {t('preferences.themes.followSystemHint')}
           </p>
         </div>
@@ -396,13 +367,13 @@ function FollowSystem() {
       {followSystem && (
         <div className="grid grid-cols-2 gap-2 mt-2">
           <label className="flex flex-col gap-1">
-            <span className="text-[11px] font-medium" style={{ color: 'var(--list-summary)' }}>
+            <span className="text-xs font-medium" style={{ color: 'var(--list-summary)' }}>
               {t('preferences.themes.lightTheme')}
             </span>
             <select
               value={lightThemeName}
               onChange={(e) => setSchemeTheme('light', e.target.value)}
-              className="px-2 py-1.5 text-xs rounded-md"
+              className="px-2 py-1.5 text-[13px] rounded-md"
               style={selectStyle}
             >
               {savedThemes.map((st) => (
@@ -411,13 +382,13 @@ function FollowSystem() {
             </select>
           </label>
           <label className="flex flex-col gap-1">
-            <span className="text-[11px] font-medium" style={{ color: 'var(--list-summary)' }}>
+            <span className="text-xs font-medium" style={{ color: 'var(--list-summary)' }}>
               {t('preferences.themes.darkTheme')}
             </span>
             <select
               value={darkThemeName}
               onChange={(e) => setSchemeTheme('dark', e.target.value)}
-              className="px-2 py-1.5 text-xs rounded-md"
+              className="px-2 py-1.5 text-[13px] rounded-md"
               style={selectStyle}
             >
               {savedThemes.map((st) => (
@@ -482,7 +453,7 @@ function ColorsSection({ shown, isFullScreen, setFocusedKey, pinnedKey, setPinne
     <div className="space-y-5">
       <div>
         <ThemePreview focusedKey={shown} />
-        <p className="text-[11px] mb-3" style={{ color: 'var(--list-summary)' }}>
+        <p className="text-xs mb-3" style={{ color: 'var(--list-summary)' }}>
           {/* hasRealHighlight is checked before PREVIEW_ZONES: 16 of the 36 keys
               (topbar-*, list-hover, star-color…) have a real highlight but no
               preview-zone entry. Gating on PREVIEW_ZONES first would tell those
@@ -503,12 +474,9 @@ function ColorsSection({ shown, isFullScreen, setFocusedKey, pinnedKey, setPinne
       </div>
       {COLOR_SECTIONS.map((section) => (
         <div key={section.titleKey}>
-          <h3
-            className="text-[11px] font-bold uppercase tracking-widest mb-2"
-            style={{ color: 'var(--list-summary)' }}
-          >
+          <PrefGroupTitle>
             {t(`preferences.colorSections.${section.titleKey}`)}
-          </h3>
+          </PrefGroupTitle>
           <div className="space-y-0.5">
             {section.keys.map((key) => (
               <ColorRow
@@ -581,7 +549,7 @@ function ColorRow({ label, value, onChange, colorKey, isModified, onReset, onFoc
       onMouseLeave={selectable ? () => onFocus(null) : undefined}
       onClick={selectable ? onTogglePin : undefined}
     >
-      <label className="text-xs flex-1 min-w-0 truncate" style={{ color: 'var(--reading-text)' }}>
+      <label className="text-[13px] flex-1 min-w-0 truncate" style={{ color: 'var(--reading-text)' }}>
         {label}
         {isModified && (
           <span className="ml-1 inline-block w-1.5 h-1.5 rounded-full align-middle" style={{ background: 'var(--accent)' }} />
@@ -631,7 +599,7 @@ function ColorRow({ label, value, onChange, colorKey, isModified, onReset, onFoc
             onKeyDown={(e) => e.key === 'Enter' && setEditing(false)}
             aria-label={label}
             autoFocus
-            className="w-20 text-[11px] px-1.5 py-0.5 rounded font-mono"
+            className="w-20 text-xs px-1.5 py-0.5 rounded font-mono"
             style={{
               border: '1px solid var(--panel-border)',
               color: 'var(--list-title)',
@@ -642,7 +610,7 @@ function ColorRow({ label, value, onChange, colorKey, isModified, onReset, onFoc
           <button
             onClick={() => { setHex(value); setEditing(true); }}
             aria-label={t('app.labelValue', { label, value })}
-            className="text-[11px] font-mono px-1.5 py-0.5 rounded hover-tint transition-colors"
+            className="text-xs font-mono px-1.5 py-0.5 rounded hover-tint transition-colors"
             style={{ color: 'var(--list-summary)' }}
           >
             {value}
@@ -701,13 +669,9 @@ function SizesSection() {
           deux fois, et un lecteur d'écran ne les distinguait pas. */}
       {FONT_SECTIONS.map((section) => (
         <div key={section.titleKey} role="group" aria-labelledby={`font-section-${section.titleKey}`}>
-          <h3
-            id={`font-section-${section.titleKey}`}
-            className="text-[11px] font-bold uppercase tracking-widest mb-2"
-            style={{ color: 'var(--list-summary)' }}
-          >
+          <PrefGroupTitle id={`font-section-${section.titleKey}`}>
             {t(`preferences.fontSections.${section.titleKey}`)}
-          </h3>
+          </PrefGroupTitle>
           <div className="space-y-2">
             {section.keys.map(({ key, min, max }) =>
               touch && key === 'reading-body' ? (
@@ -719,7 +683,7 @@ function SizesSection() {
                     max={READING_BODY_BOUNDS.touch.max}
                     onChange={(v) => setDeviceBody(Number(v))}
                   />
-                  <p className="text-[11px] mt-1" style={{ color: 'var(--list-summary)' }}>
+                  <p className="text-xs mt-1" style={{ color: 'var(--list-summary)' }}>
                     {t('preferences.fonts.readingBodyDevice')}
                   </p>
                 </div>
@@ -772,7 +736,7 @@ function ListThumbRow() {
         step={LIST_THUMB_WIDTH_STEP}
         onChange={(v) => setWidth(Number(v))}
       />
-      <p className="text-[11px] mt-1" style={{ color: 'var(--list-summary)' }}>
+      <p className="text-xs mt-1" style={{ color: 'var(--list-summary)' }}>
         {t('preferences.listThumb.hint')}
       </p>
     </div>
@@ -793,12 +757,9 @@ function GridCardsSection() {
 
   return (
     <div>
-      <h3
-        className="text-[11px] font-bold uppercase tracking-widest mb-2"
-        style={{ color: 'var(--list-summary)' }}
-      >
+      <PrefGroupTitle>
         {t('preferences.fontSections.grid')}
-      </h3>
+      </PrefGroupTitle>
       <div className="space-y-2">
         <FontRow
           label={t('preferences.gridCards.width')}
@@ -809,9 +770,9 @@ function GridCardsSection() {
           onChange={(v) => setWidth(Number(v))}
         />
         <div className="flex items-start justify-between gap-3">
-          <span className="text-xs min-w-0" style={{ color: 'var(--reading-text)' }}>
+          <span className="text-[13px] min-w-0" style={{ color: 'var(--reading-text)' }}>
             {t('preferences.gridCards.fill')}
-            <span id="grid-card-fill-hint" className="block text-[11px] opacity-70 mt-0.5" style={{ color: 'var(--list-summary)' }}>
+            <span id="grid-card-fill-hint" className="block text-xs mt-0.5" style={{ color: 'var(--list-summary)' }}>
               {t('preferences.gridCards.fillHint')}
             </span>
           </span>
@@ -825,7 +786,7 @@ function GridCardsSection() {
           </span>
         </div>
         <div className="flex items-center gap-3">
-          <span id="grid-image-ratio-label" className="text-xs flex-1 min-w-0 truncate" style={{ color: 'var(--reading-text)' }}>
+          <span id="grid-image-ratio-label" className="text-[13px] flex-1 min-w-0 truncate" style={{ color: 'var(--reading-text)' }}>
             {t('preferences.gridCards.ratio')}
           </span>
           <div
@@ -843,7 +804,7 @@ function GridCardsSection() {
                   role="radio"
                   aria-checked={selected}
                   onClick={() => setRatio(r)}
-                  className="flex-1 py-1 text-[11px] font-mono rounded [@media(pointer:coarse)]:min-h-[36px] transition-colors"
+                  className="flex-1 py-1 text-xs font-mono rounded [@media(pointer:coarse)]:min-h-[36px] transition-colors"
                   style={{
                     background: selected ? 'var(--accent)' : 'transparent',
                     color: selected ? 'var(--on-accent)' : 'var(--list-title)',
@@ -866,7 +827,7 @@ export function FontRow({ label, value, min, max, step, onChange, labelColor = '
   const id = useId();
   return (
     <div className="flex items-center gap-3">
-      <label htmlFor={id} className="text-xs flex-1 min-w-0 truncate" style={{ color: labelColor }}>
+      <label htmlFor={id} className="text-[13px] flex-1 min-w-0 truncate" style={{ color: labelColor }}>
         {label}
       </label>
       <input
@@ -882,7 +843,7 @@ export function FontRow({ label, value, min, max, step, onChange, labelColor = '
       />
       <span
         aria-hidden="true"
-        className="text-[11px] font-mono w-10 text-right"
+        className="text-xs font-mono w-10 text-right"
         style={{ color: 'var(--list-summary)' }}
       >
         {value}px
@@ -948,12 +909,9 @@ function IdentitySection() {
     <div className="space-y-6">
       {/* Preview */}
       <div>
-        <h3
-          className="text-[11px] font-bold uppercase tracking-widest mb-3"
-          style={{ color: 'var(--list-summary)' }}
-        >
+        <PrefGroupTitle>
           {t('preferences.branding.preview')}
-        </h3>
+        </PrefGroupTitle>
         <div
           className="rounded-xl p-4 flex items-center gap-3"
           style={{ background: 'var(--sidebar-header-bg)' }}
@@ -979,7 +937,7 @@ function IdentitySection() {
               )}
               <div className="min-w-0">
                 <p className="text-white font-bold text-base leading-tight truncate">{titleDraft || 'FriRSS'}</p>
-                <p className="text-[11px] text-white/70 truncate">rss.example.com</p>
+                <p className="text-xs text-white/70 truncate">rss.example.com</p>
               </div>
             </>
           )}
@@ -989,12 +947,9 @@ function IdentitySection() {
       {/* Title — shown when there's no logo, or in compact mode (logo + title) */}
       {(!appLogo || logoMode === 'small') && (
         <div>
-          <h3
-            className="text-[11px] font-bold uppercase tracking-widest mb-2"
-            style={{ color: 'var(--list-summary)' }}
-          >
+          <PrefGroupTitle>
             {t('preferences.branding.appName')}
-          </h3>
+          </PrefGroupTitle>
           <div className="flex gap-2">
             <input
               type="text"
@@ -1015,7 +970,7 @@ function IdentitySection() {
             {titleDraft !== 'FriRSS' && (
               <button
                 onClick={() => { setTitleDraft('FriRSS'); setAppTitle('FriRSS'); }}
-                className="px-3 py-2 text-xs rounded-lg transition-colors hover-tint"
+                className="px-3 py-2 text-[13px] rounded-lg transition-colors hover-tint"
                 style={{ color: 'var(--list-summary)' }}
                 title={t('preferences.branding.appNameResetTooltip')}
               >
@@ -1028,16 +983,13 @@ function IdentitySection() {
 
       {/* Logo */}
       <div>
-        <h3
-          className="text-[11px] font-bold uppercase tracking-widest mb-2"
-          style={{ color: 'var(--list-summary)' }}
-        >
+        <PrefGroupTitle>
           {t('preferences.branding.logo')}
-        </h3>
-        <p className="text-xs mb-1" style={{ color: 'var(--list-summary)' }}>
+        </PrefGroupTitle>
+        <p className="text-[13px] mb-1" style={{ color: 'var(--list-summary)' }}>
           {t('preferences.branding.logoHint')}
         </p>
-        <p className="text-[11px] mb-3" style={{ color: 'var(--list-summary)', opacity: 0.8 }}>
+        <p className="text-xs mb-3" style={{ color: 'var(--list-summary)', opacity: 0.8 }}>
           {t('preferences.branding.logoSizeHint')}
         </p>
         <div className="flex items-center gap-3">
@@ -1058,7 +1010,7 @@ function IdentitySection() {
           />
           <button
             onClick={() => logoInputRef.current?.click()}
-            className="px-4 py-2 text-xs font-medium rounded-lg transition-colors"
+            className="px-4 py-2 text-[13px] font-medium rounded-lg transition-colors"
             style={{
               background: 'var(--accent)',
               color: 'var(--on-accent)',
@@ -1069,7 +1021,7 @@ function IdentitySection() {
           {appLogo && (
             <button
               onClick={() => { setAppLogo(null); setLogoUrlDraft(''); }}
-              className="px-3 py-2 text-xs rounded-lg transition-colors hover-tint"
+              className="px-3 py-2 text-[13px] rounded-lg transition-colors hover-tint"
               style={{ color: 'var(--list-summary)' }}
               title={t('preferences.branding.resetLogoTooltip')}
             >
@@ -1081,7 +1033,7 @@ function IdentitySection() {
         {/* Logo display mode — only relevant once a logo is set */}
         {appLogo && (
           <div className="mt-3">
-            <p className="text-xs mb-1.5" style={{ color: 'var(--list-summary)' }}>
+            <p className="text-[13px] mb-1.5" style={{ color: 'var(--list-summary)' }}>
               {t('preferences.branding.logoDisplay')}
             </p>
             <div className="flex gap-1.5">
@@ -1089,7 +1041,7 @@ function IdentitySection() {
                 <button
                   key={m}
                   onClick={() => setLogoMode(m)}
-                  className="flex-1 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors"
+                  className="flex-1 px-3 py-1.5 text-[13px] font-medium rounded-lg transition-colors"
                   style={{
                     background: logoMode === m ? 'var(--accent)' : 'var(--panel-header-bg)',
                     color: logoMode === m ? 'var(--on-accent)' : 'var(--list-title)',
@@ -1100,7 +1052,7 @@ function IdentitySection() {
                 </button>
               ))}
             </div>
-            <p className="text-[11px] mt-1.5" style={{ color: 'var(--list-summary)' }}>
+            <p className="text-xs mt-1.5" style={{ color: 'var(--list-summary)' }}>
               {t('preferences.branding.logoModeHint')}
             </p>
           </div>
@@ -1108,7 +1060,7 @@ function IdentitySection() {
 
         {/* Logo by URL */}
         <div className="mt-3">
-          <p className="text-xs mb-2" style={{ color: 'var(--list-summary)' }}>
+          <p className="text-[13px] mb-2" style={{ color: 'var(--list-summary)' }}>
             {t('preferences.branding.logoUrlHint')}
           </p>
           <div className="flex gap-2">
@@ -1129,7 +1081,7 @@ function IdentitySection() {
             <button
               onClick={applyLogoUrl}
               disabled={!logoUrlDraft.trim()}
-              className="px-4 py-2 text-xs font-medium rounded-lg transition-colors disabled:opacity-50"
+              className="px-4 py-2 text-[13px] font-medium rounded-lg transition-colors disabled:opacity-50"
               style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
             >
               {t('preferences.branding.applyLogoUrl')}

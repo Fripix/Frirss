@@ -2,13 +2,11 @@ import { useTranslation } from 'react-i18next';
 import type { AiProviderView } from '../../../api/backend';
 import { providerChoices } from '../../../lib/aiProviderChoices';
 import ConfirmDialog from '../../ConfirmDialog';
+import { PrefHeading } from '../prefsUi';
 
+/** Le titre d'un bloc de la section IA : une sous-partie listée par la navigation. */
 export function BlockTitle({ children }: { children: string }) {
-  return (
-    <h3 className="text-[11px] font-bold uppercase tracking-widest" style={{ color: 'var(--list-summary)' }}>
-      {children}
-    </h3>
-  );
+  return <PrefHeading>{children}</PrefHeading>;
 }
 
 /** Les `<option>` d'une liste de fournisseurs, selon `providerChoices`. */

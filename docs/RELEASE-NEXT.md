@@ -15,3 +15,17 @@ la release publiée.
 > Pour la 1.4.12, le menu du clic droit passé aux icônes et groupes, et le
 > correctif de la feuille du bas sur iOS, manquaient tous deux au journal : ni
 > l'un ni l'autre n'avait touché `en.json`. Relire aussi `git log`.
+
+## Modifié
+
+- **Préférences réorganisées et plus lisibles.** La colonne de gauche montre une
+  icône par section ; un clic sur une section déplie ses sous-titres, un clic
+  sur un sous-titre y fait défiler. « Général » est réparti en **Lecture**,
+  **Clavier** et **Compte** ; les onglets Thème / Couleurs / Tailles /
+  Identité d'Apparence deviennent des sous-parties d'une même page. Titres
+  hiérarchisés, réglages groupés dans des blocs, texte d'un cran plus grand.
+  Chaînes ajoutées : `preferences.sections.reading` / `keyboard` / `account`,
+  `preferences.reading.*`, `preferences.offline.prepareTitle`,
+  `preferences.account.passwordTitle` ; retirées : `preferences.sections.general`,
+  `preferences.general.title`, `preferences.account.title`,
+  `preferences.offline.title`, `preferences.toolbars.everywhereTitle`.

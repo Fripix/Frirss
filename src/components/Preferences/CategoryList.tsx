@@ -6,6 +6,7 @@ import { groupFeedsByCategory, isValidCategoryName, type CategoryGroup } from '.
 import { useUiStore } from '../../stores/uiStore';
 import type { Subscription } from '../../types';
 import { categoryNameIssue, nameOf, nameOwners, type NameOwners } from '../../lib/labelNames';
+import { PrefHeading, PrefIntro } from './prefsUi';
 import NameRefusal from '../NameRefusal';
 
 /**
@@ -56,19 +57,12 @@ export default function CategoryList() {
   return (
     <div className="space-y-3">
       <div>
-        <h3
-          className="text-[11px] font-bold uppercase tracking-widest mb-1"
-          style={{ color: 'var(--list-summary)' }}
-        >
-          {t('preferences.categories.title')}
-        </h3>
-        <p className="text-[11px]" style={{ color: 'var(--list-summary)' }}>
-          {t('preferences.categories.hint')}
-        </p>
+        <PrefHeading>{t('preferences.categories.title')}</PrefHeading>
+        <PrefIntro>{t('preferences.categories.hint')}</PrefIntro>
       </div>
 
       {categories.length === 0 && uncategorised.length === 0 ? (
-        <p className="text-xs" style={{ color: 'var(--list-time)' }}>
+        <p className="text-[13px]" style={{ color: 'var(--list-time)' }}>
           {t('preferences.categories.empty')}
         </p>
       ) : (
@@ -193,7 +187,7 @@ function CategoryRow({
           <span className="text-[13px] font-medium truncate" style={{ color: 'var(--list-title)' }}>
             {group.label}
           </span>
-          <span className="text-[11px] tabular-nums flex-shrink-0" style={{ color: 'var(--list-time)' }}>
+          <span className="text-xs tabular-nums flex-shrink-0" style={{ color: 'var(--list-time)' }}>
             {group.feeds.length}
           </span>
         </button>
@@ -248,14 +242,14 @@ function CategoryRow({
           <button
             onClick={() => onRename?.(draft)}
             disabled={busy || !isValidCategoryName(draft) || !!issue || draft.trim() === group.label}
-            className="prefs-tap-btn px-2.5 py-1.5 text-xs font-medium rounded-md disabled:opacity-40"
+            className="prefs-tap-btn px-2.5 py-1.5 text-[13px] font-medium rounded-md disabled:opacity-40"
             style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
           >
             {t('preferences.categories.save')}
           </button>
           <button
             onClick={onCancelRename}
-            className="prefs-tap-btn px-2.5 py-1.5 text-xs rounded-md"
+            className="prefs-tap-btn px-2.5 py-1.5 text-[13px] rounded-md"
             style={{ color: 'var(--list-summary)' }}
           >
             {t('preferences.categories.cancel')}
@@ -336,13 +330,13 @@ function FeedRow({
             }}
             placeholder={t('preferences.categories.newName')}
             aria-label={t('preferences.categories.newName')}
-            className="w-40 px-2 py-1 text-xs rounded-md"
+            className="w-40 px-2 py-1 text-[13px] rounded-md"
             style={{ border: '1px solid var(--panel-border)', color: 'var(--list-title)', background: 'var(--panel-header-bg)' }}
           />
           <button
             onClick={() => { if (canMove) { onMove(feed.id, target); setCreating(false); } }}
             disabled={busy || !canMove}
-            className="prefs-tap-btn px-2 py-1 text-xs font-medium rounded-md disabled:opacity-40"
+            className="prefs-tap-btn px-2 py-1 text-[13px] font-medium rounded-md disabled:opacity-40"
             style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
           >
             {t('preferences.categories.move')}
@@ -357,7 +351,7 @@ function FeedRow({
             if (e.target.value !== current) onMove(feed.id, e.target.value);
           }}
           aria-label={t('app.labelValue', { label: t('preferences.categories.moveTo'), value: feed.title })}
-          className="px-2 py-1 text-xs rounded-md flex-shrink-0 max-w-[45%]"
+          className="px-2 py-1 text-[13px] rounded-md flex-shrink-0 max-w-[45%]"
           style={{ border: '1px solid var(--panel-border)', color: 'var(--list-title)', background: 'var(--panel-header-bg)' }}
         >
           {/* Un flux sans catégorie n'a pas de valeur courante à sélectionner ;

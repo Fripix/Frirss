@@ -8,6 +8,7 @@ import {
 import type { User } from '../../types';
 import BackupBlock from './admin/BackupBlock';
 import ConfirmDialog from '../ConfirmDialog';
+import { PrefHeading } from './prefsUi';
 import { useUiStore } from '../../stores/uiStore';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -64,7 +65,7 @@ function CopyField({ label, value, hint }: { label: string; value: string; hint?
   const id = useId();
   return (
     <div>
-      <label htmlFor={id} className="text-[10px] font-medium mb-0.5 block" style={{ color: 'var(--list-summary)' }}>
+      <label htmlFor={id} className="text-[11px] font-medium mb-0.5 block" style={{ color: 'var(--list-summary)' }}>
         {label}
       </label>
       <div className="flex items-center gap-2">
@@ -74,7 +75,7 @@ function CopyField({ label, value, hint }: { label: string; value: string; hint?
           readOnly
           value={value}
           onFocus={(e) => e.target.select()}
-          className="flex-1 min-w-0 px-3 py-1.5 text-xs rounded-md font-mono"
+          className="flex-1 min-w-0 px-3 py-1.5 text-[13px] rounded-md font-mono"
           style={{ border: '1px solid var(--panel-border)', color: 'var(--list-title)', background: 'var(--panel-header-bg)' }}
         />
         <button
@@ -85,14 +86,14 @@ function CopyField({ label, value, hint }: { label: string; value: string; hint?
               setTimeout(() => setCopied(false), 1500);
             }).catch(() => {});
           }}
-          className="px-2.5 py-1.5 text-xs font-medium rounded-md flex-shrink-0 transition-colors"
+          className="px-2.5 py-1.5 text-[13px] font-medium rounded-md flex-shrink-0 transition-colors"
           style={{ background: copied ? 'var(--accent)' : 'var(--panel-border)', color: copied ? 'var(--on-accent)' : 'var(--list-title)' }}
         >
           {copied ? `✓ ${t('admin.copied')}` : t('admin.copy')}
         </button>
       </div>
       {hint && (
-        <p className="text-[11px] opacity-70 mt-1" style={{ color: 'var(--list-summary)' }}>{hint}</p>
+        <p className="text-xs mt-1" style={{ color: 'var(--list-summary)' }}>{hint}</p>
       )}
     </div>
   );
@@ -309,40 +310,29 @@ export default function AdminTab({ active = true }: { active?: boolean }) {
   }
 
   if (loading) {
-    return <p className="text-xs" style={{ color: 'var(--list-summary)' }}>{t('app.loading')}</p>;
+    return <p className="text-[13px]" style={{ color: 'var(--list-summary)' }}>{t('app.loading')}</p>;
   }
 
   // Cinq groupes sans rapport entre eux : on vient ici pour l'un d'eux, jamais
-  // pour lire la page.
-  //
-  // Premier essai raté : un filet de 1 px en --panel-border sous chaque titre.
-  // Or tous les encadrés du contenu portent DÉJÀ cette bordure-là : le
-  // séparateur avait le même poids que ce qu'il séparait, il rejoignait le
-  // bruit. Et le titre était en 11 px gris — le texte le plus petit et le plus
-  // pâle de la page, plus discret que ce qu'il titrait.
-  //
-  // La hiérarchie se fait donc par le TYPE et la PROXIMITÉ, pas par des traits
-  // supplémentaires : un titre franchement plus gros et plus sombre, collé à
-  // son contenu, et beaucoup d'air entre les groupes. Un seul repère visuel
-  // s'y ajoute — un tiret accentué épais, une marque que le contenu ne fait
-  // jamais, donc impossible à confondre avec une bordure d'encadré.
-  const sectionTitle = "text-[11px] font-bold uppercase tracking-widest mb-2";
+  // pour lire la page. Chacun a son titre de sous-partie (`PrefHeading`), que
+  // la navigation de gauche liste : la hiérarchie se fait par le type et
+  // l'espace, pas par des filets qui auraient le poids des encadrés.
   const rowStyle = { background: 'var(--panel-header-bg)', border: '1px solid var(--panel-border)' };
 
   return (
     <div className="space-y-10">
       {/* ── Users ──────────────────────────────────────────── */}
       <div>
-        <h3 className={sectionTitle} style={{ color: 'var(--list-summary)' }}>
+        <PrefHeading navLabel={t('admin.users')}>
           {t('admin.users')} — {t('admin.userCount', { count: users.length })}
           {pwDone && (
-            <span className="ml-2 normal-case tracking-normal font-normal" style={{ color: 'var(--accent)' }}>
+            <span className="ml-2 text-[13px] font-normal" style={{ color: 'var(--accent)' }}>
               {t('admin.passwordUpdated')}
             </span>
           )}
-        </h3>
+        </PrefHeading>
         {loadFailed && (
-          <p role="alert" className="text-xs mb-2" style={{ color: 'var(--danger)' }}>{t('admin.errorLoad')}</p>
+          <p role="alert" className="text-[13px] mb-2" style={{ color: 'var(--danger)' }}>{t('admin.errorLoad')}</p>
         )}
         <div className="space-y-1">
           {users.map((user) => {
@@ -360,9 +350,9 @@ export default function AdminTab({ active = true }: { active?: boolean }) {
                     {user.display_name || user.username}
                   </span>
                   {isSelf && (
-                    <span className="ml-1 text-[10px]" style={{ color: 'var(--accent)' }}>{t('admin.you')}</span>
+                    <span className="ml-1 text-[11px]" style={{ color: 'var(--accent)' }}>{t('admin.you')}</span>
                   )}
-                  <div className="text-[10px] flex gap-2 mt-0.5 flex-wrap" style={{ color: 'var(--list-summary)' }}>
+                  <div className="text-[11px] flex gap-2 mt-0.5 flex-wrap" style={{ color: 'var(--list-summary)' }}>
                     <span>@{user.username}</span>
                     {user.email && <span>{user.email}</span>}
                     {/* Un compte local lié s'ouvre aussi par le SSO : c'est ici que
@@ -381,7 +371,7 @@ export default function AdminTab({ active = true }: { active?: boolean }) {
                   onClick={() => !isSelf && setPending({ kind: user.role === 'admin' ? 'demote' : 'promote', user })}
                   disabled={isSelf}
                   aria-label={isSelf ? undefined : t(user.role === 'admin' ? 'admin.demoteUserName' : 'admin.promoteUserName', { name: user.display_name || user.username })}
-                  className="text-[10px] font-medium px-2 py-0.5 rounded-full"
+                  className="text-[11px] font-medium px-2 py-0.5 rounded-full"
                   style={{
                     background: user.role === 'admin' ? 'var(--accent)' : 'var(--panel-border)',
                     color: user.role === 'admin' ? 'var(--on-accent)' : 'var(--list-title)',
@@ -399,7 +389,7 @@ export default function AdminTab({ active = true }: { active?: boolean }) {
                     onClick={() => setPending({ kind: user.active ? 'deactivate' : 'activate', user })}
                     aria-label={t(user.active ? 'admin.deactivateUser' : 'admin.activateUser', { name: user.display_name || user.username })}
                     title={t(user.active ? 'admin.deactivateUser' : 'admin.activateUser', { name: user.display_name || user.username })}
-                    className="text-[10px] px-2 py-0.5 rounded-full"
+                    className="text-[11px] px-2 py-0.5 rounded-full"
                     style={{
                       background: user.active ? 'var(--accent-glow)' : 'color-mix(in srgb, var(--danger) 15%, transparent)',
                       color: user.active ? 'var(--accent)' : 'var(--danger)',
@@ -412,7 +402,7 @@ export default function AdminTab({ active = true }: { active?: boolean }) {
                 {/* Edit profile (display name + email) */}
                 <button
                   onClick={() => toggleEditor(user)}
-                  className="text-[11px] px-1.5 py-0.5 rounded"
+                  className="text-xs px-1.5 py-0.5 rounded"
                   style={{ color: editUserId === user.id ? 'var(--accent)' : 'var(--list-summary)' }}
                   title={t('admin.editUser')}
                   aria-label={t('admin.editUser')}
@@ -425,7 +415,7 @@ export default function AdminTab({ active = true }: { active?: boolean }) {
                 {user.auth_provider === 'local' && (
                   <button
                     onClick={() => togglePwEditor(user)}
-                    className="text-[11px] px-1.5 py-0.5 rounded"
+                    className="text-xs px-1.5 py-0.5 rounded"
                     style={{ color: pwUserId === user.id ? 'var(--accent)' : 'var(--list-summary)' }}
                     title={t('admin.resetPassword')}
                     aria-label={t('admin.resetPassword')}
@@ -440,7 +430,7 @@ export default function AdminTab({ active = true }: { active?: boolean }) {
                 {user.auth_provider === 'local' && user.sso_linked && (
                   <button
                     onClick={() => setPending({ kind: 'unlinkSso', user })}
-                    className="text-[11px] px-1.5 py-0.5 rounded"
+                    className="text-xs px-1.5 py-0.5 rounded"
                     style={{ color: 'var(--list-summary)' }}
                     title={t('admin.unlinkSsoName', { name: user.display_name || user.username })}
                     aria-label={t('admin.unlinkSsoName', { name: user.display_name || user.username })}
@@ -453,7 +443,7 @@ export default function AdminTab({ active = true }: { active?: boolean }) {
                 {!isSelf && (
                   <button
                     onClick={() => setPending({ kind: 'delete', user })}
-                    className="text-[10px] px-1.5 py-0.5 rounded"
+                    className="text-[11px] px-1.5 py-0.5 rounded"
                     style={{ color: 'var(--danger)' }}
                     title={t('admin.deleteUser')}
                     aria-label={t('admin.deleteUserName', { name: user.display_name || user.username })}
@@ -481,21 +471,21 @@ export default function AdminTab({ active = true }: { active?: boolean }) {
                     <button
                       onClick={() => saveProfile(user)}
                       disabled={editSaving}
-                      className="text-[11px] font-medium px-3 py-1.5 rounded-md whitespace-nowrap"
+                      className="text-xs font-medium px-3 py-1.5 rounded-md whitespace-nowrap"
                       style={{ background: 'var(--accent)', color: 'var(--on-accent)', opacity: editSaving ? 0.6 : 1 }}
                     >
                       {editSaving ? t('admin.saving') : t('admin.save')}
                     </button>
                     <button
                       onClick={() => toggleEditor(user)}
-                      className="text-[11px] px-2 py-1.5 rounded-md"
+                      className="text-xs px-2 py-1.5 rounded-md"
                       style={{ color: 'var(--list-summary)' }}
                     >
                       {t('admin.cancel')}
                     </button>
                   </div>
                   {editError && (
-                    <p className="text-[11px]" style={{ color: 'var(--danger)' }}>{editError}</p>
+                    <p className="text-xs" style={{ color: 'var(--danger)' }}>{editError}</p>
                   )}
                 </div>
               )}
@@ -513,21 +503,21 @@ export default function AdminTab({ active = true }: { active?: boolean }) {
                     <button
                       onClick={() => savePassword(user)}
                       disabled={pwSaving}
-                      className="text-[11px] font-medium px-3 py-1.5 rounded-md whitespace-nowrap"
+                      className="text-xs font-medium px-3 py-1.5 rounded-md whitespace-nowrap"
                       style={{ background: 'var(--accent)', color: 'var(--on-accent)', opacity: pwSaving ? 0.6 : 1 }}
                     >
                       {pwSaving ? t('admin.saving') : t('admin.setPassword')}
                     </button>
                     <button
                       onClick={() => togglePwEditor(user)}
-                      className="text-[11px] px-2 py-1.5 rounded-md"
+                      className="text-xs px-2 py-1.5 rounded-md"
                       style={{ color: 'var(--list-summary)' }}
                     >
                       {t('admin.cancel')}
                     </button>
                   </div>
                   {pwError && (
-                    <p className="text-[11px]" style={{ color: 'var(--danger)' }}>{pwError}</p>
+                    <p className="text-xs" style={{ color: 'var(--danger)' }}>{pwError}</p>
                   )}
                 </div>
               )}
@@ -539,9 +529,9 @@ export default function AdminTab({ active = true }: { active?: boolean }) {
 
       {/* ── Create user ────────────────────────────────────── */}
       <div>
-        <h3 className={sectionTitle} style={{ color: 'var(--list-summary)' }}>
+        <PrefHeading>
           {t('admin.createUser')}
-        </h3>
+        </PrefHeading>
         <form onSubmit={handleCreateUser} className="space-y-2 p-3 rounded-md" style={rowStyle}>
           <div className="grid grid-cols-2 gap-2">
             <AdminInput
@@ -590,13 +580,13 @@ export default function AdminTab({ active = true }: { active?: boolean }) {
             <button
               type="submit"
               disabled={creating}
-              className="px-3 py-1.5 text-xs font-medium rounded-md disabled:opacity-50"
+              className="px-3 py-1.5 text-[13px] font-medium rounded-md disabled:opacity-50"
               style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
             >
               {creating ? t('admin.creating') : t('admin.create')}
             </button>
             {createError && (
-              <span className="text-[11px]" style={{ color: 'var(--danger)' }}>{createError}</span>
+              <span className="text-xs" style={{ color: 'var(--danger)' }}>{createError}</span>
             )}
           </div>
         </form>
@@ -604,12 +594,12 @@ export default function AdminTab({ active = true }: { active?: boolean }) {
 
       {/* ── Registration toggle ────────────────────────────── */}
       <div>
-        <h3 className={sectionTitle} style={{ color: 'var(--list-summary)' }}>
+        <PrefHeading>
           {t('admin.registration')}
-        </h3>
+        </PrefHeading>
         <button
           onClick={toggleRegistration}
-          className="flex items-center gap-2 px-3 py-2 rounded-md text-xs w-full"
+          className="flex items-center gap-2 px-3 py-2 rounded-md text-[13px] w-full"
           style={rowStyle}
         >
           <div
@@ -629,9 +619,9 @@ export default function AdminTab({ active = true }: { active?: boolean }) {
 
       {/* ── Login animation ────────────────────────────────── */}
       <div>
-        <h3 className={sectionTitle} style={{ color: 'var(--list-summary)' }}>
+        <PrefHeading>
           {t('admin.loginAnimation')}
-        </h3>
+        </PrefHeading>
         <div className="flex flex-wrap gap-1.5">
           {[
             { id: 'none', label: t('admin.animNone') },
@@ -643,7 +633,7 @@ export default function AdminTab({ active = true }: { active?: boolean }) {
               <button
                 key={opt.id}
                 onClick={() => changeLoginAnimation(opt.id)}
-                className="px-3 py-1.5 text-xs font-medium rounded-lg transition-colors"
+                className="px-3 py-1.5 text-[13px] font-medium rounded-lg transition-colors"
                 style={{
                   background: active ? 'var(--accent)' : 'var(--panel-header-bg)',
                   color: active ? 'var(--on-accent)' : 'var(--list-title)',
@@ -659,14 +649,14 @@ export default function AdminTab({ active = true }: { active?: boolean }) {
 
       {/* ── SSO Configuration ──────────────────────────────── */}
       <div>
-        <h3 className={sectionTitle} style={{ color: 'var(--list-summary)' }}>
+        <PrefHeading>
           {t('admin.ssoConfig')}
-        </h3>
+        </PrefHeading>
 
         {/* SSO toggle */}
         <button
           onClick={toggleSso}
-          className="flex items-center gap-2 px-3 py-2 rounded-md text-xs w-full mb-2"
+          className="flex items-center gap-2 px-3 py-2 rounded-md text-[13px] w-full mb-2"
           style={rowStyle}
         >
           <div
@@ -700,7 +690,7 @@ export default function AdminTab({ active = true }: { active?: boolean }) {
               { key: 'oidcButtonLabel', label: t('admin.oidcButtonLabel') },
             ].map((field) => (
               <div key={field.key}>
-                <label htmlFor={`${oidcIds}-${field.key}`} className="text-[10px] font-medium mb-0.5 block" style={{ color: 'var(--list-summary)' }}>
+                <label htmlFor={`${oidcIds}-${field.key}`} className="text-[11px] font-medium mb-0.5 block" style={{ color: 'var(--list-summary)' }}>
                   {field.label}
                 </label>
                 <input
@@ -722,14 +712,14 @@ export default function AdminTab({ active = true }: { active?: boolean }) {
             <div className="flex items-center gap-2 pt-1">
               <button
                 onClick={saveOidc}
-                className="px-3 py-1.5 text-xs font-medium rounded-md"
+                className="px-3 py-1.5 text-[13px] font-medium rounded-md"
                 style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
               >
                 {t('admin.save')}
               </button>
               {saved && (
                 <span
-                  className="text-xs font-semibold px-2.5 py-1 rounded-full"
+                  className="text-[13px] font-semibold px-2.5 py-1 rounded-full"
                   style={{ background: 'var(--accent-glow)', color: 'var(--accent)' }}
                 >
                   ✓ {t('admin.saved')}
@@ -739,7 +729,7 @@ export default function AdminTab({ active = true }: { active?: boolean }) {
 
             {/* Authentication mode: Local + SSO vs SSO only */}
             <div className="pt-3 mt-1 space-y-2" style={{ borderTop: '1px solid var(--panel-border)' }}>
-              <label className="text-[10px] font-medium block" style={{ color: 'var(--list-summary)' }}>
+              <label className="text-[11px] font-medium block" style={{ color: 'var(--list-summary)' }}>
                 {t('admin.authMode')}
               </label>
               {/* Segmented control — plain buttons, so a single click always
@@ -772,7 +762,7 @@ export default function AdminTab({ active = true }: { active?: boolean }) {
                   );
                 })}
               </div>
-              <p className="text-[11px] opacity-70" style={{ color: 'var(--list-summary)' }}>
+              <p className="text-xs" style={{ color: 'var(--list-summary)' }}>
                 {t('admin.authModeHint')}
               </p>
               <CopyField
