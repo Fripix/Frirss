@@ -1897,7 +1897,9 @@ html {
     inset 0 -1px 0 color-mix(in srgb, var(--accent) 28%, transparent);
   animation: prefs-submark-in 0.24s ease-out;
 }
-[data-pref-marked] {
+/* Même spécificité que la règle du bandeau, qu'elle doit battre. */
+.prefs-h3-row[data-pref-marked],
+.prefs-h3[data-pref-marked]:not(.prefs-h3-row > .prefs-h3) {
   background: linear-gradient(var(--accent-glow), var(--accent-glow)), var(--panel-bg);
   transition: background-color 0.24s ease-out;
 }
