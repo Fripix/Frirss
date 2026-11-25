@@ -11,7 +11,7 @@ import { getStorageEstimate, formatBytes, clearImageCache } from '../../lib/stor
 import { cachedImageStats, type CachedImageStats } from '../../lib/imageCache';
 import { useOnlineStatus } from '../../hooks/useOnlineStatus';
 import ConfirmDialog from '../ConfirmDialog';
-import { PrefHeading } from './prefsUi';
+import { PrefCard, PrefHeading, PrefIntro, PrefRow } from './prefsUi';
 import { prepRemainingMs, etaMessage } from '../../lib/offlinePrepEta';
 
 export default function OfflineTab({ active = true }: { active?: boolean }) {
@@ -215,34 +215,32 @@ export default function OfflineTab({ active = true }: { active?: boolean }) {
       </div>
 
       {/* Auto-update toggle */}
-      <div className="flex items-start justify-between gap-4 select-none">
-        <span className="text-[13px]" style={{ color: 'var(--list-summary)' }}>
-          {t('preferences.offline.auto')}
-          <span className="block text-xs mt-0.5">{t('preferences.offline.autoHint')}</span>
-        </span>
-        <span className="mt-0.5">
-          <ToggleSwitch checked={autoOffline} onChange={setAutoOffline} ariaLabel={t('preferences.offline.auto')} />
-        </span>
-      </div>
+      <PrefCard>
+        <PrefRow
+          label={t('preferences.offline.auto')}
+          hint={t('preferences.offline.autoHint')}
+          control={<ToggleSwitch checked={autoOffline} onChange={setAutoOffline} ariaLabel={t('preferences.offline.auto')} />}
+        />
+      </PrefCard>
 
       {/* Offline images — budget, real usage, purge */}
       <div className="space-y-2">
         <PrefHeading>{t('preferences.offline.imagesTitle')}</PrefHeading>
-        <p className="text-[13px]" style={{ color: 'var(--list-summary)' }}>
-          {t('preferences.offline.imagesHint')}
-        </p>
+        <PrefIntro>{t('preferences.offline.imagesHint')}</PrefIntro>
 
         {/* Off switch — greys the sizes out rather than hiding them. */}
-        <div className="flex items-center justify-between gap-4 select-none">
-          <span className="text-[13px]" style={{ color: 'var(--list-summary)' }}>
-            {t('preferences.offline.imagesDownload')}
-          </span>
-          <ToggleSwitch
-            checked={!imagesOff}
-            onChange={(on) => setOfflineImagePreset(on ? 'standard' : 'none')}
-            ariaLabel={t('preferences.offline.imagesDownload')}
+        <PrefCard>
+          <PrefRow
+            label={t('preferences.offline.imagesDownload')}
+            control={
+              <ToggleSwitch
+                checked={!imagesOff}
+                onChange={(on) => setOfflineImagePreset(on ? 'standard' : 'none')}
+                ariaLabel={t('preferences.offline.imagesDownload')}
+              />
+            }
           />
-        </div>
+        </PrefCard>
 
         <div
           className="space-y-1 transition-opacity"

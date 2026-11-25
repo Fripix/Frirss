@@ -35,7 +35,7 @@ export function PrefHeading({ children, navLabel, action, tag, id }: {
       tabIndex={-1}
       className="prefs-h3 flex items-baseline gap-2 min-w-0 outline-none"
     >
-      <span className="min-w-0">{children}</span>
+      <span className="min-w-0" data-pref-title="">{children}</span>
       {tag && <span className="prefs-tag">{tag}</span>}
     </h3>
   );

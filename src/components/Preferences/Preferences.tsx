@@ -173,7 +173,8 @@ export default function Preferences() {
       raf = 0;
       const next = Array.from(root.querySelectorAll<HTMLElement>('[data-pref-sub]')).map((el) => ({
         el,
-        label: el.dataset.prefLabel || el.textContent?.trim() || '',
+        // Le titre seul : ni l'étiquette « Sur ordinateur » ni un compteur.
+        label: el.dataset.prefLabel || (el.querySelector('[data-pref-title]') ?? el).textContent?.trim() || '',
       }));
       setSubs((cur) => (sameSubs(cur, next) ? cur : next));
     };

@@ -1852,7 +1852,10 @@ html {
   font-weight: 700;
   letter-spacing: -0.01em;
   color: var(--list-title);
+  margin-bottom: 0.625rem;
 }
+.prefs-h2 + .prefs-intro,
+.prefs-h2 + * > .prefs-intro:first-child { margin-top: 0; }
 .prefs-h3-row,
 .prefs-h3:not(.prefs-h3-row > .prefs-h3) {
   margin-top: 2rem;
