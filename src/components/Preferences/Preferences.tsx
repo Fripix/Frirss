@@ -440,7 +440,7 @@ export default function Preferences() {
           // sections. L'ancien `fit-content` faisait épouser au panneau la
           // largeur de sa barre d'onglets, si bien que chaque onglet ajouté
           // l'élargissait.
-          width: isMobile ? '100vw' : 'min(92vw, 680px)',
+          width: isMobile ? '100vw' : 'min(92vw, 720px)',
           maxWidth: '100vw',
         }}
       >
@@ -516,7 +516,7 @@ export default function Preferences() {
         <div className="prefs-panel-body flex-1 flex min-h-0">
           <nav
             hidden={isMobile && !showNav}
-            className={`prefs-nav ${isMobile ? 'w-full' : 'w-[212px]'} flex-shrink-0 overflow-y-auto px-2.5 py-3`}
+            className={`prefs-nav ${isMobile ? 'w-full' : 'w-[240px]'} flex-shrink-0 overflow-y-auto px-2.5 py-3`}
             style={{ borderRight: isMobile ? undefined : '1px solid var(--panel-border)', background: 'var(--panel-header-bg)' }}
             aria-label={t('preferences.title')}
           >
@@ -572,6 +572,9 @@ export default function Preferences() {
                                 type="button"
                                 onClick={() => goToSub(s.id, i)}
                                 aria-current={active && i === currentSub ? 'location' : undefined}
+                                // Une seule ligne ; coupé par « … » dans une langue longue,
+                                // le libellé entier reste au survol.
+                                title={sub.label}
                                 className="prefs-subnav-item"
                               >
                                 {sub.label}

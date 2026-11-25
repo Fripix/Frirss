@@ -8383,7 +8383,8 @@ une section, elle s'ouvre en plein écran avec « Retour ») et ne déplie rien.
   porte plus que son nom (« Utilisateurs — 3 comptes »).
 - **Fin des onglets dans l'onglet** : Apparence avait ses propres onglets
   (Thème, Couleurs, Tailles, Identité). Ce sont maintenant quatre sous-parties
-  d'une même page, listées par la navigation. L'encadrement d'une couleur
+  d'une même page, listées par la navigation, Identité en tête (décision du
+  propriétaire, 2026-11-25). L'encadrement d'une couleur
   survolée ou épinglée ne dépend donc plus d'un sous-onglet ouvert.
 - **Hiérarchie** : nom de la section en `h2` (20 px), sous-parties en `h3`
   (15 px, couleur des titres), groupes internes en `h4`
@@ -8393,6 +8394,10 @@ une section, elle s'ouvre en plein écran avec « Retour ») et ne déplie rien.
   les aides ont perdu leur opacité de 70 %, qui les faisait passer sous le
   contraste lisible. Les anciens titres en capitales grises de 11 px (1.8.0)
   étaient le texte le plus petit et le plus pâle de la page.
+- **Sous-titres de la navigation sur une seule ligne** : colonne de 240 px
+  (panneau de 720 px), retrait réduit ; « Icônes d'action des articles », le
+  plus long en français, tient en gras. Plus long (allemand), le libellé se
+  coupe par « … » et reste entier au survol (`title`).
 - **Sous-partie choisie teintée** : un clic sur un sous-titre de la navigation
   teinte toute la sous-partie dans la page (`--accent-glow`, filets d'accent
   haut et bas), bandeau compris (`data-pref-marked`, la même teinte posée sur
@@ -8415,7 +8420,7 @@ une section, elle s'ouvre en plein écran avec « Retour ») et ne déplie rien.
   `PrefHeading action=…` (c'est ce qu'a fait l'interrupteur de l'IA).
 
 Sections, dans l'ordre : **Lecture** (liste d'articles, marquer comme lu,
-article, aléatoire), **Apparence** (thème, couleurs, tailles, identité),
+article, aléatoire), **Apparence** (identité, thème, couleurs, tailles),
 **Mise en page** (barres du desktop, barre des serveurs, colonne de lecture,
 icônes d'action), **Clavier** (raccourcis, touches et gestes fixes), **Flux**
 (serveurs FreshRSS, catégories), **Étiquettes**, **Hors ligne** (préparer,

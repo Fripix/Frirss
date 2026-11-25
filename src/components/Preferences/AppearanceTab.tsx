@@ -15,10 +15,10 @@ import { LIST_THUMB_WIDTH_MAX, LIST_THUMB_WIDTH_MIN, LIST_THUMB_WIDTH_STEP } fro
 
 export default function AppearanceTab({ onHighlight, active = true }: { onHighlight: (key: string | null) => void; active?: boolean }) {
   const { t } = useTranslation();
-  // Thème, Couleurs, Tailles, Identité se suivent sur une même page ; la
+  // Identité, Thème, Couleurs, Tailles se suivent sur une même page ; la
   // navigation de gauche les liste et y fait défiler. Ils étaient des onglets
-  // dans l'onglet : la galerie de thèmes ouvre toujours la page, c'est le
-  // geste le plus courant et le seul qui change tout d'un coup.
+  // dans l'onglet. Identité ouvre la page (décision du propriétaire,
+  // 2026-11-25) : le nom et le logo de l'instance avant son habillage.
   // Survol (transitoire) et sélection (persistante au clic/tap) — un seul
   // aperçu au sommet des sous-sections Couleurs et Tailles sert les deux.
   const [focusedKey, setFocusedKey] = useState<string | null>(null);
@@ -47,6 +47,8 @@ export default function AppearanceTab({ onHighlight, active = true }: { onHighli
 
   return (
     <div>
+      <PrefHeading>{t('preferences.appearance.identity')}</PrefHeading>
+      <IdentitySection />
       <PrefHeading>{t('preferences.appearance.theme')}</PrefHeading>
       <ThemeSection />
       <PrefHeading>{t('preferences.appearance.colors')}</PrefHeading>
@@ -59,8 +61,6 @@ export default function AppearanceTab({ onHighlight, active = true }: { onHighli
       />
       <PrefHeading>{t('preferences.appearance.sizes')}</PrefHeading>
       <SizesSection />
-      <PrefHeading>{t('preferences.appearance.identity')}</PrefHeading>
-      <IdentitySection />
     </div>
   );
 }
