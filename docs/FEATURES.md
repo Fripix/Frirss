@@ -493,9 +493,9 @@ le menu ; voir *Menu d'un article*, piège Chrome Android).
   l'`iconUrl` de FreshRSS (`f.php?h=…`) passe par le client authentifié et
   se garde en `data:` dans le `localStorage` (`frirss_favicon:<url>`) : affichée
   dès le premier rendu après un rechargement, sans éclair. Repli sur une
-  pastille-lettre si rien ne charge. **Revérifiée chaque semaine** (1.9.2) :
+  pastille-lettre si rien ne charge. **Revérifiée chaque semaine** (1.10.0) :
   une icône gardée depuis plus de 7 jours, ou sans date (gardée avant la
-  1.9.2, `frirss_faviconChecked`), reste affichée et se redemande une fois en
+  1.10.0, `frirss_faviconChecked`), reste affichée et se redemande une fois en
   arrière-plan, une requête par adresse et par session (`refreshFavicon`) ;
   un échec garde l'ancienne. Avant, elle était gardée pour toujours : un
   navigateur qui avait chargé les icônes pendant que FreshRSS servait son
@@ -689,7 +689,7 @@ issue). Les défauts reproduisent exactement la grille d'avant.
 
 ### Taille des vignettes de la liste
 Un curseur **Vignettes** dans **Préférences › Apparence › Tailles**, groupe
-« Liste d'articles », sous les tailles de texte (issue #34, 1.9.2) : largeur de
+« Liste d'articles », sous les tailles de texte (issue #34, 1.10.0) : largeur de
 la vignette des lignes, de 56 à 160 px par pas de 4, **défaut 80**. La hauteur
 suit le rapport 5:4 d'origine (80 × 64, l'ancien `w-20 h-16`). La vignette ne
 s'affiche qu'avec la densité Aperçu, et la ligne d'aide sous le curseur le
@@ -722,7 +722,7 @@ les listes (deux colonnes et côte à côte) ; la grille a ses propres réglages
 ### Colonne de lecture limitée
 Un réglage dans **Préférences › Mise en page**, partie « Sur tous les
 écrans », zone « Colonne de lecture » (dans Apparence › Tailles avant la
-sortie de la 1.9.2, déplacé le 2026-11-24 avec les réglages de disposition) :
+sortie de la 1.10.0, déplacé le 2026-11-24 avec les réglages de disposition) :
 **Limiter la largeur de la colonne** (interrupteur, désactivé par défaut).
 Activé, l'article est centré dans une colonne dont la largeur est au choix
 du lecteur (curseur « Largeur de la colonne », 480 à 1 200 px par pas de 8,
@@ -751,7 +751,7 @@ comportement historique. Sur un écran étroit, le plafond ne change rien.
   sur un écran de 1 280 px, téléphone). Les `iframe` et `video` du corps d'article
   sont en outre bornées à la largeur de la colonne dans tous les cas :
   elles n'avaient aucune contrainte et pouvaient déborder du panneau.
-- Contribution de babenaldt (PR #32, 1.9.2). Test de l'écran :
+- Contribution de babenaldt (PR #32, 1.10.0). Test de l'écran :
   `LayoutTab.readingColumn.test.tsx` ; magasin :
   `uiStore.limitReadingColumn.test.ts`.
 
@@ -3326,7 +3326,7 @@ libellés disaient « plein écran » jusqu'en 1.8.0) au double-clic. Contenu bi
   l'animation) porte l'article visé. À l'arrivée, le vrai article est commité
   en `flushSync` **derrière** le fantôme, qui ne se fond qu'ensuite : sans ce
   maintien, le fondu découvrirait un article encore vide.
-  **Le fantôme montre ce que le rendu montrera** (`swipeGhost.tsx`, 1.9.2) :
+  **Le fantôme montre ce que le rendu montrera** (`swipeGhost.tsx`, 1.10.0) :
   `dir="auto"` sur le titre, le corps et chaque bloc, mêmes marges que
   l'`<article>`, colonne de lecture limitée de l'appareil, et la boîte
   « Résumé IA » quand le rendu l'aura (panneau toujours là pour ce flux, ou
@@ -3353,7 +3353,7 @@ libellés disaient « plein écran » jusqu'en 1.8.0) au double-clic. Contenu bi
   pas celui d'un `<pre>`, qui défile. Dans une cellule de tableau, il ne se
   coupe pas (`white-space: nowrap`) : c'est le tableau qui défile
   (`inlineCodeWrap.test.ts`).
-  **Un mot trop long ailleurs** (1.9.2, M3 de la campagne) : `.article-content`
+  **Un mot trop long ailleurs** (1.10.0, M3 de la campagne) : `.article-content`
   porte `overflow-wrap: break-word`, hérité par paragraphes, listes, liens et
   citations. Une adresse de 110 caractères sans trait d'union sortait de la
   colonne de lecture limitée (et d'un téléphone de 375 px) et le volet la
@@ -9352,7 +9352,7 @@ divergentes).
   root le temps d'adopter `/app/data` — toute installation antérieure l'a en
   root, et échouer dessus casserait chaque mise à jour — puis abaisse Node via
   `su-exec`.
-- **Port d'écoute réglable** (1.9.2, issue #33) : `FRIRSS_PORT`, 80 par
+- **Port d'écoute réglable** (1.10.0, issue #33) : `FRIRSS_PORT`, 80 par
   défaut. Sert quand le conteneur n'a pas de correspondance de ports (réseau
   « host », IP propre en macvlan ou `br0` d'Unraid) ; avec `-p`, on change le
   côté hôte. L'entrypoint valide la valeur (1–65535, pas 3001), puis réécrit
@@ -9364,7 +9364,7 @@ divergentes).
   pour malade. **Node reste fixé à 3001** (`PORT=3001` posé par
   l'entrypoint) : `server/index.ts` lit `PORT`, nginx envoie l'API sur 3001 en
   dur, et un `PORT=8081` tenté pour changer le port public déplaçait Node et
-  cassait toute l'API. **Et seulement sur 127.0.0.1** (1.9.2, M2 de la
+  cassait toute l'API. **Et seulement sur 127.0.0.1** (1.10.0, M2 de la
   campagne : `FRIRSS_BACKEND_HOST=127.0.0.1` posé par l'entrypoint,
   `server/index.ts` écoute partout sans elle, en développement) : en réseau
   host ou avec une IP propre, Node écoutait sur toutes les interfaces, le 3001
@@ -9408,7 +9408,7 @@ divergentes).
   celle de nginx sur le corps compressé : une trentaine d'octets en brotli
   devenaient 5 Mo analysés, avant toute authentification. Aucun client de
   FriRSS n'envoie de corps compressé.
-- **Imbrication bornée à 64 niveaux** (1.9.2, `server/jsonDepth.ts`) : mesurée
+- **Imbrication bornée à 64 niveaux** (1.10.0, `server/jsonDepth.ts`) : mesurée
   sur le texte, avant toute analyse — `verify` d'`express.json` (corps reçus,
   restauration comprise → 400 `invalid_json`, `code: too_deep`), réponses
   FreshRSS mises en cache (`cacheableEntry`, `trimStreamJson` : pas de copie),

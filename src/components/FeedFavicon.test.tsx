@@ -23,7 +23,7 @@ afterEach(cleanup);
 // 2026-11-24) : l'icône gardée s'affiche tout de suite, puis se répare.
 describe('FeedFavicon — icône gardée', () => {
   it('affiche l’icône gardée tout de suite, puis celle que le serveur sert aujourd’hui', async () => {
-    localStorage.setItem('frirss_favicon:' + URL_, GLOBE); // gardée avant 1.9.2, sans date
+    localStorage.setItem('frirss_favicon:' + URL_, GLOBE); // gardée avant 1.10.0, sans date
     get.mockResolvedValue(imageBlob('REAL'));
     const { container } = render(<FeedFavicon iconUrl={URL_} title="Clubic" />);
     expect(container.querySelector('img')?.getAttribute('src')).toBe(GLOBE);

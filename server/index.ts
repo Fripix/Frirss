@@ -30,7 +30,7 @@ const PORT = process.env.PORT || 3001;
 // seul nginx, dans le même conteneur, joint Node. En réseau « host » ou avec
 // une IP propre, écouter partout rendait le 3001 joignable sans nginx, et
 // `trust proxy` croyait alors le `X-Forwarded-For` de n'importe qui (limites
-// par IP contournées, M2 de la campagne 1.9.2). Absente (développement,
+// par IP contournées, M2 de la campagne 1.10.0). Absente (développement,
 // `npm run dev`) : toutes les interfaces, comme avant.
 const BACKEND_HOST = process.env.FRIRSS_BACKEND_HOST || undefined;
 

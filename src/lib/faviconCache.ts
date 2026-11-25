@@ -9,7 +9,7 @@
 // The persistent tier is what kills the reload flash: on startup FeedFavicon
 // reads it synchronously and paints the icon immediately, with no re-fetch.
 //
-// Revérification (1.9.2) : une icône gardée n'est plus éternelle. Passé
+// Revérification (1.10.0) : une icône gardée n'est plus éternelle. Passé
 // `FAVICON_MAX_AGE_MS` — ou sans date, pour celles gardées avant —, elle reste
 // affichée et `refreshFavicon` la redemande une fois en arrière-plan. Sans
 // cela, un navigateur qui avait chargé les icônes pendant que FreshRSS servait

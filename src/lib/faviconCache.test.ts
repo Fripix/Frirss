@@ -47,7 +47,7 @@ describe('faviconCache', () => {
 describe('faviconCache — revérification', () => {
   beforeEach(() => { localStorage.clear(); resetFaviconSession(); });
 
-  it('une icône gardée sans date de vérification (avant 1.9.2) est à revérifier', () => {
+  it('une icône gardée sans date de vérification (avant 1.10.0) est à revérifier', () => {
     const url = 'https://rss.example/f.php?h=old';
     localStorage.setItem('frirss_favicon:' + url, 'data:image/x-icon;base64,GLOBE');
     expect(faviconIsStale(url)).toBe(true);

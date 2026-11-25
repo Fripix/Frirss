@@ -94,7 +94,7 @@ A note in the interest of honesty: this is a personal project and I'm not a deve
 - **Optional AI summaries and translations** with the provider you choose, a local Ollama or a cloud one. Nothing is sent anywhere by default.
 - **Three columns, two or a grid**, oldest first or at random, chosen feed by feed.
 - **Keyboard first** — a command palette (<kbd>⌘K</kbd> / <kbd>Ctrl+K</kbd>) and twelve reassignable shortcuts.
-- **Make it yours** — six themes, your own colors and font sizes, your app name and logo.
+- **Make it yours** — six themes, your own colors, font and thumbnail sizes, a narrower reading column if you want one, your app name and logo.
 - **Tags and sub-tags**, categories and feeds, organised from the preferences.
 - **Several users, single sign-on (OIDC) and several FreshRSS servers.**
 - **10 languages**, and one Docker image for amd64 and arm64.

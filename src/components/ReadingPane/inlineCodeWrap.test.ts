@@ -41,11 +41,11 @@ describe('code en ligne dans un article (R2-7)', () => {
   });
 });
 
-// M3, campagne 1.9.2 : une adresse de 110 caractères sans trait d'union, dans
+// M3, campagne 1.10.0 : une adresse de 110 caractères sans trait d'union, dans
 // un paragraphe ou un lien, sortait de la colonne de lecture limitée et se
 // faisait couper par le volet (`overflow-x: hidden`) ; sur un téléphone de
 // 375 px, avec ou sans colonne. Seul le `<code>` en ligne savait se couper.
-describe('mot trop long dans un article (M3, 1.9.2)', () => {
+describe('mot trop long dans un article (M3, 1.10.0)', () => {
   it('se coupe dans tout le corps de l’article, paragraphes, listes et liens compris', () => {
     expect(decl(rule('.article-content'), 'overflow-wrap')).toBe('break-word');
   });

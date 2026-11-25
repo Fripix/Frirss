@@ -46,7 +46,7 @@ describe('FRIRSS_PORT — port d’écoute de nginx', () => {
   });
 });
 
-// M2, campagne 1.9.2 : en réseau « host » ou avec une IP propre (les
+// M2, campagne 1.10.0 : en réseau « host » ou avec une IP propre (les
 // déploiements de FRIRSS_PORT), Node écoutait sur toutes les interfaces : le
 // 3001 était joignable sans nginx, et `trust proxy` croyait le
 // `X-Forwarded-For` du premier venu, ce qui contournait les limites par IP

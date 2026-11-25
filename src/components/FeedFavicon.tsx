@@ -87,7 +87,7 @@ export default function FeedFavicon({ iconUrl, title, size = 14 }: { iconUrl?: s
 
     // Already resolved (this session or a previous one): shown at once. A
     // kept `data:` icon is asked again in the background once it is a week
-    // old (or undated, from before 1.9.2) — FreshRSS's default globe used to
+    // old (or undated, from before 1.10.0) — FreshRSS's default globe used to
     // stay forever (`refreshFavicon`). A directly-loadable URL needs nothing:
     // the browser revalidates it itself.
     const cached = getFavicon(iconUrl);

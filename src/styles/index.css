@@ -405,7 +405,7 @@ html {
 .article-content {
   /* Un mot plus large que la colonne (adresse de 110 caractères, identifiant)
      se coupe au lieu de sortir du volet, qui le rognait sans défilement (M3,
-     campagne 1.9.2 : colonne limitée à 480, téléphone à 375). Hérité par les
+     campagne 1.10.0 : colonne limitée à 480, téléphone à 375). Hérité par les
      paragraphes, listes, liens, citations. `break-word` et jamais `anywhere`
      (R2-7) : `break-word` ne touche pas à la largeur min-content, les tableaux
      gardent la leur et défilent dans `.article-scroll-x`. Le code d'un `<pre>`

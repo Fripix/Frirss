@@ -1,4 +1,4 @@
-# 1.9.2 — en préparation
+# 1.10.0 — en préparation
 
 Journal des changements du cycle en cours, tenu au fil de l'eau. Il alimente les
 notes de la release GitHub et les corrections du README, puis se vide une fois
@@ -34,6 +34,15 @@ la release publiée.
   l'article se centre dans une colonne de 480 à 1200 px (768 par défaut), et
   ses images et vidéos rétrécissent avec elle. Sur un grand écran, les lignes
   ne courent plus sur toute la largeur. Contribution de babenaldt (PR #32).
+
+## Documentation
+
+- **README plus court**, avec la démo en ligne et le site du projet en tête.
+  L'installation pas à pas passe dans `docs/INSTALL.md`, les variables dans
+  `docs/CONFIGURATION.md`, et `docs/INSTALL-WITH-AI.md` guide une installation
+  faite avec un assistant IA. `SECURITY.md` résume ce que FriRSS fait pour
+  protéger une instance. Le `docker-compose.yml` d'exemple montre
+  `PROXY_INTERNAL_HOSTS` pour un FreshRSS sur une adresse privée.
 
 ## Sous le capot
 
