@@ -174,6 +174,11 @@ export default function Preferences() {
   const programmatic = useRef<{ timer: ReturnType<typeof setTimeout> | null }>({ timer: null });
   // Un sous-titre d'une autre section : on change de section, puis on y va.
   const pendingSub = useRef<{ el: HTMLElement; i: number } | null>(null);
+  // La sous-partie choisie dans la navigation, teintée dans la page : sur un
+  // grand écran, la page ne défile pas et rien d'autre ne dirait où elle est.
+  // La teinte s'en va dès qu'on fait défiler jusqu'à une autre sous-partie.
+  const [marked, setMarked] = useState<HTMLElement | null>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   useLayoutEffect(() => {
     const root = scrollRef.current;
@@ -209,6 +214,7 @@ export default function Preferences() {
     if (pending) { scrollToSub(pending.el, pending.i, false); return; }
     if (scrollRef.current) scrollRef.current.scrollTop = 0;
     setCurrentSub(0);
+    setMarked(null);
   }, [tab, showNav]);
 
   useEffect(() => {
@@ -227,6 +233,7 @@ export default function Preferences() {
         subs.forEach((sub, i) => { if (sub.el.getBoundingClientRect().top < bottom) idx = Math.max(idx, i); });
       }
       setCurrentSub(idx);
+      setMarked((m) => (m && subs[idx]?.el !== m ? null : m));
     };
     const onScroll = () => {
       const p = programmatic.current;
@@ -284,6 +291,7 @@ export default function Preferences() {
     p.timer = setTimeout(() => { p.timer = null; }, 900);
     sc.scrollTo?.({ top: Math.max(0, top), behavior: smooth && !prefersReducedMotion() ? 'smooth' : 'auto' });
     setCurrentSub(i);
+    setMarked(el);
     // Le focus suit : un lecteur d'écran annonce le titre, Tab continue dans la sous-partie.
     el.focus({ preventScroll: true });
   }
@@ -583,7 +591,8 @@ export default function Preferences() {
             hidden={isMobile && showNav}
             className="prefs-content flex-1 overflow-y-auto min-w-0"
           >
-            <div className={isMobile ? 'px-4 pt-2 pb-10' : 'px-7 pt-6 pb-16'}>
+            <div ref={contentRef} className={`relative isolate ${isMobile ? 'px-4 pt-2 pb-10' : 'px-7 pt-6 pb-16'}`}>
+            {marked && <SubMark el={marked} container={contentRef} />}
             {isMobile && (
               <button
                 onClick={() => setShowNav(true)}
@@ -638,6 +647,43 @@ export default function Preferences() {
  * Garder la section montée rend le retour instantané ; `hidden` porte le sens
  * pour les technologies d'assistance, `display` garantit l'effet visuel.
  */
+/**
+ * Le fond teinté de la sous-partie choisie : du haut de son bandeau jusqu'au
+ * sous-titre suivant de la même page (ou au bas de la page), sur toute la
+ * largeur, sous le contenu. Calculé plutôt que porté par un conteneur : les
+ * sous-parties ne sont pas toutes enveloppées (un titre suivi de ses blocs),
+ * et certaines vivent dans un composant à part (IA, Sauvegarde).
+ */
+function SubMark({ el, container }: { el: HTMLElement; container: React.RefObject<HTMLDivElement | null> }) {
+  const [box, setBox] = useState<{ top: number; height: number } | null>(null);
+  useLayoutEffect(() => {
+    const host = container.current;
+    const pane = el.closest<HTMLElement>('[data-pane]');
+    if (!host || !pane) return;
+    // Le bandeau collant porte la même teinte, opaque : il passe par-dessus.
+    const band = el.closest<HTMLElement>('.prefs-h3-row') ?? el;
+    band.setAttribute('data-pref-marked', '');
+    const measure = () => {
+      const origin = host.getBoundingClientRect().top;
+      const heads = Array.from(pane.querySelectorAll<HTMLElement>('[data-pref-sub]'));
+      const next = heads[heads.indexOf(el) + 1];
+      const nextBand = next ? next.closest<HTMLElement>('.prefs-h3-row') ?? next : null;
+      const top = band.getBoundingClientRect().top - origin;
+      // Jusqu'à mi-chemin de l'espace qui précède le bandeau suivant.
+      const bottom = nextBand
+        ? nextBand.getBoundingClientRect().top - origin - parseFloat(getComputedStyle(nextBand).marginTop || '0') / 2
+        : pane.getBoundingClientRect().bottom - origin + 24;
+      setBox((cur) => (cur && cur.top === top && cur.height === bottom - top ? cur : { top, height: Math.max(0, bottom - top) }));
+    };
+    measure();
+    const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
+    ro?.observe(pane);
+    return () => { ro?.disconnect(); band.removeAttribute('data-pref-marked'); };
+  }, [el, container]);
+  if (!box) return null;
+  return <div aria-hidden="true" className="prefs-submark" style={{ top: box.top, height: box.height }} />;
+}
+
 function Pane({ id, tab, title, children }: { id: string; tab: string; title: string; children: React.ReactNode }) {
   const shown = tab === id;
   return (

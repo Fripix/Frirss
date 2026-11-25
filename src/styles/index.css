@@ -1881,6 +1881,28 @@ html {
   font-weight: 650;
   color: var(--list-title);
 }
+/* La sous-partie choisie dans la navigation : un fond d'accent léger
+   (`--accent-glow`, 12 % de l'accent du thème) sur toute la largeur, sous le
+   contenu. Son bandeau, opaque parce qu'il colle, prend la même teinte posée
+   sur le fond du panneau. Filets haut et bas pour en marquer les bords. */
+.prefs-submark {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: var(--accent-glow);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--accent) 28%, transparent),
+    inset 0 -1px 0 color-mix(in srgb, var(--accent) 28%, transparent);
+  animation: prefs-submark-in 0.24s ease-out;
+}
+[data-pref-marked] {
+  background: linear-gradient(var(--accent-glow), var(--accent-glow)), var(--panel-bg);
+  transition: background-color 0.24s ease-out;
+}
+@keyframes prefs-submark-in { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .prefs-submark { animation: none; } }
 .prefs-h3:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
 .prefs-h4 {
   margin-top: 1.25rem;

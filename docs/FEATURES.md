@@ -8393,6 +8393,14 @@ une section, elle s'ouvre en plein écran avec « Retour ») et ne déplie rien.
   les aides ont perdu leur opacité de 70 %, qui les faisait passer sous le
   contraste lisible. Les anciens titres en capitales grises de 11 px (1.8.0)
   étaient le texte le plus petit et le plus pâle de la page.
+- **Sous-partie choisie teintée** : un clic sur un sous-titre de la navigation
+  teinte toute la sous-partie dans la page (`--accent-glow`, filets d'accent
+  haut et bas), bandeau compris (`data-pref-marked`, la même teinte posée sur
+  le fond du panneau puisqu'il est opaque). Sur un grand écran la page ne
+  défile pas : sans elle, rien ne disait où était la sous-partie. Le fond est
+  calculé (`SubMark`, du bandeau au suivant) plutôt que porté par un
+  conteneur, les sous-parties n'étant pas toutes enveloppées. Il s'en va au
+  changement de section ou dès que le défilement amène une autre sous-partie.
 - **Bandeau de sous-partie collant** : chaque `h3` est un bandeau pleine
   largeur (fond du panneau, filet dessous, `position: sticky`) qui reste en
   haut pendant qu'on lit sa sous-partie, recouvert par le suivant. Il déborde

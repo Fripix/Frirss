@@ -85,6 +85,18 @@ describe('Préférences — navigation dépliable', () => {
     expect(expanded('reading')).toBe('true');
   });
 
+  it('teinte la sous-partie choisie, et seulement elle, jusqu’au changement de section', () => {
+    render(<Preferences />);
+    fireEvent.click(screen.getByRole('button', { name: 'Aléatoire' }));
+    const marked = document.querySelectorAll('[data-pref-marked]');
+    expect(marked).toHaveLength(1);
+    expect(marked[0].textContent).toBe('Aléatoire');
+    expect(document.querySelector('.prefs-submark')).not.toBeNull();
+    fireEvent.click(section('layout'));
+    expect(document.querySelector('[data-pref-marked]')).toBeNull();
+    expect(document.querySelector('.prefs-submark')).toBeNull();
+  });
+
   it('un sous-titre d’une autre section dépliée ouvre cette section', () => {
     useUiStore.setState({ prefsNavAutoCollapse: false });
     render(<Preferences />);
