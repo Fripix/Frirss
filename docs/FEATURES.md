@@ -8360,7 +8360,13 @@ réglage clair/sombre du système.
 **Navigation dépliable, une page par section** (1.10.1, décision du
 propriétaire). La colonne de gauche liste les sections, chacune avec son
 icône. Un clic ouvre la section **et déplie ses sous-titres** sous son nom ; un
-second clic sur la section ouverte les replie. Un clic sur un sous-titre fait
+second clic sur la section ouverte les replie. Une section dépliée **le reste**
+quand on en ouvre une autre (plusieurs peuvent l'être à la fois) : la voir se
+replier toute seule gênait (décision du propriétaire, 2026-11-25). Le réglage
+**« Replier les autres sections »** (Mise en page → Panneau des préférences,
+`prefsNavAutoCollapse`, désactivé par défaut, synchronisé) rétablit le repli
+automatique. Un sous-titre d'une autre section dépliée ouvre cette section à
+cet endroit. Un clic sur un sous-titre fait
 défiler la page jusqu'à lui et y met le focus, et le sous-titre à l'écran est
 marqué pendant la lecture (suivi du défilement, tu pendant un défilement lancé
 par un clic : la dernière sous-partie, trop courte pour monter en haut, aurait
@@ -8380,13 +8386,25 @@ une section, elle s'ouvre en plein écran avec « Retour ») et ne déplie rien.
   d'une même page, listées par la navigation. L'encadrement d'une couleur
   survolée ou épinglée ne dépend donc plus d'un sous-onglet ouvert.
 - **Hiérarchie** : nom de la section en `h2` (20 px), sous-parties en `h3`
-  (15 px, couleur des titres, 2 rem d'air au-dessus), groupes internes en `h4`
+  (15 px, couleur des titres), groupes internes en `h4`
   (12,5 px). Les réglages d'une sous-partie sont groupés dans un bloc à filets
   (`PrefCard`, `PrefRow`) : libellé 13 px couleur des titres, aide 12 px. Le
   reste du panneau est passé d'un cran (12 → 13 px, 11 → 12 px, 10 → 11 px) et
   les aides ont perdu leur opacité de 70 %, qui les faisait passer sous le
   contraste lisible. Les anciens titres en capitales grises de 11 px (1.8.0)
   étaient le texte le plus petit et le plus pâle de la page.
+- **Bandeau de sous-partie collant** : chaque `h3` est un bandeau pleine
+  largeur (fond du panneau, filet dessous, `position: sticky`) qui reste en
+  haut pendant qu'on lit sa sous-partie, recouvert par le suivant. Il déborde
+  du rembourrage de la page par `--prefs-pad` (posé sur `.prefs-content`) pour
+  que le filet aille d'un bord à l'autre. Demandé parce que la séparation des
+  parties « n'était pas très claire » ; écartés à la place : n'afficher
+  qu'une sous-partie à la fois (contenu caché, Ctrl+F aveugle, pages d'un
+  seul interrupteur) et changer de sous-partie au défilement (sauts
+  involontaires au trackpad et au doigt). Piège : un `h3` placé dans un
+  parent à largeur limitée (`max-w-xs`) ou dans une ligne flex fait un
+  bandeau tronqué ; une action sur la ligne du titre passe par
+  `PrefHeading action=…` (c'est ce qu'a fait l'interrupteur de l'IA).
 
 Sections, dans l'ordre : **Lecture** (liste d'articles, marquer comme lu,
 article, aléatoire), **Apparence** (thème, couleurs, tailles, identité),

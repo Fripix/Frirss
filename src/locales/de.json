@@ -583,6 +583,11 @@
       "openSource": "An der Quelle öffnen",
       "markRead": "Als gelesen markieren"
     },
+    "prefsNav": {
+      "title": "Einstellungsbereich",
+      "autoCollapse": "Andere Bereiche einklappen",
+      "autoCollapseHint": "Beim Öffnen eines Bereichs werden die aufgeklappten eingeklappt. Ausgeschaltet bleibt jeder aufgeklappt, bis du ihn anklickst."
+    },
     "gridCards": {
       "width": "Kartenbreite",
       "ratio": "Bildformat",

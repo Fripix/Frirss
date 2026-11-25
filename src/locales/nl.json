@@ -583,6 +583,11 @@
       "openSource": "Bij de bron openen",
       "markRead": "Markeren als gelezen"
     },
+    "prefsNav": {
+      "title": "Voorkeurenpaneel",
+      "autoCollapse": "Andere secties inklappen",
+      "autoCollapseHint": "Een sectie openen klapt de uitgeklapte secties in. Uitgeschakeld blijft elke sectie uitgeklapt tot je erop klikt."
+    },
     "gridCards": {
       "width": "Kaartbreedte",
       "ratio": "Beeldverhouding",

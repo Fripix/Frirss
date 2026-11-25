@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { AiProviderView } from '../../../api/backend';
 import { providerChoices } from '../../../lib/aiProviderChoices';
@@ -5,8 +6,8 @@ import ConfirmDialog from '../../ConfirmDialog';
 import { PrefHeading } from '../prefsUi';
 
 /** Le titre d'un bloc de la section IA : une sous-partie listée par la navigation. */
-export function BlockTitle({ children }: { children: string }) {
-  return <PrefHeading>{children}</PrefHeading>;
+export function BlockTitle({ children, action }: { children: string; action?: ReactNode }) {
+  return <PrefHeading action={action}>{children}</PrefHeading>;
 }
 
 /** Les `<option>` d'une liste de fournisseurs, selon `providerChoices`. */

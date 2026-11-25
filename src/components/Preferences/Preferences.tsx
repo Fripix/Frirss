@@ -54,6 +54,8 @@ interface SubSection { el: HTMLElement; label: string }
 /** Distance sous le haut de la zone de contenu à laquelle un titre devient « en cours ». */
 const SPY_OFFSET = 96;
 
+const NO_SUBS: SubSection[] = [];
+
 function sameSubs(a: SubSection[], b: SubSection[]) {
   return a.length === b.length && a.every((s, i) => s.el === b[i].el && s.label === b[i].label);
 }
@@ -79,8 +81,11 @@ export default function Preferences() {
   const isMobile = useBreakpoint() === 'mobile';
   const [tab, setTab] = useState<SectionId>(sectionOf(preferencesTab));
   const [showNav, setShowNav] = useState(!preferencesTab);
-  // La section ouverte montre ses sous-titres ; un second clic sur elle les replie.
-  const [expanded, setExpanded] = useState(true);
+  // Les sections dépliées dans la navigation. Une section dépliée le reste
+  // jusqu'à un clic sur elle, sauf si le réglage « Replier les autres
+  // sections » est actif : ouvrir une section replie alors les autres.
+  const autoCollapse = useUiStore((s) => s.prefsNavAutoCollapse);
+  const [openSections, setOpenSections] = useState<Set<SectionId>>(() => new Set([sectionOf(preferencesTab)]));
   const [highlightKey, setHighlightKey] = useState<string | null>(null);
   // Une section n'est montée qu'à sa première visite, puis le reste. Le montage
   // conditionnel d'origine la détruisait à chaque changement de section : Flux
@@ -100,7 +105,7 @@ export default function Preferences() {
   useEffect(() => {
     setTab(sectionOf(preferencesTab));
     setShowNav(!preferencesTab);
-    setExpanded(true);
+    setOpenSections(new Set([sectionOf(preferencesTab)]));
   }, [preferencesTab, preferencesOpenId]);
 
   useEffect(() => {
@@ -151,42 +156,57 @@ export default function Preferences() {
     .map((id) => ({ id, label: t(`preferences.sections.${id}`) }));
 
   // ── Navigation dépliable ─────────────────────────────────────────────
-  // Les sous-titres de la section ouverte sont LUS dans sa page (les `h3`
-  // marqués `data-pref-sub`), pas recopiés dans une liste à tenir à jour :
-  // un bloc absent (mot de passe d'un compte SSO, fournisseurs IA hors admin)
-  // n'apparaît pas, un bloc ajouté apparaît seul.
+  // Les sous-titres d'une section sont LUS dans sa page (les `h3` marqués
+  // `data-pref-sub`), pas recopiés dans une liste à tenir à jour : un bloc
+  // absent (mot de passe d'un compte SSO, fournisseurs IA hors admin)
+  // n'apparaît pas, un bloc ajouté apparaît seul. Seule une section déjà
+  // visitée a une page montée, donc des sous-titres : c'est aussi la seule
+  // qu'on peut avoir dépliée, puisque la déplier l'ouvre.
   const scrollRef = useRef<HTMLDivElement>(null);
   const navListRef = useRef<HTMLUListElement>(null);
   const subListId = useId();
-  const [subs, setSubs] = useState<SubSection[]>([]);
+  const [subsBySection, setSubsBySection] = useState<Partial<Record<SectionId, SubSection[]>>>({});
+  const subs = subsBySection[tab] ?? NO_SUBS;
   const [currentSub, setCurrentSub] = useState(0);
   // Pendant un défilement lancé par un clic, le suivi du défilement se tait :
   // la dernière sous-partie, trop courte pour monter en haut, volerait sinon
   // la sélection à celle qu'on vient de choisir.
   const programmatic = useRef<{ timer: ReturnType<typeof setTimeout> | null }>({ timer: null });
+  // Un sous-titre d'une autre section : on change de section, puis on y va.
+  const pendingSub = useRef<{ el: HTMLElement; i: number } | null>(null);
 
   useLayoutEffect(() => {
-    const root = scrollRef.current?.querySelector<HTMLElement>(`[data-pane="${tab}"]`);
-    if (!root) { setSubs([]); return; }
+    const root = scrollRef.current;
+    if (!root) return;
     let raf = 0;
     const read = () => {
       raf = 0;
-      const next = Array.from(root.querySelectorAll<HTMLElement>('[data-pref-sub]')).map((el) => ({
-        el,
-        // Le titre seul : ni l'étiquette « Sur ordinateur » ni un compteur.
-        label: el.dataset.prefLabel || (el.querySelector('[data-pref-title]') ?? el).textContent?.trim() || '',
-      }));
-      setSubs((cur) => (sameSubs(cur, next) ? cur : next));
+      const next: Partial<Record<SectionId, SubSection[]>> = {};
+      root.querySelectorAll<HTMLElement>('[data-pane]').forEach((pane) => {
+        next[pane.dataset.pane as SectionId] = Array.from(pane.querySelectorAll<HTMLElement>('[data-pref-sub]')).map((el) => ({
+          el,
+          // Le titre seul : ni l'étiquette « Sur ordinateur » ni un compteur.
+          label: el.dataset.prefLabel || (el.querySelector('[data-pref-title]') ?? el).textContent?.trim() || '',
+        }));
+      });
+      setSubsBySection((cur) => {
+        const ids = new Set([...Object.keys(cur), ...Object.keys(next)]) as Set<SectionId>;
+        for (const id of ids) if (!sameSubs(cur[id] ?? NO_SUBS, next[id] ?? NO_SUBS)) return next;
+        return cur;
+      });
     };
     read();
     if (typeof MutationObserver === 'undefined') return;
     const mo = new MutationObserver(() => { if (!raf) raf = requestAnimationFrame(read); });
     mo.observe(root, { childList: true, subtree: true, characterData: true });
     return () => { mo.disconnect(); if (raf) cancelAnimationFrame(raf); };
-  }, [tab, visited]);
+  }, [visited]);
 
-  // Changer de section repart du haut de sa page.
+  // Changer de section repart du haut de sa page, ou du sous-titre choisi.
   useLayoutEffect(() => {
+    const pending = pendingSub.current;
+    pendingSub.current = null;
+    if (pending) { scrollToSub(pending.el, pending.i, false); return; }
     if (scrollRef.current) scrollRef.current.scrollTop = 0;
     setCurrentSub(0);
   }, [tab, showNav]);
@@ -230,23 +250,39 @@ export default function Preferences() {
       return;
     }
     if (id === tab) {
-      setExpanded((v) => !v);
+      setOpenSections((cur) => {
+        const next = new Set(cur);
+        if (!next.delete(id)) next.add(id);
+        return next;
+      });
       return;
     }
     setTab(id);
-    setExpanded(true);
+    setOpenSections((cur) => (autoCollapse ? new Set([id]) : new Set(cur).add(id)));
   }
 
-  function goToSub(i: number) {
+  function goToSub(section: SectionId, i: number) {
+    const el = subsBySection[section]?.[i]?.el;
+    if (!el) return;
+    if (section !== tab) {
+      pendingSub.current = { el, i };
+      setTab(section);
+      if (autoCollapse) setOpenSections(new Set([section]));
+      return;
+    }
+    scrollToSub(el, i, true);
+  }
+
+  function scrollToSub(el: HTMLElement, i: number, smooth: boolean) {
     const sc = scrollRef.current;
-    const el = subs[i]?.el;
-    if (!sc || !el) return;
-    const top = el.getBoundingClientRect().top - sc.getBoundingClientRect().top + sc.scrollTop - 16;
+    if (!sc) return;
+    // Le bandeau du sous-titre colle en haut : on l'amène pile à cette place.
+    const top = el.getBoundingClientRect().top - sc.getBoundingClientRect().top + sc.scrollTop;
     const p = programmatic.current;
     if (p.timer) clearTimeout(p.timer);
     // Filet de sécurité : déjà à la bonne place, aucun défilement n'arrive.
     p.timer = setTimeout(() => { p.timer = null; }, 900);
-    sc.scrollTo?.({ top: Math.max(0, top), behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
+    sc.scrollTo?.({ top: Math.max(0, top), behavior: smooth && !prefersReducedMotion() ? 'smooth' : 'auto' });
     setCurrentSub(i);
     // Le focus suit : un lecteur d'écran annonce le titre, Tab continue dans la sous-partie.
     el.focus({ preventScroll: true });
@@ -490,8 +526,10 @@ export default function Preferences() {
               )}
               {sections.map((s) => {
                 const active = tab === s.id;
-                const hasSubs = active && !isMobile && subs.length > 0;
-                const open = hasSubs && expanded;
+                const sectionSubs = isMobile ? NO_SUBS : subsBySection[s.id] ?? NO_SUBS;
+                const hasSubs = sectionSubs.length > 0;
+                const open = hasSubs && openSections.has(s.id);
+                const listId = `${subListId}-${s.id}`;
                 return (
                   <li key={s.id} className={s.id === 'admin' ? 'prefs-nav-sep' : undefined}>
                     <button
@@ -500,7 +538,7 @@ export default function Preferences() {
                       onClick={() => openSection(s.id)}
                       aria-current={active ? 'page' : undefined}
                       aria-expanded={hasSubs ? open : undefined}
-                      aria-controls={hasSubs ? subListId : undefined}
+                      aria-controls={hasSubs ? listId : undefined}
                       className="prefs-nav-item prefs-tap-row"
                     >
                       <svg className="prefs-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.6} aria-hidden="true">
@@ -519,13 +557,13 @@ export default function Preferences() {
                     </button>
                     {hasSubs && (
                       <div className="prefs-subnav" data-open={open ? 'true' : 'false'}>
-                        <ul id={subListId} className="prefs-subnav-list" inert={!open}>
-                          {subs.map((sub, i) => (
+                        <ul id={listId} className="prefs-subnav-list" inert={!open}>
+                          {sectionSubs.map((sub, i) => (
                             <li key={`${i}-${sub.label}`}>
                               <button
                                 type="button"
-                                onClick={() => goToSub(i)}
-                                aria-current={i === currentSub ? 'location' : undefined}
+                                onClick={() => goToSub(s.id, i)}
+                                aria-current={active && i === currentSub ? 'location' : undefined}
                                 className="prefs-subnav-item"
                               >
                                 {sub.label}

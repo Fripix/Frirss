@@ -388,6 +388,10 @@ export interface UiState {
   // Show a click-to-load player for YouTube videos. Off → a plain link.
   inlineVideos: boolean;
   setInlineVideos: (v: boolean) => void;
+  // Préférences : ouvrir une section replie les autres (sinon elles restent
+  // dépliées jusqu'à un clic sur elles). Désactivé par défaut. Synchronisé.
+  prefsNavAutoCollapse: boolean;
+  setPrefsNavAutoCollapse: (v: boolean) => void;
   // Collapse state persisted per-user (synced): whole ÉTIQUETTES section,
   // individual label groups, and feed categories.
   labelsCollapsed: boolean;
@@ -946,6 +950,12 @@ export const useUiStore = create<UiState>()((set, get) => ({
     set({ inlineVideos: v });
   },
 
+  prefsNavAutoCollapse: loadJson('frirss_prefsNavAutoCollapse', false),
+  setPrefsNavAutoCollapse: (v) => {
+    localStorage.setItem('frirss_prefsNavAutoCollapse', JSON.stringify(v));
+    set({ prefsNavAutoCollapse: v });
+  },
+
   // Whole ÉTIQUETTES section collapsed?
   labelsCollapsed: loadJson('frirss_labelsCollapsed', false),
   setLabelsCollapsed: (v) => {
@@ -1365,7 +1375,7 @@ export const useUiStore = create<UiState>()((set, get) => ({
       'labelOrder', 'labelSortAlpha', 'showLabelCounts', 'showLabelUnread', 'showSpecialTotals', 'showSpecialUnread', 'showDateSeparators', 'gridDateSeparators',
       'showSourceInFeed', 'showSourceInAll', 'feedSettings', 'shortcuts',
       'labelsCollapsed', 'savedCollapsed', 'savedCategoryNames', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnlyByFeed', 'unreadOnlyScope', 'unreadOnlyAll', 'hideReadFeeds',
-      'confirmMarkAllRead', 'markReadOnScroll', 'showNewArticlesPill', 'showListFavicons', 'offlineImagePreset', 'inlineVideos', 'refreshHintDismissed',
+      'confirmMarkAllRead', 'markReadOnScroll', 'showNewArticlesPill', 'showListFavicons', 'offlineImagePreset', 'inlineVideos', 'prefsNavAutoCollapse', 'refreshHintDismissed',
       'rowActions', 'toolbarVisibility', 'articleOrder', 'autoExtractDefault', 'startupView', 'aiPanelCollapsed', 'aiSummaryRatio',
       'gridCardWidth', 'gridImageRatio', 'gridCardFill',
       'randomCount', 'randomWindowAmount', 'randomWindowUnit', 'randomViews',
@@ -1445,7 +1455,7 @@ export const UI_SYNC_KEYS = [
   'feedSettings', 'appTitle', 'appLogo', 'logoMode', 'shortcuts',
   'labelsCollapsed', 'savedCollapsed', 'savedCategoryNames', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnlyByFeed', 'unreadOnlyScope', 'unreadOnlyAll', 'hideReadFeeds',
   'confirmMarkAllRead', 'markReadOnScroll', 'showNewArticlesPill', 'showListFavicons',
-  'offlineImagePreset', 'inlineVideos', 'refreshHintDismissed', 'rowActions', 'toolbarVisibility', 'articleOrder', 'autoExtractDefault', 'startupView',
+  'offlineImagePreset', 'inlineVideos', 'prefsNavAutoCollapse', 'refreshHintDismissed', 'rowActions', 'toolbarVisibility', 'articleOrder', 'autoExtractDefault', 'startupView',
   'aiPanelCollapsed', 'aiSummaryRatio', 'gridCardWidth', 'gridImageRatio', 'gridCardFill',
   'randomCount', 'randomWindowAmount', 'randomWindowUnit', 'randomViews',
   'aiPreferredProvider', 'aiFallback', 'aiAutoSummary', 'aiCategoryProviders',

@@ -583,6 +583,11 @@
       "openSource": "Abrir na origem",
       "markRead": "Marcar como lido"
     },
+    "prefsNav": {
+      "title": "Painel de preferências",
+      "autoCollapse": "Recolher as outras secções",
+      "autoCollapseHint": "Abrir uma secção recolhe as que estavam expandidas. Desativado, cada uma fica expandida até clicar nela."
+    },
     "gridCards": {
       "width": "Largura dos cartões",
       "ratio": "Formato da imagem",

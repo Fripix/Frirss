@@ -24,8 +24,12 @@ la release publiée.
   **Clavier** et **Compte** ; les onglets Thème / Couleurs / Tailles /
   Identité d'Apparence deviennent des sous-parties d'une même page. Titres
   hiérarchisés, réglages groupés dans des blocs, texte d'un cran plus grand.
+  Une section dépliée le reste quand on en ouvre une autre ; le réglage
+  « Replier les autres sections » (Mise en page) rétablit le repli
+  automatique. Le titre de chaque sous-partie est un bandeau qui reste collé en
+  haut pendant qu'on la lit.
   Chaînes ajoutées : `preferences.sections.reading` / `keyboard` / `account`,
-  `preferences.reading.*`, `preferences.offline.prepareTitle`,
+  `preferences.reading.*`, `preferences.prefsNav.*`, `preferences.offline.prepareTitle`,
   `preferences.account.passwordTitle` ; retirées : `preferences.sections.general`,
   `preferences.general.title`, `preferences.account.title`,
   `preferences.offline.title`, `preferences.toolbars.everywhereTitle`.

@@ -583,6 +583,11 @@
       "openSource": "Apri alla fonte",
       "markRead": "Segna come letto"
     },
+    "prefsNav": {
+      "title": "Pannello delle preferenze",
+      "autoCollapse": "Comprimi le altre sezioni",
+      "autoCollapseHint": "Aprire una sezione comprime quelle espanse. Se disattivato, ognuna resta espansa finché non ci fai clic."
+    },
     "gridCards": {
       "width": "Larghezza delle schede",
       "ratio": "Formato immagine",

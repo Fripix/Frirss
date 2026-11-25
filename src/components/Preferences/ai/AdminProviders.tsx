@@ -330,14 +330,17 @@ export default function AdminProviders({ active }: { active: boolean }) {
   return (
     <section className="space-y-5">
       {/* L'interrupteur général vit sur la ligne du titre : il gouverne tout
-          le bloc. Trop long à 320 px, il passe dessous, aligné à droite. */}
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-        <BlockTitle>{t('ai.admin.title')}</BlockTitle>
-        <div className="prefs-tap-row ml-auto flex items-center gap-3">
-          <span className="text-[13px]" style={{ color: 'var(--list-summary)' }}>{t('ai.admin.enable')}</span>
-          <ToggleSwitch checked={settings.enabled} onChange={(v) => saveSettings({ enabled: v })} ariaLabel={t('ai.admin.enable')} />
-        </div>
-      </div>
+          le bloc. */}
+      <BlockTitle
+        action={
+          <div className="prefs-tap-row flex items-center gap-3">
+            <span className="text-[13px]" style={{ color: 'var(--list-summary)' }}>{t('ai.admin.enable')}</span>
+            <ToggleSwitch checked={settings.enabled} onChange={(v) => saveSettings({ enabled: v })} ariaLabel={t('ai.admin.enable')} />
+          </div>
+        }
+      >
+        {t('ai.admin.title')}
+      </BlockTitle>
 
       {(error || loadFailed) && <p role="alert" className="text-[13px]" style={{ color: 'var(--danger)' }}>{error || t('ai.admin.loadError')}</p>}
 

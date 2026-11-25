@@ -583,6 +583,11 @@
       "openSource": "Open at source",
       "markRead": "Mark as read"
     },
+    "prefsNav": {
+      "title": "Preferences panel",
+      "autoCollapse": "Collapse other sections",
+      "autoCollapseHint": "Opening a section collapses the ones that were expanded. When off, each stays expanded until you click it."
+    },
     "gridCards": {
       "width": "Card width",
       "ratio": "Image ratio",

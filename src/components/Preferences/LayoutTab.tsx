@@ -39,6 +39,8 @@ export default function LayoutTab() {
   const columnWidth = useUiStore((s) => s.readingColumnWidth);
   const setColumnWidth = useUiStore((s) => s.setReadingColumnWidth);
   const setRowAction = useUiStore((s) => s.setRowAction);
+  const autoCollapse = useUiStore((s) => s.prefsNavAutoCollapse);
+  const setAutoCollapse = useUiStore((s) => s.setPrefsNavAutoCollapse);
 
   const items = (zone: ToolbarZone) => TOOLBAR_ITEMS.filter((i) => i.zone === zone);
   const anyHidden = (zone: ToolbarZone) =>
@@ -121,6 +123,17 @@ export default function LayoutTab() {
           <Row key={kind} label={t(`preferences.layout.${kind}`)} checked={rowActions[kind]}
             onChange={(v) => setRowAction(kind, v)} />
         ))}
+      </PrefCard>
+
+      {/* Le panneau lui-même : sur téléphone, sa liste de sections est un
+          écran à part qui ne déplie rien, d'où l'étiquette. */}
+      <PrefHeading tag={desktopTag}>{t('preferences.prefsNav.title')}</PrefHeading>
+      <PrefCard>
+        <PrefRow
+          label={t('preferences.prefsNav.autoCollapse')}
+          hint={t('preferences.prefsNav.autoCollapseHint')}
+          control={<ToggleSwitch checked={autoCollapse} onChange={setAutoCollapse} ariaLabel={t('preferences.prefsNav.autoCollapse')} />}
+        />
       </PrefCard>
     </div>
   );

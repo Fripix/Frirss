@@ -583,6 +583,11 @@
       "openSource": "Ouvrir à la source",
       "markRead": "Marquer comme lu"
     },
+    "prefsNav": {
+      "title": "Panneau des préférences",
+      "autoCollapse": "Replier les autres sections",
+      "autoCollapseHint": "Ouvrir une section replie celles qui étaient dépliées. Désactivé, chacune reste dépliée jusqu’à un clic sur elle."
+    },
     "gridCards": {
       "width": "Largeur des cartes",
       "ratio": "Format d’image",

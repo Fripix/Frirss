@@ -583,6 +583,11 @@
       "openSource": "打开原文",
       "markRead": "标为已读"
     },
+    "prefsNav": {
+      "title": "偏好设置面板",
+      "autoCollapse": "折叠其他分区",
+      "autoCollapseHint": "打开一个分区时折叠已展开的分区。关闭后，每个分区保持展开，直到你点击它。"
+    },
     "gridCards": {
       "width": "卡片宽度",
       "ratio": "图片比例",

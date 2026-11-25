@@ -613,6 +613,11 @@
       "openSource": "Otwórz u źródła",
       "markRead": "Oznacz jako przeczytane"
     },
+    "prefsNav": {
+      "title": "Panel preferencji",
+      "autoCollapse": "Zwijaj pozostałe sekcje",
+      "autoCollapseHint": "Otwarcie sekcji zwija rozwinięte. Po wyłączeniu każda pozostaje rozwinięta, dopóki jej nie klikniesz."
+    },
     "gridCards": {
       "width": "Szerokość kart",
       "ratio": "Proporcje obrazu",

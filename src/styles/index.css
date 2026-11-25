@@ -1793,8 +1793,10 @@ html {
   display: grid;
   grid-template-rows: 1fr;
   transition: grid-template-rows 0.26s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.2s ease;
-  animation: prefs-subnav-in 0.26s cubic-bezier(0.32, 0.72, 0, 1);
 }
+/* L'animation d'entrée seulement sur une liste ouverte : les listes repliées
+   des sections déjà visitées sont montées aussi, et s'ouvriraient un instant. */
+.prefs-subnav[data-open="true"] { animation: prefs-subnav-in 0.26s cubic-bezier(0.32, 0.72, 0, 1); }
 .prefs-subnav[data-open="false"] { grid-template-rows: 0fr; opacity: 0; }
 @keyframes prefs-subnav-in {
   from { grid-template-rows: 0fr; opacity: 0; }
@@ -1845,6 +1847,8 @@ html {
 }
 
 /* ── La page d'une section ── */
+.prefs-content { --prefs-pad: 1.75rem; }
+[data-layout="mobile"] .prefs-content { --prefs-pad: 1rem; }
 .prefs-pane { max-width: 36rem; }
 .prefs-h2 {
   font-size: 20px;
@@ -1856,17 +1860,26 @@ html {
 }
 .prefs-h2 + .prefs-intro,
 .prefs-h2 + * > .prefs-intro:first-child { margin-top: 0; }
+/* Chaque sous-partie s'ouvre sur un bandeau pleine largeur, filet dessous,
+   qui reste collé en haut tant qu'on lit sa sous-partie ; le suivant le
+   recouvre en arrivant. On sait toujours où l'on est, et où une partie
+   commence. Le bandeau déborde du rembourrage de la page (`--prefs-pad`)
+   pour que son filet aille d'un bord à l'autre. */
 .prefs-h3-row,
 .prefs-h3:not(.prefs-h3-row > .prefs-h3) {
-  margin-top: 2rem;
-  margin-bottom: 0.625rem;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  margin: 2.25rem calc(-1 * var(--prefs-pad)) 0.875rem;
+  padding: 0.75rem var(--prefs-pad) 0.625rem;
+  background: var(--panel-bg);
+  border-bottom: 1px solid var(--panel-border);
 }
 .prefs-h3 {
   font-size: 15px;
   line-height: 1.3;
   font-weight: 650;
   color: var(--list-title);
-  scroll-margin-top: 1rem;
 }
 .prefs-h3:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
 .prefs-h4 {

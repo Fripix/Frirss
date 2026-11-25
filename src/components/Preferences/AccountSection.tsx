@@ -190,7 +190,7 @@ export default function AccountSection() {
         const secondary = 'px-4 py-2 text-[13px] font-medium rounded-lg disabled:opacity-50 prefs-tap-btn hover-tint';
         const secondaryStyle = { border: '1px solid var(--panel-border)', color: 'var(--list-title)' };
         return (
-          <section aria-labelledby={ids.sso} className="max-w-xs space-y-2">
+          <section aria-labelledby={ids.sso} className="space-y-2">
             <PrefHeading id={ids.sso}>{t('preferences.account.ssoTitle', { provider })}</PrefHeading>
             {ssoLinked ? (
               <>
