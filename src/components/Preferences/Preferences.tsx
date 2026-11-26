@@ -318,9 +318,12 @@ export default function Preferences() {
     const sc = scrollRef.current;
     if (!sc) return;
     // Le bandeau du sous-titre colle en haut (sous la barre « Retour » sur
-    // téléphone) : on l'amène pile à cette place.
-    const stickyTop = parseFloat(getComputedStyle(sc).getPropertyValue('--prefs-sticky-top')) || 0;
-    const top = flowTop(bandOf(el)) - sc.getBoundingClientRect().top + sc.scrollTop - stickyTop;
+    // téléphone) : on l'amène pile à cette place. Le `top` calculé du bandeau
+    // est en pixels ; la variable `--prefs-sticky-top`, elle, se lit telle
+    // qu'écrite (« 3rem » donnait 3 px : 45 px de trop sur téléphone).
+    const band = bandOf(el);
+    const stickyTop = parseFloat(getComputedStyle(band).top) || 0;
+    const top = flowTop(band) - sc.getBoundingClientRect().top + sc.scrollTop - stickyTop;
     const p = programmatic.current;
     if (p.timer) clearTimeout(p.timer);
     // Filet de sécurité : déjà à la bonne place, aucun défilement n'arrive.

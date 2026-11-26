@@ -1737,7 +1737,10 @@ html {
   color: var(--list-title);
   transition: background-color 0.15s ease;
 }
-.prefs-nav-item:hover { background: color-mix(in srgb, var(--list-title) 5%, transparent); }
+/* Survol seulement avec une souris : sur iPhone, :hover reste collé après un toucher. */
+@media (hover: hover) {
+  .prefs-nav-item:hover { background: color-mix(in srgb, var(--list-title) 5%, transparent); }
+}
 .prefs-nav-item[aria-current="page"] { font-weight: 600; background: transparent; }
 .prefs-nav-icon {
   width: 18px;
@@ -1825,7 +1828,9 @@ html {
   color: var(--list-summary);
   transition: color 0.15s ease, background-color 0.15s ease;
 }
-.prefs-subnav-item:hover { color: var(--list-title); background: color-mix(in srgb, var(--list-title) 5%, transparent); }
+@media (hover: hover) {
+  .prefs-subnav-item:hover { color: var(--list-title); background: color-mix(in srgb, var(--list-title) 5%, transparent); }
+}
 .prefs-subnav-item[aria-current="location"] { color: var(--list-title); font-weight: 600; }
 /* Le repère de la sous-partie à l'écran, posé sur le filet. */
 .prefs-subnav-item::before {
