@@ -57,6 +57,8 @@ const SPY_OFFSET = 96;
 const NO_SUBS: SubSection[] = [];
 /** Sections d'un seul tenant : sur téléphone, elles s'ouvrent au lieu de se déplier. */
 const SECTIONS_WITHOUT_SUBS: readonly SectionId[] = ['labels'];
+/** Sections dont les sous-titres n'existent qu'après une réponse du serveur. */
+const SUBS_FROM_SERVER: readonly SectionId[] = ['admin'];
 
 function sameSubs(a: SubSection[], b: SubSection[]) {
   return a.length === b.length && a.every((s, i) => s.el === b[i].el && s.label === b[i].label);
@@ -71,6 +73,22 @@ function sameSubs(a: SubSection[], b: SubSection[]) {
  */
 function bandOf(el: HTMLElement): HTMLElement {
   return el.closest<HTMLElement>('.prefs-h3-row') ?? el;
+}
+/**
+ * Marque le bandeau qui ouvre la page (rien avant lui, hormis le titre de
+ * page) : sur téléphone, ce titre est masqué et la marge haute du bandeau
+ * laissait un grand blanc sous la barre « Retour ».
+ */
+function markLeadBand(pane: HTMLElement) {
+  pane.querySelectorAll('[data-pref-lead]').forEach((b) => b.removeAttribute('data-pref-lead'));
+  const first = pane.querySelector<HTMLElement>('[data-pref-sub]');
+  if (!first) return;
+  const band = bandOf(first);
+  for (let n: HTMLElement | null = band; n && n !== pane; n = n.parentElement) {
+    const prev = n.previousElementSibling;
+    if (prev && !prev.classList.contains('prefs-h2')) return;
+  }
+  band.setAttribute('data-pref-lead', '');
 }
 function flowTop(band: HTMLElement): number {
   const prev = band.style.position;
@@ -208,6 +226,7 @@ export default function Preferences() {
       raf = 0;
       const next: Partial<Record<SectionId, SubSection[]>> = {};
       root.querySelectorAll<HTMLElement>('[data-pane]').forEach((pane) => {
+        markLeadBand(pane);
         next[pane.dataset.pane as SectionId] = Array.from(pane.querySelectorAll<HTMLElement>('[data-pref-sub]')).map((el) => ({
           el,
           // Le titre seul : ni l'étiquette « Sur ordinateur » ni un compteur.
@@ -216,7 +235,11 @@ export default function Preferences() {
       });
       setSubsBySection((cur) => {
         const ids = new Set([...Object.keys(cur), ...Object.keys(next)]) as Set<SectionId>;
-        for (const id of ids) if (!sameSubs(cur[id] ?? NO_SUBS, next[id] ?? NO_SUBS)) return next;
+        // Une page montée sans sous-titre compte aussi : « aucun » n'est pas
+        // « pas encore lu » (sur téléphone, elle s'ouvre alors directement).
+        for (const id of ids) {
+          if ((id in cur) !== (id in next) || !sameSubs(cur[id] ?? NO_SUBS, next[id] ?? NO_SUBS)) return next;
+        }
         return cur;
       });
     };
@@ -232,8 +255,16 @@ export default function Preferences() {
     const pending = pendingSub.current;
     pendingSub.current = null;
     if (pending) { scrollToSub(pending.el, pending.i, false); return; }
-    // Retour à la liste sur téléphone : elle garde la sous-partie où l'on était.
-    if (isMobile && showNav) return;
+    // Retour à la liste sur téléphone : elle garde la sous-partie où l'on était,
+    // et la ramène à l'écran (cachée, la liste a perdu sa position et
+    // repartirait du haut, loin de la section qu'on quitte).
+    if (isMobile && showNav) {
+      const list = navListRef.current;
+      const here = list?.querySelector<HTMLElement>('[aria-current="location"]')
+        ?? list?.querySelector<HTMLElement>('[aria-current="page"]');
+      here?.scrollIntoView?.({ block: 'center' });
+      return;
+    }
     if (scrollRef.current) scrollRef.current.scrollTop = 0;
     setCurrentSub(0);
     setMarked(null);
@@ -272,6 +303,33 @@ export default function Preferences() {
 
   useEffect(() => () => { if (programmatic.current.timer) clearTimeout(programmatic.current.timer); }, []);
 
+  // Sur téléphone, une section dépliée en bas de la liste montrait ses
+  // sous-titres sous le bord de l'écran : la liste la ramène en vue une fois
+  // le dépliage fini (0,26 s) et ses sous-titres lus (l'administration les
+  // attend du serveur).
+  const unfolded = useRef<SectionId | null>(null);
+  useEffect(() => {
+    const id = unfolded.current;
+    if (!id || !isMobile || !showNav) return;
+    const subs = subsBySection[id];
+    if (!subs) return;
+    if (subs.length === 0) {
+      // Page lue, sans sous-titre : rien à déplier, elle s'ouvre (un second
+      // toucher n'a pas à être deviné). L'administration, elle, les attend.
+      if (SUBS_FROM_SERVER.includes(id)) return;
+      unfolded.current = null;
+      setTab(id);
+      setShowNav(false);
+      return;
+    }
+    unfolded.current = null;
+    const li = navListRef.current?.querySelector<HTMLElement>(`[data-section="${id}"]`)?.closest('li');
+    // Sans nettoyage : un nouveau rendu pendant le dépliage ne doit pas l'annuler.
+    setTimeout(() => {
+      li?.scrollIntoView?.({ block: 'nearest', behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
+    }, 280);
+  }, [subsBySection, openSections, isMobile, showNav]);
+
   function openSection(id: SectionId) {
     if (isMobile) {
       // Sur téléphone, la liste est un écran à part : toucher une section
@@ -285,6 +343,7 @@ export default function Preferences() {
         return;
       }
       setVisited((cur) => (cur.has(id) ? cur : new Set(cur).add(id)));
+      unfolded.current = openSections.has(id) ? null : id;
       setOpenSections((cur) => {
         if (cur.has(id)) { const next = new Set(cur); next.delete(id); return next; }
         return autoCollapse ? new Set([id]) : new Set(cur).add(id);
@@ -684,7 +743,9 @@ export default function Preferences() {
       case 'offline': return <OfflineTab active={tab === 'offline'} />;
       case 'ai': return <AiTab active={tab === 'ai'} />;
       case 'account': return <AccountTab />;
-      case 'admin': return <AdminTab active={tab === 'admin'} />;
+      // Dépliée dans la liste du téléphone, l'administration charge déjà ses
+      // données : ses sous-titres n'existent qu'une fois la liste des comptes lue.
+      case 'admin': return <AdminTab active={tab === 'admin' || (isMobile && showNav && openSections.has('admin'))} />;
     }
   }
 }

@@ -143,6 +143,39 @@ describe('Préférences — navigation sur téléphone', () => {
     expect(screen.getByRole('button', { name: 'Colonne' }).getAttribute('aria-current')).toBe('location');
   });
 
+  it('une page sans aucun sous-titre s’ouvre au premier toucher', () => {
+    bp.value = 'mobile';
+    render(<Preferences />);
+    fireEvent.click(section('feeds'));
+    expect(nav().hidden).toBe(true);
+  });
+
+  it('au retour, la liste ramène à l’écran la sous-partie quittée', () => {
+    bp.value = 'mobile';
+    // jsdom n'a pas `scrollIntoView` : on le pose le temps du test.
+    const seen: string[] = [];
+    const proto = Element.prototype as unknown as { scrollIntoView?: () => void };
+    proto.scrollIntoView = function (this: Element) { seen.push(this.textContent ?? ''); };
+    try {
+      render(<Preferences />);
+      fireEvent.click(section('layout'));
+      fireEvent.click(screen.getByRole('button', { name: 'Colonne' }));
+      fireEvent.click(screen.getByRole('button', { name: 'preferences.nav.back' }));
+      expect(seen).toContain('Colonne');
+    } finally {
+      delete proto.scrollIntoView;
+    }
+  });
+
+  it('le premier bandeau d’une page est marqué (sa marge saute sur téléphone)', () => {
+    bp.value = 'mobile';
+    render(<Preferences />);
+    fireEvent.click(section('layout'));
+    const heads = document.querySelectorAll('[data-pane="layout"] h3[data-pref-sub]');
+    expect(heads[0].hasAttribute('data-pref-lead')).toBe(true);
+    expect(heads[1].hasAttribute('data-pref-lead')).toBe(false);
+  });
+
   it('une section sans sous-titre s’ouvre tout de suite', () => {
     bp.value = 'mobile';
     render(<Preferences />);

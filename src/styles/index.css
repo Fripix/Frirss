@@ -1618,6 +1618,9 @@ html {
   align-items: center;
   justify-content: center;
 }
+/* Un bouton-ligne (nom d'une catégorie) garde son texte à gauche : centré,
+   le nom flottait au milieu de la ligne sur téléphone. */
+[data-layout="mobile"] .prefs-tap-btn.text-left { display: flex; justify-content: flex-start; }
 [data-layout="mobile"] .prefs-tap-swatch { width: 44px; height: 44px; }
 
 /* « Par flux et catégorie » (Préférences → IA, `ai/RoutingBlock.tsx`) : une
@@ -1896,6 +1899,9 @@ html {
 }
 /* Le titre de la page est dans la barre : le h2 de la page ferait doublon. */
 [data-layout="mobile"] .prefs-pane > .prefs-h2 { display: none; }
+/* Le titre de page masqué, le premier bandeau n'a rien à séparer au-dessus
+   de lui (`data-pref-lead`, posé par Preferences.tsx). */
+[data-layout="mobile"] .prefs-content .prefs-pane [data-pref-lead] { margin-top: 0; }
 [data-layout="mobile"] .prefs-subnav-item { font-size: 15px; padding: 0.625rem 0.75rem; }
 .prefs-pane { max-width: 36rem; }
 .prefs-h2 {

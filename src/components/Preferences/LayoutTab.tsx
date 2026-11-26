@@ -125,9 +125,9 @@ export default function LayoutTab() {
         ))}
       </PrefCard>
 
-      {/* Le panneau lui-même : sur téléphone, sa liste de sections est un
-          écran à part qui ne déplie rien, d'où l'étiquette. */}
-      <PrefHeading tag={desktopTag} navLabel={t('preferences.navShort.panel')}>{t('preferences.prefsNav.title')}</PrefHeading>
+      {/* Le panneau lui-même : la liste du téléphone déplie aussi ses
+          sections, le réglage vaut partout (pas d'étiquette « Sur ordinateur »). */}
+      <PrefHeading navLabel={t('preferences.navShort.panel')}>{t('preferences.prefsNav.title')}</PrefHeading>
       <PrefCard>
         <PrefRow
           label={t('preferences.prefsNav.autoCollapse')}

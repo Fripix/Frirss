@@ -8386,6 +8386,15 @@ variable elle-même se lit telle qu'écrite (« 3rem » donnait 3 px, et la page
 s'arrêtait 45 px trop bas). Au retour, la liste marque la sous-partie qu'on
 quitte. Le survol de la navigation est réservé aux souris
 (`@media (hover: hover)`) : sur iPhone, il restait collé après un toucher.
+Toujours sur téléphone : la liste, cachée pendant la page, revient centrée sur
+la sous-partie quittée (elle repartait du haut) ; une section dépliée en bas de
+liste remonte à l'écran une fois ses sous-titres lus ; une page lue sans aucun
+sous-titre s'ouvre au premier toucher, sauf l'administration, qui charge ses
+comptes dès qu'on la déplie (`SUBS_FROM_SERVER` : ses sous-titres viennent du
+serveur ; avant, la toucher ne faisait rien). Le premier bandeau d'une page
+perd sa marge haute (`data-pref-lead`) : le titre de page masqué, elle laissait
+un grand blanc sous la barre. « Replier les autres sections » vaut aussi sur
+téléphone (plus d'étiquette « Sur ordinateur »).
 - **Les sous-titres sont lus dans la page**, pas recopiés : la navigation
   prend les `h3` marqués `data-pref-sub` de la section ouverte
   (`PrefHeading`, `prefsUi.tsx`), en ordre de document, et un
