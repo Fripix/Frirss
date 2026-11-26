@@ -308,6 +308,10 @@ export default function Preferences() {
   // le dépliage fini (0,26 s) et ses sous-titres lus (l'administration les
   // attend du serveur).
   const unfolded = useRef<SectionId | null>(null);
+  // Seule la section qu'on vient de déplier joue l'animation d'entrée : la
+  // liste du téléphone, réaffichée au retour, la rejouait sur toutes les
+  // sections ouvertes (et la cible du retour mesurait alors 0 px de haut).
+  const [fresh, setFresh] = useState<SectionId | null>(null);
   useEffect(() => {
     const id = unfolded.current;
     if (!id || !isMobile || !showNav) return;
@@ -344,6 +348,7 @@ export default function Preferences() {
       }
       setVisited((cur) => (cur.has(id) ? cur : new Set(cur).add(id)));
       unfolded.current = openSections.has(id) ? null : id;
+      setFresh(openSections.has(id) ? null : id);
       setOpenSections((cur) => {
         if (cur.has(id)) { const next = new Set(cur); next.delete(id); return next; }
         return autoCollapse ? new Set([id]) : new Set(cur).add(id);
@@ -359,6 +364,7 @@ export default function Preferences() {
       return;
     }
     setTab(id);
+    setFresh(id);
     setOpenSections((cur) => (autoCollapse ? new Set([id]) : new Set(cur).add(id)));
   }
 
@@ -367,6 +373,7 @@ export default function Preferences() {
     if (!el) return;
     if (section !== tab || (isMobile && showNav)) {
       pendingSub.current = { el, i };
+      setFresh(null);
       setTab(section);
       if (isMobile) setShowNav(false);
       if (autoCollapse) setOpenSections(new Set([section]));
@@ -665,7 +672,7 @@ export default function Preferences() {
                       )}
                     </button>
                     {hasSubs && (
-                      <div className="prefs-subnav" data-open={open ? 'true' : 'false'}>
+                      <div className="prefs-subnav" data-open={open ? 'true' : 'false'} data-fresh={open && fresh === s.id ? '' : undefined}>
                         <ul id={listId} className="prefs-subnav-list" inert={!open}>
                           {sectionSubs.map((sub, i) => (
                             <li key={`${i}-${sub.label}`}>

@@ -1800,9 +1800,10 @@ html {
   grid-template-rows: 1fr;
   transition: grid-template-rows 0.26s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.2s ease;
 }
-/* L'animation d'entrée seulement sur une liste ouverte : les listes repliées
-   des sections déjà visitées sont montées aussi, et s'ouvriraient un instant. */
-.prefs-subnav[data-open="true"] { animation: prefs-subnav-in 0.26s cubic-bezier(0.32, 0.72, 0, 1); }
+/* L'animation d'entrée seulement sur la liste qu'on vient d'ouvrir
+   (`data-fresh`) : les listes repliées des sections visitées sont montées
+   aussi, et la liste du téléphone réaffichée au retour la rejouerait partout. */
+.prefs-subnav[data-open="true"][data-fresh] { animation: prefs-subnav-in 0.26s cubic-bezier(0.32, 0.72, 0, 1); }
 .prefs-subnav[data-open="false"] { grid-template-rows: 0fr; opacity: 0; }
 @keyframes prefs-subnav-in {
   from { grid-template-rows: 0fr; opacity: 0; }
@@ -1853,6 +1854,7 @@ html {
 @media (prefers-reduced-motion: reduce) {
   .prefs-nav-pill[data-ready="true"],
   .prefs-subnav,
+  .prefs-subnav[data-open="true"][data-fresh],
   .prefs-nav-chevron,
   .prefs-subnav-item::before { transition: none; animation: none; }
 }
