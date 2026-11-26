@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { nextUnreadView, orderSidebarCategories, UNCATEGORIZED } from '../lib/sidebarOrder';
 import {
   getSubscriptionList,
   getUnreadCounts,
@@ -973,6 +974,13 @@ export interface FeedState {
   /** Entrée « Tous les flux » (barre latérale, palette). */
   selectHomeAll: () => void;
   selectCategory: (cat: FeedCategory) => void;
+  /**
+   * Issue #35 : ouvre le flux (ou la catégorie) suivant qui a encore des
+   * non-lus, dans l'ordre de la barre latérale, sinon la vue Non lus.
+   * `afterMarkAll` : appelé par « Tout marquer comme lu », il ne fait rien
+   * hors d'un flux ou d'une catégorie (l'accueil vidé n'a pas de « suivant »).
+   */
+  selectNextUnreadFeed: (opts?: { afterMarkAll?: boolean }) => void;
   selectArticle: (article: Article | null) => void;
   /** Recharge abonnements et compteurs, et compte les arrivées comme
    *  `syncCounts`. `countArrivals: false` : ne rien ajouter à `newInView`
@@ -1576,6 +1584,23 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   // caching, unread filter, "mark all read" — works unchanged.
   selectCategory: (cat) => {
     get().selectView({ id: cat.id, title: cat.label ?? cat.id } as Subscription);
+  },
+
+  selectNextUnreadFeed: (opts) => {
+    const { selectedFeed, subscriptions, unreadCounts } = get();
+    const ui = useUiStore.getState();
+    // Le libellé de la catégorie synthétique ne sert pas : on ne saute jamais dessus.
+    const categories = orderSidebarCategories(subscriptions, ui.categoryOrder, ui.feedOrder, '');
+    const currentId = selectedFeed?.id ?? null;
+    if (opts?.afterMarkAll) {
+      const isFeed = !!currentId && subscriptions.some((f) => f.id === currentId);
+      const isCategory = !!currentId && categories.some((c) => c.id === currentId && c.id !== UNCATEGORIZED);
+      if (!isFeed && !isCategory) return;
+    }
+    const next = nextUnreadView(currentId, categories, unreadCounts);
+    if (next.kind === 'feed') get().selectView(next.feed);
+    else if (next.kind === 'category') get().selectCategory({ id: next.category.id, label: next.category.label });
+    else get().selectView(null, 'unread');
   },
 
   selectArticle: (article) => {
@@ -2957,6 +2982,10 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         // la remise en non lus, qui se fait par lots successifs.
         avant ? { action: { label: i18n.t('toast.undo'), run: () => (memeContexte() ? restoreUnread(avant, toastId) : undefined) } } : undefined,
       );
+      // Issue #35 : vider un flux et passer au suivant, en une seule action.
+      // Seulement si l'utilisateur est resté sur la vue vidée ; le bandeau
+      // « Annuler » reste valable (il défait par identifiants, pas par vue).
+      if (vueActive && useUiStore.getState().markAllJumpNext) get().selectNextUnreadFeed({ afterMarkAll: true });
     } catch { /* ignore */ } finally {
       endBulk();
     }

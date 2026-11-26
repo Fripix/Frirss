@@ -201,6 +201,8 @@
     "general": {
       "confirmMarkAllRead": "Conferma prima di segnare tutto come letto",
       "confirmMarkAllReadHint": "Se disattivato, «Segna tutto come letto» agisce con un solo clic, senza conferma.",
+      "markAllJumpNext": "Dopo «Segna tutto come letto», passa al successivo",
+      "markAllJumpNextHint": "Su un feed, apre il feed successivo della barra laterale che ha ancora articoli non letti; su una categoria, la categoria successiva. Se non ne resta nessuno, apre Non letti.",
       "inlineVideos": "Riproduci i video nell’articolo",
       "inlineVideosHint": "Mostra la miniatura; il video si carica solo al clic. Disattivato, viene mostrato un link a YouTube.",
       "autoExtractDefault": "Articolo completo per impostazione predefinita",
@@ -456,6 +458,7 @@
       "helpTitle": "Scorciatoie da tastiera",
       "summarize": "Riassumi l’articolo (IA)",
       "translate": "Traduci l’articolo (IA)",
+      "nextUnreadFeed": "Feed successivo con articoli non letti",
       "unassigned": "Nessun tasto"
     },
     "offline": {

@@ -65,6 +65,8 @@ export default function CommandPalette() {
       ['unread', t('sidebar.unread'), () => feedStore.selectView(null, 'unread')],
       ['starred', t('sidebar.starred'), () => feedStore.selectView(null, 'starred')],
       ['readlater', t('sidebar.readLater'), () => feedStore.selectView(null, 'readlater')],
+      // Issue #35 : le flux suivant qui a des non-lus, comme la touche.
+      ['nextUnreadFeed', t('preferences.shortcuts.nextUnreadFeed'), () => feedStore.selectNextUnreadFeed()],
     ];
     for (const [id, label, run] of views) {
       out.push({ id: `view:${id}`, label, group: 'views', run: () => { run(); close(); } });

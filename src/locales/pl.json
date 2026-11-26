@@ -209,6 +209,8 @@
     "general": {
       "confirmMarkAllRead": "Potwierdź przed oznaczeniem wszystkiego jako przeczytane",
       "confirmMarkAllReadHint": "Gdy wyłączone, „Oznacz wszystko jako przeczytane” działa jednym kliknięciem, bez potwierdzenia.",
+      "markAllJumpNext": "Po „Oznacz wszystko jako przeczytane” przejdź do następnego",
+      "markAllJumpNextHint": "Na kanale otwiera następny kanał z paska bocznego, który ma jeszcze nieprzeczytane artykuły; na kategorii – następną kategorię. Jeśli żadnego nie zostało, otwiera Nieprzeczytane.",
       "inlineVideos": "Odtwarzaj wideo w artykule",
       "inlineVideosHint": "Pokazuje miniaturę; wideo ładuje się dopiero po kliknięciu. Wyłączone: link do YouTube.",
       "autoExtractDefault": "Domyślnie pełny artykuł",
@@ -466,6 +468,7 @@
       "helpTitle": "Skróty klawiszowe",
       "summarize": "Podsumuj artykuł (AI)",
       "translate": "Przetłumacz artykuł (AI)",
+      "nextUnreadFeed": "Następny kanał z nieprzeczytanymi",
       "unassigned": "Brak klawisza"
     },
     "offline": {

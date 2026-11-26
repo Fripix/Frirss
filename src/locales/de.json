@@ -201,6 +201,8 @@
     "general": {
       "confirmMarkAllRead": "Vor „Alles als gelesen markieren“ bestätigen",
       "confirmMarkAllReadHint": "Wenn deaktiviert, wirkt „Alles als gelesen markieren“ mit einem Klick, ohne Bestätigung.",
+      "markAllJumpNext": "Nach „Alles als gelesen markieren“ zum nächsten wechseln",
+      "markAllJumpNextHint": "Bei einem Feed wird der nächste Feed in der Seitenleiste mit ungelesenen Artikeln geöffnet, bei einer Kategorie die nächste Kategorie. Ist keiner mehr übrig, wird „Ungelesen“ geöffnet.",
       "inlineVideos": "Videos im Artikel abspielen",
       "inlineVideosHint": "Zeigt das Vorschaubild; das Video lädt erst beim Klick. Aus: stattdessen ein Link zu YouTube.",
       "autoExtractDefault": "Standardmäßig ganzer Artikel",
@@ -456,6 +458,7 @@
       "helpTitle": "Tastenkürzel",
       "summarize": "Artikel zusammenfassen (KI)",
       "translate": "Artikel übersetzen (KI)",
+      "nextUnreadFeed": "Nächster Feed mit ungelesenen Artikeln",
       "unassigned": "Keine Taste"
     },
     "offline": {

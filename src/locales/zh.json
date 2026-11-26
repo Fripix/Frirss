@@ -201,6 +201,8 @@
     "general": {
       "confirmMarkAllRead": "全部标为已读前先确认",
       "confirmMarkAllReadHint": "关闭后，“全部标为已读”一次点击即可生效，无需确认。",
+      "markAllJumpNext": "“全部标为已读”后跳到下一个",
+      "markAllJumpNextHint": "在订阅源中：打开侧边栏中下一个仍有未读文章的订阅源；在分类中：打开下一个分类。若已没有，则打开“未读”。",
       "inlineVideos": "在文章内播放视频",
       "inlineVideosHint": "显示视频缩略图，点击后才加载视频。关闭后改为显示 YouTube 链接。",
       "autoExtractDefault": "默认显示全文",
@@ -456,6 +458,7 @@
       "helpTitle": "键盘快捷键",
       "summarize": "用 AI 生成文章摘要",
       "translate": "用 AI 翻译文章",
+      "nextUnreadFeed": "下一个有未读的订阅源",
       "unassigned": "未设置按键"
     },
     "offline": {

@@ -201,6 +201,8 @@
     "general": {
       "confirmMarkAllRead": "Confirm before marking all as read",
       "confirmMarkAllReadHint": "When off, “Mark all as read” acts in a single click, with no confirmation.",
+      "markAllJumpNext": "After “Mark all as read”, go to the next one",
+      "markAllJumpNextHint": "On a feed, opens the next feed in the sidebar that still has unread articles; on a category, the next category. If none is left, opens Unread.",
       "inlineVideos": "Play videos in the article",
       "inlineVideosHint": "Shows the thumbnail; the video loads only on click. Off, a link to YouTube is shown instead.",
       "autoExtractDefault": "Full article by default",
@@ -456,6 +458,7 @@
       "helpTitle": "Keyboard shortcuts",
       "summarize": "Summarize the article (AI)",
       "translate": "Translate the article (AI)",
+      "nextUnreadFeed": "Next feed with unread articles",
       "unassigned": "No key"
     },
     "offline": {

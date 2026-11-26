@@ -201,6 +201,8 @@
     "general": {
       "confirmMarkAllRead": "Confirmar antes de marcar tudo como lido",
       "confirmMarkAllReadHint": "Quando desativado, «Marcar tudo como lido» age com um único clique, sem confirmação.",
+      "markAllJumpNext": "Após «Marcar tudo como lido», ir para o seguinte",
+      "markAllJumpNextHint": "Num feed, abre o feed seguinte da barra lateral que ainda tem artigos por ler; numa categoria, a categoria seguinte. Se não restar nenhum, abre Não lidos.",
       "inlineVideos": "Reproduzir os vídeos no artigo",
       "inlineVideosHint": "Mostra a miniatura; o vídeo só carrega ao clicar. Desativado, é apresentado uma ligação para o YouTube.",
       "autoExtractDefault": "Artigo completo por predefinição",
@@ -456,6 +458,7 @@
       "helpTitle": "Atalhos de teclado",
       "summarize": "Resumir o artigo (IA)",
       "translate": "Traduzir o artigo (IA)",
+      "nextUnreadFeed": "Feed seguinte com artigos por ler",
       "unassigned": "Sem tecla"
     },
     "offline": {

@@ -1,4 +1,5 @@
 import { useMenuKeys } from '../../hooks/useMenuKeys';
+import { orderSidebarCategories } from '../../lib/sidebarOrder';
 import { useEffect, useLayoutEffect, useMemo, useState, useCallback, useRef, useId, type ReactNode, type CSSProperties, type FormEvent, type MouseEvent as ReactMouseEvent, type DragEvent as ReactDragEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
@@ -32,12 +33,6 @@ import { useBackLayer } from '../../hooks/useAndroidBack';
 
 const SIDEBAR_FONT_MIN = 11;
 const SIDEBAR_FONT_MAX = 18;
-
-interface Category {
-  id: string;
-  label: string;
-  feeds: Subscription[];
-}
 
 type DragItem =
   | { type: 'category'; id: string }
@@ -127,48 +122,12 @@ export default function Sidebar() {
   const [addFeedOpen, setAddFeedOpen] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ feed: Subscription; x: number; y: number } | null>(null);
 
-  const categories = useMemo(() => {
-    const map: Record<string, Category> = {};
-    subscriptions.forEach((sub) => {
-      const catId = sub.categories?.[0]?.id || 'uncategorized';
-      const catLabel = sub.categories?.[0]?.label || t('sidebar.uncategorized');
-      if (!map[catId]) map[catId] = { id: catId, label: catLabel, feeds: [] };
-      map[catId].feeds.push(sub);
-    });
-
-    const cats = Object.values(map);
-
-    // Apply custom category order
-    if (categoryOrder.length > 0) {
-      cats.sort((a, b) => {
-        const ai = categoryOrder.indexOf(a.id);
-        const bi = categoryOrder.indexOf(b.id);
-        if (ai === -1 && bi === -1) return a.label.localeCompare(b.label);
-        if (ai === -1) return 1;
-        if (bi === -1) return -1;
-        return ai - bi;
-      });
-    } else {
-      cats.sort((a, b) => a.label.localeCompare(b.label));
-    }
-
-    // Apply custom feed order within each category
-    cats.forEach((cat) => {
-      const order = feedOrder[cat.id];
-      if (order && order.length > 0) {
-        cat.feeds.sort((a, b) => {
-          const ai = order.indexOf(a.id);
-          const bi = order.indexOf(b.id);
-          if (ai === -1 && bi === -1) return a.title.localeCompare(b.title);
-          if (ai === -1) return 1;
-          if (bi === -1) return -1;
-          return ai - bi;
-        });
-      }
-    });
-
-    return cats;
-  }, [subscriptions, categoryOrder, feedOrder, t]);
+  // L'ordre vit dans `lib/sidebarOrder` : « flux suivant avec non-lus »
+  // (issue #35) parcourt exactement la même liste.
+  const categories = useMemo(
+    () => orderSidebarCategories(subscriptions, categoryOrder, feedOrder, t('sidebar.uncategorized')),
+    [subscriptions, categoryOrder, feedOrder, t],
+  );
 
   // When "hide read feeds" is on, drop feeds with no unread — and categories
   // left empty — but always keep the feed you're currently viewing. Disabled

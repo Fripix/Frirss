@@ -201,6 +201,8 @@
     "general": {
       "confirmMarkAllRead": "Confirmer avant de tout marquer comme lu",
       "confirmMarkAllReadHint": "Désactivé, « Tout marquer comme lu » agit en un seul clic, sans confirmation.",
+      "markAllJumpNext": "Après « Tout marquer comme lu », passer au suivant",
+      "markAllJumpNextHint": "Sur un flux, ouvre le flux suivant de la barre latérale qui a encore des non-lus ; sur une catégorie, la catégorie suivante. S'il n'en reste aucun, ouvre Non lus.",
       "inlineVideos": "Lire les vidéos dans l’article",
       "inlineVideosHint": "Affiche la miniature ; la vidéo n’est chargée qu’au clic. Désactivé, un lien vers YouTube s’affiche.",
       "autoExtractDefault": "Article complet par défaut",
@@ -456,6 +458,7 @@
       "helpTitle": "Raccourcis clavier",
       "summarize": "Résumer l’article (IA)",
       "translate": "Traduire l’article (IA)",
+      "nextUnreadFeed": "Flux suivant avec non-lus",
       "unassigned": "Aucune touche"
     },
     "offline": {

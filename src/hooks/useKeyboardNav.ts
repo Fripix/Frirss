@@ -7,7 +7,8 @@ import { useAuthStore } from '../stores/authStore';
 import { openExternal } from '../lib/openExternal';
 
 // Actions qui ne sont pas idempotentes : les rejouer défait ou multiplie.
-const TOGGLE_ACTIONS = ['toggleStar', 'readLater', 'toggleSidebar', 'openOriginal'];
+// `nextUnreadFeed` aussi : une touche tenue sauterait de flux en flux.
+const TOGGLE_ACTIONS = ['toggleStar', 'readLater', 'toggleSidebar', 'openOriginal', 'nextUnreadFeed'];
 
 export function useKeyboardNav(): void {
   const shortcuts = useUiStore((s) => s.shortcuts);
@@ -147,6 +148,10 @@ export function useKeyboardNav(): void {
         if (store.selectedArticle) {
           store.toggleReadLater(store.selectedArticle);
         }
+      } else if (key === shortcuts.nextUnreadFeed) {
+        // Issue #35 : le flux suivant qui a des non-lus, sans rien marquer.
+        e.preventDefault();
+        store.selectNextUnreadFeed();
       } else if (key === shortcuts.search) {
         e.preventDefault();
         // Ask the list to open its search. Focusing the input directly could

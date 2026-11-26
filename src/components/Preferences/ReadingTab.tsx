@@ -15,6 +15,8 @@ export default function ReadingTab() {
   const { t } = useTranslation();
   const confirmMarkAllRead = useUiStore((s) => s.confirmMarkAllRead);
   const setConfirmMarkAllRead = useUiStore((s) => s.setConfirmMarkAllRead);
+  const markAllJumpNext = useUiStore((s) => s.markAllJumpNext);
+  const setMarkAllJumpNext = useUiStore((s) => s.setMarkAllJumpNext);
   const markReadOnScroll = useUiStore((s) => s.markReadOnScroll);
   const setMarkReadOnScroll = useUiStore((s) => s.setMarkReadOnScroll);
   const showNewArticlesPill = useUiStore((s) => s.showNewArticlesPill);
@@ -116,6 +118,18 @@ export default function ReadingTab() {
               checked={confirmMarkAllRead}
               onChange={setConfirmMarkAllRead}
               ariaLabel={t('preferences.general.confirmMarkAllRead')}
+            />
+          }
+        />
+        {/* Issue #35 : vider un flux, puis passer au suivant qui a des non-lus */}
+        <PrefRow
+          label={t('preferences.general.markAllJumpNext')}
+          hint={t('preferences.general.markAllJumpNextHint')}
+          control={
+            <ToggleSwitch
+              checked={markAllJumpNext}
+              onChange={setMarkAllJumpNext}
+              ariaLabel={t('preferences.general.markAllJumpNext')}
             />
           }
         />

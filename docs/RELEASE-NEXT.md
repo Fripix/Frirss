@@ -16,6 +16,17 @@ la release publiée.
 > correctif de la feuille du bas sur iOS, manquaient tous deux au journal : ni
 > l'un ni l'autre n'avait touché `en.json`. Relire aussi `git log`.
 
+## Ajouté
+
+- **Passer au flux suivant qui a des non-lus** (issue #35). Option « Après
+  « Tout marquer comme lu », passer au suivant » (Préférences → Lecture →
+  Marquer comme lu, désactivée par défaut) : vider un flux ouvre le flux
+  suivant de la barre latérale qui a encore des non-lus, vider une catégorie
+  ouvre la catégorie suivante, et s'il n'en reste aucun, la vue Non lus. Le
+  même saut, sans rien marquer : touche `n` (réglable dans Clavier) et palette
+  de commandes. L'ordre suivi est celui de la barre latérale, ordre personnel
+  compris.
+
 ## Modifié
 
 - **Préférences réorganisées et plus lisibles.** La colonne de gauche montre une

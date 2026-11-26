@@ -10,6 +10,7 @@ const store = vi.hoisted(() => ({
   selectNextArticle: vi.fn(),
   selectPrevArticle: vi.fn(),
   selectArticle: vi.fn(),
+  selectNextUnreadFeed: vi.fn(),
   toggleRead: vi.fn(),
   toggleStar: vi.fn(),
   toggleReadLater: vi.fn(),
@@ -85,6 +86,14 @@ describe('useKeyboardNav — the browser keeps its keys', () => {
     expect(openExternal).not.toHaveBeenCalled();
     expect(listener).not.toHaveBeenCalled();
     expect(useUiStore.getState().sidebarVisible).toBe(sidebarBefore);
+  });
+
+  it('n opens the next feed with unread articles, once per press (issue #35)', () => {
+    const e = press({ key: 'n' });
+    expect(store.selectNextUnreadFeed).toHaveBeenCalledTimes(1);
+    expect(e.defaultPrevented).toBe(true);
+    press({ key: 'n', repeat: true });
+    expect(store.selectNextUnreadFeed).toHaveBeenCalledTimes(1);
   });
 
   it('leaves a modified arrow to the browser', () => {

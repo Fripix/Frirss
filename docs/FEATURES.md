@@ -2640,6 +2640,24 @@ est marqué lu une seconde après être sorti par le **haut** de la liste.
 Confirmation optionnelle avant de vider une vue entière, **par une boîte de
 dialogue**, et **retour en arrière** une fois l'action faite.
 
+- **Passer au suivant** (issue #35, réglage `markAllJumpNext`, désactivé par
+  défaut, synchronisé ; Préférences → Lecture → Marquer comme lu). Après un
+  « Tout lu » réussi sur un **flux**, `selectNextUnreadFeed` ouvre le flux
+  suivant de la barre latérale qui a encore des non-lus ; sur une
+  **catégorie**, la catégorie suivante (somme de ses flux, comme son badge).
+  Arrivé en bas, il repart du haut ; plus rien de non lu : la vue Non lus.
+  Depuis l'accueil ou une étiquette, rien ne bouge. La vue de départ n'est
+  jamais choisie (son compteur peut dater d'avant le marquage), ni la
+  catégorie synthétique « Sans catégorie ». Seulement si l'utilisateur est
+  resté sur la vue vidée ; le bandeau « Annuler » reste valable (il défait par
+  identifiants). L'ordre vient de `lib/sidebarOrder.ts`
+  (`orderSidebarCategories`), la source unique que la barre latérale affiche :
+  deux copies divergeraient. Le même saut sans marquer : raccourci
+  `nextUnreadFeed` (touche `n` par défaut, sans répétition quand on la tient)
+  et palette de commandes ; d'ailleurs que d'un flux ou d'une catégorie, il
+  ouvre le premier flux qui a des non-lus. Tests : `sidebarOrder.test.ts`,
+  `feedStore.nextUnread.test.ts`, `useKeyboardNav.test.tsx`.
+
 - **Garde serveur/session** (1.8.0) : la même que les marquages de plage
   (`memeContexte`), vérifiée après le relevé des non-lus, après l'envoi, et
   avant un retour en arrière. Basculer de serveur pendant le relevé envoyait

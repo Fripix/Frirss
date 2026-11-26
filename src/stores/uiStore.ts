@@ -109,6 +109,7 @@ const defaultShortcuts: Shortcuts = {
   readLater: 'l',
   summarize: 's',
   translate: 't',
+  nextUnreadFeed: 'n',
 };
 
 /**
@@ -392,6 +393,11 @@ export interface UiState {
   // dépliées jusqu'à un clic sur elles). Désactivé par défaut. Synchronisé.
   prefsNavAutoCollapse: boolean;
   setPrefsNavAutoCollapse: (v: boolean) => void;
+  // Issue #35 : après « Tout marquer comme lu » sur un flux ou une catégorie,
+  // ouvrir le flux (la catégorie) suivant qui a encore des non-lus. Désactivé
+  // par défaut. Synchronisé.
+  markAllJumpNext: boolean;
+  setMarkAllJumpNext: (v: boolean) => void;
   // Collapse state persisted per-user (synced): whole ÉTIQUETTES section,
   // individual label groups, and feed categories.
   labelsCollapsed: boolean;
@@ -956,6 +962,12 @@ export const useUiStore = create<UiState>()((set, get) => ({
     set({ prefsNavAutoCollapse: v });
   },
 
+  markAllJumpNext: loadJson('frirss_markAllJumpNext', false),
+  setMarkAllJumpNext: (v) => {
+    localStorage.setItem('frirss_markAllJumpNext', JSON.stringify(v));
+    set({ markAllJumpNext: v });
+  },
+
   // Whole ÉTIQUETTES section collapsed?
   labelsCollapsed: loadJson('frirss_labelsCollapsed', false),
   setLabelsCollapsed: (v) => {
@@ -1375,7 +1387,7 @@ export const useUiStore = create<UiState>()((set, get) => ({
       'labelOrder', 'labelSortAlpha', 'showLabelCounts', 'showLabelUnread', 'showSpecialTotals', 'showSpecialUnread', 'showDateSeparators', 'gridDateSeparators',
       'showSourceInFeed', 'showSourceInAll', 'feedSettings', 'shortcuts',
       'labelsCollapsed', 'savedCollapsed', 'savedCategoryNames', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnlyByFeed', 'unreadOnlyScope', 'unreadOnlyAll', 'hideReadFeeds',
-      'confirmMarkAllRead', 'markReadOnScroll', 'showNewArticlesPill', 'showListFavicons', 'offlineImagePreset', 'inlineVideos', 'prefsNavAutoCollapse', 'refreshHintDismissed',
+      'confirmMarkAllRead', 'markReadOnScroll', 'showNewArticlesPill', 'showListFavicons', 'offlineImagePreset', 'inlineVideos', 'prefsNavAutoCollapse', 'markAllJumpNext', 'refreshHintDismissed',
       'rowActions', 'toolbarVisibility', 'articleOrder', 'autoExtractDefault', 'startupView', 'aiPanelCollapsed', 'aiSummaryRatio',
       'gridCardWidth', 'gridImageRatio', 'gridCardFill',
       'randomCount', 'randomWindowAmount', 'randomWindowUnit', 'randomViews',
@@ -1455,7 +1467,7 @@ export const UI_SYNC_KEYS = [
   'feedSettings', 'appTitle', 'appLogo', 'logoMode', 'shortcuts',
   'labelsCollapsed', 'savedCollapsed', 'savedCategoryNames', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnlyByFeed', 'unreadOnlyScope', 'unreadOnlyAll', 'hideReadFeeds',
   'confirmMarkAllRead', 'markReadOnScroll', 'showNewArticlesPill', 'showListFavicons',
-  'offlineImagePreset', 'inlineVideos', 'prefsNavAutoCollapse', 'refreshHintDismissed', 'rowActions', 'toolbarVisibility', 'articleOrder', 'autoExtractDefault', 'startupView',
+  'offlineImagePreset', 'inlineVideos', 'prefsNavAutoCollapse', 'markAllJumpNext', 'refreshHintDismissed', 'rowActions', 'toolbarVisibility', 'articleOrder', 'autoExtractDefault', 'startupView',
   'aiPanelCollapsed', 'aiSummaryRatio', 'gridCardWidth', 'gridImageRatio', 'gridCardFill',
   'randomCount', 'randomWindowAmount', 'randomWindowUnit', 'randomViews',
   'aiPreferredProvider', 'aiFallback', 'aiAutoSummary', 'aiCategoryProviders',
@@ -1469,6 +1481,7 @@ export const shortcutActions = [
   'nextArticle', 'prevArticle', 'openArticle',
   'markRead', 'markUnread', 'toggleStar',
   'openOriginal', 'toggleSidebar', 'search', 'readLater', 'summarize', 'translate',
+  'nextUnreadFeed',
 ];
 
 // For the shortcut footer — only show contextual shortcuts
