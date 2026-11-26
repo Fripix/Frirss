@@ -2660,8 +2660,15 @@ dialogue**, et **retour en arrière** une fois l'action faite.
   repliée), et la barre latérale ramène au bord le plus proche toute ligne
   ouverte hors de vue, quel que soit le chemin (`n`, saut, palette ; attribut
   `data-view-id`), le focus clavier suivant s'il était sur une autre ligne de
-  la barre. Tests : `sidebarOrder.test.ts`, `feedStore.nextUnread.test.ts`,
-  `useKeyboardNav.test.tsx`, `Sidebar.reveal.test.tsx`.
+  la barre. **En mode Focus** (ni liste ni barre), la vue ouverte montre son
+  premier article non lu dès que la liste arrive (`openFirstUnreadInFocus`,
+  aussi appelé par les vues de la palette) ; vide ou en échec, on sort du
+  Focus plutôt que de laisser un écran blanc. Un « Tout lu » sur une
+  **catégorie** remet aussi ses flux à zéro (`categoryStreamFeedIds` : sauf
+  ceux montrés dans leur seule vue, que FreshRSS ne marque pas) : sans cela, le
+  saut repartait pendant une minute vers une catégorie déjà lue. Tests :
+  `sidebarOrder.test.ts`, `feedStore.nextUnread.test.ts`,
+  `useKeyboardNav.test.tsx`, `Sidebar.reveal.test.tsx`, `CommandPalette.test.tsx`.
 
 - **Garde serveur/session** (1.8.0) : la même que les marquages de plage
   (`memeContexte`), vérifiée après le relevé des non-lus, après l'envoi, et

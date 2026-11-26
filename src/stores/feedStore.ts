@@ -43,7 +43,7 @@ import { useUiStore, isUnreadOnly } from './uiStore';
 import { effectiveOrder, type ArticleOrder } from '../lib/effectiveOrder';
 import { effectiveAutoExtract } from '../lib/effectiveAutoExtract';
 import { worthAutoExtracting } from '../lib/extractFailures';
-import { homeStreamId, mainStreamFeedIds, READING_LIST_STREAM } from '../lib/mainStream';
+import { categoryStreamFeedIds, homeStreamId, mainStreamFeedIds, READING_LIST_STREAM } from '../lib/mainStream';
 import type { HomeEntry } from '../lib/unreadScope';
 import { peekExtract, getExtract, getOutdatedExtract, putExtract, pinExtract, unpinExtractsExcept } from '../lib/extractCache';
 import { listGet, listPut, listsPatch, listEvictOlderThan, listsWithoutSource, subsGet, subsPut, queueGet, queuePut, clearOfflineViews } from '../lib/offlineStore';
@@ -981,6 +981,12 @@ export interface FeedState {
    * hors d'un flux ou d'une catégorie (l'accueil vidé n'a pas de « suivant »).
    */
   selectNextUnreadFeed: (opts?: { afterMarkAll?: boolean }) => void;
+  /**
+   * En mode Focus (ni liste ni barre latérale), une vue qu'on vient d'ouvrir
+   * ne montrait rien : ouvre son premier article non lu dès que la liste est
+   * là, ou sort du Focus si elle arrive vide ou en échec. Hors Focus : rien.
+   */
+  openFirstUnreadInFocus: () => void;
   selectArticle: (article: Article | null) => void;
   /** Recharge abonnements et compteurs, et compte les arrivées comme
    *  `syncCounts`. `countArrivals: false` : ne rien ajouter à `newInView`
@@ -1606,6 +1612,30 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       get().selectView(next.feed);
     } else if (next.kind === 'category') get().selectCategory({ id: next.category.id, label: next.category.label });
     else get().selectView(null, 'unread');
+    // En Focus, la vue ouverte montre son premier article (ou rend la liste
+    // si elle est vide) : sinon, un écran blanc.
+    get().openFirstUnreadInFocus();
+  },
+
+  openFirstUnreadInFocus: () => {
+    if (!useUiStore.getState().readingFocus) return;
+    const viewId = get().selectedFeed?.id ?? null;
+    const viewFilter = get().filter;
+    // `true` : c'est réglé (ouvert, abandonné ou Focus quitté), on cesse d'écouter.
+    const settle = (): boolean => {
+      const st = get();
+      if ((st.selectedFeed?.id ?? null) !== viewId || st.filter !== viewFilter) return true;
+      if (st.selectedArticle || !useUiStore.getState().readingFocus) return true;
+      // La liste à jour, pas celle en mémoire : un article lu ailleurs depuis,
+      // ou un plus récent arrivé en tête, tromperaient le choix.
+      if (st.loading || st.revalidating) return false;
+      const first = st.articles.find((a) => !a.read) ?? st.articles[0];
+      if (first) { st.selectArticle(first); return true; }
+      useUiStore.getState().setReadingFocus(false);
+      return true;
+    };
+    if (settle()) return;
+    const stop = useFeedStore.subscribe(() => { if (settle()) stop(); });
   },
 
   selectArticle: (article) => {
@@ -2929,6 +2959,11 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         const newCounts = { ...state.unreadCounts };
         if (selectedFeed) {
           newCounts[selectedFeed.id] = 0;
+          // Une catégorie : ses flux aussi, ceux qu'elle montre. Seule sa clé
+          // passait à zéro ; ses flux gardaient leur compteur jusqu'au relevé
+          // suivant, et le saut au suivant (issue #35) repartait vers une
+          // catégorie déjà lue. Une étiquette ne porte aucun flux : rien ne bouge.
+          for (const id of categoryStreamFeedIds(subscriptions, selectedFeed.id)) newCounts[id] = 0;
         } else {
           // Only the feeds the home view shows: FreshRSS left a category-only
           // feed untouched, and zeroing its badge here claimed otherwise until

@@ -58,13 +58,16 @@ export default function CommandPalette() {
     const feedStore = useFeedStore.getState();
     const close = () => setOpen(false);
     const out: Command[] = [];
+    // En mode Focus, ni liste ni barre : la vue choisie ouvrait un écran vide.
+    // Son premier article non lu s'ouvre dès la liste arrivée (M3, 1.10.1).
+    const go = (select: () => void) => { select(); feedStore.openFirstUnreadInFocus(); };
 
     // Vues fixes — l'équivalent des entrées du haut de la barre latérale.
     const views: Array<[string, string, () => void]> = [
-      ['all', t('sidebar.allFeeds'), () => feedStore.selectHomeAll()],
-      ['unread', t('sidebar.unread'), () => feedStore.selectView(null, 'unread')],
-      ['starred', t('sidebar.starred'), () => feedStore.selectView(null, 'starred')],
-      ['readlater', t('sidebar.readLater'), () => feedStore.selectView(null, 'readlater')],
+      ['all', t('sidebar.allFeeds'), () => go(() => feedStore.selectHomeAll())],
+      ['unread', t('sidebar.unread'), () => go(() => feedStore.selectView(null, 'unread'))],
+      ['starred', t('sidebar.starred'), () => go(() => feedStore.selectView(null, 'starred'))],
+      ['readlater', t('sidebar.readLater'), () => go(() => feedStore.selectView(null, 'readlater'))],
       // Issue #35 : le flux suivant qui a des non-lus, comme la touche.
       ['nextUnreadFeed', t('preferences.shortcuts.nextUnreadFeed'), () => feedStore.selectNextUnreadFeed()],
     ];
@@ -85,7 +88,7 @@ export default function CommandPalette() {
         id: `cat:${id}`,
         label,
         group: 'categories',
-        run: () => { feedStore.selectCategory({ id, label }); close(); },
+        run: () => { go(() => feedStore.selectCategory({ id, label })); close(); },
       });
     }
 
@@ -96,7 +99,7 @@ export default function CommandPalette() {
         label: sub.title,
         group: 'feeds',
         hint: unread ? String(unread) : undefined,
-        run: () => { feedStore.selectView(sub); close(); },
+        run: () => { go(() => feedStore.selectView(sub)); close(); },
       });
     }
 
@@ -107,7 +110,7 @@ export default function CommandPalette() {
         id: `label:${label.id}`,
         label: name,
         group: 'labels',
-        run: () => { feedStore.selectView({ id: label.id, title: name } as never); close(); },
+        run: () => { go(() => feedStore.selectView({ id: label.id, title: name } as never)); close(); },
       });
     }
 

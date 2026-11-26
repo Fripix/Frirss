@@ -297,3 +297,25 @@ describe('CommandPalette — structure listbox', () => {
     }
   });
 });
+
+describe('CommandPalette — vue choisie en mode Focus (M3)', () => {
+  // En Focus, ni liste ni barre : la vue choisie ouvrait un écran vide. La
+  // palette demande au store d'en ouvrir le premier article non lu.
+  it('ouvrir un flux, une catégorie ou « Non lus » passe la main à openFirstUnreadInFocus, après la sélection', () => {
+    const order: string[] = [];
+    const feed = { id: 'feed/1', title: 'Flux A', categories: [{ id: 'user/-/label/News', label: 'News' }] } as never;
+    useFeedStore.setState({
+      subscriptions: [feed], unreadCounts: {}, labels: [],
+      selectView: vi.fn(() => { order.push('select'); }),
+      selectCategory: vi.fn(() => { order.push('select'); }),
+      openFirstUnreadInFocus: vi.fn(() => { order.push('focus'); }),
+    } as never);
+    for (const name of ['Flux A', 'News', 'sidebar.unread']) {
+      useUiStore.setState({ commandPaletteOpen: true });
+      const { getByText, unmount } = render(<CommandPalette />);
+      fireEvent.click(getByText(name));
+      unmount();
+    }
+    expect(order).toEqual(['select', 'focus', 'select', 'focus', 'select', 'focus']);
+  });
+});

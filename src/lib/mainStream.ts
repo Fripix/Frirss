@@ -68,3 +68,14 @@ export function viewUnreadCount(
   }
   return homeUnreadTotal(unreadCounts, subscriptions);
 }
+
+/**
+ * Ids of the feeds a category view shows: its feeds, except those set to
+ * show only in their own view (`feed`), which FreshRSS leaves out of the
+ * category stream — and out of its mark-all-as-read.
+ */
+export function categoryStreamFeedIds(subscriptions: readonly Subscription[], categoryId: string): string[] {
+  return subscriptions
+    .filter((s) => s.priority !== 'feed' && s.categories?.some((c) => c.id === categoryId))
+    .map((s) => s.id);
+}
