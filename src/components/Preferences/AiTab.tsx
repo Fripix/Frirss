@@ -23,7 +23,7 @@ export default function AiTab({ active = true }: { active?: boolean }) {
     if (active) void useAiStore.getState().load();
   }, [active]);
   return (
-    <div className="space-y-8 max-w-2xl">
+    <div>
       {isAdmin && <AdminProviders active={active} />}
       <SummariesBlock showIntro={!isAdmin} />
       <TranslationBlock />

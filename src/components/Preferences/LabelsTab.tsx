@@ -911,19 +911,27 @@ function LabelColorPicker({ labelName, color, effectiveColor, onChangeColor, onR
   return (
     <div className="relative flex items-center gap-0.5 flex-shrink-0">
       {/* Swatch button to toggle popover */}
+      {/* La pastille garde ses 20 px ; c'est le bouton autour qui grandit à
+          44 px au doigt (`prefs-tap-btn`). Posée sur le bouton lui-même, la
+          zone tactile étirait la pastille en un long rectangle. */}
       <button
         ref={btnRef}
         onClick={() => setOpen(!open)}
-        className="w-5 h-5 rounded-md border cursor-pointer transition-transform hover:scale-110 flex-shrink-0"
-        style={{
-          background: displayColor,
-          borderColor: color ? 'rgba(0,0,0,0.15)' : 'var(--panel-border)',
-          opacity: color ? 1 : 0.5,
-        }}
+        className="prefs-tap-btn group flex items-center justify-center cursor-pointer flex-shrink-0"
         title={t('preferences.labels.chooseColor')}
         aria-label={t('app.labelValue', { label: t('preferences.labels.chooseColor'), value: labelName })}
         aria-expanded={open}
-      />
+      >
+        <span
+          aria-hidden="true"
+          className="block w-5 h-5 rounded-md border transition-transform group-hover:scale-110"
+          style={{
+            background: displayColor,
+            borderColor: color ? 'rgba(0,0,0,0.15)' : 'var(--panel-border)',
+            opacity: color ? 1 : 0.5,
+          }}
+        />
+      </button>
 
       {/* Remove color button */}
       {color && (

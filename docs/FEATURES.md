@@ -8395,6 +8395,10 @@ serveur ; avant, la toucher ne faisait rien). Le premier bandeau d'une page
 perd sa marge haute (`data-pref-lead`) : le titre de page masqué, elle laissait
 un grand blanc sous la barre. « Replier les autres sections » vaut aussi sur
 téléphone (plus d'étiquette « Sur ordinateur »).
+La page IA reprend les cartes et lignes des autres pages (`PrefCard`,
+`PrefRow`) : Résumés, Traduction et Mes clés. Dans Étiquettes, la pastille de
+couleur garde ses 20 px, au centre d'une zone tactile de 44 px (sur le bouton
+lui-même, la zone l'étirait en rectangle).
 - **Les sous-titres sont lus dans la page**, pas recopiés : la navigation
   prend les `h3` marqués `data-pref-sub` de la section ouverte
   (`PrefHeading`, `prefsUi.tsx`), en ordre de document, et un

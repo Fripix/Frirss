@@ -5,6 +5,7 @@ import { useAiStore } from '../../../stores/aiStore';
 import { AI_LANGUAGES, isAiLanguage, languageName, targetLanguage } from '../../../lib/aiLanguages';
 import type { AiProviderView } from '../../../api/backend';
 import { BlockTitle, ProviderOptions } from './shared';
+import { PrefCard, PrefRow } from '../prefsUi';
 import { inputClass, inputStyle } from './styles';
 
 /** Référence stable : un `?? []` dans le sélecteur ferait rerendre sans fin. */
@@ -30,27 +31,37 @@ export default function TranslationBlock() {
     [uiLang],
   );
   return (
-    <section className="space-y-3">
+    <section>
       <BlockTitle>{t('ai.translation.title')}</BlockTitle>
-      <div>
-        <label htmlFor={`${uid}-language`} className="block text-[13px] mb-1" style={{ color: 'var(--list-title)' }}>{t('ai.translation.language')}</label>
-        <select
-          id={`${uid}-language`} value={language} className={inputClass} style={inputStyle}
-          onChange={(e) => setLanguage(isAiLanguage(e.target.value) ? e.target.value : 'ui')}
-        >
-          <option value="ui">{t('ai.translation.uiLanguage', { name: languageName(targetLanguage(uiLang), uiLang) })}</option>
-          {languages.map((l) => <option key={l.code} value={l.code}>{l.name}</option>)}
-        </select>
-      </div>
-      <div>
-        <label htmlFor={`${uid}-provider`} className="block text-[13px] mb-1" style={{ color: 'var(--list-title)' }}>{t('ai.translation.provider')}</label>
-        <select
-          id={`${uid}-provider`} value={provider === null ? '' : String(provider)} className={inputClass} style={inputStyle}
-          onChange={(e) => setProvider(e.target.value ? Number(e.target.value) : null)}
-        >
-          <ProviderOptions providers={providers} value={provider} defaultLabel={t('ai.translation.sameAsSummary')} />
-        </select>
-      </div>
+      <PrefCard>
+        <PrefRow
+          stacked
+          labelFor={`${uid}-language`}
+          label={t('ai.translation.language')}
+          control={(
+            <select
+              id={`${uid}-language`} value={language} className={inputClass} style={inputStyle}
+              onChange={(e) => setLanguage(isAiLanguage(e.target.value) ? e.target.value : 'ui')}
+            >
+              <option value="ui">{t('ai.translation.uiLanguage', { name: languageName(targetLanguage(uiLang), uiLang) })}</option>
+              {languages.map((l) => <option key={l.code} value={l.code}>{l.name}</option>)}
+            </select>
+          )}
+        />
+        <PrefRow
+          stacked
+          labelFor={`${uid}-provider`}
+          label={t('ai.translation.provider')}
+          control={(
+            <select
+              id={`${uid}-provider`} value={provider === null ? '' : String(provider)} className={inputClass} style={inputStyle}
+              onChange={(e) => setProvider(e.target.value ? Number(e.target.value) : null)}
+            >
+              <ProviderOptions providers={providers} value={provider} defaultLabel={t('ai.translation.sameAsSummary')} />
+            </select>
+          )}
+        />
+      </PrefCard>
     </section>
   );
 }

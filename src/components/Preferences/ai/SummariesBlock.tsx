@@ -6,6 +6,7 @@ import { useAuthStore } from '../../../stores/authStore';
 import type { AiProviderView } from '../../../api/backend';
 import ToggleSwitch from '../../ToggleSwitch';
 import { AutoSummaryConfirm, BlockTitle, ProviderOptions } from './shared';
+import { PrefCard, PrefIntro, PrefRow } from '../prefsUi';
 import { inputClass, inputStyle } from './styles';
 
 /** Référence stable : un `?? []` dans le sélecteur ferait rerendre sans fin. */
@@ -62,69 +63,72 @@ export default function SummariesBlock({ showIntro }: { showIntro: boolean }) {
   } catch {
     shown = `${ratio} %`;
   }
+  const toggle = (key: string, label: string, checked: boolean, onChange: (on: boolean) => void, hints: [string, string][]) => (
+    <PrefRow
+      label={label}
+      hint={hints.map(([id, text], i) => <span key={id} id={id} className={i ? 'block mt-1' : 'block'}>{text}</span>)}
+      control={<ToggleSwitch checked={checked} onChange={onChange} ariaLabel={label} describedBy={hints.map(([id]) => id).join(' ')} />}
+      key={key}
+    />
+  );
   return (
-    <section className="space-y-3">
+    <section>
       <BlockTitle>{t('ai.user.title')}</BlockTitle>
-      {showIntro && <p className="text-[13px] max-w-prose" style={{ color: 'var(--list-summary)' }}>{t('ai.userIntro')}</p>}
-      <div>
-        <div className="flex items-baseline justify-between gap-3 mb-1">
-          <label htmlFor={`${uid}-ratio`} className="text-[13px]" style={{ color: 'var(--list-summary)' }}>{t('ai.user.ratio')}</label>
-          <span aria-hidden="true" className="text-sm font-semibold tabular-nums" style={{ color: 'var(--list-title)' }}>{shown}</span>
-        </div>
-        <input
-          id={`${uid}-ratio`} type="range" min={5} max={50} step={5} value={ratio}
-          aria-valuetext={shown} aria-describedby={`${uid}-ratio-hint`}
-          onChange={(e) => setRatio(Number(e.target.value))}
-          className="prefs-tap-row w-full cursor-pointer accent-[var(--accent)]"
+      {showIntro && <PrefIntro>{t('ai.userIntro')}</PrefIntro>}
+      <PrefCard>
+        <PrefRow
+          stacked
+          labelFor={`${uid}-ratio`}
+          label={(
+            <span className="flex items-baseline justify-between gap-3">
+              <span>{t('ai.user.ratio')}</span>
+              <span aria-hidden="true" className="font-semibold tabular-nums">{shown}</span>
+            </span>
+          )}
+          hint={t('ai.ratioHint')}
+          hintId={`${uid}-ratio-hint`}
+          control={(
+            <input
+              id={`${uid}-ratio`} type="range" min={5} max={50} step={5} value={ratio}
+              aria-label={t('ai.user.ratio')} aria-valuetext={shown} aria-describedby={`${uid}-ratio-hint`}
+              onChange={(e) => setRatio(Number(e.target.value))}
+              className="prefs-tap-row w-full cursor-pointer accent-[var(--accent)]"
+            />
+          )}
         />
-        <p id={`${uid}-ratio-hint`} className="text-xs mt-1 max-w-prose" style={{ color: 'var(--list-summary)' }}>{t('ai.ratioHint')}</p>
-      </div>
+        <PrefRow
+          stacked
+          labelFor={`${uid}-preferred`}
+          label={t('ai.user.preferred')}
+          control={(
+            <select
+              id={`${uid}-preferred`} value={preferred === null ? '' : String(preferred)} className={inputClass} style={inputStyle}
+              onChange={(e) => setPreferred(e.target.value ? Number(e.target.value) : null)}
+            >
+              <ProviderOptions providers={providers} value={preferred} defaultLabel={defaultLabel} />
+            </select>
+          )}
+        />
+      </PrefCard>
 
-      <div>
-        <label htmlFor={`${uid}-preferred`} className="block text-[13px] mb-1" style={{ color: 'var(--list-title)' }}>{t('ai.user.preferred')}</label>
-        <select
-          id={`${uid}-preferred`} value={preferred === null ? '' : String(preferred)} className={inputClass} style={inputStyle}
-          onChange={(e) => setPreferred(e.target.value ? Number(e.target.value) : null)}
-        >
-          <ProviderOptions providers={providers} value={preferred} defaultLabel={defaultLabel} />
-        </select>
-      </div>
-
-      <div>
-        <div className="prefs-tap-row flex items-center justify-between gap-3">
-          <span className="text-[13px]" style={{ color: 'var(--list-summary)' }}>{t('ai.user.fallback')}</span>
-          <ToggleSwitch checked={fallback} onChange={setFallback} ariaLabel={t('ai.user.fallback')} describedBy={`${uid}-fallback-hint ${uid}-fallback-manual-hint`} />
-        </div>
-        <p id={`${uid}-fallback-hint`} className="text-xs mt-1 max-w-prose" style={{ color: 'var(--list-summary)' }}>{t('ai.user.fallbackHint')}</p>
-        <p id={`${uid}-fallback-manual-hint`} className="text-xs mt-1 max-w-prose" style={{ color: 'var(--list-summary)' }}>{t('ai.user.fallbackManualHint')}</p>
-      </div>
-
-      <div>
-        <div className="prefs-tap-row flex items-center justify-between gap-3">
-          <span className="text-[13px]" style={{ color: 'var(--list-summary)' }}>{t('ai.user.auto')}</span>
-          <ToggleSwitch checked={auto} onChange={(on) => (on && !autoConfirmed ? setConfirmAuto(true) : setAuto(on))} ariaLabel={t('ai.user.auto')} describedBy={`${uid}-auto-hint`} />
-        </div>
-        <p id={`${uid}-auto-hint`} className="text-xs mt-1 max-w-prose" style={{ color: 'var(--list-summary)' }}>{t('ai.user.autoHint')}</p>
-      </div>
-
-      <div>
-        <div className="prefs-tap-row flex items-center justify-between gap-3">
-          <span className="text-[13px]" style={{ color: 'var(--list-summary)' }}>{t('ai.user.summaryTranslate')}</span>
-          <ToggleSwitch checked={summaryTranslate} onChange={setSummaryTranslate} ariaLabel={t('ai.user.summaryTranslate')} describedBy={`${uid}-summary-translate-hint`} />
-        </div>
-        <p id={`${uid}-summary-translate-hint`} className="text-xs mt-1 max-w-prose" style={{ color: 'var(--list-summary)' }}>{t('ai.user.summaryTranslateHint')}</p>
-      </div>
-
-      <div>
-        <div className="prefs-tap-row flex items-center justify-between gap-3">
-          <span className="text-[13px]" style={{ color: 'var(--list-summary)' }}>{t('ai.user.panel')}</span>
-          <ToggleSwitch checked={panelAlways} onChange={setPanelAlways} ariaLabel={t('ai.user.panel')} describedBy={`${uid}-panel-hint`} />
-        </div>
-        <p id={`${uid}-panel-hint`} className="text-xs mt-1 max-w-prose" style={{ color: 'var(--list-summary)' }}>{t('ai.user.panelHint')}</p>
-      </div>
+      <PrefCard className="mt-3">
+        {toggle('fallback', t('ai.user.fallback'), fallback, setFallback, [
+          [`${uid}-fallback-hint`, t('ai.user.fallbackHint')],
+          [`${uid}-fallback-manual-hint`, t('ai.user.fallbackManualHint')],
+        ])}
+        {toggle('auto', t('ai.user.auto'), auto, (on) => (on && !autoConfirmed ? setConfirmAuto(true) : setAuto(on)), [
+          [`${uid}-auto-hint`, t('ai.user.autoHint')],
+        ])}
+        {toggle('summaryTranslate', t('ai.user.summaryTranslate'), summaryTranslate, setSummaryTranslate, [
+          [`${uid}-summary-translate-hint`, t('ai.user.summaryTranslateHint')],
+        ])}
+        {toggle('panel', t('ai.user.panel'), panelAlways, setPanelAlways, [
+          [`${uid}-panel-hint`, t('ai.user.panelHint')],
+        ])}
+      </PrefCard>
 
       {showUsage && (
-        <p className="text-[13px]" style={{ color: 'var(--list-summary)' }}>{t('ai.user.usage', { used: usageToday, cap: dailyCap })}</p>
+        <p className="prefs-hint mt-3">{t('ai.user.usage', { used: usageToday, cap: dailyCap })}</p>
       )}
 
       <AutoSummaryConfirm

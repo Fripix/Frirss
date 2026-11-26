@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useAiStore } from '../../../stores/aiStore';
 import { setAiUserKey, type AiProviderView } from '../../../api/backend';
 import { BlockTitle } from './shared';
+import { PrefIntro } from '../prefsUi';
 import ConfirmDialog from '../../ConfirmDialog';
 import { inputClass, inputStyle, quietBtn } from './styles';
 
@@ -45,7 +46,7 @@ function KeyRow({ provider }: { provider: AiProviderView }) {
   };
 
   return (
-    <li className="space-y-1.5">
+    <li className="prefs-row space-y-1.5">
       <div className="flex flex-wrap items-baseline justify-between gap-x-3">
         <span className="text-sm font-semibold [overflow-wrap:anywhere]" style={{ color: 'var(--list-title)' }}>{provider.name}</span>
         <span className={`text-xs${provider.hasUserKey ? ' success-note' : ''}`} style={provider.hasUserKey ? undefined : { color: 'var(--list-summary)' }}>
@@ -104,10 +105,10 @@ export default function KeysBlock() {
   const providers = useAiStore((s) => s.config?.providers) ?? NO_PROVIDERS;
   if (!allowed) return null;
   return (
-    <section className="space-y-3">
+    <section>
       <BlockTitle>{t('ai.keys.title')}</BlockTitle>
-      <p className="text-[13px] max-w-prose" style={{ color: 'var(--list-summary)' }}>{t('ai.keys.hint')}</p>
-      <ul className="space-y-4">
+      <PrefIntro>{t('ai.keys.hint')}</PrefIntro>
+      <ul className="prefs-card">
         {providers.map((p) => <KeyRow key={p.id} provider={p} />)}
       </ul>
     </section>
