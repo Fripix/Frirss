@@ -2655,8 +2655,13 @@ dialogue**, et **retour en arrière** une fois l'action faite.
   deux copies divergeraient. Le même saut sans marquer : raccourci
   `nextUnreadFeed` (touche `n` par défaut, sans répétition quand on la tient)
   et palette de commandes ; d'ailleurs que d'un flux ou d'une catégorie, il
-  ouvre le premier flux qui a des non-lus. Tests : `sidebarOrder.test.ts`,
-  `feedStore.nextUnread.test.ts`, `useKeyboardNav.test.tsx`.
+  ouvre le premier flux qui a des non-lus. Le flux ouvert se voit : sa
+  catégorie repliée s'ouvre (la barre ne rend pas les flux d'une catégorie
+  repliée), et la barre latérale ramène au bord le plus proche toute ligne
+  ouverte hors de vue, quel que soit le chemin (`n`, saut, palette ; attribut
+  `data-view-id`), le focus clavier suivant s'il était sur une autre ligne de
+  la barre. Tests : `sidebarOrder.test.ts`, `feedStore.nextUnread.test.ts`,
+  `useKeyboardNav.test.tsx`, `Sidebar.reveal.test.tsx`.
 
 - **Garde serveur/session** (1.8.0) : la même que les marquages de plage
   (`memeContexte`), vérifiée après le relevé des non-lus, après l'envoi, et
@@ -3086,7 +3091,7 @@ Cliquer une catégorie affiche les articles de tous ses flux.
 
 ## Volet de lecture
 
-Titre, méta (source, auteur, date), étiquettes en pastilles, corps HTML
+Titre, méta (source, auteur, date ; l'auteur isolé dans un `<bdi>` : écrit de droite à gauche, il coupait la date en deux sur téléphone, 1.10.1), étiquettes en pastilles, corps HTML
 **assaini**, liens en accent — chaque lien du corps s'ouvre dans un **nouvel
 onglet** (`target="_blank" rel="noopener noreferrer"`, posé par
 `sanitizeArticleBody` ; issue #24 : cliqué dans la page, il remplaçait FriRSS,
@@ -6666,7 +6671,10 @@ Renommer, supprimer, et déplacer un flux d'une catégorie à l'autre.
   pourtant des catégories vides (sa catégorie par défaut, souvent « Sans
   catégorie ») : `tag/list` les annonce avec le type `folder`, et
   `loadLabels` les retient dans `folderIds` — elles ne sont jamais proposées
-  comme étiquettes, et leur nom reste pris (1.9.0).
+  comme étiquettes, et leur nom reste pris (1.9.0). Le volet ne les montre pas
+  non plus en pastille ni dans le compte « Étiquettes (n) » : un article lu
+  avant que sa catégorie perde son dernier flux la porte encore (1.10.1,
+  `userLabelsOf`).
 - **Un seul espace de noms pour étiquettes et catégories** (1.9.0,
   `src/lib/labelNames.ts`) : pour l'API, les deux s'écrivent
   `user/-/label/<nom>`, et FreshRSS répond « OK » sans rien faire quand le nom
@@ -8388,7 +8396,9 @@ cet endroit. Un clic sur un sous-titre fait
 défiler la page jusqu'à lui et y met le focus, et le sous-titre à l'écran est
 marqué pendant la lecture (suivi du défilement, tu pendant un défilement lancé
 par un clic : la dernière sous-partie, trop courte pour monter en haut, aurait
-volé la sélection). Une pastille teintée (`--accent-glow`) glisse d'une
+volé la sélection). Un geste de l'utilisateur (molette, doigt, touche de
+défilement, barre de défilement) met fin à cette pause : sans cela, une molette
+dans la seconde laissait le repère sur la sous-partie cliquée (1.10.1). Une pastille teintée (`--accent-glow`) glisse d'une
 section à l'autre ; teintée et non pleine, pour que le libellé garde sa couleur
 pendant le trajet. **Sur téléphone**, la liste reste un écran à part mais
 déplie de la même façon : toucher une section déplie ses sous-titres (sa page
@@ -8405,7 +8415,8 @@ s'arrêtait 45 px trop bas). Au retour, la liste marque la sous-partie qu'on
 quitte. Le survol de la navigation est réservé aux souris
 (`@media (hover: hover)`) : sur iPhone, il restait collé après un toucher.
 Toujours sur téléphone : la liste, cachée pendant la page, revient centrée sur
-la sous-partie quittée (elle repartait du haut) ; une section dépliée en bas de
+la sous-partie quittée (elle repartait du haut), et « Retour » lui rend le
+focus (il tombait sur la page : le Tab suivant repartait de « Réinitialiser ») ; une section dépliée en bas de
 liste remonte à l'écran une fois ses sous-titres lus ; une page lue sans aucun
 sous-titre s'ouvre au premier toucher, sauf l'administration, qui charge ses
 comptes dès qu'on la déplie (`SUBS_FROM_SERVER` : ses sous-titres viennent du
@@ -8468,7 +8479,14 @@ lui-même, la zone l'étirait en rectangle).
   involontaires au trackpad et au doigt). Piège : un `h3` placé dans un
   parent à largeur limitée (`max-w-xs`) ou dans une ligne flex fait un
   bandeau tronqué ; une action sur la ligne du titre passe par
-  `PrefHeading action=…` (c'est ce qu'a fait l'interrupteur de l'IA).
+  `PrefHeading action=…` (c'est ce qu'a fait l'interrupteur de l'IA). Cette
+  action peut rétrécir (`min-w-0`) : longue (« KI aktivieren (…) »), elle passe
+  sous le titre et son texte va à la ligne au lieu de pousser l'interrupteur
+  hors de l'écran. Autre piège : un bandeau colle tant que **son conteneur**
+  est à l'écran. Dans une page, chaque sous-partie a donc son conteneur
+  (`<section>`) : posé à même la page à côté de sections, le bandeau
+  « Barre des serveurs » restait collé jusqu'en bas et réapparaissait sous les
+  sous-parties suivantes (1.10.1).
 
 Sections, dans l'ordre : **Lecture** (liste d'articles, marquer comme lu,
 article, aléatoire), **Apparence** (identité, thème, couleurs, tailles),

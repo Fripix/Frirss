@@ -43,7 +43,7 @@ export function PrefHeading({ children, navLabel, action, tag, id }: {
   return (
     <div className="prefs-h3-row flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
       {heading}
-      <div className="flex-shrink-0">{action}</div>
+      <div className="min-w-0">{action}</div>
     </div>
   );
 }

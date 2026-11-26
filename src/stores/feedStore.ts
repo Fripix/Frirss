@@ -1598,8 +1598,13 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       if (!isFeed && !isCategory) return;
     }
     const next = nextUnreadView(currentId, categories, unreadCounts);
-    if (next.kind === 'feed') get().selectView(next.feed);
-    else if (next.kind === 'category') get().selectCategory({ id: next.category.id, label: next.category.label });
+    if (next.kind === 'feed') {
+      // Le flux ouvert se voit dans la barre latérale : sa catégorie repliée
+      // s'ouvre (la barre ne rend pas les flux d'une catégorie repliée).
+      const home = categories.find((c) => c.feeds.some((f) => f.id === next.feed.id));
+      if (home && ui.collapsedCategories[home.id]) ui.toggleCategoryCollapsed(home.id);
+      get().selectView(next.feed);
+    } else if (next.kind === 'category') get().selectCategory({ id: next.category.id, label: next.category.label });
     else get().selectView(null, 'unread');
   },
 

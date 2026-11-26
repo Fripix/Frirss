@@ -33,7 +33,7 @@ describe('selectNextUnreadFeed (issue #35)', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    useUiStore.setState({ toasts: [], categoryOrder: [], feedOrder: {}, markAllJumpNext: false });
+    useUiStore.setState({ toasts: [], categoryOrder: [], feedOrder: {}, markAllJumpNext: false, collapsedCategories: {} });
     useAuthStore.setState({ activeServerId: '1', backendToken: 'x' });
     useFeedStore.setState({
       selectedFeed: A, filter: 'all', articles: [], subscriptions: [A, B, C], searchQuery: '',
@@ -45,6 +45,27 @@ describe('selectNextUnreadFeed (issue #35)', () => {
   it('ouvre le flux suivant qui a des non-lus, en sautant les flux vides', () => {
     useFeedStore.getState().selectNextUnreadFeed();
     expect(selectView).toHaveBeenCalledWith(C);
+  });
+
+  it('déplie la catégorie repliée du flux ouvert, et seulement elle (M2)', () => {
+    useUiStore.setState({ collapsedCategories: { 'user/-/label/Tech': true, 'user/-/label/Autre': true } });
+    useFeedStore.getState().selectNextUnreadFeed();
+    expect(selectView).toHaveBeenCalledWith(C);
+    expect(useUiStore.getState().collapsedCategories).toEqual({ 'user/-/label/Tech': false, 'user/-/label/Autre': true });
+  });
+
+  it('ne touche pas au repli quand la catégorie du flux est déjà ouverte', () => {
+    useUiStore.setState({ collapsedCategories: { 'user/-/label/News': true } });
+    useFeedStore.getState().selectNextUnreadFeed();
+    expect(useUiStore.getState().collapsedCategories).toEqual({ 'user/-/label/News': true });
+  });
+
+  it('d’une catégorie à l’autre, la cible reste repliée : son en-tête est visible', () => {
+    useUiStore.setState({ collapsedCategories: { 'user/-/label/Tech': true } });
+    useFeedStore.setState({ selectedFeed: { id: 'user/-/label/News', title: 'News' } as never });
+    useFeedStore.getState().selectNextUnreadFeed();
+    expect(selectCategory).toHaveBeenCalled();
+    expect(useUiStore.getState().collapsedCategories).toEqual({ 'user/-/label/Tech': true });
   });
 
   it('plus rien de non lu : ouvre la vue Non lus', () => {

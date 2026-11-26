@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
-import { render, cleanup, screen, fireEvent } from '@testing-library/react';
+import { render, cleanup, screen, fireEvent, act } from '@testing-library/react';
 
 const bp = vi.hoisted(() => {
   if (typeof window !== 'undefined' && !window.matchMedia) {
@@ -106,6 +106,69 @@ describe('Préférences — navigation dépliable', () => {
     expect(document.querySelector('.prefs-submark')).toBeNull();
   });
 
+  describe('le repère suit le défilement de l’utilisateur (M6)', () => {
+    // Après un clic dans la navigation, le défilement programmé est ignoré par
+    // l'espion. Une molette dans la foulée prolongeait cette pause : le repère
+    // restait sur la sous-partie cliquée. Le geste de l'utilisateur y met fin.
+    const sub = (name: string) => screen.getByRole('button', { name });
+    const place = (tops: Record<string, number>) => {
+      for (const h of document.querySelectorAll<HTMLElement>('[data-pane="reading"] h3[data-pref-sub]')) {
+        const top = tops[h.textContent ?? ''] ?? 0;
+        h.getBoundingClientRect = () => ({ top, bottom: top + 40, left: 0, right: 0, width: 0, height: 40, x: 0, y: top, toJSON: () => ({}) });
+      }
+    };
+    const scroll = async (sc: HTMLElement, gesture?: string) => {
+      await act(async () => {
+        if (gesture) fireEvent(sc, new Event(gesture, { bubbles: true }));
+        fireEvent.scroll(sc);
+        await new Promise((r) => setTimeout(r, 40));
+      });
+    };
+
+    it('une molette juste après le clic remet le repère sur la sous-partie à l’écran', async () => {
+      render(<Preferences />);
+      fireEvent.click(section('reading'));
+      const sc = document.querySelector('.prefs-content') as HTMLElement;
+      fireEvent.click(sub('Aléatoire'));
+      expect(sub('Aléatoire').getAttribute('aria-current')).toBe('location');
+      place({ Liste: 0, 'Aléatoire': 600 });
+      await scroll(sc, 'wheel');
+      expect(sub('Liste').getAttribute('aria-current')).toBe('location');
+    });
+
+    it('le défilement programmé seul ne déplace pas le repère', async () => {
+      render(<Preferences />);
+      fireEvent.click(section('reading'));
+      const sc = document.querySelector('.prefs-content') as HTMLElement;
+      fireEvent.click(sub('Aléatoire'));
+      place({ Liste: 0, 'Aléatoire': 600 });
+      await scroll(sc);
+      expect(sub('Aléatoire').getAttribute('aria-current')).toBe('location');
+    });
+
+    it('une touche qui ne fait pas défiler (Tab) laisse le repère en place', async () => {
+      render(<Preferences />);
+      fireEvent.click(section('reading'));
+      const sc = document.querySelector('.prefs-content') as HTMLElement;
+      fireEvent.click(sub('Aléatoire'));
+      place({ Liste: 0, 'Aléatoire': 600 });
+      fireEvent.keyDown(sc, { key: 'Tab' });
+      await scroll(sc);
+      expect(sub('Aléatoire').getAttribute('aria-current')).toBe('location');
+    });
+
+    it('PageUp au clavier rend la main à l’espion', async () => {
+      render(<Preferences />);
+      fireEvent.click(section('reading'));
+      const sc = document.querySelector('.prefs-content') as HTMLElement;
+      fireEvent.click(sub('Aléatoire'));
+      place({ Liste: 0, 'Aléatoire': 600 });
+      fireEvent.keyDown(sc, { key: 'PageUp' });
+      await scroll(sc);
+      expect(sub('Liste').getAttribute('aria-current')).toBe('location');
+    });
+  });
+
   it('un sous-titre d’une autre section dépliée ouvre cette section', () => {
     useUiStore.setState({ prefsNavAutoCollapse: false });
     render(<Preferences />);
@@ -165,6 +228,21 @@ describe('Préférences — navigation sur téléphone', () => {
     } finally {
       delete proto.scrollIntoView;
     }
+  });
+
+  it('« Retour » rend le focus à la sous-partie quittée, pas à la page entière (M7)', () => {
+    bp.value = 'mobile';
+    render(<Preferences />);
+    fireEvent.click(section('layout'));
+    fireEvent.click(screen.getByRole('button', { name: 'Colonne' }));
+    fireEvent.click(screen.getByRole('button', { name: 'preferences.nav.back' }));
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Colonne' }));
+  });
+
+  it('ouvrir les Préférences sur téléphone ne vole pas le focus pour la liste', () => {
+    bp.value = 'mobile';
+    render(<Preferences />);
+    expect(document.activeElement?.closest('nav')).toBeNull();
   });
 
   it('le premier bandeau d’une page est marqué (sa marge saute sur téléphone)', () => {

@@ -53,6 +53,8 @@ interface SubSection { el: HTMLElement; label: string }
 
 /** Distance sous le haut de la zone de contenu à laquelle un titre devient « en cours ». */
 const SPY_OFFSET = 96;
+/** Les touches qui font défiler la page : elles rendent la main à l'espion. */
+const SCROLL_KEYS = new Set(['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' ']);
 
 const NO_SUBS: SubSection[] = [];
 /** Sections d'un seul tenant : sur téléphone, elles s'ouvrent au lieu de se déplier. */
@@ -210,6 +212,7 @@ export default function Preferences() {
   // la dernière sous-partie, trop courte pour monter en haut, volerait sinon
   // la sélection à celle qu'on vient de choisir.
   const programmatic = useRef<{ timer: ReturnType<typeof setTimeout> | null }>({ timer: null });
+  const backPressed = useRef(false);
   // Un sous-titre d'une autre section : on change de section, puis on y va.
   const pendingSub = useRef<{ el: HTMLElement; i: number } | null>(null);
   // La sous-partie choisie dans la navigation, teintée dans la page : sur un
@@ -263,6 +266,10 @@ export default function Preferences() {
       const here = list?.querySelector<HTMLElement>('[aria-current="location"]')
         ?? list?.querySelector<HTMLElement>('[aria-current="page"]');
       here?.scrollIntoView?.({ block: 'center' });
+      // Après « Retour », le focus revient sur la ligne quittée : il tombait
+      // sur la page, et le Tab suivant repartait de « Réinitialiser ».
+      if (backPressed.current) here?.focus({ preventScroll: true });
+      backPressed.current = false;
       return;
     }
     if (scrollRef.current) scrollRef.current.scrollTop = 0;
@@ -297,8 +304,31 @@ export default function Preferences() {
       }
       if (!raf) raf = requestAnimationFrame(update);
     };
+    // Un geste de l'utilisateur met fin au défilement programmé : sans cela,
+    // une molette dans la foulée d'un clic prolongeait la pause de l'espion,
+    // et le repère restait sur la sous-partie cliquée.
+    const takeOver = () => {
+      const p = programmatic.current;
+      if (!p.timer) return;
+      clearTimeout(p.timer);
+      p.timer = null;
+    };
+    const onKey = (e: KeyboardEvent) => { if (SCROLL_KEYS.has(e.key)) takeOver(); };
+    // La barre de défilement : un appui sur le conteneur lui-même, pas sur un réglage.
+    const onPointer = (e: PointerEvent) => { if (e.target === sc) takeOver(); };
     sc.addEventListener('scroll', onScroll, { passive: true });
-    return () => { sc.removeEventListener('scroll', onScroll); if (raf) cancelAnimationFrame(raf); };
+    sc.addEventListener('wheel', takeOver, { passive: true });
+    sc.addEventListener('touchmove', takeOver, { passive: true });
+    sc.addEventListener('keydown', onKey);
+    sc.addEventListener('pointerdown', onPointer);
+    return () => {
+      sc.removeEventListener('scroll', onScroll);
+      sc.removeEventListener('wheel', takeOver);
+      sc.removeEventListener('touchmove', takeOver);
+      sc.removeEventListener('keydown', onKey);
+      sc.removeEventListener('pointerdown', onPointer);
+      if (raf) cancelAnimationFrame(raf);
+    };
   }, [subs]);
 
   useEffect(() => () => { if (programmatic.current.timer) clearTimeout(programmatic.current.timer); }, []);
@@ -709,7 +739,7 @@ export default function Preferences() {
                  page : il fallait remonter tout en haut pour sortir. */
               <div className="prefs-mobile-bar">
                 <button
-                  onClick={() => setShowNav(true)}
+                  onClick={() => { backPressed.current = true; setShowNav(true); }}
                   className="prefs-mobile-bar__back"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden="true">

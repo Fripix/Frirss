@@ -88,10 +88,15 @@ export default function LayoutTab() {
           onChange={(v) => setToolbarVisible('shortcutBar', v)} />
       </Zone>
 
-      <PrefHeading>{t('preferences.toolbars.serverBar')}</PrefHeading>
-      <PrefCard>
-        <Row label={t('preferences.toolbars.serverBar')} checked={topbarVisible} onChange={() => toggleTopbar()} />
-      </PrefCard>
+      {/* Chaque sous-partie dans sa `<section>` : son bandeau cesse de coller à
+          la fin de la sous-partie. Posé à même la page, il restait collé
+          jusqu'en bas et reparaissait sous les sections suivantes. */}
+      <section>
+        <PrefHeading>{t('preferences.toolbars.serverBar')}</PrefHeading>
+        <PrefCard>
+          <Row label={t('preferences.toolbars.serverBar')} checked={topbarVisible} onChange={() => toggleTopbar()} />
+        </PrefCard>
+      </section>
 
       <section aria-labelledby="reading-column-title">
         <PrefHeading id="reading-column-title">{t('preferences.readingColumn.title')}</PrefHeading>
@@ -116,25 +121,29 @@ export default function LayoutTab() {
         </PrefCard>
       </section>
 
-      <PrefHeading navLabel={t('preferences.navShort.actionIcons')}>{t('preferences.layout.title')}</PrefHeading>
-      <PrefIntro>{t('preferences.layout.hint')}</PrefIntro>
-      <PrefCard>
-        {ROW_ACTION_ORDER.map((kind) => (
-          <Row key={kind} label={t(`preferences.layout.${kind}`)} checked={rowActions[kind]}
-            onChange={(v) => setRowAction(kind, v)} />
-        ))}
-      </PrefCard>
+      <section>
+        <PrefHeading navLabel={t('preferences.navShort.actionIcons')}>{t('preferences.layout.title')}</PrefHeading>
+        <PrefIntro>{t('preferences.layout.hint')}</PrefIntro>
+        <PrefCard>
+          {ROW_ACTION_ORDER.map((kind) => (
+            <Row key={kind} label={t(`preferences.layout.${kind}`)} checked={rowActions[kind]}
+              onChange={(v) => setRowAction(kind, v)} />
+          ))}
+        </PrefCard>
+      </section>
 
       {/* Le panneau lui-même : la liste du téléphone déplie aussi ses
           sections, le réglage vaut partout (pas d'étiquette « Sur ordinateur »). */}
-      <PrefHeading navLabel={t('preferences.navShort.panel')}>{t('preferences.prefsNav.title')}</PrefHeading>
-      <PrefCard>
-        <PrefRow
-          label={t('preferences.prefsNav.autoCollapse')}
-          hint={t('preferences.prefsNav.autoCollapseHint')}
-          control={<ToggleSwitch checked={autoCollapse} onChange={setAutoCollapse} ariaLabel={t('preferences.prefsNav.autoCollapse')} />}
-        />
-      </PrefCard>
+      <section>
+        <PrefHeading navLabel={t('preferences.navShort.panel')}>{t('preferences.prefsNav.title')}</PrefHeading>
+        <PrefCard>
+          <PrefRow
+            label={t('preferences.prefsNav.autoCollapse')}
+            hint={t('preferences.prefsNav.autoCollapseHint')}
+            control={<ToggleSwitch checked={autoCollapse} onChange={setAutoCollapse} ariaLabel={t('preferences.prefsNav.autoCollapse')} />}
+          />
+        </PrefCard>
+      </section>
     </div>
   );
 }

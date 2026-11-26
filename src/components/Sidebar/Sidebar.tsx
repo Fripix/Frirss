@@ -147,6 +147,37 @@ export default function Sidebar() {
   // must not swell a badge the list cannot honour.
   const totalUnread = useMemo(() => homeUnreadTotal(unreadCounts, subscriptions), [unreadCounts, subscriptions]);
 
+  // Le flux ou la catégorie ouverts sans clic dans la barre (`n`, le saut
+  // après « Tout marquer comme lu », la palette) pouvaient rester hors de vue,
+  // barre défilée ailleurs : la ligne est ramenée au bord le plus proche. Le
+  // focus clavier la suit s'il était sur une autre ligne de la barre. Une
+  // ligne pas encore rendue (catégorie en train de se déplier) est reprise
+  // au rendu suivant.
+  const navRef = useRef<HTMLElement>(null);
+  const revealed = useRef<string | null>(null);
+  const selectedId = selectedFeed?.id ?? null;
+  useEffect(() => {
+    const nav = navRef.current;
+    // Une vue sans ligne (accueil, Non lus, Favoris, une étiquette) oublie la
+    // dernière ligne montrée : revenir ensuite au même flux doit la ramener.
+    if (!nav || !selectedId) { revealed.current = null; return; }
+    if (revealed.current === selectedId) return;
+    const row = [...nav.querySelectorAll<HTMLElement>('[data-view-id]')].find((el) => el.dataset.viewId === selectedId);
+    if (!row) { revealed.current = null; return; }
+    revealed.current = selectedId;
+    const box = nav.getBoundingClientRect();
+    if (box.height > 0) {
+      const r = row.getBoundingClientRect();
+      const margin = 8;
+      if (r.top < box.top) nav.scrollTop += r.top - box.top - margin;
+      else if (r.bottom > box.bottom) nav.scrollTop += r.bottom - box.bottom + margin;
+    }
+    const active = document.activeElement;
+    if (active instanceof HTMLElement && active !== row && active.hasAttribute('data-view-id') && nav.contains(active)) {
+      row.focus({ preventScroll: true });
+    }
+  }, [selectedId, displayCategories, collapsedCategories]);
+
   function toggleCategory(catId: string) {
     toggleCategoryCollapsed(catId);
   }
@@ -426,7 +457,7 @@ export default function Sidebar() {
       </div>
 
       {/* Filters */}
-      <nav className="flex-1 overflow-y-auto sidebar-scroll py-2">
+      <nav ref={navRef} className="flex-1 overflow-y-auto sidebar-scroll py-2">
         <FilterItem
           icon={
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -562,6 +593,7 @@ export default function Sidebar() {
                 </button>
                 {/* Name: opens the aggregated "all articles in this category" view. */}
                 <button
+                  data-view-id={cat.id}
                   onClick={organizeMode ? undefined : () => selectCategory({ id: cat.id, label: cat.label })}
                   className="truncate flex-1 text-left uppercase tracking-widest"
                 >
@@ -1160,6 +1192,7 @@ export function FeedItem({ feed, isSelected, unreadCount, showFavicons, organize
   return (
     <button
       ref={btnRef}
+      data-view-id={feed.id}
       onClick={organizeMode ? undefined : onSelect}
       // Le clic qui termine un appui long ne doit pas charger le flux derrière
       // le menu qui vient de s'ouvrir : avalé en capture.

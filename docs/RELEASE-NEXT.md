@@ -25,7 +25,8 @@ la release publiée.
   ouvre la catégorie suivante, et s'il n'en reste aucun, la vue Non lus. Le
   même saut, sans rien marquer : touche `n` (réglable dans Clavier) et palette
   de commandes. L'ordre suivi est celui de la barre latérale, ordre personnel
-  compris.
+  compris ; le flux ouvert y est toujours visible (sa catégorie repliée
+  s'ouvre, la barre défile jusqu'à lui).
 
 ## Modifié
 
@@ -46,3 +47,12 @@ la release publiée.
   `preferences.account.passwordTitle` ; retirées : `preferences.sections.general`,
   `preferences.general.title`, `preferences.account.title`,
   `preferences.offline.title`, `preferences.toolbars.everywhereTitle`.
+
+## Corrigé
+
+- **Pastille fantôme** : après avoir déplacé le seul flux d'une catégorie,
+  l'article ouvert montrait une étiquette au nom de l'ancienne catégorie.
+- **Auteur écrit de droite à gauche** (persan, arabe) : sur téléphone et
+  tablette, il coupait la date de l'article en deux.
+- **Apparence → Identité, écran de 320 px** : le bouton « Appliquer » du logo
+  sortait du panneau.

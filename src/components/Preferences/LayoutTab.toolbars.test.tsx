@@ -81,3 +81,28 @@ describe('LayoutTab — sur tous les écrans', () => {
     for (const k of ['star', 'readLater', 'openSource', 'markRead']) expect(toggle(c, `preferences.layout.${k}`)).toBeTruthy();
   });
 });
+
+describe('LayoutTab — bandeaux des sous-parties', () => {
+  // Un bandeau colle en haut tant que son conteneur est à l'écran. Posé à
+  // même la page, celui de « Barre des serveurs » restait collé sur toute la
+  // suite et réapparaissait sous « Colonne de lecture » (campagne 1.10.1, M4).
+  const bands = (root: HTMLElement) =>
+    [...root.querySelectorAll<HTMLElement>('h3[data-pref-sub]')].map((h) => h.closest<HTMLElement>('.prefs-h3-row') ?? h);
+
+  it('chaque bandeau est seul dans son conteneur : il cesse de coller à la fin de sa sous-partie', () => {
+    const c = render(<LayoutTab />);
+    const all = bands(c.container);
+    for (const band of all) {
+      const inParent = all.filter((b) => band.parentElement!.contains(b));
+      expect(inParent, band.textContent ?? '').toEqual([band]);
+    }
+  });
+
+  it('garde ses sept sous-parties, dans l’ordre', () => {
+    const c = render(<LayoutTab />);
+    expect([...c.container.querySelectorAll('h3[data-pref-sub] [data-pref-title]')].map((s) => s.textContent)).toEqual([
+      'preferences.toolbars.listBar', 'preferences.toolbars.readingBar', 'preferences.toolbars.shortcutBar',
+      'preferences.toolbars.serverBar', 'preferences.readingColumn.title', 'preferences.layout.title', 'preferences.prefsNav.title',
+    ]);
+  });
+});

@@ -1071,7 +1071,7 @@ function IdentitySection() {
               onKeyDown={(e) => { if (e.key === 'Enter') { applyLogoUrl(); e.currentTarget.blur(); } }}
               placeholder={t('preferences.branding.logoUrlPlaceholder')}
               aria-label={t('preferences.branding.logo')}
-              className="flex-1 text-sm px-3 py-2 rounded-lg border outline-none transition-colors"
+              className="flex-1 min-w-0 text-sm px-3 py-2 rounded-lg border outline-none transition-colors"
               style={{
                 borderColor: 'var(--panel-border)',
                 color: 'var(--list-title)',
@@ -1081,7 +1081,7 @@ function IdentitySection() {
             <button
               onClick={applyLogoUrl}
               disabled={!logoUrlDraft.trim()}
-              className="px-4 py-2 text-[13px] font-medium rounded-lg transition-colors disabled:opacity-50"
+              className="flex-shrink-0 whitespace-nowrap px-4 py-2 text-[13px] font-medium rounded-lg transition-colors disabled:opacity-50"
               style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
             >
               {t('preferences.branding.applyLogoUrl')}

@@ -156,7 +156,7 @@ interface ReadingPaneProps {
 
 export default function ReadingPane({ showBack }: ReadingPaneProps) {
   const { t, i18n } = useTranslation();
-  const { selectedArticle, selectArticle, toggleRead, toggleStar, toggleReadLater, categoryIds, selectNextArticle, selectPrevArticle } = useFeedStore();
+  const { selectedArticle, selectArticle, toggleRead, toggleStar, toggleReadLater, categoryIds, folderIds, selectNextArticle, selectPrevArticle } = useFeedStore();
   const theme = useThemeStore((s) => s.theme);
   const getLabelColor = useThemeStore((s) => s.getLabelColor);
   const setFontSize = useThemeStore((s) => s.setFontSize);
@@ -1974,7 +1974,9 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
                   {article.source}
                 </div>
                 <div className="text-xs truncate mt-0.5" style={{ color: 'var(--reading-meta)' }}>
-                  {article.author ? `${article.author} · ` : ''}{date}
+                  {/* L'auteur isolé : écrit de droite à gauche (persan, arabe),
+                      il emportait le jour avec lui et coupait la date en deux. */}
+                  {article.author && <><bdi>{article.author}</bdi>{' · '}</>}{date}
                 </div>
               </div>
               {showReadingTime && (
@@ -2066,9 +2068,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
           {/* Tags & Labels */}
           {(() => {
             const feedTags = article.tags || [];
-            const userLabels = (article.labels || []).filter(
-              (l) => !categoryIds.includes(l) && l !== READ_LATER_LABEL
-            );
+            const userLabels = userLabelsOf(article, categoryIds, folderIds);
             if (!feedTags.length && !userLabels.length) return null;
             return (
               <div className="flex flex-wrap gap-1.5 mb-5">
@@ -2661,6 +2661,18 @@ interface LabelMenuProps {
   variant?: string;
 }
 
+/**
+ * Les étiquettes de l'utilisateur sur un article : ni « À lire plus tard », ni
+ * les catégories. Une catégorie vidée de son dernier flux n'est plus dans
+ * `categoryIds` (lu des abonnements) mais reste un dossier FreshRSS
+ * (`folderIds`) : elle s'affichait en pastille fantôme.
+ */
+function userLabelsOf(article: Article, categoryIds: string[], folderIds: string[]): string[] {
+  return (article.labels || []).filter(
+    (l) => l !== READ_LATER_LABEL && !categoryIds.includes(l) && !folderIds.includes(l),
+  );
+}
+
 export function LabelMenu({ article, variant }: LabelMenuProps) {
   const { t } = useTranslation();
   const { labels, loadLabels, toggleArticleLabel, categoryIds, folderIds } = useFeedStore();
@@ -2709,10 +2721,7 @@ export function LabelMenu({ article, variant }: LabelMenuProps) {
     return () => { document.body.style.overflow = ''; };
   }, [open, isMobile]);
 
-  // Exclude feed categories and Read Later from article labels
-  const articleLabels = (article.labels || []).filter(
-    (l) => !categoryIds.includes(l) && l !== READ_LATER_LABEL
-  );
+  const articleLabels = userLabelsOf(article, categoryIds, folderIds);
 
   // Un nom de catégorie (même vide) est refusé, et dit : FreshRSS ignorait
   // l'étiquette, la case se cochait sans rien enregistrer (L-14). Le nom
