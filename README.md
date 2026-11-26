@@ -90,10 +90,10 @@ A note in the interest of honesty: this is a personal project and I'm not a deve
 - **The full article**, even when a feed only sends a summary.
 - **Offline reading**, images included.
 - **Search that really filters** the view you are in, read articles included.
-- **Mark everything as read — with *Undo*.** Nothing destructive happens in one click.
+- **Mark everything as read — with *Undo*.** Nothing destructive happens in one click, and you can jump straight to the next feed with unread articles.
 - **Optional AI summaries and translations** with the provider you choose, a local Ollama or a cloud one. Nothing is sent anywhere by default.
 - **Three columns, two or a grid**, oldest first or at random, chosen feed by feed.
-- **Keyboard first** — a command palette (<kbd>⌘K</kbd> / <kbd>Ctrl+K</kbd>) and twelve reassignable shortcuts.
+- **Keyboard first** — a command palette (<kbd>⌘K</kbd> / <kbd>Ctrl+K</kbd>) and thirteen reassignable shortcuts.
 - **Make it yours** — six themes, your own colors, font and thumbnail sizes, a narrower reading column if you want one, your app name and logo.
 - **Tags and sub-tags**, categories and feeds, organised from the preferences.
 - **Several users, single sign-on (OIDC) and several FreshRSS servers.**
