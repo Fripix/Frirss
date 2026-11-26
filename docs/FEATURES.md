@@ -8380,7 +8380,12 @@ la page à cet endroit. Une section sans sous-titre (Étiquettes,
 collante** porte « Retour » et le nom de la section (le `h2` de la page est
 masqué) : le bouton était en tête de page, il fallait remonter tout en haut
 pour sortir. Les bandeaux des sous-parties collent sous elle
-(`--prefs-sticky-top`, 3 rem sur téléphone, 0 ailleurs).
+(`--prefs-sticky-top`, 3 rem sur téléphone, 0 ailleurs). Le défilement vers un
+sous-titre lit ce décalage dans le `top` calculé du bandeau, en pixels : la
+variable elle-même se lit telle qu'écrite (« 3rem » donnait 3 px, et la page
+s'arrêtait 45 px trop bas). Au retour, la liste marque la sous-partie qu'on
+quitte. Le survol de la navigation est réservé aux souris
+(`@media (hover: hover)`) : sur iPhone, il restait collé après un toucher.
 - **Les sous-titres sont lus dans la page**, pas recopiés : la navigation
   prend les `h3` marqués `data-pref-sub` de la section ouverte
   (`PrefHeading`, `prefsUi.tsx`), en ordre de document, et un
