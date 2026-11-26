@@ -139,6 +139,8 @@ describe('Préférences — navigation sur téléphone', () => {
     expect(bar.textContent).toContain('preferences.sections.layout');
     fireEvent.click(screen.getByRole('button', { name: 'preferences.nav.back' }));
     expect(nav().hidden).toBe(false);
+    // La liste garde la sous-partie où l'on était, pas la première de la section.
+    expect(screen.getByRole('button', { name: 'Colonne' }).getAttribute('aria-current')).toBe('location');
   });
 
   it('une section sans sous-titre s’ouvre tout de suite', () => {

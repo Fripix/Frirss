@@ -232,10 +232,12 @@ export default function Preferences() {
     const pending = pendingSub.current;
     pendingSub.current = null;
     if (pending) { scrollToSub(pending.el, pending.i, false); return; }
+    // Retour à la liste sur téléphone : elle garde la sous-partie où l'on était.
+    if (isMobile && showNav) return;
     if (scrollRef.current) scrollRef.current.scrollTop = 0;
     setCurrentSub(0);
     setMarked(null);
-  }, [tab, showNav]);
+  }, [tab, showNav, isMobile]);
 
   useEffect(() => {
     const sc = scrollRef.current;
