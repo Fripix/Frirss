@@ -3098,7 +3098,7 @@ Cliquer une catégorie affiche les articles de tous ses flux.
 
 ## Volet de lecture
 
-Titre, méta (source, auteur, date ; l'auteur isolé dans un `<bdi>` : écrit de droite à gauche, il coupait la date en deux sur téléphone, 1.10.1), étiquettes en pastilles, corps HTML
+Titre, méta (source, auteur, date ; l'auteur isolé dans un `<bdi>` : écrit de droite à gauche, il coupait la date en deux sur téléphone, 1.11.0), étiquettes en pastilles, corps HTML
 **assaini**, liens en accent — chaque lien du corps s'ouvre dans un **nouvel
 onglet** (`target="_blank" rel="noopener noreferrer"`, posé par
 `sanitizeArticleBody` ; issue #24 : cliqué dans la page, il remplaçait FriRSS,
@@ -6680,7 +6680,7 @@ Renommer, supprimer, et déplacer un flux d'une catégorie à l'autre.
   `loadLabels` les retient dans `folderIds` — elles ne sont jamais proposées
   comme étiquettes, et leur nom reste pris (1.9.0). Le volet ne les montre pas
   non plus en pastille ni dans le compte « Étiquettes (n) » : un article lu
-  avant que sa catégorie perde son dernier flux la porte encore (1.10.1,
+  avant que sa catégorie perde son dernier flux la porte encore (1.11.0,
   `userLabelsOf`).
 - **Un seul espace de noms pour étiquettes et catégories** (1.9.0,
   `src/lib/labelNames.ts`) : pour l'API, les deux s'écrivent
@@ -8390,7 +8390,7 @@ réglage clair/sombre du système.
 
 ## Préférences
 
-**Navigation dépliable, une page par section** (1.10.1, décision du
+**Navigation dépliable, une page par section** (1.11.0, décision du
 propriétaire). La colonne de gauche liste les sections, chacune avec son
 icône. Un clic ouvre la section **et déplie ses sous-titres** sous son nom ; un
 second clic sur la section ouverte les replie. Une section dépliée **le reste**
@@ -8405,7 +8405,7 @@ marqué pendant la lecture (suivi du défilement, tu pendant un défilement lanc
 par un clic : la dernière sous-partie, trop courte pour monter en haut, aurait
 volé la sélection). Un geste de l'utilisateur (molette, doigt, touche de
 défilement, barre de défilement) met fin à cette pause : sans cela, une molette
-dans la seconde laissait le repère sur la sous-partie cliquée (1.10.1). Une pastille teintée (`--accent-glow`) glisse d'une
+dans la seconde laissait le repère sur la sous-partie cliquée (1.11.0). Une pastille teintée (`--accent-glow`) glisse d'une
 section à l'autre ; teintée et non pleine, pour que le libellé garde sa couleur
 pendant le trajet. **Sur téléphone**, la liste reste un écran à part mais
 déplie de la même façon : toucher une section déplie ses sous-titres (sa page
@@ -8493,7 +8493,7 @@ lui-même, la zone l'étirait en rectangle).
   est à l'écran. Dans une page, chaque sous-partie a donc son conteneur
   (`<section>`) : posé à même la page à côté de sections, le bandeau
   « Barre des serveurs » restait collé jusqu'en bas et réapparaissait sous les
-  sous-parties suivantes (1.10.1).
+  sous-parties suivantes (1.11.0).
 
 Sections, dans l'ordre : **Lecture** (liste d'articles, marquer comme lu,
 article, aléatoire), **Apparence** (identité, thème, couleurs, tailles),
